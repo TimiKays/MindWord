@@ -274,7 +274,11 @@ class DataManager {
         try {
             const astText = document.getElementById('astOutput').value;
             if (!astText.trim()) {
-                alert('没有AST数据可下载');
+                if (typeof NotificationBridge !== 'undefined') {
+                    NotificationBridge.showWarning('没有AST数据可下载');
+                } else {
+                    alert('没有AST数据可下载');
+                }
                 return;
             }
 
@@ -293,7 +297,11 @@ class DataManager {
             localStorage.setItem(CACHE_KEYS.AST, astText);
             console.log('AST已下载并缓存');
         } catch (error) {
-            alert('下载AST失败: ' + error.message);
+            if (typeof NotificationBridge !== 'undefined') {
+                NotificationBridge.showError('下载AST失败: ' + error.message);
+            } else {
+                alert('下载AST失败: ' + error.message);
+            }
         }
     }
 
@@ -304,7 +312,11 @@ class DataManager {
         try {
             const nodeTreeText = document.getElementById('nodeTreeOutput').value;
             if (!nodeTreeText.trim()) {
-                alert('没有NodeTree数据可下载');
+                if (typeof NotificationBridge !== 'undefined') {
+                    NotificationBridge.showWarning('没有NodeTree数据可下载');
+                } else {
+                    alert('没有NodeTree数据可下载');
+                }
                 return;
             }
 
@@ -324,7 +336,11 @@ class DataManager {
             localStorage.setItem(CACHE_KEYS.MARKDOWN, document.getElementById('markdownInput').value);
             console.log('NodeTree已下载并缓存');
         } catch (error) {
-            alert('下载NodeTree失败: ' + error.message);
+            if (typeof NotificationBridge !== 'undefined') {
+                NotificationBridge.showError('下载NodeTree失败: ' + error.message);
+            } else {
+                alert('下载NodeTree失败: ' + error.message);
+            }
         }
     }
 
@@ -335,7 +351,11 @@ class DataManager {
         try {
             const markdown = document.getElementById('markdownInput').value;
             if (!markdown.trim()) {
-                alert('没有内容可下载');
+                if (typeof NotificationBridge !== 'undefined') {
+                    NotificationBridge.showWarning('没有内容可下载');
+                } else {
+                    alert('没有内容可下载');
+                }
                 return;
             }
 
@@ -352,7 +372,11 @@ class DataManager {
             console.log('Markdown已下载');
         } catch (error) {
             console.error('下载Markdown失败:', error);
-            alert('下载失败：' + error.message);
+            if (typeof NotificationBridge !== 'undefined') {
+                NotificationBridge.showError('下载失败：' + error.message);
+            } else {
+                alert('下载失败：' + error.message);
+            }
         }
     }
 
@@ -382,11 +406,19 @@ class DataManager {
                 }
 
                 console.log('Markdown文件导入完成:', file.name);
-                alert(`文件 "${file.name}" 导入成功`);
+                if (typeof NotificationBridge !== 'undefined') {
+                    NotificationBridge.showSuccess(`文件 "${file.name}" 导入成功`);
+                } else {
+                    alert(`文件 "${file.name}" 导入成功`);
+                }
                 event.target.value = '';
             } catch (error) {
                 console.error('导入Markdown失败:', error);
-                alert('导入失败：' + error.message);
+                if (typeof NotificationBridge !== 'undefined') {
+                    NotificationBridge.showError('导入失败：' + error.message);
+                } else {
+                    alert('导入失败：' + error.message);
+                }
             }
         };
         reader.readAsText(file, 'utf-8');

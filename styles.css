@@ -1,5 +1,5 @@
 /* ===================================
-   基础样式
+   现代简约基础样式
    =================================== */
 * {
     margin: 0;
@@ -8,107 +8,213 @@
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background-color: #f5f5f5;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background-color: #fafafa;
     height: 100vh;
     display: flex;
     flex-direction: column;
+    color: #1a1a1a;
+    line-height: 1.5;
 }
 
 /* ===================================
-   按钮基础样式 - 统一所有按钮样式 (高优先级覆盖Bootstrap)
+   现代简约Tab样式 - 底部边框设计
+   =================================== */
+.tabs {
+    display: flex;
+    gap: 0;
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+    box-shadow: none;
+    position: relative;
+}
+
+.tab {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    padding: 12px 24px;
+    border-radius: 0;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
+    font-weight: 500;
+    user-select: none;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: -2px;
+}
+
+.tab:hover {
+    background: transparent;
+    color: #64748b;
+}
+
+.tab.active {
+    background: transparent;
+    color: #3b82f6;
+    border-bottom: 2px solid #3b82f6;
+    box-shadow: none;
+    transform: none;
+    animation: tabActivate 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tab.active:hover {
+    background: transparent;
+    color: #2563eb;
+}
+
+/* ===================================
+   现代简约按钮样式
    =================================== */
 .header .btn,
 .btn {
-    background: rgba(255, 255, 255, 0.1) !important;
-    border: 1px solid #ecf0f1 !important;
-    color: #ecf0f1 !important;
-    padding: 8px 16px;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    font-size: 14px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    line-height: 1;
+    background: #ffffff !important;
+    border: 1px solid #e5e7eb !important;
+    color: #374151 !important;
+    padding: 10px 20px !important;
+    border-radius: 12px !important;
+    cursor: pointer !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    line-height: 1 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
 }
 
-/* AI扩写按钮特殊样式 - 保持紫色背景 */
+/* AI扩写按钮特殊样式 - 现代简约紫色渐变 */
 .btn[onclick*="expandWithAI"] {
-    background: #6f42c1 !important;
-    border-color: #6f42c1 !important;
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%) !important;
+    border-color: #8b5cf6 !important;
     color: white !important;
+    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3) !important;
 }
 
 .btn[onclick*="expandWithAI"]:hover {
-    background: #5a2da8 !important;
-    border-color: #5a2da8 !important;
+    background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%) !important;
+    border-color: #7c3aed !important;
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4) !important;
+    transform: translateY(-1px) !important;
 }
 
-/* AI配置按钮特殊样式 - 保持灰色背景 */
+/* AI配置按钮特殊样式 - 现代简约灰色渐变 */
 .btn[onclick*="AIExpander.showConfig"] {
-    background: #6c757d !important;
-    border-color: #6c757d !important;
+    background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%) !important;
+    border-color: #6b7280 !important;
     color: white !important;
+    box-shadow: 0 2px 8px rgba(107, 114, 128, 0.3) !important;
 }
 
 .btn[onclick*="AIExpander.showConfig"]:hover {
-    background: #5a6268 !important;
-    border-color: #5a6268 !important;
+    background: linear-gradient(135deg, #4b5563 0%, #374151 100%) !important;
+    border-color: #4b5563 !important;
+    box-shadow: 0 4px 12px rgba(107, 114, 128, 0.4) !important;
+    transform: translateY(-1px) !important;
 }
 
 .header .btn:hover,
 .btn:hover {
-    background-color: rgba(255, 255, 255, 0.2) !important;
-    color: #ffffff !important;
-    border-color: #ffffff !important;
+    background-color: #f9fafb !important;
+    color: #1f2937 !important;
+    border-color: #d1d5db !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+    transform: translateY(-1px) !important;
+}
+
+.header .btn:active,
+.btn:active {
+    transform: translateY(0) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
 }
 
 .header .btn.active,
 .btn.active {
-    background-color: #3498db !important;
+    background-color: #3b82f6 !important;
     color: white !important;
-    border-color: #3498db !important;
+    border-color: #3b82f6 !important;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3) !important;
 }
 
 .header .btn-small,
 .btn-small {
-    padding: 4px 8px !important;
-    font-size: 12px !important;
+    padding: 8px 14px !important;
+    font-size: 13px !important;
+    border-radius: 10px !important;
 }
 
 .btn-icon {
-    padding: 4px 8px;
+    padding: 8px 12px;
     font-size: 16px;
+    border-radius: 10px !important;
+}
+
+/* 面板关闭按钮 - 简约风格 */
+.panel-header .btn-icon {
+    background: transparent !important;
+    border: none !important;
+    color: #94a3b8 !important;
+    padding: 6px 12px !important;
+    font-size: 27px !important;
+    font-weight: 300 !important;
+    line-height: 1 !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    box-shadow: none !important;
+    min-width: auto !important;
+    margin-right: -16px !important;
+}
+
+.panel-header .btn-icon:hover {
+    color: #64748b !important;
+    background: transparent !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.panel-header .btn-icon:active {
+    color: #475569 !important;
+    transform: none !important;
 }
 
 /* ===================================
-   顶部导航栏
+   现代简约顶部导航栏
    =================================== */
 .header {
-    background-color: #2c3e50;
-    color: white;
-    height: 60px;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    color: #1e293b;
+    height: 68px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 20px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 0 32px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 4px 6px -1px rgba(0, 0, 0, 0.05);
     z-index: 1000;
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid #e2e8f0;
 }
 
 .brand {
-    font-size: 24px;
-    font-weight: bold;
-    color: #ecf0f1;
+    font-size: 28px;
+    font-weight: 700;
+    color: #1e293b;
     flex: 1;
+    letter-spacing: -0.5px;
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .tabs {
     display: flex;
-    gap: 20px;
+    gap: 32px;
     flex: 1;
     justify-content: center;
 }
@@ -120,24 +226,30 @@ body {
 }
 
 /* ===================================
-   主内容区域
+   现代简约主内容区域
    =================================== */
 .main-content {
     flex: 1;
     display: flex;
     overflow: hidden;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
 }
 
 /* ===================================
-   面板容器
+   现代简约面板容器
    =================================== */
 .panel {
-    background-color: white;
-    border: 1px solid #ddd;
+    background-color: #ffffff;
+    border: none;
     position: relative;
     overflow: hidden;
     flex-shrink: 0;
-    transition: width 0.2s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 12px;
+    margin: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .panel.hidden {
@@ -149,18 +261,21 @@ body {
 }
 
 .panel-header {
-    background-color: #f8f9fa;
-    padding: 10px 15px;
-    border-bottom: 1px solid #e9ecef;
-    font-weight: 500;
-    color: #495057;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    padding: 12px 20px;
+    border-bottom: 1px solid #e2e8f0;
+    font-weight: 600;
+    color: #334155;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    font-size: 14px;
+    letter-spacing: -0.25px;
+    height: 44px;
 }
 
 .panel-content {
-    height: calc(100% - 45px);
+    height: calc(100% - 44px);
     overflow: auto;
 }
 
@@ -181,25 +296,35 @@ body {
     display: none;
 }
 
+/* 专注模式下隐藏面板头部的关闭按钮 - 确保优先级 */
+.focus-mode .panel-header .btn-icon {
+    display: none !important;
+}
+
 /* ===================================
-   拖拽分隔条
+   现代简约拖拽分隔条
    =================================== */
 .resizer {
-    background-color: #e9ecef;
+    background-color: #f1f5f9;
     cursor: col-resize;
-    width: 4px;
+    width: 2px;
     position: relative;
     user-select: none;
     flex-shrink: 0;
-    transition: background-color 0.1s ease;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    margin: 0 4px;
 }
 
 .resizer:hover {
-    background-color: #3498db;
+    background-color: #3b82f6;
+    width: 4px;
+    margin: 0 3px;
 }
 
 .resizer.dragging {
-    background-color: #3498db;
+    background-color: #3b82f6;
+    width: 4px;
+    margin: 0 3px;
 }
 
 .resizer::before {
@@ -217,85 +342,100 @@ body {
 }
 
 /* ===================================
-   专注模式图标
+   现代简约专注模式图标
    =================================== */
 .focus-icon {
-    width: 12px;
-    height: 12px;
+    width: 16px;
+    height: 16px;
     border-radius: 50%;
-    background-color: currentColor;
-    margin-right: 6px;
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    margin-right: 8px;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
 }
 
 /* ===================================
-   统一工具栏样式
+   现代简约工具栏样式
    =================================== */
 .toolbar {
-    height: 56px;
-    background-color: #fff;
-    border-bottom: 1px solid #e1e5e9;
-    padding: 12px 16px;
+    height: 64px;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border-bottom: 1px solid #e2e8f0;
+    padding: 16px 24px;
     display: flex;
     align-items: center;
     gap: 12px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     z-index: 100;
     flex-shrink: 0;
+    border-radius: 12px 12px 0 0;
 }
 
-/* 工具栏按钮样式统一 - 高优先级覆盖基础按钮样式 */
+/* 现代简约工具栏按钮样式 */
 .toolbar button,
 .toolbar .btn {
-    background: #fff !important;
-    border: 1px solid #d1d5db !important;
-    color: #374151 !important;
-    padding: 8px 16px !important;
-    border-radius: 6px !important;
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #475569 !important;
+    padding: 10px 18px !important;
+    border-radius: 10px !important;
     cursor: pointer !important;
     font-size: 14px !important;
-    transition: all 0.2s ease !important;
+    font-weight: 500 !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
     display: flex !important;
     align-items: center !important;
-    gap: 6px !important;
+    gap: 8px !important;
     line-height: 1 !important;
     font-family: inherit !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
 }
 
 .toolbar button:hover,
 .toolbar .btn:hover {
-    background-color: #f3f4f6 !important;
-    border-color: #9ca3af !important;
+    background-color: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+    color: #1e293b !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08) !important;
+    transform: translateY(-1px) !important;
 }
 
 .toolbar button:active,
 .toolbar .btn:active {
-    background-color: #e5e7eb !important;
+    background-color: #f1f5f9 !important;
+    transform: translateY(0) !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
 }
 
 /* 工具栏中的主要按钮 */
 .toolbar .btn-primary,
 .toolbar .primary {
-    background-color: #3b82f6 !important;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
     color: white !important;
     border-color: #3b82f6 !important;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3) !important;
 }
 
 .toolbar .btn-primary:hover,
 .toolbar .primary:hover {
-    background-color: #2563eb !important;
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4) !important;
+    transform: translateY(-1px) !important;
 }
 
 /* 工具栏中的成功按钮 */
 .toolbar .btn-success,
 .toolbar .success {
-    background-color: #10b981 !important;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
     color: white !important;
     border-color: #10b981 !important;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3) !important;
 }
 
 .toolbar .btn-success:hover,
 .toolbar .success:hover {
-    background-color: #059669 !important;
+    background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4) !important;
+    transform: translateY(-1px) !important;
 }
 
 /* 工具栏中的警告按钮 */
@@ -389,21 +529,24 @@ body {
 }
 
 /* ===================================
-   专注模式提示
+   现代简约专注模式提示
    =================================== */
 .focus-indicator {
     position: absolute;
-    top: 10px;
-    right: 10px;
-    background-color: #e74c3c;
+    top: 16px;
+    right: 16px;
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
     color: white;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 10px;
-    font-weight: bold;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
     opacity: 0;
-    transition: opacity 0.3s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     pointer-events: none;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+    backdrop-filter: blur(10px);
+    z-index: 10;
 }
 
 .focus-mode .focus-indicator {
@@ -411,7 +554,7 @@ body {
 }
 
 /* ===================================
-   提示信息
+   现代简约提示信息
    =================================== */
 .placeholder {
     display: flex;
@@ -419,38 +562,44 @@ body {
     align-items: center;
     justify-content: center;
     height: 100%;
-    color: #6c757d;
-    font-size: 14px;
+    color: #64748b;
+    font-size: 15px;
     text-align: center;
-    line-height: 1.5;
-    padding: 20px;
+    line-height: 1.6;
+    padding: 32px;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border-radius: 12px;
+    margin: 16px;
 }
 
 .placeholder small {
-    margin-top: 10px;
-    color: #9ca3af;
-    font-size: 12px;
+    margin-top: 12px;
+    color: #94a3b8;
+    font-size: 13px;
+    font-weight: 500;
 }
 
 /* ===================================
-   加载状态
+   现代简约加载状态
    =================================== */
 .loading {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #3498db;
+    color: #3b82f6;
+    font-weight: 500;
+    font-size: 15px;
 }
 
 .loading::after {
     content: '';
-    width: 20px;
-    height: 20px;
-    border: 2px solid #f3f3f3;
-    border-top: 2px solid #3498db;
+    width: 24px;
+    height: 24px;
+    border: 3px solid #e0e7ff;
+    border-top: 3px solid #3b82f6;
     border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin-left: 10px;
+    animation: spin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    margin-left: 12px;
 }
 
 @keyframes spin {
@@ -464,16 +613,21 @@ body {
 }
 
 /* ===================================
-   状态文本样式
+   现代简约状态文本样式
    =================================== */
 .status-text {
     margin-left: auto;
-    color: #6b7280;
-    font-size: 13px;
+    color: #64748b;
+    font-size: 14px;
+    font-weight: 500;
+    background: #f8fafc;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
 }
 
 /* ===================================
-   工具类
+   现代简约工具类
    =================================== */
 .no-select {
     user-select: none;
@@ -490,36 +644,109 @@ body {
     cursor: col-resize !important;
 }
 
+/* 现代简约动画效果 */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* 面板淡入动画 */
+.panel {
+    animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 按钮点击波纹效果 */
+.btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.3s, height 0.3s;
+}
+
+.btn:active::after {
+    width: 100px;
+    height: 100px;
+}
+
 /* ===================================
-   响应式设计
+   现代简约响应式设计
    =================================== */
 @media (max-width: 768px) {
     .header {
-        padding: 0 10px;
+        padding: 0 20px;
+        height: 60px;
     }
 
     .brand {
-        font-size: 18px;
+        font-size: 22px;
     }
 
     .tabs {
-        gap: 10px;
+        gap: 0;
+        padding: 0;
+        border-radius: 0;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .tab {
+        padding: 10px 16px;
+        font-size: 13px;
+        border-radius: 0;
+        margin-bottom: -1px;
+    }
+
+    .tab.active {
+        border-bottom: 2px solid #3b82f6;
     }
 
     .btn {
+        padding: 8px 16px;
+        font-size: 13px;
+        border-radius: 10px;
+    }
+
+    .btn-small {
         padding: 6px 12px;
         font-size: 12px;
     }
 
-    .btn-small {
-        padding: 3px 6px;
-        font-size: 10px;
+    .focus-icon {
+        width: 14px;
+        height: 14px;
     }
 
-    .focus-icon {
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        background-color: currentColor;
+    .main-content {
+        margin: 12px;
+        border-radius: 12px;
+    }
+
+    .panel {
+        margin: 6px;
+        border-radius: 10px;
     }
 }

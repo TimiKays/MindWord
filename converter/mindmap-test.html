@@ -225,18 +225,30 @@
                     try {
                         const selectedNode = jm.get_selected_node();
                         if (!selectedNode) {
-                            alert('请先选择一个节点');
+                            if (typeof NotificationBridge !== 'undefined') {
+                                NotificationBridge.showWarning('请先选择一个节点');
+                            } else {
+                                alert('请先选择一个节点');
+                            }
                             return;
                         }
 
                         if (window.AIExpander) {
                             window.AIExpander.expandNode(selectedNode.id, jm);
                         } else {
-                            alert('AI扩写模块未加载，请刷新页面重试');
+                            if (typeof NotificationBridge !== 'undefined') {
+                                NotificationBridge.showError('AI扩写模块未加载，请刷新页面重试');
+                            } else {
+                                alert('AI扩写模块未加载，请刷新页面重试');
+                            }
                         }
                     } catch (e) {
                         console.error('AI扩写出错:', e);
-                        alert('AI扩写出错: ' + e.message);
+                        if (typeof NotificationBridge !== 'undefined') {
+                            NotificationBridge.showError('AI扩写出错: ' + e.message);
+                        } else {
+                            alert('AI扩写出错: ' + e.message);
+                        }
                     }
                 }
             </script>
@@ -653,7 +665,11 @@
 
             const selected = jm.get_selected_node();
             if (!selected) {
-                alert('请先选择一个节点');
+                if (typeof NotificationBridge !== 'undefined') {
+                    NotificationBridge.showWarning('请先选择一个节点');
+                } else {
+                    alert('请先选择一个节点');
+                }
                 return;
             }
 
@@ -681,7 +697,11 @@
 
             // 如果没有变化，提示用户
             if (!hasChanges) {
-                alert('节点内容没有变化！');
+                if (typeof NotificationBridge !== 'undefined') {
+                    NotificationBridge.showInfo('节点内容没有变化！');
+                } else {
+                    alert('节点内容没有变化！');
+                }
                 return;
             }
 
@@ -698,7 +718,11 @@
             // 保存到localStorage并同步
             saveToLocalStorage();
 
-            alert('节点更新成功！');
+            if (typeof NotificationBridge !== 'undefined') {
+                NotificationBridge.showSuccess('节点更新成功！');
+            } else {
+                alert('节点更新成功！');
+            }
         }
 
         // 刷新所有备注显示
@@ -822,7 +846,11 @@
                     type: 'mindmapUpdated',
                     data: jm.get_data()
                 }, '*');
-                alert('已同步到父页面！');
+                if (typeof NotificationBridge !== 'undefined') {
+                    NotificationBridge.showSuccess('已同步到父页面！');
+                } else {
+                    alert('已同步到父页面！');
+                }
             }
         }
 

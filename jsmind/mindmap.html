@@ -1903,22 +1903,38 @@
     // 提示信息函数
     function showWarning(msg) {
       console.warn(msg);
-      alert(msg);
+      if (typeof NotificationBridge !== 'undefined') {
+        NotificationBridge.showWarning(msg);
+      } else {
+        alert(msg);
+      }
     }
 
     function showError(msg) {
       console.error(msg);
-      alert(msg);
+      if (typeof NotificationBridge !== 'undefined') {
+        NotificationBridge.showError(msg);
+      } else {
+        alert(msg);
+      }
     }
 
     function showSuccess(msg) {
       console.log(msg);
-      alert(msg);
+      if (typeof NotificationBridge !== 'undefined') {
+        NotificationBridge.showSuccess(msg);
+      } else {
+        alert(msg);
+      }
     }
 
     function showInfo(msg) {
       console.log(msg);
-      alert(msg);
+      if (typeof NotificationBridge !== 'undefined') {
+        NotificationBridge.showInfo(msg);
+      } else {
+        alert(msg);
+      }
     }
 
     // 获取默认NodeTree

@@ -15,9 +15,9 @@
     <header class="header">
         <div class="brand">MindWord</div>
         <div class="tabs">
-            <button class="btn active" data-panel="editor">MD编辑</button>
-            <button class="btn active" data-panel="preview">MD预览</button>
-            <button class="btn active" data-panel="mindmap">思维导图</button>
+            <div class="tab active" data-panel="editor">✏️ 文本编辑</div>
+            <div class="tab active" data-panel="preview">📄 文档预览</div>
+            <div class="tab active" data-panel="mindmap">🧠 思维导图</div>
         </div>
         <div class="header-right">
             <button class="btn btn-small" id="focus-toggle">
@@ -269,7 +269,7 @@
                 const visiblePanels = Object.values(panels).filter(v => v).length;
 
                 if (visiblePanels <= 1 && panels[panelName]) {
-                    alert('至少需要保留一个视图面板！');
+                    showWarning('至少需要保留一个视图面板！', 3000);
                     return;
                 }
 
@@ -363,7 +363,7 @@
 
         // 更新tab状态
         function updateTabs() {
-            document.querySelectorAll('.btn[data-panel]').forEach(tab => {
+            document.querySelectorAll('.tab[data-panel]').forEach(tab => {
                 const panelName = tab.dataset.panel;
                 if (focusMode) {
                     tab.classList.toggle('active', panelName === activeFocusPanel);
@@ -538,7 +538,7 @@
         document.getElementById('focus-toggle').addEventListener('click', toggleFocusMode);
 
         // Tab点击事件
-        document.querySelectorAll('.btn[data-panel]').forEach(tab => {
+        document.querySelectorAll('.tab[data-panel]').forEach(tab => {
             tab.addEventListener('click', () => {
                 const panelName = tab.dataset.panel;
                 handleTabClick(panelName);
@@ -606,28 +606,28 @@
         /**
          * 显示成功通知
          */
-        function showSuccess(message, duration = 3000) {
+        function showSuccess(message, duration = 1500) {
             showNotification(message, 'success', duration);
         }
 
         /**
          * 显示错误通知
          */
-        function showError(message, duration = 5000) {
+        function showError(message, duration = 3000) {
             showNotification(message, 'danger', duration);
         }
 
         /**
          * 显示警告通知
          */
-        function showWarning(message, duration = 4000) {
+        function showWarning(message, duration = 2000) {
             showNotification(message, 'warning', duration);
         }
 
         /**
          * 显示信息通知
          */
-        function showInfo(message, duration = 3000) {
+        function showInfo(message, duration = 1500) {
             showNotification(message, 'info', duration);
         }
 
@@ -637,11 +637,11 @@
         function handleNotificationMessage(event) {
             // 验证消息来源
             if (!event.data || !event.data.type) return;
-            
+
             // 只处理通知相关的消息
             if (event.data.type === 'notification') {
                 const { message, notificationType, duration } = event.data;
-                
+
                 switch (notificationType) {
                     case 'success':
                         showSuccess(message, duration);
