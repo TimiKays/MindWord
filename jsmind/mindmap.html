@@ -1,0 +1,2514 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>思维导图编辑器</title>
+  <link rel="stylesheet" href="../styles.css">
+  <link type="text/css" rel="stylesheet" href="https://jsd.onmicrosoft.cn/npm/jsmind@0.8.7/style/jsmind.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.4/dist/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script type="module">
+    // 预加载AI模块
+    import { AIExpander } from './ai-expander.js';
+    import { AIConfigManager } from './ai-config.js';
+    // 将类导出到全局作用域
+    window.AIExpander = AIExpander;
+    window.AIConfigManager = AIConfigManager;
+  </script>
+  <style>
+    body {
+      font-family: 'Consolas', 'Monaco', monospace;
+      background: #f5f5f5;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .main-container {
+      flex: 1;
+      display: flex;
+      height: calc(100vh - 60px);
+    }
+
+    #fullScreenMindmap {
+      width: 70%;
+      height: 100%;
+      position: relative;
+      background: white;
+      overflow: auto;
+      /* 添加滚动条支持 */
+    }
+
+    /* jsmind 节点容器滚动支持 */
+    #fullScreenMindmap .jsmind-inner {
+      overflow: auto !important;
+    }
+
+    /* 确保思维导图节点容器可以滚动 */
+    #fullScreenMindmap .jmnodes {
+      overflow: visible !important;
+    }
+
+    /* 自定义滚动条样式 */
+    #fullScreenMindmap::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    #fullScreenMindmap::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 4px;
+    }
+
+    #fullScreenMindmap::-webkit-scrollbar-thumb {
+      background: #c1c1c1;
+      border-radius: 4px;
+    }
+
+    #fullScreenMindmap::-webkit-scrollbar-thumb:hover {
+      background: #a8a8a8;
+    }
+
+    #nodeDetails {
+      width: 30%;
+      height: 100%;
+      padding: 20px;
+      border-left: 1px solid #ddd;
+      overflow-y: auto;
+      background: #f8f9fa;
+    }
+
+    #notesOverlay {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      padding: 8px;
+      max-width: 250px;
+      max-height: 200px;
+      overflow-y: auto;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      display: none;
+      font-size: 12px;
+      z-index: 100;
+    }
+
+    .node-info {
+      background: white;
+      padding: 15px;
+      border-radius: 4px;
+      margin-bottom: 15px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      color: #495057;
+    }
+
+    .form-group input,
+    .form-group textarea {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      font-family: inherit;
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      min-height: 500px;
+    }
+
+    .notes-section {
+      background: white;
+      padding: 15px;
+      border-radius: 4px;
+      margin-top: 15px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .note-item {
+      padding: 10px;
+      border-left: 3px solid #007bff;
+      background: #f8f9fa;
+      margin-bottom: 10px;
+      border-radius: 0 4px 4px 0;
+    }
+
+    .note-item h5 {
+      margin: 0 0 5px 0;
+      color: #fad503;
+      font-size: 14px;
+    }
+
+    .note-item p {
+      margin: 0;
+      color: #495057;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    /* 自动更新动画 */
+    @keyframes pulse {
+      0% {
+        transform: scale(1);
+        opacity: 1;
+      }
+
+      50% {
+        transform: scale(1.2);
+        opacity: 0.7;
+      }
+
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .auto-update-show {
+      animation: fadeIn 0.3s ease-in-out;
+    }
+  /* 框选矩形与多选高亮 */
+  #selectionRect {
+    position: absolute;
+    border: 1px dashed #4c9aff;
+    background: rgba(76, 154, 255, 0.15);
+    pointer-events: none;
+    display: none;
+    z-index: 999;
+  }
+  /* 被多选的节点高亮：内外描边 + 淡蓝底色 + 提高层级，明显可见 */
+  #fullScreenMindmap .jmnode.multi-selected,
+  #fullScreenMindmap jmnodes jmnode.multi-selected,
+  jmnodes jmnode.multi-selected {
+    position: relative !important;
+    background-color: rgba(76, 154, 255, 0.5) !important;
+    background: rgba(76, 154, 255, 0.5) !important;
+    box-shadow:
+      0 0 0 4px #4c9aff !important,         /* 外描边 */
+      inset 0 0 0 3px #4c9aff !important,   /* 内描边 */
+      0 6px 20px rgba(76, 154, 255, 0.6) !important, /* 发光效果 */
+      0 0 30px rgba(76, 154, 255, 0.4) !important; /* 额外光晕 */
+    border-radius: 8px !important;
+    z-index: 999 !important;
+    transform: scale(1.08) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    animation: pulse 1.2s infinite ease-in-out !important;
+    border: 3px solid #4c9aff !important;
+    color: #fff !important;
+    font-weight: bold !important;
+  }
+
+  /* 确保多选节点在悬停时仍然保持高亮 */
+  #fullScreenMindmap .jmnode.multi-selected:hover,
+  #fullScreenMindmap jmnodes jmnode.multi-selected:hover,
+  jmnodes jmnode.multi-selected:hover {
+    background-color: rgba(76, 154, 255, 0.7) !important;
+    background: rgba(76, 154, 255, 0.7) !important;
+    box-shadow:
+      0 0 0 5px #4c9aff !important,
+      inset 0 0 0 4px #4c9aff !important,
+      0 8px 30px rgba(76, 154, 255, 0.8) !important,
+      0 0 40px rgba(76, 154, 255, 0.5) !important;
+    transform: scale(1.12) !important;
+    border: 4px solid #4c9aff !important;
+  }
+
+  /* 选中节点的脉冲动画 - 更明显的呼吸效果 */
+  @keyframes pulse {
+    0% {
+      box-shadow: 
+        0 0 0 4px #4c9aff,
+        inset 0 0 0 3px #4c9aff,
+        0 6px 20px rgba(76, 154, 255, 0.6),
+        0 0 30px rgba(76, 154, 255, 0.4);
+      transform: scale(1.08);
+      background-color: rgba(76, 154, 255, 0.5);
+    }
+    25% {
+      box-shadow: 
+        0 0 0 5px #4c9aff,
+        inset 0 0 0 4px #4c9aff,
+        0 8px 30px rgba(76, 154, 255, 0.8),
+        0 0 40px rgba(76, 154, 255, 0.5);
+      transform: scale(1.1);
+      background-color: rgba(76, 154, 255, 0.6);
+    }
+    50% {
+      box-shadow: 
+        0 0 0 6px #4c9aff,
+        inset 0 0 0 5px #4c9aff,
+        0 10px 40px rgba(76, 154, 255, 1),
+        0 0 50px rgba(76, 154, 255, 0.6);
+      transform: scale(1.12);
+      background-color: rgba(76, 154, 255, 0.7);
+    }
+    75% {
+      box-shadow: 
+        0 0 0 5px #4c9aff,
+        inset 0 0 0 4px #4c9aff,
+        0 8px 30px rgba(76, 154, 255, 0.8),
+        0 0 40px rgba(76, 154, 255, 0.5);
+      transform: scale(1.1);
+      background-color: rgba(76, 154, 255, 0.6);
+    }
+    100% {
+      box-shadow: 
+        0 0 0 4px #4c9aff,
+        inset 0 0 0 3px #4c9aff,
+        0 6px 20px rgba(76, 154, 255, 0.6),
+        0 0 30px rgba(76, 154, 255, 0.4);
+      transform: scale(1.08);
+      background-color: rgba(76, 154, 255, 0.5);
+    }
+  }
+
+  /* 额外的样式覆盖 - 确保我们的多选样式优先级最高 */
+  /* 只覆盖jsMind的多选冲突，保留单选样式 */
+  /* 注意：单选节点只有 .selected 类，多选节点同时有 .selected 和 .multi-selected 类 */
+  
+  /* 恢复单选节点的默认样式（只有.selected类，没有.multi-selected类） */
+  html body #fullScreenMindmap .jsmind-inner jmnodes jmnode.selected:not(.multi-selected),
+  html body .jsmind-inner jmnodes jmnode.selected:not(.multi-selected) {
+    background-color: #11f !important;
+    color: #fff !important;
+    box-shadow: 2px 2px 8px #000 !important;
+  }
+  
+  /* 多选节点的样式重置（同时有.selected和.multi-selected类） */
+  #fullScreenMindmap .jsmind-inner jmnodes jmnode.selected.multi-selected,
+  .jsmind-inner jmnodes jmnode.selected.multi-selected {
+    background-color: inherit !important;
+    border: inherit !important;
+    box-shadow: inherit !important;
+  }
+
+  /* 最高优先级的多选样式 */
+  html body #fullScreenMindmap .jsmind-inner jmnodes jmnode.multi-selected,
+  html body .jsmind-inner jmnodes jmnode.multi-selected {
+    background-color: rgba(76, 154, 255, 0.8) !important;
+    border: 4px solid #4c9aff !important;
+    transform: scale(1.1) !important;
+    box-shadow: 0 0 0 4px #4c9aff, inset 0 0 0 3px #4c9aff, 0 6px 20px rgba(76, 154, 255, 0.6), 0 0 30px rgba(76, 154, 255, 0.4) !important;
+    animation: pulse 1.2s infinite ease-in-out !important;
+    color: #fff !important;
+    font-weight: bold !important;
+    z-index: 999 !important;
+  }
+  </style>
+</head>
+
+<body>
+  <div class="toolbar">
+    <!-- 批量操作工具栏 -->
+    <div id="batchOperations" style="display: none; margin-right: 20px; padding: 5px 10px; background: rgba(76, 154, 255, 0.1); border-radius: 4px; border: 1px solid #4c9aff;">
+      <span style="color: #4c9aff; font-size: 12px; margin-right: 10px;">已选中 <span id="selectedCount">0</span> 个节点</span>
+      <button class="btn" onclick="batchDelete()" style="background: #dc3545; margin-right: 5px;" title="删除选中的节点">删除</button>
+      <button class="btn" onclick="batchMove()" style="background: #28a745; margin-right: 5px;" title="移动选中的节点">移动</button>
+      <button class="btn" onclick="clearMultiSelection()" style="background: #6c757d; margin-right: 5px;" title="清除选择">清除</button>
+      <button class="btn" onclick="debugMultiSelect()" style="background: #17a2b8;" title="调试多选样式">🔍 调试</button>
+    </div>
+
+    <button class="btn" onclick="exportData()">查看JSON</button>
+    <button class="btn btn-success" onclick="downloadMindmap()">下载图片</button>
+
+  </div>
+
+  <div class="main-container">
+    <div id="fullScreenMindmap"></div>
+
+    <div id="nodeDetails">
+
+
+      <div id="nodeInfo">
+
+      </div>
+
+
+      <div class="form-group">
+        <label for="nodeTopic">节点主题:</label>
+        <input type="text" id="nodeTopic" placeholder="输入节点主题...">
+      </div>
+
+      <div class="form-group">
+        <label for="nodeNotes">节点备注:</label>
+        <textarea id="nodeNotes" placeholder="输入节点备注..."></textarea>
+      </div>
+
+      <div style="margin-bottom: 15px; display: flex; gap: 10px;">
+        <button class="btn" onclick="expandWithAI()" style="flex: 1; background: #6f42c1;">
+          AI扩写
+        </button>
+        <button class="btn" onclick="AIExpander.showConfig()" style="flex: 0 0 40px; background: #6c757d;"
+          title="AI配置">⚙️</button>
+      </div>
+
+      <!-- 自动更新提示 -->
+      <div id="autoUpdateIndicator"
+        style="display: none; margin-bottom: 10px; padding: 5px 10px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 4px; color: #155724; font-size: 12px; text-align: center;">
+        <span style="display: inline-block; animation: pulse 1s ease-in-out;">✓</span> 已自动更新
+      </div>
+
+      <!-- 通知桥接器 -->
+      <script src="../notification-bridge.js"></script>
+      <script>
+        // AI扩写函数
+        function expandWithAI() {
+          try {
+            const selectedNode = jm.get_selected_node();
+            if (!selectedNode) {
+              showWarning('请先选择一个节点');
+              return;
+            }
+
+            if (window.AIExpander) {
+              window.AIExpander.expandNode(selectedNode.id, jm);
+            } else {
+              showError('AI扩写模块未加载，请刷新页面重试');
+            }
+          } catch (e) {
+            console.error('AI扩写出错:', e);
+            showError('AI扩写出错: ' + e.message);
+          }
+        }
+      </script>
+    </div>
+  </div>
+  </div>
+
+  </div>
+  </div>
+
+  <!-- 鼠标悬停备注层 -->
+  <div id="notesOverlay">
+    <div style="font-weight: bold; color: #007bff; margin-bottom: 4px;">节点备注</div>
+    <div id="hoverNote"></div>
+  </div>
+
+  <script src="https://jsd.onmicrosoft.cn/npm/jsmind@0.8.7/es6/jsmind.js"></script>
+  <script src="https://jsd.onmicrosoft.cn/npm/jsmind@0.8.7/es6/jsmind.draggable-node.js"></script>
+  <script src="https://unpkg.com/dom-to-image@2.6.0/dist/dom-to-image.min.js"></script>
+  <script src="https://unpkg.com/jsmind@0.8.7/es6/jsmind.screenshot.js"></script>
+  <script type="module" src="../converter/sync.js"></script>
+  <script type="module" src="../converter/load.js"></script>
+  <script>
+    let jm = null;
+    let currentNodeTree = null;
+
+    // 初始化思维导图
+    function initMindmap() {
+      if (jm) {
+        loadNodeTree(); // 不传参数，让函数自己从localStorage获取
+        return;
+      }
+
+      const options = {
+        container: 'fullScreenMindmap',           // 容器ID，必填
+        editable: true,                         // 是否可编辑，默认为true
+        theme: 'primary',                       // 主题：primary|success|info|warning|danger|greensea|nephrite|belizehole|wisteria|asphalt
+        mode: 'side',                           // 显示模式：full|side右侧
+        support_html: true,                     // 节点是否支持HTML，默认为true
+        view: {
+          engine: 'svg',                   // 思维导图各节点之间线条的绘制引擎，canvas|svg
+          hmargin: 100,                       // 水平边距
+          vmargin: 50,                        // 垂直边距
+          line_width: 2,                      // 连接线宽度
+          line_color: '#555',                 // 连接线颜色
+          expander_style: 'number',           // 展开器样式：number|circle|square
+          expander_color: '#000',             // 展开器颜色
+          expander_size: 12,                  // 展开器大小
+          node_overflow: 'wrap',            // 文字过长处理：hidden|wrap
+          zoom: {
+            min: 0.1, // 最小缩放比例
+            max: 5.0, // 最大缩放比例
+            step: 0.1, // 缩放步长
+            mask_key: 4096 // Ctrl Key 启用缩放操作的功能键
+          },
+          draggable: false,                    // 禁用内置画布拖拽；改为按住空格时自定义拖拽
+          hide_scrollbars_when_draggable: false, // 拖拽时是否隐藏滚动条
+          enable_mouse_wheel: false,          // 禁用jsmind的鼠标滚轮处理，让浏览器处理滚动
+          mouse_wheel_zoom: false             // 禁用鼠标滚轮缩放
+        },
+        layout: {
+          hspace: 30,                         // 节点水平间距
+          vspace: 20,                         // 节点垂直间距
+          pspace: 13,                         // 节点与连接线的间距
+          cousin_space: 10,                   // 相邻节点子节点之间的额外垂直空间
+
+          // 布局算法相关
+          depth_space: 15,                    // 层级间距
+
+          // 节点尺寸相关
+          node_width: 100,                    // 节点默认宽度
+          node_height: 50,                    // 节点默认高度
+
+          // 连接线样式
+          line_type: 'curve',              // 连接线类型：straight|curve|polyline
+          line_radius: 5,                     // 连接线圆角半径
+          line_width: 2,                      // 连接线宽度
+          line_color: '#555'                  // 连接线颜色
+        },
+        shortcut: {
+          enable: true,                         // 是否启用快捷键
+          handles: {},                        // 自定义处理函数
+
+          // 快捷键映射
+          mapping: {
+            addchild: 9,                    // Tab - 添加子节点
+            addbrother: 13,                 // Enter - 添加兄弟节点
+            editnode: 113,                  // F2 - 编辑节点
+            delnode: 46,                    // Delete - 删除节点
+            toggle: 32,                     // Space - 展开/折叠节点
+
+            // 切换选中
+            left: 37,                       // 选中左侧节点
+            up: 38,                         // 
+            right: 39,                      // 
+            down: 40,                       // 
+
+            // 下面的都是AI幻觉// 其他常用快捷键
+            // copy: 67,                       // Ctrl+C - 复制节点
+            // paste: 86,                      // Ctrl+V - 粘贴节点
+            // cut: 88,                        // Ctrl+X - 剪切节点
+            // undo: 90,                       // Ctrl+Z - 撤销
+            // redo: 89,                       // Ctrl+Y - 重做
+
+            // // 视图操作
+            // zoomin: 187,                    // Ctrl++ - 放大
+            // zoomout: 189,                   // Ctrl+- - 缩小
+            // zoomfit: 48,                    // Ctrl+0 - 适应窗口
+
+          }
+        },
+
+        // 节点默认样式
+        node: {
+          background_color: '#fff',           // 背景颜色
+          foreground_color: '#333',           // 文字颜色
+          border_color: '#ccc',               // 边框颜色
+          border_width: 1,                    // 边框宽度
+          font_size: 14,                      // 字体大小
+          font_family: 'Arial, sans-serif',   // 字体族
+          font_weight: 'normal',                // 字体粗细
+          text_align: 'center',               // 文字对齐方式
+          line_height: 1.5,                   // 行高
+          padding: 5,                         // 内边距
+          border_radius: 5,                   // 圆角半径
+
+          // 节点阴影
+          shadow: true,                       // 是否显示阴影
+          shadow_color: '#000',               // 阴影颜色
+          shadow_blur: 3,                     // 阴影模糊度
+          shadow_offset_x: 1,                 // 阴影水平偏移
+          shadow_offset_y: 1                  // 阴影垂直偏移
+        },
+
+
+
+        // 事件监听
+        event_handles: {
+          // 节点事件
+          show: function (node) {
+            // 节点显示事件
+          },
+          edit: function (node) {
+            // 节点编辑事件
+          },
+          select: function (node) {
+            // 节点选择事件
+          },
+          unselect: function (node) {
+            // 节点取消选择事件
+          },
+          expand: function (node) {
+            // 节点展开事件
+          },
+          collapse: function (node) {
+            // 节点折叠事件
+          },
+          add: function (node) {
+            // 节点添加事件
+          },
+          remove: function (node) {
+            // 节点删除事件
+          },
+          move: function (node) {
+            // 节点移动事件
+          },
+          resize: function (node) {
+            // 节点大小改变事件
+          },
+
+          // 画布事件
+          mousedown: function (e) {
+            // 画布鼠标按下事件
+          },
+          mousemove: function (e) {
+            // 画布鼠标移动事件
+          },
+          mouseup: function (e) {
+            // 画布鼠标释放事件
+          },
+          click: function (e) {
+            // 画布点击事件
+          },
+          dblclick: function (e) {
+            // 画布双击事件
+          },
+          contextmenu: function (e) {
+            // 画布右键菜单事件
+          },
+
+          // 键盘事件
+          keydown: function (e) {
+            // 键盘按下事件
+          },
+          keyup: function (e) {
+            // 键盘释放事件
+          }
+        },
+
+        // 工具栏配置
+        toolbar: {
+          enable: true,                       // 是否启用工具栏
+          position: 'left',                    // 工具栏位置：top|bottom|left|right
+          buttons: [                          // 工具栏按钮
+            'addchild',                     // 添加子节点
+            'addbrother',                   // 添加兄弟节点
+            'editnode',                     // 编辑节点
+            'delnode',                      // 删除节点
+            'toggle',                       // 展开/折叠
+            'zoomin',                       // 放大
+            'zoomout',                      // 缩小
+            'zoomfit',                      // 适应窗口
+            'expandall',                    // 展开全部
+            'collapseall',                   // 折叠全部
+            'reset'                         // 重置视图
+          ]
+        },
+
+        // 菜单配置
+        contextmenu: {
+          enable: true,                       // 是否启用右键菜单
+          items: [                            // 菜单项
+            'addchild',                     // 添加子节点
+            'addbrother',                   // 添加兄弟节点
+            'editnode',                     // 编辑节点
+            'delnode',                      // 删除节点
+            'toggle',                       // 展开/折叠
+            'moveup',                       // 上移节点
+            'movedown',                     // 下移节点
+            'movetop',                      // 移动到顶部
+            'movebottom'                    // 移动到底部
+          ]
+        }
+      };
+
+      jm = new jsMind(options);
+
+      // 将jsMind实例赋值给window，供其他模块访问
+      window.jm = jm;
+
+      // 配置思维导图容器的滚动行为
+      setupMindmapScrolling();
+
+      // 包装核心API以捕获新增/移动节点，做"类型对齐"并保存
+      (function wrapMindAPIs() {
+        // 新增节点包装
+        const __origAdd = jm.add_node && jm.add_node.bind(jm);
+        if (__origAdd) {
+          jm.add_node = function (parent_node, nodeid, topic, data) {
+            const ret = __origAdd(parent_node, nodeid, topic, data);
+            try {
+              const id = nodeid || (ret && ret.id);
+              if (id && typeof applySiblingOrParentType === 'function') {
+                applySiblingOrParentType(id);
+              }
+              // 若父节点为列表，则将自己与子孙全部归一为列表
+              try {
+                const pid = (typeof parent_node === 'string' ? parent_node : (parent_node && parent_node.id))
+                  || (id && jm.get_node(id) && jm.get_node(id).parent && jm.get_node(id).parent.id);
+                if (pid) {
+                  const p = jm.get_node(pid);
+                  if (p && typeof getNodeType === 'function' && getNodeType(p) === 'list') {
+                    normalizeSubtreeUnderList(id, p);
+                  }
+                }
+              } catch (e2) {
+                // 忽略归一列表处理错误
+              }
+              if (typeof debouncedSave === 'function') debouncedSave();
+            } catch (e) {
+              // 忽略后置处理错误
+            }
+            return ret;
+          };
+        }
+        // 移动节点包装
+        const __origMove = jm.move_node && jm.move_node.bind(jm);
+        if (__origMove) {
+          jm.move_node = function (nodeid, beforeid, parentid, direction) {
+            const ret = __origMove(nodeid, beforeid, parentid, direction);
+            try {
+              if (nodeid && typeof applySiblingOrParentType === 'function') {
+                applySiblingOrParentType(nodeid);
+              }
+              // 若新父节点为列表，则将自己与子孙全部归一为列表
+              try {
+                if (parentid) {
+                  const p = jm.get_node(parentid);
+                  if (p && typeof getNodeType === 'function' && getNodeType(p) === 'list') {
+                    normalizeSubtreeUnderList(nodeid, p);
+                  }
+                }
+              } catch (e2) {
+                // 忽略归一列表处理错误
+              }
+              if (typeof debouncedSave === 'function') debouncedSave();
+            } catch (e) {
+              // 忽略后置处理错误
+            }
+            return ret;
+          };
+        }
+      })();
+
+      // 初始化完成后加载数据
+      loadNodeTree();
+
+      // 绑定事件
+      jm.add_event_listener(function (type, data) {
+        if (type === jsMind.event_type.select) {
+          const selectedNodeid = jm.get_selected_node();
+          if (selectedNodeid) {
+            // 检查是否处于批量移动模式
+            if (window.__batchMoving && window.__batchMoveIds && window.__batchMoveIds.length > 0) {
+              // 批量移动模式：执行移动操作
+              try {
+                const targetNodeId = selectedNodeid;
+                const idsToMove = [...window.__batchMoveIds];
+                
+                // 取消批量移动模式
+                if (window.cancelBatchMove) {
+                  window.cancelBatchMove();
+                }
+                
+                // 执行批量移动
+                let anchorId = targetNodeId;
+                for (const nodeId of idsToMove) {
+                  if (!nodeId || nodeId === targetNodeId) continue;
+                  try {
+                    jm.move_node(nodeId, anchorId, jm.get_node(targetNodeId).parent.id);
+                    anchorId = nodeId;
+                  } catch (e) {
+                    console.warn('节点移动失败:', nodeId, e);
+                  }
+                }
+                
+                showSuccess(`成功移动 ${idsToMove.length} 个节点`);
+              } catch (e) {
+                console.error('批量移动失败:', e);
+                showError('批量移动失败');
+              }
+            } else {
+              // 正常模式：显示节点详情
+              showNodeDetails(selectedNodeid);
+            }
+          }
+        }
+      });
+
+    }
+
+    // 配置思维导图容器的滚动行为
+    function setupMindmapScrolling() {
+      if (!jm) return;
+
+      const container = document.getElementById('fullScreenMindmap');
+      if (!container) return;
+
+      // 等待jsmind完全初始化
+      setTimeout(() => {
+        // 查找jsmind创建的jmnodes容器
+        const jmnodes = container.querySelector('.jmnodes');
+        const jsmindInner = container.querySelector('.jsmind-inner');
+
+        if (jmnodes) {
+          // 确保jmnodes可以超出容器边界
+          jmnodes.style.overflow = 'visible';
+          jmnodes.style.position = 'relative';
+        }
+
+        if (jsmindInner) {
+          // 确保内部容器有滚动条
+          jsmindInner.style.overflow = 'auto';
+          jsmindInner.style.width = '100%';
+          jsmindInner.style.height = '100%';
+        }
+
+        // 检查滚动状态
+        const checkScrollStatus = () => {
+          console.log('滚动状态检查:', {
+            scrollHeight: container.scrollHeight,
+            clientHeight: container.clientHeight,
+            scrollWidth: container.scrollWidth,
+            clientWidth: container.clientWidth,
+            scrollTop: container.scrollTop,
+            scrollLeft: container.scrollLeft
+          });
+        };
+
+        // 初始检查
+        checkScrollStatus();
+
+        // 延迟再次检查，确保jsmind完全渲染
+        setTimeout(checkScrollStatus, 1000);
+        setTimeout(checkScrollStatus, 2000);
+
+        console.log('思维导图滚动功能已配置，浏览器将处理滚动');
+      }, 500); // 延迟500ms确保jsmind完成DOM创建
+    }
+
+    // 加载NodeTree数据
+    function loadNodeTree(nodeTreeData) {
+      if (!jm) return;
+
+      // 如果没有提供数据，尝试从localStorage获取
+      if (!nodeTreeData) {
+        const cachedData = localStorage.getItem('mindword_nodetree_data');
+        if (cachedData) {
+          try {
+            nodeTreeData = JSON.parse(cachedData);
+          } catch (error) {
+            nodeTreeData = getDefaultNodeTree();
+          }
+        } else {
+          nodeTreeData = getDefaultNodeTree();
+        }
+      }
+
+      try {
+        // 确保数据格式正确
+        if (typeof nodeTreeData === 'string') {
+          nodeTreeData = JSON.parse(nodeTreeData);
+        }
+
+        jm.show(nodeTreeData);
+        currentNodeTree = nodeTreeData;
+
+        // 延迟执行DOM操作，确保元素已加载
+        setTimeout(() => {
+          refreshAllNotesDisplay();
+
+          // 自动选择根节点并显示详情
+          const rootNode = jm.get_root();
+          if (rootNode) {
+            jm.select_node(rootNode.id);
+            showNodeDetails(rootNode);
+          }
+        }, 100);
+      } catch (error) {
+        // 如果加载失败，尝试加载默认数据
+        try {
+          jm.show(getDefaultNodeTree());
+        } catch (defaultError) {
+          console.error('加载默认数据失败:', defaultError);
+        }
+      }
+    }
+
+    // 获取当前NodeTree
+    function getCurrentNodeTree() {
+      return jm ? jm.get_data() : null;
+    }
+
+    // 显示节点详情
+    function showNodeDetails(node) {
+      // 允许传入 id 或 node 对象，统一为 node
+      if (node && typeof node === 'string') {
+        node = jm && jm.get_node ? jm.get_node(node) : node;
+      }
+      if (!node) return;
+
+      const nodeInfo = document.getElementById('nodeInfo');
+      const nodeTopic = document.getElementById('nodeTopic');
+      const nodeNotes = document.getElementById('nodeNotes');
+      if (!nodeInfo || !nodeTopic || !nodeNotes) return;
+
+      // 安全字段读取
+      const level = (node.level != null) ? node.level
+        : (node.data && node.data.level != null ? node.data.level : 0);
+      const ordered = (node.ordered != null) ? node.ordered
+        : (node.data && node.data.ordered != null ? node.data.ordered : undefined);
+      const marker = (node.marker != null) ? node.marker
+        : (node.data && node.data.marker != null ? node.data.marker : undefined);
+      const type = (node.type != null) ? node.type
+        : (node.data && node.data.type != null ? node.data.type : undefined);
+      const notes = (node.notes != null) ? node.notes
+        : (node.data && node.data.notes != null ? node.data.notes : '');
+
+      // 构造调试快照（避免循环引用）
+      const snapshot = {
+        id: node.id,
+        topic: node.topic || '',
+        type: type,
+        level: level,
+        ordered: ordered,
+        marker: marker,
+        notes: notes,
+        parentId: node.parent && node.parent.id ? node.parent.id : null,
+        childrenIds: Array.isArray(node.children) ? node.children.map(c => c && c.id).filter(Boolean) : []
+      };
+
+
+      nodeTopic.value = snapshot.topic || '';
+      nodeNotes.value = notes || '';
+
+      // 设置自动更新事件监听
+      setupAutoUpdate();
+    }
+
+    // 设置自动更新功能
+    function setupAutoUpdate() {
+      const nodeTopic = document.getElementById('nodeTopic');
+      const nodeNotes = document.getElementById('nodeNotes');
+
+      if (!nodeTopic || !nodeNotes) return;
+
+      // 移除之前的事件监听避免重复
+      nodeTopic.removeEventListener('input', handleAutoUpdate);
+      nodeNotes.removeEventListener('input', handleAutoUpdate);
+
+      // 添加新的事件监听
+      nodeTopic.addEventListener('input', handleAutoUpdate);
+      nodeNotes.addEventListener('input', handleAutoUpdate);
+    }
+
+    // 处理自动更新
+    let autoUpdateTimer = null;
+    function handleAutoUpdate() {
+      // 清除之前的定时器
+      if (autoUpdateTimer) {
+        clearTimeout(autoUpdateTimer);
+      }
+
+      // 延迟500ms执行更新，避免频繁更新
+      autoUpdateTimer = setTimeout(() => {
+        const selected = jm.get_selected_node();
+        if (!selected) return;
+
+        const nodeTopic = document.getElementById('nodeTopic');
+        const nodeNotes = document.getElementById('nodeNotes');
+
+        const newTopic = nodeTopic.value.trim();
+        const newNotes = nodeNotes.value.trim();
+
+        // 检查是否有变化
+        let hasChanges = false;
+
+        if (newTopic !== selected.topic) {
+          jm.update_node(selected.id, newTopic);
+          hasChanges = true;
+        }
+
+        if (newNotes !== (selected.notes || '')) {
+          selected.data.notes = newNotes;
+          hasChanges = true;
+        }
+
+        if (hasChanges) {
+          refreshAllNotesDisplay();
+          saveToLocalStorage();
+          showAutoUpdateIndicator();
+        }
+      }, 500);
+    }
+
+    // 显示自动更新提示
+    function showAutoUpdateIndicator() {
+      const indicator = document.getElementById('autoUpdateIndicator');
+      if (!indicator) return;
+
+      indicator.style.display = 'block';
+      indicator.classList.add('auto-update-show');
+
+      // 2秒后隐藏提示
+      setTimeout(() => {
+        indicator.style.display = 'none';
+        indicator.classList.remove('auto-update-show');
+      }, 2000);
+    }
+
+    // 更新节点备注
+    function updateNodeNotes() {
+      if (!jm) return;
+
+      const selected = jm.get_selected_node();
+      if (!selected) {
+        showWarning('请先选择一个节点');
+        return;
+      }
+
+      const nodeTopic = document.getElementById('nodeTopic');
+      const nodeNotes = document.getElementById('nodeNotes');
+
+      const newTopic = nodeTopic.value.trim();
+      const newNotes = nodeNotes.value.trim();
+
+      // 检查是否有任何变化需要更新
+      let hasChanges = false;
+
+      // 更新节点主题（如果有变化）
+      if (newTopic !== selected.topic) {
+        jm.update_node(selected.id, newTopic);
+        hasChanges = true;
+      }
+
+      // 更新节点备注（如果有变化）
+      if (newNotes !== (selected.notes || '')) {
+        // 直接更新根级别的notes字段（与其他代码保持一致）
+        selected.data.notes = newNotes;
+        hasChanges = true;
+      }
+
+      // 如果没有变化，提示用户
+      if (!hasChanges) {
+        showInfo('节点内容没有变化！');
+        return;
+      }
+
+      refreshAllNotesDisplay();
+
+      // // 同步到父页面
+      // if (window.parent !== window) {
+      //     window.parent.postMessage({
+      //         type: 'mindmapUpdated',
+      //         data: jm.get_data()
+      //     }, '*');
+      // }
+
+      // 保存到localStorage并同步
+      saveToLocalStorage();
+
+      showSuccess('节点更新成功！');
+    }
+
+    // 刷新所有备注显示
+    function refreshAllNotesDisplay() {
+      if (!jm) return;
+
+      const notesList = document.getElementById('notesList');
+      if (!notesList) return; // 防止DOM元素不存在
+
+      const nodeTree = jm.get_data();
+
+      if (!nodeTree || !nodeTree.data) {
+        notesList.innerHTML = '<p style="color: #6c757d;">暂无节点数据</p>';
+        return;
+      }
+
+      const nodesWithNotes = [];
+
+      function collectNodes(node) {
+        if (!node) return;
+
+        const notes = node.notes;  // 直接从根级别读取notes
+        if (notes && notes.trim()) {
+          nodesWithNotes.push({
+            id: node.id,
+            topic: node.topic || '未命名节点',
+            notes: notes.trim(),
+            level: node.level || 0
+          });
+        }
+
+        if (node.children) {
+          node.children.forEach(collectNodes);
+        }
+      }
+
+      collectNodes(nodeTree.data);
+
+      if (nodesWithNotes.length === 0) {
+        notesList.innerHTML = '<p style="color: #6c757d;">暂无节点包含备注信息</p>';
+        return;
+      }
+
+      nodesWithNotes.sort((a, b) => a.level - b.level);
+
+      let html = '';
+      nodesWithNotes.forEach(node => {
+        const levelIndent = '　'.repeat(node.level);
+        html += `
+                    <div class="note-item">
+                        <h5>${levelIndent}${node.topic}</h5>
+                        <p>${node.notes}</p>
+                        <small style="color: #6c757d;">ID: ${node.id}</small>
+                    </div>
+                `;
+      });
+
+      notesList.innerHTML = html;
+    }
+
+    // 设置鼠标悬停显示备注
+    function setupHoverNotes() {
+      const container = document.getElementById('fullScreenMindmap');
+      const notesOverlay = document.getElementById('notesOverlay');
+      const hoverNote = document.getElementById('hoverNote');
+
+      let hoverTimeout;
+
+      container.addEventListener('mousemove', function (e) {
+        if (!jm) return;
+
+        const rect = container.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        let node = null;
+        try {
+          if (jm.get_node_by_coordinate) {
+            node = jm.get_node_by_coordinate(x, y);
+          } else {
+            const target = e.target;
+            if (target && target.closest('.jmnode')) {
+              const nodeId = target.closest('.jmnode').getAttribute('nodeid');
+              if (nodeId) {
+                node = jm.get_node(nodeId);
+              }
+            }
+          }
+        } catch (error) {
+          // 静默处理错误
+        }
+
+        if (node && node.notes && node.notes.trim()) {
+          clearTimeout(hoverTimeout);
+          hoverTimeout = setTimeout(() => {
+            hoverNote.textContent = node.notes;
+            notesOverlay.style.display = 'block';
+            notesOverlay.style.left = Math.min(x + 10, rect.width - 260) + 'px';
+            notesOverlay.style.top = Math.max(y - 50, 10) + 'px';
+          }, 300);
+        } else {
+          clearTimeout(hoverTimeout);
+          hoverTimeout = setTimeout(() => {
+            notesOverlay.style.display = 'none';
+          }, 100);
+        }
+      });
+
+      container.addEventListener('mouseleave', function () {
+        clearTimeout(hoverTimeout);
+        notesOverlay.style.display = 'none';
+      });
+    }
+
+
+
+    /* 画布框选多选功能 */
+    function setupBoxSelection() {
+      const container = document.getElementById('fullScreenMindmap');
+      if (!container) return;
+
+      // 在 jsmind 内部容器内绘制框选矩形，确保坐标与滚动一致
+      const inner = container.querySelector('.jsmind-inner') || container;
+      // 使容器可聚焦，确保在 iframe 中可接收空格键
+      inner.setAttribute('tabindex', '0');
+      inner.style.outline = 'none';
+      inner.addEventListener('mouseenter', () => { try { inner.focus({ preventScroll: true }); } catch (e) {} });
+      inner.addEventListener('mousedown', () => { try { inner.focus({ preventScroll: true }); } catch (e) {} });
+      // 节点容器（jsMind 会把节点放在 .jmnodes 下）
+      const nodesRoot = container.querySelector('.jmnodes') || inner;
+      
+      // 🔍 简化的DOM结构分析 - 只输出关键信息
+      console.log('=== 节点查询分析 ===');
+      
+      // 获取所有包含nodeid属性的元素（这是最可靠的方式）
+      const allNodeElements = document.querySelectorAll('[nodeid]');
+      console.log('📊 找到的总节点数（带nodeid）:', allNodeElements.length);
+      
+      if (allNodeElements.length > 0) {
+        // 显示前几个节点的实际类名，帮助我们了解结构
+        const sampleNodes = Array.from(allNodeElements).slice(0, 3);
+        sampleNodes.forEach((el, i) => {
+          console.log(`节点${i+1}: ${el.tagName}."${el.className}" #${el.id} [nodeid="${el.getAttribute('nodeid')}"]`);
+        });
+      } else {
+        console.log('❌ 没有找到任何带nodeid属性的节点！');
+      }
+      
+      // 检查.jmnode类名（传统方式）
+      const jmnodeCount = document.querySelectorAll('.jmnode').length;
+      console.log('传统.jmnode类名数量:', jmnodeCount);
+     
+
+      // 创建框选矩形元素（若不存在）
+      let rectEl = inner.querySelector('#selectionRect');
+      if (!rectEl) {
+        rectEl = document.createElement('div');
+        rectEl.id = 'selectionRect';
+        inner.appendChild(rectEl);
+      }
+
+      let isSelecting = false;
+      let isSelectingPrimed = false;
+      let isPanning = false;
+      let isDownOnNode = false;
+      let isDraggingNode = false; // 记录是否正在拖拽节点
+      let startX = 0, startY = 0;
+      let startClientX = 0, startClientY = 0;
+      let startScrollLeft = 0, startScrollTop = 0;
+      let addMode = false; // 是否叠加选择（Shift/Meta），空格为画布拖拽
+      let isSpacePressed = false; // 空格按下时启用画布拖拽
+
+      // 监听空格键状态；在输入框/文本域/可编辑内容内按空格不触发拖拽
+      window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar') {
+          const t = e.target;
+          const isTyping = t && (
+            t.tagName === 'INPUT' ||
+            t.tagName === 'TEXTAREA' ||
+            t.isContentEditable
+          );
+          if (!isTyping) {
+            isSpacePressed = true;
+            // 阻止页面滚动（空格默认会滚动页面）
+            e.preventDefault();
+          }
+        }
+      }, { passive: false });
+
+      window.addEventListener('keyup', (e) => {
+        if (e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar') {
+          isSpacePressed = false;
+        }
+      });
+      const multiSelected = new Set();
+
+      function updateHighlight() {
+        // 清理高亮
+        const allNodeElements = document.querySelectorAll('[nodeid]');
+        let clearCount = 0;
+        allNodeElements.forEach(el => {
+          if (el.classList.contains('multi-selected')) {
+            el.classList.remove('multi-selected');
+            clearCount++;
+          }
+        });
+        
+        // 应用高亮
+        multiSelected.forEach(id => {
+          const el = document.querySelector(`[nodeid="${id}"]`);
+          if (el) {
+            el.classList.add('multi-selected');
+            console.log(`✅ 添加 multi-selected 类到节点 ${id}:`, el.className);
+            
+            // 检查计算样式
+            const computedStyle = window.getComputedStyle(el);
+            console.log(`🎨 背景色:`, computedStyle.backgroundColor);
+            console.log(`🎨 边框:`, computedStyle.border);
+            console.log(`🎨 变换:`, computedStyle.transform);
+            console.log(`🎨 阴影:`, computedStyle.boxShadow);
+            
+            // 检查是否有内联样式覆盖了我们的样式
+            console.log(`🔍 内联样式背景色:`, el.style.backgroundColor);
+            console.log(`🔍 内联样式边框:`, el.style.border);
+            console.log(`🔍 内联样式变换:`, el.style.transform);
+            console.log(`🔍 内联样式阴影:`, el.style.boxShadow);
+            
+            // 检查jsMind是否通过其他方式设置了样式
+             console.log(`🔍 元素属性:`, {
+               style: el.getAttribute('style'),
+               class: el.getAttribute('class'),
+               'data-jmstyle': el.getAttribute('data-jmstyle'),
+               'data-theme': el.getAttribute('data-theme')
+             });
+             
+             // 检查jsMind的内置选中状态
+             console.log(`🔍 jsMind选中状态:`, {
+               selected: el.classList.contains('selected'),
+               'jsMind主题': window.getComputedStyle(el).getPropertyValue('--jsmind-theme') || '未设置'
+             });
+             
+             // 向测试页面发送反馈（如果存在）
+             if (window.opener && !window.opener.closed) {
+               try {
+                 window.opener.postMessage({
+                   type: 'multiselect-test',
+                   message: `多选节点检查完成 - 样式应用${hasStyle ? '成功' : '失败'}`,
+                   nodeId: el.getAttribute('nodeid'),
+                   hasMultiSelected: el.classList.contains('multi-selected'),
+                   hasSelected: el.classList.contains('selected')
+                 }, '*');
+               } catch (e) {
+                 console.log('无法向测试页面发送消息:', e.message);
+               }
+             }
+            
+            // 强制应用样式以确保生效 - 使用更激进的方法
+            setTimeout(() => {
+              // 首先清除可能冲突的内联样式
+              el.style.backgroundColor = '';
+              el.style.border = '';
+              el.style.transform = '';
+              el.style.boxShadow = '';
+              
+              // 然后应用我们的样式
+              el.style.setProperty('background-color', 'rgba(76, 154, 255, 0.8)', 'important');
+              el.style.setProperty('border', '4px solid #4c9aff', 'important');
+              el.style.setProperty('transform', 'scale(1.1)', 'important');
+              el.style.setProperty('box-shadow', '0 0 0 4px #4c9aff, inset 0 0 0 3px #4c9aff, 0 6px 20px rgba(76, 154, 255, 0.6), 0 0 30px rgba(76, 154, 255, 0.4)', 'important');
+              el.style.setProperty('color', '#fff', 'important');
+              el.style.setProperty('font-weight', 'bold', 'important');
+              el.style.setProperty('z-index', '999', 'important');
+              
+              console.log(`🔧 强制应用样式到节点 ${id}`);
+              
+              // 再次检查样式是否生效
+              setTimeout(() => {
+                const newComputedStyle = window.getComputedStyle(el);
+                console.log(`✅ 强制样式后 - 背景色:`, newComputedStyle.backgroundColor);
+                console.log(`✅ 强制样式后 - 边框:`, newComputedStyle.border);
+                console.log(`✅ 强制样式后 - 变换:`, newComputedStyle.transform);
+                console.log(`✅ 强制样式后 - 阴影:`, newComputedStyle.boxShadow);
+              }, 200);
+            }, 100);
+          } else {
+            console.log(`❌ 未找到节点元素: ${id}`);
+          }
+        });
+        
+        // 更新批量操作工具栏
+        const batchOps = document.getElementById('batchOperations');
+        const selectedCount = document.getElementById('selectedCount');
+        const count = multiSelected.size;
+        
+        if (count > 0) {
+          batchOps.style.display = 'inline-block';
+          selectedCount.textContent = count;
+        } else {
+          batchOps.style.display = 'none';
+        }
+        
+        // 暴露便捷 API
+        window.getMultiSelection = () => Array.from(multiSelected);
+        window.clearMultiSelection = () => { multiSelected.clear(); updateHighlight(); };
+        window.selectMultipleNodes = (ids) => {
+          if (!Array.isArray(ids)) return;
+          ids.forEach(id => id && multiSelected.add(id));
+          updateHighlight();
+        };
+        
+        // 调试函数：检查多选样式应用情况
+        window.debugMultiSelect = function() {
+          console.log('=== 多选调试信息 ===');
+          console.log('多选集合大小:', multiSelected.size);
+          console.log('多选节点ID:', Array.from(multiSelected));
+          
+          multiSelected.forEach(id => {
+               const el = document.querySelector(`[nodeid="${id}"]`);
+               if (el) {
+                 console.log(`节点 ${id}:`);
+                 console.log('  - 类名:', el.className);
+                 console.log('  - 有multi-selected类:', el.classList.contains('multi-selected'));
+                 console.log('  - 计算背景色:', window.getComputedStyle(el).backgroundColor);
+                 console.log('  - 计算边框:', window.getComputedStyle(el).border);
+                 console.log('  - 计算变换:', window.getComputedStyle(el).transform);
+                 console.log('  - 计算阴影:', window.getComputedStyle(el).boxShadow);
+                 console.log('  - 内联样式:', el.getAttribute('style'));
+                 console.log('  - z-index:', window.getComputedStyle(el).zIndex);
+               } else {
+                 console.log(`节点 ${id}: 未找到元素`);
+               }
+             });
+          
+          // 检查CSS规则是否加载
+          const stylesheets = Array.from(document.styleSheets);
+          console.log('样式表数量:', stylesheets.length);
+          
+          let foundMultiSelectRule = false;
+          stylesheets.forEach((sheet, index) => {
+            try {
+              const rules = Array.from(sheet.cssRules || sheet.rules || []);
+              rules.forEach((rule, ruleIndex) => {
+                if (rule.selectorText && rule.selectorText.includes('multi-selected')) {
+                  console.log(`在样式表 ${index} 规则 ${ruleIndex} 找到 multi-selected 规则:`, rule.selectorText);
+                  console.log('规则内容:', rule.cssText);
+                  foundMultiSelectRule = true;
+                }
+              });
+            } catch (e) {
+              console.log(`无法访问样式表 ${index}:`, e.message);
+            }
+          });
+          
+          if (!foundMultiSelectRule) {
+            console.log('❌ 未找到任何 multi-selected CSS 规则！');
+          }
+        };
+      }
+
+      function rectsIntersect(a, b) {
+        return a.left <= b.right && a.right >= b.left && a.top <= b.bottom && a.bottom >= b.top;
+      }
+
+      function onMouseDown(e) {
+        if (e.button !== 0) return; // 仅左键
+        // 避免在节点/右侧面板/工具栏上触发框选/拖拽
+        
+        // 简化节点检测 - 直接检查目标元素及其父元素
+        let nodeElement = null;
+        const target = e.target;
+        
+        // 方法1: 检查目标元素本身是否有.jmnode类
+        if (target.classList && target.classList.contains('jmnode')) {
+          nodeElement = target;
+        }
+        // 方法2: 检查目标元素是否有nodeid属性
+        else if (target.hasAttribute && target.hasAttribute('nodeid')) {
+          nodeElement = target;
+        }
+        // 方法3: 检查父元素
+        else if (target.closest) {
+          nodeElement = target.closest('.jmnode');
+          if (!nodeElement) {
+            nodeElement = target.closest('[nodeid]');
+          }
+        }
+        
+        isDownOnNode = !!nodeElement;
+        
+        // 后备方案：检查鼠标位置是否在节点区域内
+        if (!isDownOnNode) {
+          const allNodes = document.querySelectorAll('[nodeid]');
+          
+          for (let i = 0; i < allNodes.length; i++) {
+            const node = allNodes[i];
+            const rect = node.getBoundingClientRect();
+            const mouseX = e.clientX;
+            const mouseY = e.clientY;
+            
+            if (mouseX >= rect.left && mouseX <= rect.right && mouseY >= rect.top && mouseY <= rect.bottom) {
+              isDownOnNode = true;
+              break;
+            }
+          }
+        }
+        
+        // 如果点击在空白区域（非节点、非工具栏、非批量操作面板），清除选择
+        if (!isDownOnNode && !e.target.closest('#toolbar') && !e.target.closest('#batchOperations')) {
+          multiSelected.clear();
+          updateHighlight();
+        }
+         
+        if (isDownOnNode) {
+          // 在节点上按下，标记为拖拽状态，禁用框选
+          isDraggingNode = true;
+          isSelecting = false;
+          isSelectingPrimed = false;
+          rectEl.style.display = 'none';
+
+          
+          // 如果按住Shift键点击节点，切换选择状态
+          if (e.shiftKey || e.metaKey) {
+            const clickedNode = e.target.closest('.jmnode');
+            if (clickedNode) {
+              const nodeId = clickedNode.getAttribute('nodeid');
+              if (nodeId) {
+                if (multiSelected.has(nodeId)) {
+                  multiSelected.delete(nodeId);
+                } else {
+                  multiSelected.add(nodeId);
+                }
+                updateHighlight();
+                e.preventDefault();
+                return;
+              }
+            }
+          }
+          
+          // **关键修复**：如果当前节点在多选集合中，阻止jsMind的拖拽插件处理
+          // 避免多选节点拖拽时出现 "Cannot read properties of null (reading 'tagName')" 错误
+          const clickedNode = e.target.closest('.jmnode');
+          if (clickedNode) {
+            const nodeId = clickedNode.getAttribute('nodeid');
+            if (nodeId && multiSelected.has(nodeId) && multiSelected.size > 1) {
+              // 多选节点被点击，阻止jsMind拖拽插件的默认行为
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('阻止jsMind拖拽插件处理多选节点');
+              return;
+            }
+          }
+          
+          // 单个节点时，不阻止事件冒泡，让jsMind处理拖拽
+          return;
+        }
+        
+        if (e.target.closest('#nodeDetails') || e.target.closest('.toolbar')) {
+          // 在面板/工具栏上按下，禁止框选
+          isSelecting = false;
+          isSelectingPrimed = false;
+          rectEl.style.display = 'none';
+
+          // **不阻止事件冒泡**，让其他功能正常工作
+          return;
+        }
+
+        // 空格 + 拖拽 => 画布平移
+        if (isSpacePressed) {
+          isPanning = true;
+          const r = inner.getBoundingClientRect();
+          startClientX = e.clientX;
+          startClientY = e.clientY;
+          startScrollLeft = inner.scrollLeft;
+          startScrollTop = inner.scrollTop;
+          inner.style.cursor = 'grabbing';
+          e.preventDefault();
+          return;
+        }
+
+        // 普通拖拽 => 待判定框选（仅当移动超阈值才真正开始）
+        isSelecting = false;
+        isSelectingPrimed = true;
+        addMode = !!(e.shiftKey || e.metaKey);
+
+        const r = inner.getBoundingClientRect();
+        // 将 client 坐标换算到 inner 的滚动坐标系
+        startX = e.clientX - r.left + inner.scrollLeft;
+        startY = e.clientY - r.top + inner.scrollTop;
+
+        // 暂不清空，等真正开始框选时再决定是否清空
+        Object.assign(rectEl.style, {
+          display: 'none',
+          left: `${startX}px`,
+          top: `${startY}px`,
+          width: '0px',
+          height: '0px'
+        });
+
+        // 阻止默认选择行为，避免文字选中
+        e.preventDefault();
+      }
+
+      function onMouseMove(e) {
+        // 画布平移模式
+        if (isPanning) {
+          const dx = e.clientX - startClientX;
+          const dy = e.clientY - startClientY;
+          inner.scrollLeft = startScrollLeft - dx;
+          inner.scrollTop = startScrollTop - dy;
+          e.preventDefault();
+          return;
+        }
+
+        // 如果正在拖拽节点，完全跳过框选逻辑
+        if (isDownOnNode || isDraggingNode) { 
+          // 隐藏框选矩形，但**不阻止**jsMind的事件处理
+          rectEl.style.display = 'none'; 
+          
+          // **新增**：多选节点拖拽时的视觉反馈
+          if (isDraggingNode && multiSelected.size > 1) {
+            // 为多选节点添加拖拽时的特殊样式
+            multiSelected.forEach(nodeId => {
+              const nodeEl = document.querySelector(`[nodeid="${nodeId}"]`);
+              if (nodeEl) {
+                nodeEl.style.opacity = '0.8';
+                nodeEl.style.transform = 'scale(1.1)';
+                nodeEl.style.transition = 'all 0.1s ease';
+              }
+            });
+          }
+          
+          return;
+        }
+
+        // 智能拖拽检测：如果鼠标按下时未检测到节点，但移动时检测到在节点上，则认为是拖拽
+        if (!isDownOnNode && !isDraggingNode && isSelectingPrimed) {
+          const hoveredNode = document.elementFromPoint(e.clientX, e.clientY);
+          if (hoveredNode && (hoveredNode.classList.contains('jmnode') || hoveredNode.closest('.jmnode'))) {
+            isDraggingNode = true;
+            isSelecting = false;
+            isSelectingPrimed = false;
+            rectEl.style.display = 'none';
+            return;
+          }
+        }
+        
+        if (!isSelecting && !isSelectingPrimed) return;
+
+        const r = inner.getBoundingClientRect();
+        const curX = e.clientX - r.left + inner.scrollLeft;
+        const curY = e.clientY - r.top + inner.scrollTop;
+
+        const x = Math.min(startX, curX);
+        const y = Math.min(startY, curY);
+        const w = Math.abs(curX - startX);
+        const h = Math.abs(curY - startY);
+
+        // 移动超过阈值(>4px)才真正开始框选
+        if (isSelectingPrimed && !isSelecting) {
+          if (w > 4 || h > 4) {
+            isSelecting = true;
+            isSelectingPrimed = false;
+            if (!addMode) multiSelected.clear();
+            rectEl.style.display = 'block';
+          } else {
+            return;
+          }
+        }
+
+        Object.assign(rectEl.style, {
+          left: `${x}px`,
+          top: `${y}px`,
+          width: `${w}px`,
+          height: `${h}px`
+        });
+
+        // 将选框转换回 client 坐标用于与节点 getBoundingClientRect 相交测试
+        const selClient = {
+          left: x - inner.scrollLeft + r.left,
+          top: y - inner.scrollTop + r.top,
+          right: x - inner.scrollLeft + r.left + w,
+          bottom: y - inner.scrollTop + r.top + h
+        };
+
+
+
+        // 节点查询
+        let nodeElements = [];
+        const allNodeElements = document.querySelectorAll('[nodeid]');
+        
+        if (allNodeElements.length > 0) {
+          nodeElements = Array.from(allNodeElements);
+        } else {
+          if (nodesRoot) {
+            nodeElements = Array.from(nodesRoot.querySelectorAll('.jmnode'));
+          }
+          
+          if (nodeElements.length === 0) {
+            nodeElements = Array.from(document.querySelectorAll('.jmnode'));
+          }
+        }
+        
+        let intersectedCount = 0;
+        nodeElements.forEach(el => {
+          const nb = el.getBoundingClientRect();
+          const intersects = rectsIntersect(selClient, {
+            left: nb.left, top: nb.top, right: nb.right, bottom: nb.bottom
+          });
+          const id = el.getAttribute('nodeid');
+          if (!id) return;
+
+          if (intersects) {
+            multiSelected.add(id);
+            intersectedCount++;
+          } else if (!addMode) {
+            // 替换模式时，实时移除未命中的节点
+            multiSelected.delete(id);
+          }
+        });
+
+        if (intersectedCount > 0) {
+          console.log(`🎯 框选到 ${intersectedCount} 个节点，当前共选中 ${multiSelected.size} 个`);
+        }
+
+        updateHighlight();
+      }
+
+      function onMouseUp() {
+        // 结束画布平移
+        if (isPanning) {
+          isPanning = false;
+          inner.style.cursor = '';
+          return;
+        }
+
+        // 若处于预备状态但未超过阈值，则取消
+        if (isSelectingPrimed && !isSelecting) {
+          isSelectingPrimed = false;
+          return;
+        }
+
+        // 若本次拖拽起点在节点上或正在拖拽节点，则不进行框选
+        if (isDownOnNode || isDraggingNode) {
+          // **新增**：多选节点拖拽结束时的样式恢复
+          if (isDraggingNode && multiSelected.size > 1) {
+            // 恢复多选节点的原始样式
+            multiSelected.forEach(nodeId => {
+              const nodeEl = document.querySelector(`[nodeid="${nodeId}"]`);
+              if (nodeEl) {
+                nodeEl.style.opacity = '';
+                nodeEl.style.transform = '';
+                nodeEl.style.transition = '';
+              }
+            });
+          }
+          
+          isDownOnNode = false;
+          isDraggingNode = false;
+          isSelecting = false;
+          isSelectingPrimed = false;
+          rectEl.style.display = 'none';
+          return;
+        }
+
+        if (!isSelecting) return;
+        isSelecting = false;
+        rectEl.style.display = 'none';
+        updateHighlight();
+      }
+
+      // 绑定事件到 inner，这样滚动与坐标系一致
+      // **不使用捕获阶段**，避免干扰jsMind的事件处理
+      inner.addEventListener('mousedown', onMouseDown);
+      inner.addEventListener('mousemove', onMouseMove);
+      // mouseup 绑定到 window，避免在快速拖动出容器时丢事件
+      window.addEventListener('mouseup', onMouseUp);
+      
+      // 添加双击事件监听，用于切换节点选择状态
+      inner.addEventListener('dblclick', function(e) {
+        const clickedNode = e.target.closest('.jmnode');
+        if (clickedNode) {
+          const nodeId = clickedNode.getAttribute('nodeid');
+          if (nodeId) {
+            if (multiSelected.has(nodeId)) {
+              multiSelected.delete(nodeId);
+            } else {
+              multiSelected.add(nodeId);
+            }
+            updateHighlight();
+            e.preventDefault();
+          }
+        }
+      });
+
+      // 使用jsMind原生事件系统检测拖拽
+      if (window.jsMind && jm) {
+        // 监听所有jsMind事件
+        jm.add_event_listener(function(type, data) {
+          // 拖拽开始事件
+          if (type === jsMind.event_type.move_node) {
+            if (data && data.data && Array.isArray(data.data) && data.data.length >= 3) {
+              isDraggingNode = true;
+              isSelecting = false;
+              isSelectingPrimed = false;
+              rectEl.style.display = 'none';
+            }
+          }
+          
+          // 监听节点选择变化（可能表示拖拽结束）
+          if (type === jsMind.event_type.select_node || type === jsMind.event_type.select_clear) {
+            if (isDraggingNode) {
+              setTimeout(() => {
+                isDraggingNode = false;
+              }, 100);
+            }
+          }
+        });
+      } else {
+        // 备用拖拽检测机制
+        let dragStartTimer = null;
+        
+        // 监听mousedown事件，检测是否在节点上
+        inner.addEventListener('mousedown', function(e) {
+          if (e.target && e.target.closest && e.target.closest('.jmnode')) {
+            // 延迟设置拖拽状态，避免误触发
+            dragStartTimer = setTimeout(() => {
+              isDraggingNode = true;
+              isSelecting = false;
+              isSelectingPrimed = false;
+              rectEl.style.display = 'none';
+            }, 100); // 100ms延迟
+          }
+        }, true);
+
+        // 监听mouseup事件，重置拖拽状态
+        window.addEventListener('mouseup', function() {
+          if (dragStartTimer) {
+            clearTimeout(dragStartTimer);
+            dragStartTimer = null;
+          }
+          if (isDraggingNode) {
+            isDraggingNode = false;
+          }
+        });
+
+        // 监听mousemove事件，如果在节点上移动且按下了鼠标，认为是拖拽
+        inner.addEventListener('mousemove', function(e) {
+          if (e.buttons === 1 && e.target && e.target.closest && e.target.closest('.jmnode')) {
+            if (!isDraggingNode) {
+              isDraggingNode = true;
+              isSelecting = false;
+              isSelectingPrimed = false;
+              rectEl.style.display = 'none';
+            }
+          }
+        }, true);
+      }
+
+      // 批量删除（Delete/Backspace）已多选的节点（捕获阶段优先于内置删除）
+      document.addEventListener('keydown', (e) => {
+        const key = e.key || '';
+        if ((key === 'Delete' || key === 'Backspace') && typeof window.getMultiSelection === 'function') {
+          const ids = window.getMultiSelection();
+          if (Array.isArray(ids) && ids.length > 0) {
+            e.preventDefault();
+            e.stopPropagation();
+            ids.filter(id => id && id !== 'root').forEach(id => {
+              try { jm.remove_node(id); } catch (err) {}
+            });
+            if (typeof window.clearMultiSelection === 'function') window.clearMultiSelection();
+            if (typeof debouncedSave === 'function') debouncedSave();
+          }
+        }
+      }, true);
+
+      // 批量删除函数（供按钮调用）
+      window.batchDelete = function() {
+        const ids = window.getMultiSelection();
+        if (!Array.isArray(ids) || ids.length === 0) {
+          showWarning('请先选择要删除的节点');
+          return;
+        }
+        
+        if (!confirm(`确定要删除选中的 ${ids.length} 个节点吗？`)) return;
+        
+        let deletedCount = 0;
+        ids.filter(id => id && id !== 'root').forEach(id => {
+          try { 
+            jm.remove_node(id); 
+            deletedCount++;
+          } catch (err) {
+            console.warn(`删除节点 ${id} 失败:`, err);
+          }
+        });
+        
+        if (typeof window.clearMultiSelection === 'function') window.clearMultiSelection();
+        if (typeof debouncedSave === 'function') debouncedSave();
+        
+        showSuccess(`成功删除 ${deletedCount} 个节点`);
+      };
+
+      // 批量移动函数
+      window.batchMove = function() {
+        const ids = window.getMultiSelection();
+        if (!Array.isArray(ids) || ids.length === 0) {
+          showWarning('请先选择要移动的节点');
+          return;
+        }
+        
+        // 设置批量移动模式
+        window.__batchMoving = true;
+        window.__batchMoveIds = ids;
+        
+        // 显示移动提示
+        const hint = document.createElement('div');
+        hint.id = 'batchMoveHint';
+        hint.style.cssText = `
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background: rgba(76, 154, 255, 0.9);
+          color: white;
+          padding: 15px 25px;
+          border-radius: 8px;
+          font-size: 14px;
+          z-index: 1000;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          text-align: center;
+          max-width: 300px;
+        `;
+        hint.innerHTML = `
+          <div style="font-weight: bold; margin-bottom: 8px;">批量移动模式</div>
+          <div>点击目标节点，将选中的 ${ids.length} 个节点移动到该节点后面</div>
+          <div style="margin-top: 10px; font-size: 12px; opacity: 0.8;">按 ESC 键取消</div>
+        `;
+        document.body.appendChild(hint);
+        
+        // 添加ESC键取消功能
+        const escHandler = function(e) {
+          if (e.key === 'Escape') {
+            cancelBatchMove();
+          }
+        };
+        document.addEventListener('keydown', escHandler);
+        
+        // 取消批量移动函数
+        window.cancelBatchMove = function() {
+          window.__batchMoving = false;
+          window.__batchMoveIds = [];
+          const hint = document.getElementById('batchMoveHint');
+          if (hint) hint.remove();
+          document.removeEventListener('keydown', escHandler);
+          delete window.cancelBatchMove;
+        };
+        
+        showInfo('批量移动模式已激活，点击目标节点完成移动');
+      };
+    }
+
+    function exportData() {
+      if (!jm) return;
+      try {
+        const data = jm.get_data();
+        const jsonText = JSON.stringify(data, null, 2);
+        const pre = document.getElementById('jsonPreview');
+        if (pre) pre.textContent = jsonText;
+        if (window.jQuery && $('#jsonModal').modal) {
+          $('#jsonModal').modal('show');
+        } else {
+          const w = window.open('', '_blank', 'width=900,height=700');
+          if (w) {
+            w.document.write('<pre style="white-space:pre-wrap;word-break:break-word;">' +
+              (jsonText.replace(/</g, '<')) + '</pre>');
+            w.document.close();
+          } else {
+            showWarning('请允许弹窗以查看JSON');
+          }
+        }
+      } catch (e) {
+        showError('查看JSON失败: ' + e.message);
+      }
+    }
+
+    // 提示信息函数
+    function showWarning(msg) {
+      console.warn(msg);
+      alert(msg);
+    }
+
+    function showError(msg) {
+      console.error(msg);
+      alert(msg);
+    }
+
+    function showSuccess(msg) {
+      console.log(msg);
+      alert(msg);
+    }
+
+    function showInfo(msg) {
+      console.log(msg);
+      alert(msg);
+    }
+
+    // 获取默认NodeTree
+    function getDefaultNodeTree() {
+      return {
+        "meta": {
+          "name": "jsMind remote",
+          "author": "mindword",
+          "version": "1.0.0"
+        },
+        "format": "node_tree",
+        "data": {
+          "id": "root",
+          "topic": "欢迎使用思维导图",
+          "children": [
+            {
+              "id": "sub1",
+              "topic": "点击节点编辑",
+              "direction": "right",
+              "children": [
+                {
+                  "id": "sub1_1",
+                  "topic": "双击编辑文本",
+                  "data": {
+                    "notes": "双击节点可以编辑文本内容"
+                  }
+                },
+                {
+                  "id": "sub1_2",
+                  "topic": "拖拽调整位置",
+                  "data": {
+                    "notes": "拖拽节点可以调整位置和层级关系"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "sub2",
+              "topic": "右侧编辑详情",
+              "direction": "right",
+              "data": {
+                "notes": "在右侧面板可以编辑节点的详细信息"
+              }
+            }
+          ]
+        }
+      };
+    }
+
+    // 保存当前数据到localStorage
+    function saveToLocalStorage() {
+      if (!jm) return;
+
+      const currentData = jm.get_data();
+      const dataString = JSON.stringify(currentData);
+
+      // 避免触发本地监听器（防止循环加载）
+      lastStorageData = dataString;
+      // 标记抑制：本页即将写入 nodetree，一次自发写入
+      window.__mindmapSuppressCount = (window.__mindmapSuppressCount || 0) + 1;
+      localStorage.setItem('mindword_nodetree_data', dataString);
+      // 同步数据到各个系统
+      try {
+        // 1. 优先使用syncAll函数（如果存在）
+        if (typeof syncAll === 'function') {
+          // 动态加载转换器（如果需要）
+          if (!window.converter) {
+            console.log('正在加载转换器...');
+            import('../converter/converter.js')
+              .then(module => {
+                window.converter = new module.ConverterManager();
+                console.log('转换器已加载');
+                // 转换器就绪后，统一从思维导图源同步并写三份缓存
+                if (typeof syncAll === 'function') {
+                  window.__mindmapSelfUpdateUntil = Date.now() + 1500;
+                  // 标记抑制：syncAll 执行过程中可能再次写入 nodetree
+                  window.__mindmapSuppressCount = (window.__mindmapSuppressCount || 0) + 1;
+                  syncAll('mindmap', true, true, currentData);
+                }
+              })
+              .catch(error => {
+                console.warn('转换器加载失败，使用降级模式:', error);
+                // 降级处理：直接保存到localStorage
+                localStorage.setItem('mindword_nodetree_data', JSON.stringify(currentData));
+              });
+          } else {
+            // 转换器已存在，直接调用：从思维导图源同步并写三份缓存
+            if (typeof syncAll === 'function') {
+              window.__mindmapSelfUpdateUntil = Date.now() + 1500;
+              // 标记抑制：syncAll 执行过程中可能再次写入 nodetree
+              window.__mindmapSuppressCount = (window.__mindmapSuppressCount || 0) + 1;
+              syncAll('mindmap', true, true, currentData);
+            }
+          }
+        } else {
+          // 2. 降级处理：保存到localStorage
+          console.log('syncAll函数不存在，保存到localStorage');
+          localStorage.setItem('mindword_nodetree_data', JSON.stringify(currentData));
+        }
+        // 同步到父页面
+        if (window.parent !== window) {
+          window.parent.postMessage({
+            type: 'mindmapUpdated',
+            data: currentData
+          }, '*');
+        }
+      } catch (error) {
+        console.warn('同步方法调用失败:', error);
+        // 最终降级处理
+        localStorage.setItem('mindword_nodetree_data', JSON.stringify(currentData));
+      }
+    }
+
+    // 防抖保存
+    let saveTimer = null;
+    function debouncedSave() {
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => saveToLocalStorage(), 300);
+    }
+
+    // 类型对齐辅助函数：读取/写入节点类型（优先根级别，兼容 data.type）
+    function getNodeType(n) {
+      if (!n) return undefined;
+
+      if (typeof n.type !== 'undefined') {
+        return n.type;
+      } else if (n.data && typeof n.data.type !== 'undefined') {
+        return n.data.type;
+      } else if (n.data && n.data.data && typeof n.data.data.type !== 'undefined') {
+        return n.data.data.type;
+      }
+      return undefined;
+    }
+    function setNodeType(n, t) {
+      if (!n) return;
+      n.type = t;
+      if (n.data) {
+        if (n.data.data) {
+          n.data.data.type = t;
+        } else {
+          n.data.type = t;
+        }
+      }
+    }
+
+    // 设置节点层级（标题类型专用）
+    function setNodeLevel(n, level) {
+      if (!n || level < 1 || level > 6) return;
+      n.level = level;
+      if (n.data) {
+        if (n.data.data) {
+          n.data.data.level = level;
+        } else {
+          n.data.level = level;
+        }
+      }
+    }
+    // 读取节点层级（兼容根级和 data.level）
+    function getNodeLevel(n) {
+      if (!n) return null;
+      if (typeof n.level !== 'undefined') return n.level;
+      if (n.data && typeof n.data.level !== 'undefined') return n.data.level;
+      if (n.data && n.data.data && typeof n.data.data.level !== 'undefined') return n.data.data.level;
+
+      // Fallback 1：如果节点topic是数字，尝试解析为层级
+      if (n.topic && /^\d+$/.test(n.topic.trim())) {
+        const topicLevel = parseInt(n.topic.trim());
+        if (topicLevel >= 0 && topicLevel <= 6) {
+          return topicLevel;
+        }
+      }
+
+      // Fallback 2：基于节点在父节点中的位置估算层级
+      if (n.parent) {
+        const parent = jm.get_node(n.parent.id);
+        if (parent && parent.children && parent.children.length > 0) {
+          // 计算节点在兄弟节点中的位置
+          const siblingIndex = parent.children.findIndex(child => child && child.id === n.id);
+          if (siblingIndex >= 0) {
+            // 简单的启发式：如果父节点有明确的层级，子节点应该比父节点低一级
+            const parentLevel = getNodeLevel(parent);
+            if (parentLevel !== null && parentLevel >= 1 && parentLevel < 6) {
+              const estimatedLevel = parentLevel + 1;
+              return estimatedLevel;
+            }
+          }
+        }
+      }
+
+      return null;
+    }
+
+    // 将节点强制设为列表类型，并尽量继承列表标识
+    function forceListType(n, inheritFrom) {
+      if (!n) return;
+      const oldType = getNodeType(n);
+      let ordered = false;
+      let marker = '-';
+      if (inheritFrom) {
+        const inhData = inheritFrom.data || {};
+        ordered = (inhData.ordered != null) ? inhData.ordered : (inheritFrom.ordered != null ? inheritFrom.ordered : false);
+        marker = (inhData.marker != null) ? inhData.marker : (inheritFrom.marker != null ? inheritFrom.marker : (ordered ? '1.' : '-'));
+      }
+      n.type = 'list';
+      n.ordered = ordered;
+      n.marker = marker;
+      if (!n.data) n.data = {};
+
+      // 修复：处理 jsMind 的数据结构变化
+      if (n.data.data) {
+        // 如果存在嵌套的 data 结构
+        n.data.data.type = 'list';
+        n.data.data.ordered = ordered;
+        n.data.data.marker = marker;
+      } else {
+        // 传统的数据结构
+        n.data.type = 'list';
+        n.data.ordered = ordered;
+        n.data.marker = marker;
+      }
+
+      delete n.level;
+      if (n.data) {
+        if (n.data.data) {
+          delete n.data.data.level;
+        } else {
+          delete n.data.level;
+        }
+      }
+    }
+
+    // 将某节点及其全部子孙归一为列表（用于被挂载到列表父节点之下）
+    function normalizeSubtreeUnderList(rootId, parentNodeForInherit) {
+      if (!jm) return;
+      const root = jm.get_node(rootId);
+      if (!root) return;
+
+      const inheritFrom = parentNodeForInherit || (root.parent ? jm.get_node(root.parent.id) : null);
+
+      const stack = [root];
+
+      while (stack.length > 0) {
+        const cur = stack.pop();
+        forceListType(cur, inheritFrom);
+
+        if (cur.children && cur.children.length) {
+          for (const ch of cur.children) {
+            if (ch) stack.push(ch);
+          }
+        }
+      }
+    }
+
+
+
+    // 根据同级（若有）或父节点（若无同级）对齐当前节点类型
+    function applySiblingOrParentType(nodeOrId) {
+      if (!jm) return;
+      let node = null;
+      if (nodeOrId && typeof nodeOrId === 'object' && nodeOrId.id) {
+        node = nodeOrId;
+      } else {
+        node = jm.get_node(nodeOrId);
+      }
+      if (!node) return;
+
+      // 收集同级（排除自己）
+      let siblings = [];
+      if (node.parent) {
+        const parentNode = jm.get_node(node.parent.id);
+        if (parentNode && parentNode.children && parentNode.children.length > 0) {
+          siblings = parentNode.children.filter(c => c && c.id !== node.id);
+        }
+      }
+
+      // 参考类型：优先同级的第一个有类型的节点，否则父节点类型
+      let refType;
+      let refLevel;
+
+      if (siblings.length > 0) {
+        for (const s of siblings) {
+          const t = getNodeType(s);
+          if (typeof t !== 'undefined') {
+            refType = t;
+            refLevel = getNodeLevel(s);
+            break;
+          }
+        }
+      }
+
+      if (typeof refType === 'undefined' && siblings.length === 0 && node.parent) {
+        const p = jm.get_node(node.parent.id);
+        const pType = getNodeType(p);
+        const pLevel = getNodeLevel(p) || 0;
+
+        if (pType === undefined) {
+          refType = 'list';
+        } else {
+          refType = (pType === 'heading' && pLevel >= 6) ? 'list' : pType;
+
+          if (refType === 'heading') {
+            if (pLevel >= 1) {
+              refLevel = pLevel + 1;
+            } else {
+              if (p.topic && /^\d+$/.test(p.topic.trim())) {
+                const parentTopicLevel = parseInt(p.topic.trim());
+                if (parentTopicLevel >= 0 && parentTopicLevel < 6) {
+                  refLevel = parentTopicLevel + 1;
+                } else {
+                  refLevel = 2;
+                }
+              } else {
+                refLevel = 2;
+              }
+            }
+          }
+        }
+      }
+
+      if (typeof refType === 'undefined') return; // 没有可参考类型则不改
+      const curType = getNodeType(node);
+      const curLevel = getNodeLevel(node);
+
+      if (curType !== refType) {
+        setNodeType(node, refType);
+
+        // 如果是标题类型且有参考层级，设置合适的层级
+        if (refType === 'heading' && typeof refLevel !== 'undefined' && refLevel > 0) {
+          setNodeLevel(node, refLevel);
+        }
+
+        // 类型变化后触发一次轻量保存（不额外调用全量同步）
+        debouncedSave();
+      } else if (refType === 'heading' && typeof refLevel !== 'undefined' && curLevel !== refLevel) {
+        // 类型相同但层级不同，调整层级
+        setNodeLevel(node, refLevel);
+        debouncedSave();
+      }
+    }
+
+    // 设置思维导图变化监听器
+    function setupMindmapChangeWatcher() {
+      if (!jm) return;
+
+      // 监听jsMind的各种变化事件
+      jm.add_event_listener(function (type, data) {
+        // 只在特定事件类型时触发保存
+        const saveEvents = [
+          jsMind.event_type.edit,
+          jsMind.event_type.add_node,
+          jsMind.event_type.remove_node,
+          jsMind.event_type.move_node,
+          jsMind.event_type.move
+        ];
+
+        if (saveEvents.includes(type)) {
+          // 专门处理 move_node：用事件返回的 [nodeId, beforeId, parentId, direction] 先强制重挂载，再归一/保存
+          try {
+            if (type === jsMind.event_type.move_node && data && Array.isArray(data.data) && data.data.length >= 3) {
+              const movedId = data.data[0];
+              const beforeId = data.data.length > 1 ? data.data[1] : null;
+              const newParentId = data.data[2];
+              const direction = data.data.length > 3 ? data.data[3] : null;
+
+              // 批量跟随移动：如果存在多选并且当前移动的是多选集合中的一个，则把其余选中节点也移动到相同的新父节点，依次跟在 movedId 之后
+              try {
+                if (!window.__batchMoving && typeof window.getMultiSelection === 'function') {
+                  const selectedIds = window.getMultiSelection ? window.getMultiSelection() : [];
+                  if (Array.isArray(selectedIds) && selectedIds.length > 1 && selectedIds.includes(movedId)) {
+                    window.__batchMoving = true;
+                    // 先将 movedId 作为锚点，之后的节点依次插入到它后面
+                    let anchorId = movedId;
+                    for (const sid of selectedIds) {
+                      if (!sid || sid === movedId) continue;
+                      try {
+                        // 将其他节点移动到与 movedId 相同的新父节点，并排在 anchorId 后面
+                        jm.move_node(sid, anchorId, newParentId, direction);
+                        anchorId = sid;
+                      } catch (eMoveBatch) {
+                        // 忽略某个节点移动失败，继续其他
+                      }
+                    }
+                  }
+                }
+              } finally {
+                // 短暂延迟后解除批量标记，允许后续正常 move 事件
+                setTimeout(() => { window.__batchMoving = false; }, 0);
+              }
+
+              // 1) 强制重挂载（确保结构真的变化）
+              try {
+                jm.move_node(movedId, beforeId, newParentId, direction);
+              } catch (eMove) {
+                // 忽略重挂载错误
+              }
+
+              // 2) 延后一帧读取最新节点与父节点，做类型对齐与列表归一，再保存
+              setTimeout(() => {
+                try {
+                  const fresh = jm.get_node(movedId);
+                  const parentNode = jm.get_node(newParentId);
+
+                  if (fresh) {
+                    applySiblingOrParentType(fresh, parentNode);
+
+                    if (parentNode && typeof getNodeType === 'function') {
+                      const parentType = getNodeType(parentNode);
+                      // 检查父节点是否为列表类型，或者看起来像是列表（有列表特征）
+                      const hasListFeatures = parentNode.data && (parentNode.data.listMarker || parentNode.data.marker || parentNode.data.listLevel !== undefined);
+
+                      if (parentType === 'list' || (parentType === undefined && hasListFeatures)) {
+                        normalizeSubtreeUnderList(movedId, parentNode);
+                      }
+                    }
+                  }
+
+                  debouncedSave();
+                } catch (eLater) {
+                  console.warn('move_node 延后处理失败:', eLater);
+                }
+              }, 0);
+            }
+          } catch (e0) {
+            console.warn('基于返回ID处理 move_node 失败:', e0);
+          }
+
+          // 尝试获取受影响节点对象（兼容多种事件数据形态）
+          let node = null;
+          try {
+            // 1) 常见：data.node 可能是对象或 id
+            let maybe = data && (data.node != null ? data.node : null);
+            // 2) move 事件有时直接把节点对象放在 data 上
+            if (!maybe && data && typeof data === 'object' && data.id) {
+              maybe = data;
+            }
+            // 3) 如果 maybe 是 id 字符串
+            if (maybe && typeof maybe === 'string') {
+              node = jm.get_node(maybe);
+            } else if (maybe && typeof maybe === 'object' && maybe.id) {
+              node = maybe;
+            }
+            // 4) 兜底：用当前选中节点
+            if (!node) {
+              const sel = jm.get_selected_node && jm.get_selected_node();
+              if (sel) {
+                node = typeof sel === 'string' ? jm.get_node(sel) : sel;
+              }
+            }
+          } catch (e) {
+            console.warn('事件数据中无法解析节点:', e);
+          }
+
+          // 类型对齐：延后到下一轮事件循环，确保jsMind已更新父子关系
+          if (node) {
+            setTimeout(() => {
+              try {
+                const fresh = jm.get_node(node.id);
+                if (!fresh) return;
+
+                // 获取父节点
+                const parentNode = fresh.parent ? jm.get_node(fresh.parent.id) : null;
+                applySiblingOrParentType(fresh, parentNode);
+
+                // 若父为列表，则将自己与子孙全部归一为列表（兜底，防止未走API包装）
+                try {
+                  const p = fresh.parent ? jm.get_node(fresh.parent.id) : null;
+                  if (p && typeof getNodeType === 'function' && getNodeType(p) === 'list') {
+                    normalizeSubtreeUnderList(fresh.id, p);
+                  }
+                } catch (e2) {
+                  // 忽略归一化错误
+                }
+
+                debouncedSave();
+              } catch (e3) {
+                console.warn('延后处理失败:', e3);
+              }
+            }, 0);
+          }
+        }
+      });
+    }
+
+
+    // 监听localStorage变化（包括同一页面内的修改）
+    let lastStorageData = null;
+    let storageCheckTimer = null;
+    let lastChangeTime = 0;
+
+    // 检查localStorage数据是否变化的函数（带防抖）
+    function checkLocalStorageChange() {
+      const now = Date.now();
+      if (window.__mindmapSelfUpdateUntil && now < window.__mindmapSelfUpdateUntil) {
+        return;
+      }
+
+      let currentData;
+      try {
+        currentData = localStorage.getItem('mindword_nodetree_data');
+      } catch (e) {
+        return;
+      }
+
+      // 若为本页自发写入，消费一次抑制计数并跳过刷新
+      if (window.__mindmapSuppressCount && window.__mindmapSuppressCount > 0) {
+        window.__mindmapSuppressCount--;
+        lastStorageData = currentData;
+        return;
+      }
+
+      if (currentData !== lastStorageData) {
+        lastStorageData = currentData;
+        lastChangeTime = now;
+
+        // 防抖处理：延迟500ms执行，避免频繁刷新
+        clearTimeout(storageCheckTimer);
+        storageCheckTimer = setTimeout(() => {
+          try {
+            loadNodeTree();
+          } catch (e) {
+            // 忽略重新加载错误
+          }
+        }, 500);
+      }
+    }
+
+
+    // 设置localStorage变化监听器
+    function setupLocalStorageWatcher() {
+      // 保存初始数据
+      lastStorageData = localStorage.getItem('mindword_nodetree_data');
+
+      // 使用setInterval定期检查变化（每500ms检查一次）
+      setInterval(checkLocalStorageChange, 500);
+
+      // 同时监听storage事件（处理其他页面的变化）
+      window.addEventListener('storage', function (e) {
+        if (e.key === 'mindword_nodetree_data') {
+          checkLocalStorageChange();
+        }
+      });
+
+      // 监听自定义事件（用于同一页面内的通知）
+      window.addEventListener('mindwordDataUpdated', function () {
+        checkLocalStorageChange();
+      });
+    }
+
+    // 下载思维导图为图片
+    function downloadMindmap() {
+      if (!jm) return;
+      try {
+        jm.shoot();
+      } catch (error) {
+        // 静默处理下载错误
+      }
+    }
+
+
+
+    // 页面加载完成后初始化
+    window.addEventListener('load', async function () {
+      // 初始化转换器
+      try {
+        if (!window.converter) {
+          const module = await import('../converter/converter.js');
+          window.converter = new module.ConverterManager();
+          // 广播就绪事件（供需要时监听）
+          window.dispatchEvent(new Event('converterReady'));
+        }
+      } catch (error) {
+        // 忽略转换器初始化错误
+      }
+
+      initMindmap();
+      setupLocalStorageWatcher();
+      setupMindmapChangeWatcher();
+      // 启用框选多选
+      setupBoxSelection();
+
+      // 初始化AI扩写功能
+      if (window.AIExpander) {
+        window.aiExpander = new window.AIExpander();
+        window.aiExpander.init(jm);
+      }
+    });
+
+
+
+  </script>
+</body>
+
+</html>

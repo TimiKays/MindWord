@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>思维导图编辑器</title>
+    <link type="text/css" rel="stylesheet" href="https://jsd.onmicrosoft.cn/npm/jsmind@0.8.7/style/jsmind.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.4/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module">
+        // 预加载AI模块
+        import { AIExpander } from './ai-expander.js';
+        import { AIConfigManager } from './ai-config.js';
+        // 将类导出到全局作用域
+        window.AIExpander = AIExpander;
+        window.AIConfigManager = AIConfigManager;
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Consolas', 'Monaco', monospace;
+            background: #f5f5f5;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .mindmap-header {
+            background: #2c3e50;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .mindmap-header h2 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        .btn:hover {
+            background: #2980b9;
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            height: calc(100vh - 60px);
+        }
+
+        #fullScreenMindmap {
+            width: 70%;
+            height: 100%;
+            position: relative;
+            background: white;
+        }
+
+        #nodeDetails {
+            width: 30%;
+            height: 100%;
+            padding: 20px;
+            border-left: 1px solid #ddd;
+            overflow-y: auto;
+            background: #f8f9fa;
+        }
+
+        #notesOverlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 8px;
+            max-width: 250px;
+            max-height: 200px;
+            overflow-y: auto;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            display: none;
+            font-size: 12px;
+            z-index: 100;
+        }
+
+        .node-info {
+            background: white;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #495057;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-family: inherit;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .notes-section {
+            background: white;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .note-item {
+            padding: 10px;
+            border-left: 3px solid #007bff;
+            background: #f8f9fa;
+            margin-bottom: 10px;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .note-item h5 {
+            margin: 0 0 5px 0;
+            color: #007bff;
+            font-size: 14px;
+        }
+
+        .note-item p {
+            margin: 0;
+            color: #495057;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="mindmap-header">
+        <h2>思维导图编辑器</h2>
+        <div class="controls">
+            <button class="btn" onclick="syncToParent()">同步到父页面</button>
+            <button class="btn" onclick="loadFromParent()">从父页面加载</button>
+            <button class="btn" onclick="exportData()">导出数据</button>
+            <button class="btn" onclick="testNodeSelection()" style="background: #ffc107; color: #000;">测试节点选择</button>
+            <button class="btn" onclick="downloadMindmap()" style="background: #28a745;">下载图片</button>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div id="fullScreenMindmap"></div>
+
+        <div id="nodeDetails">
+            <div class="node-info">
+                <h3>节点详情</h3>
+                <div id="nodeInfo">
+                    <p>点击节点查看详情</p>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="nodeTopic">节点主题:</label>
+                <input type="text" id="nodeTopic" placeholder="输入节点主题...">
+            </div>
+
+            <div class="form-group">
+                <label for="nodeNotes">节点备注:</label>
+                <textarea id="nodeNotes" placeholder="输入节点备注..."></textarea>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <button class="btn" onclick="updateNodeNotes()" style="flex: 1;">
+                    更新节点
+                </button>
+                <button class="btn" onclick="expandWithAI()" style="flex: 1; background: #6f42c1;">
+                    AI扩写
+                </button>
+                <button class="btn" onclick="AIExpander.showConfig()" style="flex: 0 0 40px; background: #6c757d;"
+                    title="AI配置">⚙️</button>
+            </div>
+
+            <script>
+                // AI扩写函数
+                function expandWithAI() {
+                    try {
+                        const selectedNode = jm.get_selected_node();
+                        if (!selectedNode) {
+                            alert('请先选择一个节点');
+                            return;
+                        }
+
+                        if (window.AIExpander) {
+                            window.AIExpander.expandNode(selectedNode.id, jm);
+                        } else {
+                            alert('AI扩写模块未加载，请刷新页面重试');
+                        }
+                    } catch (e) {
+                        console.error('AI扩写出错:', e);
+                        alert('AI扩写出错: ' + e.message);
+                    }
+                }
+            </script>
+
+            <div class="notes-section">
+                <h4>📋 所有节点备注</h4>
+                <div id="notesList">
+                    <p style="color: #6c757d;">暂无备注</p>
+                </div>
+            </div>
+
+            <div style="margin-top: 20px; font-size: 12px; color: #666; border-top: 1px solid #eee; padding-top: 10px;">
+                <p><strong>📋 使用说明:</strong></p>
+                <ul style="margin: 5px 0; padding-left: 20px;">
+                    <li>点击任意节点查看详情和备注</li>
+                    <li>在右侧编辑主题和备注内容</li>
+                    <li>所有节点备注会自动显示在下方的备注列表中</li>
+                    <li>鼠标悬停在节点上可查看备注预览</li>
+                </ul>
+
+                <p style="margin-top: 10px;"><strong>🎯 数据结构说明:</strong></p>
+                <ul style="margin: 5px 0; padding-left: 20px; color: #007bff;">
+                    <li>节点ID: jsMind标准字段，唯一标识</li>
+                    <li>节点主题: jsMind标准字段，显示文本</li>
+                    <li>备注字段: 自定义扩展，存储在节点根级别</li>
+                    <li>其他字段: 可自由添加的自定义属性</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    </div>
+    </div>
+
+    <!-- 鼠标悬停备注层 -->
+    <div id="notesOverlay">
+        <div style="font-weight: bold; color: #007bff; margin-bottom: 4px;">节点备注</div>
+        <div id="hoverNote"></div>
+    </div>
+
+    <script src="https://jsd.onmicrosoft.cn/npm/jsmind@0.8.7/es6/jsmind.js"></script>
+    <script src="https://jsd.onmicrosoft.cn/npm/jsmind@0.8.7/es6/jsmind.draggable-node.js"></script>
+    <script src="https://unpkg.com/dom-to-image@2.6.0/dist/dom-to-image.min.js"></script>
+    <script src="https://unpkg.com/jsmind@0.8.7/es6/jsmind.screenshot.js"></script>
+    <script src="sync.js"></script>
+    <script src="load.js"></script>
+    <script>
+        let jm = null;
+        let currentNodeTree = null;
+
+        // 初始化思维导图
+        function initMindmap() {
+            if (jm) {
+                console.log('思维导图已初始化');
+                loadNodeTree(); // 不传参数，让函数自己从localStorage获取
+                return;
+            }
+
+            console.log('开始初始化思维导图...');
+
+            const options = {
+                container: 'fullScreenMindmap',           // 容器ID，必填
+                editable: true,                         // 是否可编辑，默认为true
+                theme: 'primary',                       // 主题：primary|success|info|warning|danger|greensea|nephrite|belizehole|wisteria|asphalt
+                mode: 'side',                           // 显示模式：full|side右侧
+                support_html: true,                     // 节点是否支持HTML，默认为true
+                view: {
+                    engine: 'svg',                   // 思维导图各节点之间线条的绘制引擎，canvas|svg
+                    hmargin: 100,                       // 水平边距
+                    vmargin: 50,                        // 垂直边距
+                    line_width: 2,                      // 连接线宽度
+                    line_color: '#555',                 // 连接线颜色
+                    expander_style: 'number',           // 展开器样式：number|circle|square
+                    expander_color: '#000',             // 展开器颜色
+                    expander_size: 12,                  // 展开器大小
+                    node_overflow: 'wrap',            // 文字过长处理：hidden|wrap
+                    zoom: {
+                        min: 0.1, // 最小缩放比例
+                        max: 5.0, // 最大缩放比例
+                        step: 0.1, // 缩放步长
+                        mask_key: 4096 // Ctrl Key 启用缩放操作的功能键
+                    },
+                    draggable: true,                    // 是否可拖拽画布
+                    hide_scrollbars_when_draggable: true // 拖拽时是否隐藏滚动条
+                },
+                layout: {
+                    hspace: 30,                         // 节点水平间距
+                    vspace: 20,                         // 节点垂直间距
+                    pspace: 13,                         // 节点与连接线的间距
+                    cousin_space: 10,                   // 相邻节点子节点之间的额外垂直空间
+
+                    // 布局算法相关
+                    depth_space: 15,                    // 层级间距
+
+                    // 节点尺寸相关
+                    node_width: 100,                    // 节点默认宽度
+                    node_height: 50,                    // 节点默认高度
+
+                    // 连接线样式
+                    line_type: 'curve',              // 连接线类型：straight|curve|polyline
+                    line_radius: 5,                     // 连接线圆角半径
+                    line_width: 2,                      // 连接线宽度
+                    line_color: '#555'                  // 连接线颜色
+                },
+                shortcut: {
+                    enable: true,                         // 是否启用快捷键
+                    handles: {},                        // 自定义处理函数
+
+                    // 快捷键映射
+                    mapping: {
+                        addchild: 9,                    // Tab - 添加子节点
+                        addbrother: 13,                 // Enter - 添加兄弟节点
+                        editnode: 113,                  // F2 - 编辑节点
+                        delnode: 46,                    // Delete - 删除节点
+                        toggle: 32,                     // Space - 展开/折叠节点
+
+                        // 切换选中
+                        left: 37,                       // 选中左侧节点
+                        up: 38,                         // 
+                        right: 39,                      // 
+                        down: 40,                       // 
+
+                        // 下面的都是AI幻觉// 其他常用快捷键
+                        // copy: 67,                       // Ctrl+C - 复制节点
+                        // paste: 86,                      // Ctrl+V - 粘贴节点
+                        // cut: 88,                        // Ctrl+X - 剪切节点
+                        // undo: 90,                       // Ctrl+Z - 撤销
+                        // redo: 89,                       // Ctrl+Y - 重做
+
+                        // // 视图操作
+                        // zoomin: 187,                    // Ctrl++ - 放大
+                        // zoomout: 189,                   // Ctrl+- - 缩小
+                        // zoomfit: 48,                    // Ctrl+0 - 适应窗口
+
+                    }
+                },
+
+                // 节点默认样式
+                node: {
+                    background_color: '#fff',           // 背景颜色
+                    foreground_color: '#333',           // 文字颜色
+                    border_color: '#ccc',               // 边框颜色
+                    border_width: 1,                    // 边框宽度
+                    font_size: 14,                      // 字体大小
+                    font_family: 'Arial, sans-serif',   // 字体族
+                    font_weight: 'normal',                // 字体粗细
+                    text_align: 'center',               // 文字对齐方式
+                    line_height: 1.5,                   // 行高
+                    padding: 5,                         // 内边距
+                    border_radius: 5,                   // 圆角半径
+
+                    // 节点阴影
+                    shadow: true,                       // 是否显示阴影
+                    shadow_color: '#000',               // 阴影颜色
+                    shadow_blur: 3,                     // 阴影模糊度
+                    shadow_offset_x: 1,                 // 阴影水平偏移
+                    shadow_offset_y: 1                  // 阴影垂直偏移
+                },
+
+
+
+                // 事件监听
+                event_handles: {
+                    // 节点事件
+                    show: function (node) {
+                        console.log('节点显示:', node);
+                    },
+                    edit: function (node) {
+                        console.log('节点编辑:', node);
+                    },
+                    select: function (node) {
+                        console.log('节点选择:', node);
+                    },
+                    unselect: function (node) {
+                        console.log('节点取消选择:', node);
+                    },
+                    expand: function (node) {
+                        console.log('节点展开:', node);
+                    },
+                    collapse: function (node) {
+                        console.log('节点折叠:', node);
+                    },
+                    add: function (node) {
+                        console.log('节点添加:', node);
+                    },
+                    remove: function (node) {
+                        console.log('节点删除:', node);
+                    },
+                    move: function (node) {
+                        console.log('节点移动:', node);
+                    },
+                    resize: function (node) {
+                        console.log('节点大小改变:', node);
+                    },
+
+                    // 画布事件
+                    mousedown: function (e) {
+                        console.log('画布鼠标按下:', e);
+                    },
+                    mousemove: function (e) {
+                        console.log('画布鼠标移动:', e);
+                    },
+                    mouseup: function (e) {
+                        console.log('画布鼠标释放:', e);
+                    },
+                    click: function (e) {
+                        console.log('画布点击:', e);
+                    },
+                    dblclick: function (e) {
+                        console.log('画布双击:', e);
+                    },
+                    contextmenu: function (e) {
+                        console.log('画布右键菜单:', e);
+                    },
+
+                    // 键盘事件
+                    keydown: function (e) {
+                        console.log('键盘按下:', e);
+                    },
+                    keyup: function (e) {
+                        console.log('键盘释放:', e);
+                    }
+                },
+
+                // 工具栏配置
+                toolbar: {
+                    enable: true,                       // 是否启用工具栏
+                    position: 'left',                    // 工具栏位置：top|bottom|left|right
+                    buttons: [                          // 工具栏按钮
+                        'addchild',                     // 添加子节点
+                        'addbrother',                   // 添加兄弟节点
+                        'editnode',                     // 编辑节点
+                        'delnode',                      // 删除节点
+                        'toggle',                       // 展开/折叠
+                        'zoomin',                       // 放大
+                        'zoomout',                      // 缩小
+                        'zoomfit',                      // 适应窗口
+                        'expandall',                    // 展开全部
+                        'collapseall',                   // 折叠全部
+                        'reset'                         // 重置视图
+                    ]
+                },
+
+                // 菜单配置
+                contextmenu: {
+                    enable: true,                       // 是否启用右键菜单
+                    items: [                            // 菜单项
+                        'addchild',                     // 添加子节点
+                        'addbrother',                   // 添加兄弟节点
+                        'editnode',                     // 编辑节点
+                        'delnode',                      // 删除节点
+                        'toggle',                       // 展开/折叠
+                        'moveup',                       // 上移节点
+                        'movedown',                     // 下移节点
+                        'movetop',                      // 移动到顶部
+                        'movebottom'                    // 移动到底部
+                    ]
+                }
+            };
+
+            jm = new jsMind(options);
+
+            // 初始化完成后加载数据
+            loadNodeTree();
+            console.log('思维导图数据:', jm.get_data())
+
+            console.log('思维导图初始化完成');
+
+            // 绑定事件
+            jm.add_event_listener(function (type, data) {
+                switch (type) {
+                    case jsMind.event_type.show:
+                        console.log('思维导图显示完成');
+                        break;
+                    case jsMind.event_type.edit:
+                        console.log('节点编辑:', data);
+                        break;
+                    case jsMind.event_type.select:
+                        console.log('节点选择:', data);
+                        // 从jsMind获取完整的节点对象
+                        const selectedNodeid = jm.get_selected_node();
+                        if (selectedNodeid) {
+                            showNodeDetails(selectedNodeid);
+                        } else {
+                            console.error('找不到选中的节点:', data.node);
+                        }
+                        break;
+                }
+            });
+
+        }
+
+        // 加载NodeTree数据
+        function loadNodeTree(nodeTreeData) {
+            if (!jm) {
+                console.error('jsMind未初始化');
+                return;
+            }
+
+            // 如果没有提供数据，尝试从localStorage获取
+            if (!nodeTreeData) {
+                const cachedData = localStorage.getItem('mindword_nodetree_data');
+                if (cachedData) {
+                    try {
+                        nodeTreeData = JSON.parse(cachedData);
+                        console.log('从localStorage加载NodeTree:', nodeTreeData);
+                    } catch (error) {
+                        console.error('解析localStorage数据失败:', error);
+                        nodeTreeData = getDefaultNodeTree();
+                    }
+                } else {
+                    console.log('localStorage中没有数据，使用默认值');
+                    nodeTreeData = getDefaultNodeTree();
+                }
+            }
+
+            try {
+                // 确保数据格式正确
+                if (typeof nodeTreeData === 'string') {
+                    nodeTreeData = JSON.parse(nodeTreeData);
+                }
+
+                jm.show(nodeTreeData);
+                currentNodeTree = nodeTreeData;
+
+                // 延迟执行DOM操作，确保元素已加载
+                setTimeout(() => {
+                    refreshAllNotesDisplay();
+
+                    // 自动选择根节点并显示详情
+                    const rootNode = jm.get_root();
+                    if (rootNode) {
+                        console.log('自动选择根节点:', rootNode);
+                        jm.select_node(rootNode.id);
+                        showNodeDetails(rootNode);
+                    }
+                }, 100);
+
+                console.log('NodeTree加载成功');
+            } catch (error) {
+                console.error('加载NodeTree失败:', error);
+                // 如果加载失败，尝试加载默认数据
+                try {
+                    jm.show(getDefaultNodeTree());
+                    console.log('已加载默认NodeTree');
+                } catch (defaultError) {
+                    console.error('加载默认NodeTree也失败:', defaultError);
+                }
+            }
+        }
+
+        // 获取当前NodeTree
+        function getCurrentNodeTree() {
+            return jm ? jm.get_data() : null;
+        }
+
+        // 显示节点详情
+        function showNodeDetails(node) {
+            console.log('=== 调试：showNodeDetails 被调用 ===');
+            console.log('节点数据结构:', {
+                结构说明: 'jsMind节点是灵活的JSON对象，必需字段：id, topic',
+                自定义字段: 'notes, level等扩展字段存储在根级别',
+                节点信息: {
+                    id: node.id,           // 必需：节点唯一标识
+                    topic: node.topic,     // 必需：节点显示文本
+                    notes: node.data.notes,     // 自定义：备注字段（可选）
+                    level: node.data.data.level,     // 自定义：节点层级（可选）
+                    parentid: node.data.parentid // 可选：父节点ID
+                }
+            });
+
+            const nodeInfo = document.getElementById('nodeInfo');
+            const nodeTopic = document.getElementById('nodeTopic');
+            const nodeNotes = document.getElementById('nodeNotes');
+
+            if (!nodeInfo || !nodeTopic || !nodeNotes) {
+                console.error('找不到DOM元素:', {
+                    nodeInfo: !!nodeInfo,
+                    nodeTopic: !!nodeTopic,
+                    nodeNotes: !!nodeNotes
+                });
+                return;
+            }
+
+            console.log('所有DOM元素都存在，开始更新内容...');
+
+            // 安全获取节点层级
+            let nodeLevel = 0;
+            try {
+                // 尝试从不同位置获取level属性
+                nodeLevel = node.level !== undefined ? node.level :
+                    (node.data && node.data.level !== undefined ? node.data.level : 0);
+            } catch (e) {
+                console.warn('无法读取节点层级:', e);
+            }
+
+            nodeInfo.innerHTML = `
+                <p><strong>节点ID:</strong> ${node.id}</p>
+                <p><strong>主题:</strong> ${node.topic || '无主题'}</p>
+                <p><strong>层级:</strong> ${nodeLevel}</p>
+                <p><strong>父节点:</strong> ${node.parentid || '根节点'}</p>
+            `;
+
+            nodeTopic.value = node.topic || '';
+            nodeNotes.value = node.data.notes || '';  // 直接从根级别读取notes
+
+            console.log('节点详情已更新完成');
+        }
+
+        // 更新节点备注
+        function updateNodeNotes() {
+            if (!jm) return;
+
+            const selected = jm.get_selected_node();
+            if (!selected) {
+                alert('请先选择一个节点');
+                return;
+            }
+
+            const nodeTopic = document.getElementById('nodeTopic');
+            const nodeNotes = document.getElementById('nodeNotes');
+
+            const newTopic = nodeTopic.value.trim();
+            const newNotes = nodeNotes.value.trim();
+
+            // 检查是否有任何变化需要更新
+            let hasChanges = false;
+
+            // 更新节点主题（如果有变化）
+            if (newTopic !== selected.topic) {
+                jm.update_node(selected.id, newTopic);
+                hasChanges = true;
+            }
+
+            // 更新节点备注（如果有变化）
+            if (newNotes !== (selected.notes || '')) {
+                // 直接更新根级别的notes字段（与其他代码保持一致）
+                selected.data.notes = newNotes;
+                hasChanges = true;
+            }
+
+            // 如果没有变化，提示用户
+            if (!hasChanges) {
+                alert('节点内容没有变化！');
+                return;
+            }
+
+            refreshAllNotesDisplay();
+
+            // // 同步到父页面
+            // if (window.parent !== window) {
+            //     window.parent.postMessage({
+            //         type: 'mindmapUpdated',
+            //         data: jm.get_data()
+            //     }, '*');
+            // }
+
+            // 保存到localStorage并同步
+            saveToLocalStorage();
+
+            alert('节点更新成功！');
+        }
+
+        // 刷新所有备注显示
+        function refreshAllNotesDisplay() {
+            if (!jm) return;
+
+            const notesList = document.getElementById('notesList');
+            if (!notesList) return; // 防止DOM元素不存在
+
+            const nodeTree = jm.get_data();
+
+            if (!nodeTree || !nodeTree.data) {
+                notesList.innerHTML = '<p style="color: #6c757d;">暂无节点数据</p>';
+                return;
+            }
+
+            const nodesWithNotes = [];
+
+            function collectNodes(node) {
+                if (!node) return;
+
+                const notes = node.notes;  // 直接从根级别读取notes
+                if (notes && notes.trim()) {
+                    nodesWithNotes.push({
+                        id: node.id,
+                        topic: node.topic || '未命名节点',
+                        notes: notes.trim(),
+                        level: node.level || 0
+                    });
+                }
+
+                if (node.children) {
+                    node.children.forEach(collectNodes);
+                }
+            }
+
+            collectNodes(nodeTree.data);
+
+            if (nodesWithNotes.length === 0) {
+                notesList.innerHTML = '<p style="color: #6c757d;">暂无节点包含备注信息</p>';
+                return;
+            }
+
+            nodesWithNotes.sort((a, b) => a.level - b.level);
+
+            let html = '';
+            nodesWithNotes.forEach(node => {
+                const levelIndent = '　'.repeat(node.level);
+                html += `
+                    <div class="note-item">
+                        <h5>${levelIndent}${node.topic}</h5>
+                        <p>${node.notes}</p>
+                        <small style="color: #6c757d;">ID: ${node.id}</small>
+                    </div>
+                `;
+            });
+
+            notesList.innerHTML = html;
+        }
+
+        // 设置鼠标悬停显示备注
+        function setupHoverNotes() {
+            const container = document.getElementById('fullScreenMindmap');
+            const notesOverlay = document.getElementById('notesOverlay');
+            const hoverNote = document.getElementById('hoverNote');
+
+            let hoverTimeout;
+
+            container.addEventListener('mousemove', function (e) {
+                if (!jm) return;
+
+                const rect = container.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                // 使用jsmind提供的查找节点方法
+                let node = null;
+                try {
+                    if (jm.get_node_by_coordinate) {
+                        node = jm.get_node_by_coordinate(x, y);
+                    } else {
+                        // 备用方法：通过事件目标查找
+                        const target = e.target;
+                        if (target && target.closest('.jmnode')) {
+                            const nodeId = target.closest('.jmnode').getAttribute('nodeid');
+                            if (nodeId) {
+                                node = jm.get_node(nodeId);
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.warn('获取节点失败:', error);
+                }
+
+                if (node && node.notes && node.notes.trim()) {  // 使用根级别的notes
+                    clearTimeout(hoverTimeout);
+                    hoverTimeout = setTimeout(() => {
+                        hoverNote.textContent = node.notes;  // 使用根级别的notes
+                        notesOverlay.style.display = 'block';
+                        notesOverlay.style.left = Math.min(x + 10, rect.width - 260) + 'px';
+                        notesOverlay.style.top = Math.max(y - 50, 10) + 'px';
+                    }, 300);
+                } else {
+                    clearTimeout(hoverTimeout);
+                    hoverTimeout = setTimeout(() => {
+                        notesOverlay.style.display = 'none';
+                    }, 100);
+                }
+            });
+
+            container.addEventListener('mouseleave', function () {
+                clearTimeout(hoverTimeout);
+                notesOverlay.style.display = 'none';
+            });
+        }
+
+        // 与父页面通信
+        function syncToParent() {
+            if (window.parent !== window && jm) {
+                window.parent.postMessage({
+                    type: 'mindmapUpdated',
+                    data: jm.get_data()
+                }, '*');
+                alert('已同步到父页面！');
+            }
+        }
+
+        function loadFromParent() {
+            if (window.parent !== window) {
+                window.parent.postMessage({
+                    type: 'loadNodeTreeRequest'
+                }, '*');
+            }
+        }
+
+        // // 测试节点选择和AI扩写功能
+        function testNodeSelection() {
+            console.log('=== 测试节点选择功能 ===');
+
+            if (!jm) {
+                console.error('思维导图未初始化');
+                return;
+            }
+
+            // 获取根节点
+            const rootNode = jm.get_root();
+            if (rootNode) {
+                console.log('找到根节点:', rootNode);
+
+                // 手动选择根节点
+                jm.select_node(rootNode.id);
+
+                // 直接调用showNodeDetails
+                showNodeDetails(rootNode);
+
+                // 测试AI扩写功能
+                if (window.AIExpander) {
+                    alert('AI扩写功能已加载，点击确定开始测试');
+                    window.AIExpander.expandNode(rootNode.id, jm);
+                } else {
+                    alert('AI扩写模块未加载，请检查ai-expander.js文件');
+                }
+
+                console.log('测试完成，请检查右侧详情面板');
+            } else {
+                console.error('未找到根节点');
+            }
+        }
+
+        function exportData() {
+            if (!jm) return;
+
+            const data = jm.get_data();
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'mindmap.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // 获取默认NodeTree
+        function getDefaultNodeTree() {
+            return {
+                "meta": {
+                    "name": "jsMind remote",
+                    "author": "mindword",
+                    "version": "1.0.0"
+                },
+                "format": "node_tree",
+                "data": {
+                    "id": "root",
+                    "topic": "欢迎使用思维导图",
+                    "children": [
+                        {
+                            "id": "sub1",
+                            "topic": "点击节点编辑",
+                            "direction": "right",
+                            "children": [
+                                {
+                                    "id": "sub1_1",
+                                    "topic": "双击编辑文本",
+                                    "data": {
+                                        "notes": "双击节点可以编辑文本内容"
+                                    }
+                                },
+                                {
+                                    "id": "sub1_2",
+                                    "topic": "拖拽调整位置",
+                                    "data": {
+                                        "notes": "拖拽节点可以调整位置和层级关系"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "id": "sub2",
+                            "topic": "右侧编辑详情",
+                            "direction": "right",
+                            "data": {
+                                "notes": "在右侧面板可以编辑节点的详细信息"
+                            }
+                        }
+                    ]
+                }
+            };
+        }
+
+        // 保存当前数据到localStorage并同步
+        function saveToLocalStorage() {
+            if (!jm) return;
+
+            const currentData = jm.get_data();
+            const dataString = JSON.stringify(currentData);
+
+            // 避免触发本地监听器（防止循环加载）
+            lastStorageData = dataString;
+            localStorage.setItem('mindword_nodetree_data', dataString);
+
+            // 同步数据到各个系统
+            try {
+                // 1. 优先使用syncAll函数（如果存在）
+                if (typeof syncAll === 'function') {
+                    // 动态加载转换器（如果需要）
+                    if (!window.converter) {
+                        console.log('正在加载转换器...');
+                        import('./converter.js')
+                            .then(module => {
+                                window.converter = new module.ConverterManager();
+                                console.log('转换器已加载');
+                                syncAll('nodeTree', true, true, currentData);
+                            })
+                            .catch(error => {
+                                console.warn('转换器加载失败，使用降级模式:', error);
+                                // 降级处理：直接保存到localStorage
+                                localStorage.setItem('mindword_nodetree_data', JSON.stringify(currentData));
+                            });
+                    } else {
+                        // 转换器已存在，直接调用
+                        syncAll('nodeTree', true, true, currentData);
+                    }
+                } else {
+                    // 2. 降级处理：保存到localStorage
+                    console.log('syncAll函数不存在，保存到localStorage');
+                    localStorage.setItem('mindword_nodetree_data', JSON.stringify(currentData));
+                }
+
+                // 3. 同步到父页面
+                if (window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'mindmapUpdated',
+                        data: currentData
+                    }, '*');
+                    console.log('已同步到父页面');
+                }
+            } catch (error) {
+                console.warn('同步方法调用失败:', error);
+                // 最终降级处理
+                localStorage.setItem('mindword_nodetree_data', JSON.stringify(currentData));
+            }
+
+            console.log('思维导图数据已保存到localStorage并同步');
+        }
+
+        // 防抖保存（避免频繁操作）
+        let saveTimer = null;
+        function debouncedSave() {
+            clearTimeout(saveTimer);
+            saveTimer = setTimeout(() => {
+                saveToLocalStorage();
+            }, 300);
+        }
+
+        // 设置思维导图变化监听器
+        function setupMindmapChangeWatcher() {
+            if (!jm) return;
+
+            // 监听jsMind的各种变化事件
+            jm.add_event_listener(function (type, data) {
+                // 只在特定事件类型时触发保存
+                const saveEvents = [
+                    jsMind.event_type.edit,
+                    jsMind.event_type.add_node,
+                    jsMind.event_type.remove_node,
+                    jsMind.event_type.move_node
+                ];
+
+                if (saveEvents.includes(type)) {
+                    console.log('检测到思维导图变化:', type, data);
+                    debouncedSave();
+                }
+            });
+
+            console.log('思维导图变化监听器已设置');
+        }
+
+
+        // 监听localStorage变化（包括同一页面内的修改）
+        let lastStorageData = null;
+        let storageCheckTimer = null;
+        let lastChangeTime = 0;
+
+        // 检查localStorage数据是否变化的函数（带防抖）
+        function checkLocalStorageChange() {
+            const now = Date.now();
+            const currentData = localStorage.getItem('mindword_nodetree_data');
+
+            if (currentData !== lastStorageData) {
+                console.log('检测到localStorage数据变化，准备重新加载...');
+                lastStorageData = currentData;
+                lastChangeTime = now;
+
+                // 防抖处理：延迟500ms执行，避免频繁刷新
+                clearTimeout(storageCheckTimer);
+                storageCheckTimer = setTimeout(() => {
+                    loadNodeTree();
+                }, 500);
+            }
+        }
+
+
+        // 设置localStorage变化监听器
+        function setupLocalStorageWatcher() {
+            // 保存初始数据
+            lastStorageData = localStorage.getItem('mindword_nodetree_data');
+
+            // 使用setInterval定期检查变化（每500ms检查一次）
+            setInterval(checkLocalStorageChange, 500);
+
+            // 同时监听storage事件（处理其他页面的变化）
+            window.addEventListener('storage', function (e) {
+                if (e.key === 'mindword_nodetree_data') {
+                    console.log('通过storage事件检测到数据变化');
+                    checkLocalStorageChange();
+                }
+            });
+
+            // 监听自定义事件（用于同一页面内的通知）
+            window.addEventListener('mindwordDataUpdated', function () {
+                console.log('通过自定义事件检测到数据变化');
+                checkLocalStorageChange();
+            });
+
+            console.log('localStorage监听器已设置');
+        }
+
+        // 下载思维导图为图片
+        function downloadMindmap() {
+            if (!jm) {
+                alert('思维导图尚未初始化，请稍后再试');
+                return;
+            }
+
+            try {
+                console.log('开始下载思维导图...');
+
+                // 使用jsMind的截图功能
+                jm.shoot();
+
+                console.log('下载已启动');
+            } catch (error) {
+                console.error('下载失败:', error);
+                alert('下载失败: ' + error.message);
+            }
+        }
+
+        // 页面加载完成后初始化
+        window.addEventListener('load', async function () {
+            // 初始化转换器
+            try {
+                if (!window.converter) {
+                    console.log('正在初始化转换器...');
+                    const module = await import('./converter.js');
+                    window.converter = new module.ConverterManager();
+                    console.log('转换器初始化完成');
+                }
+            } catch (error) {
+                console.warn('转换器初始化失败:', error);
+            }
+
+            initMindmap();
+            setupLocalStorageWatcher();
+            setupMindmapChangeWatcher();
+
+            // 初始化AI扩写功能
+            if (window.AIExpander) {
+                window.aiExpander = new window.AIExpander();
+                window.aiExpander.init(jm);
+            }
+        });
+
+        // // 提供一个手动触发刷新的方法
+        // function forceReloadData() {
+        //     console.log('手动强制刷新数据');
+        //     loadNodeTree();
+        // }
+        // // 通知父页面已加载完成
+        // if (window.parent !== window) {
+        //     window.parent.postMessage({
+        //         type: 'mindmapReady'
+        //     }, '*');
+        // }
+
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,525 @@
+/* ===================================
+   基础样式
+   =================================== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #f5f5f5;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ===================================
+   按钮基础样式 - 统一所有按钮样式 (高优先级覆盖Bootstrap)
+   =================================== */
+.header .btn,
+.btn {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid #ecf0f1 !important;
+    color: #ecf0f1 !important;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    line-height: 1;
+}
+
+/* AI扩写按钮特殊样式 - 保持紫色背景 */
+.btn[onclick*="expandWithAI"] {
+    background: #6f42c1 !important;
+    border-color: #6f42c1 !important;
+    color: white !important;
+}
+
+.btn[onclick*="expandWithAI"]:hover {
+    background: #5a2da8 !important;
+    border-color: #5a2da8 !important;
+}
+
+/* AI配置按钮特殊样式 - 保持灰色背景 */
+.btn[onclick*="AIExpander.showConfig"] {
+    background: #6c757d !important;
+    border-color: #6c757d !important;
+    color: white !important;
+}
+
+.btn[onclick*="AIExpander.showConfig"]:hover {
+    background: #5a6268 !important;
+    border-color: #5a6268 !important;
+}
+
+.header .btn:hover,
+.btn:hover {
+    background-color: rgba(255, 255, 255, 0.2) !important;
+    color: #ffffff !important;
+    border-color: #ffffff !important;
+}
+
+.header .btn.active,
+.btn.active {
+    background-color: #3498db !important;
+    color: white !important;
+    border-color: #3498db !important;
+}
+
+.header .btn-small,
+.btn-small {
+    padding: 4px 8px !important;
+    font-size: 12px !important;
+}
+
+.btn-icon {
+    padding: 4px 8px;
+    font-size: 16px;
+}
+
+/* ===================================
+   顶部导航栏
+   =================================== */
+.header {
+    background-color: #2c3e50;
+    color: white;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+}
+
+.brand {
+    font-size: 24px;
+    font-weight: bold;
+    color: #ecf0f1;
+    flex: 1;
+}
+
+.tabs {
+    display: flex;
+    gap: 20px;
+    flex: 1;
+    justify-content: center;
+}
+
+.header-right {
+    flex: 1;
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* ===================================
+   主内容区域
+   =================================== */
+.main-content {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+}
+
+/* ===================================
+   面板容器
+   =================================== */
+.panel {
+    background-color: white;
+    border: 1px solid #ddd;
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+    transition: width 0.2s ease;
+}
+
+.panel.hidden {
+    display: none;
+}
+
+.panel.resizing {
+    transition: none;
+}
+
+.panel-header {
+    background-color: #f8f9fa;
+    padding: 10px 15px;
+    border-bottom: 1px solid #e9ecef;
+    font-weight: 500;
+    color: #495057;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.panel-content {
+    height: calc(100% - 45px);
+    overflow: auto;
+}
+
+.panel iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background-color: white;
+    pointer-events: auto;
+}
+
+.resizing .panel iframe {
+    pointer-events: none;
+}
+
+/* 专注模式下隐藏关闭按钮 */
+.focus-mode .btn-icon {
+    display: none;
+}
+
+/* ===================================
+   拖拽分隔条
+   =================================== */
+.resizer {
+    background-color: #e9ecef;
+    cursor: col-resize;
+    width: 4px;
+    position: relative;
+    user-select: none;
+    flex-shrink: 0;
+    transition: background-color 0.1s ease;
+}
+
+.resizer:hover {
+    background-color: #3498db;
+}
+
+.resizer.dragging {
+    background-color: #3498db;
+}
+
+.resizer::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -6px;
+    right: -6px;
+    bottom: 0;
+    cursor: col-resize;
+}
+
+.focus-mode .resizer {
+    display: none !important;
+}
+
+/* ===================================
+   专注模式图标
+   =================================== */
+.focus-icon {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: currentColor;
+    margin-right: 6px;
+}
+
+/* ===================================
+   统一工具栏样式
+   =================================== */
+.toolbar {
+    height: 56px;
+    background-color: #fff;
+    border-bottom: 1px solid #e1e5e9;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+    flex-shrink: 0;
+}
+
+/* 工具栏按钮样式统一 - 高优先级覆盖基础按钮样式 */
+.toolbar button,
+.toolbar .btn {
+    background: #fff !important;
+    border: 1px solid #d1d5db !important;
+    color: #374151 !important;
+    padding: 8px 16px !important;
+    border-radius: 6px !important;
+    cursor: pointer !important;
+    font-size: 14px !important;
+    transition: all 0.2s ease !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    line-height: 1 !important;
+    font-family: inherit !important;
+}
+
+.toolbar button:hover,
+.toolbar .btn:hover {
+    background-color: #f3f4f6 !important;
+    border-color: #9ca3af !important;
+}
+
+.toolbar button:active,
+.toolbar .btn:active {
+    background-color: #e5e7eb !important;
+}
+
+/* 工具栏中的主要按钮 */
+.toolbar .btn-primary,
+.toolbar .primary {
+    background-color: #3b82f6 !important;
+    color: white !important;
+    border-color: #3b82f6 !important;
+}
+
+.toolbar .btn-primary:hover,
+.toolbar .primary:hover {
+    background-color: #2563eb !important;
+}
+
+/* 工具栏中的成功按钮 */
+.toolbar .btn-success,
+.toolbar .success {
+    background-color: #10b981 !important;
+    color: white !important;
+    border-color: #10b981 !important;
+}
+
+.toolbar .btn-success:hover,
+.toolbar .success:hover {
+    background-color: #059669 !important;
+}
+
+/* 工具栏中的警告按钮 */
+.toolbar .btn-warning,
+.toolbar .warning {
+    background-color: #f59e0b !important;
+    color: white !important;
+    border-color: #f59e0b !important;
+}
+
+.toolbar .btn-warning:hover,
+.toolbar .warning:hover {
+    background-color: #d97706 !important;
+}
+
+/* 帮助按钮特殊样式 */
+.toolbar .help-btn {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 50% !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background-color: #6366f1 !important;
+    color: white !important;
+    border-color: #6366f1 !important;
+    font-weight: bold !important;
+    position: relative !important;
+}
+
+.toolbar .help-btn:hover {
+    background-color: #5b21b6 !important;
+}
+
+/* 工具栏中的选择框 */
+.toolbar select {
+    background: #fff;
+    border: 1px solid #d1d5db;
+    color: #374151;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    font-family: inherit;
+    min-width: 150px;
+}
+
+/* 工具栏下拉框专用样式 - 保持与按钮相同高度 */
+.toolbar select.toolbar-select {
+    height: 38px;
+    /* 与按钮相同高度 */
+    line-height: 38px;
+    padding: 0 16px;
+    /* 移除上下内边距 */
+    vertical-align: middle;
+    box-sizing: border-box;
+}
+
+.toolbar select:hover {
+    border-color: #9ca3af;
+}
+
+.toolbar select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* ===================================
+   面板宽度设置
+   =================================== */
+.editor-panel {
+    flex: 1;
+    min-width: 100px;
+}
+
+.preview-panel {
+    flex: 1;
+    min-width: 100px;
+}
+
+.mindmap-panel {
+    flex: 2;
+    min-width: 200px;
+}
+
+.focus-mode .panel:not(.hidden) {
+    flex: 1 !important;
+}
+
+/* ===================================
+   专注模式提示
+   =================================== */
+.focus-indicator {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: #e74c3c;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: bold;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.focus-mode .focus-indicator {
+    opacity: 1;
+}
+
+/* ===================================
+   提示信息
+   =================================== */
+.placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #6c757d;
+    font-size: 14px;
+    text-align: center;
+    line-height: 1.5;
+    padding: 20px;
+}
+
+.placeholder small {
+    margin-top: 10px;
+    color: #9ca3af;
+    font-size: 12px;
+}
+
+/* ===================================
+   加载状态
+   =================================== */
+.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #3498db;
+}
+
+.loading::after {
+    content: '';
+    width: 20px;
+    height: 20px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-left: 10px;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* ===================================
+   状态文本样式
+   =================================== */
+.status-text {
+    margin-left: auto;
+    color: #6b7280;
+    font-size: 13px;
+}
+
+/* ===================================
+   工具类
+   =================================== */
+.no-select {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+.resizing {
+    cursor: col-resize !important;
+}
+
+.resizing * {
+    cursor: col-resize !important;
+}
+
+/* ===================================
+   响应式设计
+   =================================== */
+@media (max-width: 768px) {
+    .header {
+        padding: 0 10px;
+    }
+
+    .brand {
+        font-size: 18px;
+    }
+
+    .tabs {
+        gap: 10px;
+    }
+
+    .btn {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+
+    .btn-small {
+        padding: 3px 6px;
+        font-size: 10px;
+    }
+
+    .focus-icon {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background-color: currentColor;
+    }
+}

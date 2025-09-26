@@ -1,0 +1,1315 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Markdown → Word（兼容 PizZip 版本）</title>
+  <link rel="stylesheet" href="../styles.css">
+  <!-- Bootstrap CSS for notifications -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* 文件输入样式 - md2word特有 */
+    input[type="file"] {
+      display: none;
+    }
+
+    #status {
+      margin-left: auto;
+      color: #666;
+      font-size: 13px;
+    }
+
+    pre.err {
+      background: #fee;
+      padding: 8px;
+      border: 1px solid #fbb;
+      white-space: pre-wrap;
+      display: none;
+      margin-bottom: 16px;
+      border-radius: 4px;
+    }
+
+    .preview-container {
+      padding: 16px;
+      background: white;
+      flex: 1;
+      overflow-y: auto;
+      min-height: 0;
+    }
+
+    /* 标题样式 - 保持较大间距 */
+    .preview-container h1,
+    .preview-container h2,
+    .preview-container h3,
+    .preview-container h4,
+    .preview-container h5,
+    .preview-container h6 {
+      margin-top: 0;
+      margin-bottom: 16px;
+      color: #333;
+    }
+
+    /* 统一所有非标题元素的间距 */
+    .preview-container p,
+    .preview-container ul,
+    .preview-container ol,
+    .preview-container blockquote,
+    .preview-container pre,
+    .preview-container table {
+      margin-bottom: 12px;
+      margin-top: 0;
+    }
+
+    /* 段落基本样式 */
+    .preview-container p {
+      line-height: 1.6;
+    }
+
+    /* 列表样式 */
+    .preview-container ul,
+    .preview-container ol {
+      padding-left: 24px;
+    }
+
+    .preview-container li {
+      margin-bottom: 0;
+      line-height: 1.6;
+    }
+
+    /* 列表项内的段落不需要额外间距 */
+    .preview-container li p {
+      margin-bottom: 0;
+    }
+
+    /* 引用块样式 */
+    .preview-container blockquote {
+      border-left: 4px solid #ddd;
+      padding-left: 16px;
+      color: #666;
+    }
+
+    /* 代码块样式 */
+    .preview-container pre {
+      background: #f8f9fa;
+      padding: 12px;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+
+    .preview-container code {
+      background: #f8f9fa;
+      padding: 2px 4px;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+    }
+
+    /* 图片样式 */
+    .preview-container img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 4px;
+      margin: 12px 0;
+      border: 1px solid #eee;
+      display: block;
+    }
+
+    .preview-container img[alt*="图片未找到"] {
+      border: 2px dashed #ccc;
+      background: #f8f9fa;
+      padding: 8px;
+    }
+
+    /* 表格样式 */
+    .preview-container table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    .preview-container th,
+    .preview-container td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+
+    .preview-container th {
+      background-color: #f8f9fa;
+    }
+
+    /* 空预览提示 */
+    .empty-preview {
+      color: #999;
+      font-style: italic;
+      text-align: center;
+      padding: 40px;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- 控制按钮区域 -->
+  <div class="toolbar">
+    <button class="btn btn-primary" id="downloadBtn">生成 Word</button>
+    <button class="btn" id="uploadTplBtn">上传模板</button>
+    <button class="btn btn-success" id="downloadDefaultTplBtn">下载模板</button>
+    <select id="templateSelect" class="toolbar-select">
+      <option value="default">默认模板</option>
+    </select>
+    <input type="file" id="uploadTplInput" accept=".docx" />
+    <!-- <div id="status">状态：等待操作</div>-->
+  </div>
+
+  <pre id="errlog" class="err"></pre>
+
+  <!-- Markdown 预览区域 -->
+  <div id="markdownPreview" class="preview-container">
+    <div class="empty-preview">正在加载 Markdown 内容...</div>
+  </div>
+
+  <!-- CDN 依赖：如果你使用其它版本，请替换这些 URL -->
+  <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.5/dist/pizzip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/markdown-it@13.0.1/dist/markdown-it.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+
+  <script>
+    (async function () {
+      const DEFAULT_TEMPLATE_PATH = 'default-template.docx';
+      let defaultTplAB = null;
+      let userTplAB = null;
+
+      const md = window.markdownit({ html: true, linkify: true, typographer: true });
+      const statusEl = document.getElementById('status');
+      const errlogEl = document.getElementById('errlog');
+      const previewEl = document.getElementById('markdownPreview');
+      const templateSelect = document.getElementById('templateSelect');
+
+      // 用户上传的模板存储
+      const userTemplates = new Map();
+
+      function status(msg) {
+        if (statusEl) statusEl.textContent = '状态：' + msg;
+        // 使用通知桥接器显示状态信息
+        if (window.NotificationBridge) {
+          window.NotificationBridge.showInfo(msg);
+        }
+      }
+      function showError(e) {
+        errlogEl.style.display = 'block';
+        errlogEl.textContent = (e && e.stack) ? e.stack : String(e);
+        // 使用通知桥接器显示错误信息
+        if (window.NotificationBridge) {
+          window.NotificationBridge.showError((e && e.message) ? e.message : String(e));
+        }
+      }
+
+      // 从 localStorage 读取图片数据
+      function getImageFromStorage(imageName) {
+        try {
+          const imagesData = localStorage.getItem('markdown-images');
+          if (imagesData) {
+            const images = JSON.parse(imagesData);
+            // images 是一个数组，格式: [["img_id", {name: "...", data: "...", type: "..."}], ...]
+            for (const [imageId, imageInfo] of images) {
+              // 检查图片ID是否匹配
+              if (imageId === imageName) {
+                return imageInfo.data;
+              }
+              // 也检查文件名是否匹配（去掉路径前缀）
+              if (imageInfo.name && (imageInfo.name === imageName || imageInfo.name.endsWith('/' + imageName))) {
+                return imageInfo.data;
+              }
+            }
+          }
+        } catch (e) {
+          console.error('读取图片数据失败:', e);
+        }
+        return null;
+      }
+
+      // 替换HTML中的图片路径为base64数据
+      function replaceImagesInHtml(html) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const images = doc.querySelectorAll('img');
+
+        images.forEach(img => {
+          const src = img.getAttribute('src');
+          if (src && !src.startsWith('data:') && !src.startsWith('http')) {
+            // 这是一个相对路径，尝试从localStorage获取
+            const imageData = getImageFromStorage(src);
+            if (imageData) {
+              img.setAttribute('src', imageData);
+            } else {
+              // 如果找不到图片数据，显示占位符
+              img.setAttribute('src', 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPuWbvueJh+acquaJvuS4jeWIsOaIluWKoOi9veWksei0pTwvdGV4dD48L3N2Zz4=');
+              img.setAttribute('alt', `图片未找到: ${src}`);
+              img.setAttribute('title', `图片路径: ${src}`);
+            }
+          }
+        });
+
+        return doc.body.innerHTML;
+      }
+
+
+      // 缓存上次的数据，避免不必要的重新渲染
+      let lastMarkdownData = null;
+      let lastImagesData = null;
+
+      // 从 localStorage 读取 Markdown 数据并渲染预览
+      function loadAndRenderMarkdown() {
+        try {
+          const markdownData = localStorage.getItem('mindword_markdown_data');
+          const imagesData = localStorage.getItem('markdown-images');
+
+          // 检查数据是否真的发生了变化
+          if (markdownData === lastMarkdownData && imagesData === lastImagesData) {
+            return; // 数据没有变化，不需要重新渲染
+          }
+
+          // 更新缓存
+          lastMarkdownData = markdownData;
+          lastImagesData = imagesData;
+
+          if (markdownData) {
+            let htmlContent = md.render(markdownData);
+            // 替换图片路径为localStorage中的base64数据
+            htmlContent = replaceImagesInHtml(htmlContent);
+            previewEl.innerHTML = htmlContent;
+            status('已加载 Markdown 数据');
+          } else {
+            previewEl.innerHTML = '<div class="empty-preview">未找到 mindword_markdown_data 数据</div>';
+            status('未找到 localStorage 中的 mindword_markdown_data');
+          }
+        } catch (e) {
+          console.error('加载 Markdown 数据失败:', e);
+          previewEl.innerHTML = '<div class="empty-preview">加载 Markdown 数据失败</div>';
+          status('加载 Markdown 数据失败');
+        }
+      }
+
+      // 监听 localStorage 变化（跨窗口/标签页）
+      window.addEventListener('storage', function (e) {
+        if (e.key === 'mindword_markdown_data' || e.key === 'markdown-images') {
+          loadAndRenderMarkdown();
+        }
+      });
+
+      // 页面加载时渲染
+      loadAndRenderMarkdown();
+
+      // 定期检查 localStorage 变化（用于同一页面内的变化，但只在数据真正变化时才重新渲染）
+      setInterval(loadAndRenderMarkdown, 2000); // 降低检查频率到2秒
+
+      // load default template if present
+      try {
+        const resp = await fetch(DEFAULT_TEMPLATE_PATH);
+        if (resp.ok) defaultTplAB = await resp.arrayBuffer();
+        if (defaultTplAB) status('默认模板加载成功');
+        else status('未找到 default-template.docx（请上传模板或使用回退）');
+      } catch (e) {
+        status('默认模板加载异常');
+      }
+
+      // 上传模板按钮
+      document.getElementById('uploadTplBtn').addEventListener('click', () => document.getElementById('uploadTplInput').click());
+
+      // 处理模板上传
+      document.getElementById('uploadTplInput').addEventListener('change', async (ev) => {
+        const f = ev.target.files && ev.target.files[0];
+        if (!f) return;
+
+        const arrayBuffer = await f.arrayBuffer();
+        const templateId = 'user_' + Date.now();
+        userTemplates.set(templateId, { name: f.name, data: arrayBuffer });
+
+        // 添加到下拉框
+        const option = document.createElement('option');
+        option.value = templateId;
+        option.textContent = f.name;
+        templateSelect.appendChild(option);
+        templateSelect.value = templateId;
+
+        status('已上传模板：' + f.name);
+      });
+
+      // 下载默认模板
+      document.getElementById('downloadDefaultTplBtn').addEventListener('click', () => {
+        if (!defaultTplAB) { status('默认模板未加载'); return; }
+        saveAs(new Blob([defaultTplAB], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }), 'default-template.docx');
+      });
+
+      function normName(s) {
+        if (!s) return '';
+        return String(s).toLowerCase().replace(/[\s_-]+/g, '').replace(/[^\w\u4e00-\u9fa5]/g, '');
+      }
+      function escapeXml(s) { if (s == null) return ''; return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;'); }
+      function xmlPreserveText(t) {
+        const s = String(t || '');
+        if (/^\s|\s$/.test(s)) return `<w:t xml:space="preserve">${escapeXml(s)}</w:t>`;
+        return `<w:t>${escapeXml(s)}</w:t>`;
+      }
+
+      // robust read of zip file content
+      async function readZipFileAsync(zip, path) {
+        const file = zip.file(path);
+        if (!file) return null;
+        try {
+          if (typeof file.async === 'function') return await file.async('string');
+          if (typeof file.asText === 'function') return await file.asText();
+          if (typeof file.asBinary === 'function') return await file.asBinary();
+          // fallback try internal uncompressedContent
+          if (file._data && file._data.uncompressedContent) {
+            const u8 = file._data.uncompressedContent;
+            if (u8 instanceof Uint8Array) {
+              const decoder = new TextDecoder('utf-8');
+              return decoder.decode(u8);
+            } else if (typeof u8 === 'string') return u8;
+          }
+        } catch (e) { console.warn('readZipFileAsync fallback error', e); }
+        throw new Error('无法读取 zip 内文件: ' + path);
+      }
+
+      function buildStyleMaps(stylesXmlText) {
+        const parStyleMap = new Map();
+        const charStyleMap = new Map();
+        try {
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(stylesXmlText, 'application/xml');
+          const styles = doc.getElementsByTagNameNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', 'style');
+          for (let i = 0; i < styles.length; i++) {
+            const s = styles[i];
+            const type = s.getAttribute('w:type') || s.getAttribute('type') || 'paragraph';
+            const styleId = s.getAttribute('w:styleId') || s.getAttribute('styleId');
+            const nameEl = s.getElementsByTagNameNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', 'name')[0];
+            const displayName = nameEl ? nameEl.getAttribute('w:val') : null;
+            const isDefault = s.getAttribute('w:default') === '1' || s.getAttribute('default') === '1';
+            if (type === 'paragraph' || !type) {
+              let hasNum = false, numId = null;
+              const pPr = s.getElementsByTagNameNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', 'pPr')[0];
+              if (pPr) {
+                const numPr = pPr.getElementsByTagNameNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', 'numPr')[0];
+                if (numPr) {
+                  const nId = numPr.getElementsByTagNameNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', 'numId')[0];
+                  if (nId) { hasNum = true; numId = nId.getAttribute('w:val') || nId.getAttribute('val'); }
+                }
+              }
+              if (displayName) parStyleMap.set(normName(displayName), { styleId, displayName, isDefault, hasNumId: hasNum, numId });
+              if (styleId) parStyleMap.set(normName(styleId), { styleId, displayName: displayName || styleId, isDefault, hasNumId: hasNum, numId });
+            } else if (type === 'character') {
+              if (displayName) charStyleMap.set(normName(displayName), { styleId, displayName });
+              if (styleId) charStyleMap.set(normName(styleId), { styleId, displayName: displayName || styleId });
+            }
+          }
+        } catch (e) { console.warn('parse styles.xml failed', e); }
+        return { parStyleMap, charStyleMap };
+      }
+
+      function parseNumberingXml(numberingXmlText) {
+        const info = { nums: {}, abstractNums: {} };
+        try {
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(numberingXmlText, 'application/xml');
+          const nums = doc.getElementsByTagNameNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', 'num');
+          for (let i = 0; i < nums.length; i++) {
+            const num = nums[i];
+            const numId = num.getAttribute('w:numId') || num.getAttribute('numId');
+            const absEl = num.getElementsByTagNameNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', 'abstractNumId')[0];
+            const absId = absEl ? (absEl.getAttribute('w:val') || absEl.getAttribute('val')) : null;
+            info.nums[numId] = { numId, abstractId: absId };
+          }
+          const abs = doc.getElementsByTagNameNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', 'abstractNum');
+          for (let i = 0; i < abs.length; i++) {
+            const a = abs[i];
+            const abstractId = a.getAttribute('w:abstractNumId') || a.getAttribute('abstractNumId');
+            const levels = {};
+            const lvls = a.getElementsByTagNameNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', 'lvl');
+            for (let j = 0; j < lvls.length; j++) {
+              const lvl = lvls[j];
+              const ilvl = lvl.getAttribute('w:ilvl') || lvl.getAttribute('ilvl');
+              const numFmtEl = lvl.getElementsByTagNameNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', 'numFmt')[0];
+              const lvlTextEl = lvl.getElementsByTagNameNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', 'lvlText')[0];
+              const numFmt = numFmtEl ? (numFmtEl.getAttribute('w:val') || numFmtEl.getAttribute('val')) : null;
+              const lvlText = lvlTextEl ? (lvlTextEl.getAttribute('w:val') || lvlTextEl.getAttribute('val')) : null;
+              levels[ilvl] = { ilvl, numFmt, lvlText };
+            }
+            info.abstractNums[abstractId] = { abstractId, levels };
+          }
+        } catch (e) { console.warn('parse numbering.xml failed', e); }
+        return info;
+      }
+
+      function parseRels(relsXmlText) {
+        const rels = {};
+        try {
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(relsXmlText, 'application/xml');
+          const relEls = doc.getElementsByTagName('Relationship');
+          for (let i = 0; i < relEls.length; i++) {
+            const el = relEls[i];
+            const id = el.getAttribute('Id') || el.getAttribute('id');
+            const type = el.getAttribute('Type') || el.getAttribute('type');
+            const target = el.getAttribute('Target') || el.getAttribute('target');
+            const tm = el.getAttribute('TargetMode') || el.getAttribute('targetMode');
+            rels[id] = { Id: id, Type: type, Target: target, TargetMode: tm || null, _el: el };
+          }
+        } catch (e) { console.warn('parse rels failed', e); }
+        return rels;
+      }
+
+      function decideStyleIdFor(type, level, parStyleMap) {
+        const candidates = [];
+        if (type === 'heading') {
+          const n = level || 1;
+          candidates.push('heading ' + n, 'heading' + n, '标题' + n, 'title');
+        } else if (type === 'paragraph') {
+          candidates.push('normal', '正文', 'bodytext', 'plaintext');
+        } else if (type === 'blockquote') {
+          candidates.push('引用', 'quote', 'blocktext');
+        } else if (type === 'code') {
+          candidates.push('code', '代码', 'preformatted', 'pre', 'plaintext');
+        } else if (type === 'ul') {
+          candidates.push('无序列表', 'listbullet', 'list');
+        } else if (type === 'ol') {
+          candidates.push('有序列表', 'listnumber', 'list');
+        } else {
+          candidates.push('normal');
+        }
+        for (const c of candidates) {
+          const key = normName(c);
+          if (parStyleMap.has(key)) return parStyleMap.get(key).styleId;
+        }
+        for (const [k, v] of parStyleMap) if (v.isDefault) return v.styleId;
+        return 'Normal';
+      }
+
+      function chooseNumIdForList(listType, parStyleMap, numberingInfo) {
+        const styleKeys = listType === 'ol' ? ['有序列表', 'listnumber', 'listnumber2', 'list'] : ['无序列表', 'listbullet', 'listbullet2', 'list'];
+        for (const k of styleKeys) {
+          const ent = parStyleMap.get(normName(k));
+          if (ent && ent.hasNumId && ent.numId) return ent.numId;
+        }
+        const nums = numberingInfo.nums || {};
+        const abs = numberingInfo.abstractNums || {};
+        for (const numId in nums) {
+          const entry = nums[numId];
+          const a = abs[entry.abstractId];
+          if (!a) continue;
+          const lvl0 = a.levels && (a.levels['0'] || a.levels[0]);
+          const fmt = lvl0 && lvl0.numFmt ? String(lvl0.numFmt).toLowerCase() : null;
+          if (listType === 'ol') {
+            if (fmt && (fmt === 'decimal' || fmt.includes('roman') || fmt.includes('letter'))) return numId;
+          } else {
+            if (!fmt || fmt === 'bullet' || fmt === 'none') return numId;
+          }
+        }
+        for (const numId in nums) return numId;
+        return null;
+      }
+
+      function mdTokensToBlocks(tokens) {
+        const blocks = [];
+        let i = 0;
+
+        // 递归处理列表项内容的函数
+        function parseListItemContent(startIndex, endIndex) {
+          const itemBlocks = [];
+          let j = startIndex;
+
+          while (j < endIndex) {
+            const token = tokens[j];
+
+            if (token.type === 'paragraph_open') {
+              const inline = tokens[j + 1];
+              const children = inline && inline.children ? inline.children : [];
+              itemBlocks.push({ type: 'paragraph', inline: children });
+              j += 3;
+            } else if (token.type === 'fence') {
+              itemBlocks.push({ type: 'codeblock', lang: token.info || '', text: token.content });
+              j++;
+            } else if (token.type === 'blockquote_open') {
+              let k = j + 1;
+              const collected = [];
+              while (k < endIndex && tokens[k].type !== 'blockquote_close') {
+                if (tokens[k].type === 'paragraph_open') {
+                  const inline = tokens[k + 1];
+                  const children = inline && inline.children ? inline.children : [];
+                  collected.push({ type: 'paragraph', inline: children });
+                  k += 3;
+                } else k++;
+              }
+              itemBlocks.push({ type: 'blockquote', children: collected });
+              j = k + 1;
+            } else if (token.type === 'bullet_list_open' || token.type === 'ordered_list_open') {
+              // 处理嵌套列表
+              const nestedOrdered = token.type === 'ordered_list_open';
+              const nestedItems = [];
+              let k = j + 1;
+
+              while (k < endIndex && tokens[k].type !== (nestedOrdered ? 'ordered_list_close' : 'bullet_list_close')) {
+                if (tokens[k].type === 'list_item_open') {
+                  let m = k + 1;
+                  while (m < endIndex && tokens[m].type !== 'list_item_close') {
+                    m++;
+                  }
+                  const nestedItemContent = parseListItemContent(k + 1, m);
+                  nestedItems.push(nestedItemContent);
+                  k = m + 1;
+                } else {
+                  k++;
+                }
+              }
+
+              itemBlocks.push({ type: nestedOrdered ? 'ol' : 'ul', items: nestedItems });
+              j = k + 1;
+            } else if (token.type === 'inline') {
+              // 处理 tight list 列表项直接出现的内联内容
+              const children = (token && token.children) ? token.children : [];
+              itemBlocks.push({ type: 'paragraph', inline: children });
+              j++;
+            } else {
+              j++;
+            }
+          }
+
+          return itemBlocks;
+        }
+
+        while (i < tokens.length) {
+          const t = tokens[i];
+
+          if (t.type === 'heading_open') {
+            const level = parseInt(t.tag.slice(1), 10);
+            const inline = tokens[i + 1];
+            const children = inline && inline.children ? inline.children : [];
+            blocks.push({ type: 'heading', level, inline: children });
+            i += 3;
+          } else if (t.type === 'paragraph_open') {
+            const inline = tokens[i + 1];
+            const children = inline && inline.children ? inline.children : [];
+            blocks.push({ type: 'paragraph', inline: children });
+            i += 3;
+          } else if (t.type === 'fence') {
+            blocks.push({ type: 'codeblock', lang: t.info || '', text: t.content });
+            i++;
+          } else if (t.type === 'blockquote_open') {
+            let j = i + 1;
+            const collected = [];
+            while (j < tokens.length && tokens[j].type !== 'blockquote_close') {
+              if (tokens[j].type === 'paragraph_open') {
+                const inline = tokens[j + 1];
+                const children = inline && inline.children ? inline.children : [];
+                collected.push({ type: 'paragraph', inline: children });
+                j += 3;
+              } else j++;
+            }
+            blocks.push({ type: 'blockquote', children: collected });
+            i = j + 1;
+          } else if (t.type === 'bullet_list_open' || t.type === 'ordered_list_open') {
+            const ordered = t.type === 'ordered_list_open';
+            const items = [];
+            let j = i + 1;
+
+            while (j < tokens.length && tokens[j].type !== (ordered ? 'ordered_list_close' : 'bullet_list_close')) {
+              if (tokens[j].type === 'list_item_open') {
+                let k = j + 1;
+                while (k < tokens.length && tokens[k].type !== 'list_item_close') {
+                  k++;
+                }
+                const itemContent = parseListItemContent(j + 1, k);
+                items.push(itemContent);
+                j = k + 1;
+              } else {
+                j++;
+              }
+            }
+
+            blocks.push({ type: ordered ? 'ol' : 'ul', items });
+            i = j + 1;
+          } else {
+            i++;
+          }
+        }
+
+        return blocks;
+      }
+
+
+      /**
+       * 将内联 Markdown 标记符转换为简单的运行对象数组。
+       * 
+       * @param {Array} inlineTokens - 内联 Markdown 标记符数组。
+       * @param {Map} charStyleMap - 字符样式映射表，用于查找字符样式 ID。
+       * @returns {Array} 返回转换后的运行对象数组，包含字符串或对象（如链接、图片）。
+       */
+      function inlineTokensToRunsSimple(inlineTokens, charStyleMap) {
+        const out = [];
+        const stack = [{ attrs: {} }];
+        function buildRPr(attrs) {
+          const parts = [];
+          if (!attrs) return '';
+          if (attrs.charStyle) parts.push(`<w:rStyle w:val="${attrs.charStyle}"/>`);
+          if (attrs.bold) parts.push(`<w:b/>`);
+          if (attrs.italic) parts.push(`<w:i/>`);
+          if (attrs.underline) parts.push(`<w:u w:val="single"/>`);
+          if (attrs.strike) parts.push(`<w:strike/>`);
+          if (attrs.code) {
+            const codeStyleCandidates = ['code', 'pre', '代码', '代码样式'];
+            let cs = null;
+            for (const c of codeStyleCandidates) {
+              const e = charStyleMap.get(normName(c));
+              if (e) { cs = e.styleId; break; }
+            }
+            if (cs) parts.push(`<w:rStyle w:val="${cs}"/>`);
+            else parts.push(`<w:rFonts w:ascii="Courier New" w:hAnsi="Courier New" w:cs="Courier New"/>`);
+          }
+          if (parts.length === 0) return '';
+          return `<w:rPr>${parts.join('')}</w:rPr>`;
+        }
+        function pushText(text, attrs) {
+          if (text == null || text === '') return;
+          const rpr = buildRPr(attrs);
+          out.push(`<w:r>${rpr}${xmlPreserveText(text)}</w:r>`);
+        }
+        for (let i = 0; i < inlineTokens.length; i++) {
+          const tk = inlineTokens[i];
+          if (tk.type === 'text') pushText(tk.content, stack[stack.length - 1].attrs);
+          else if (tk.type === 'code_inline') {
+            const attrs = Object.assign({}, stack[stack.length - 1].attrs, { code: true });
+            pushText(tk.content, attrs);
+          } else if (tk.type === 'strong_open') {
+            const parent = stack[stack.length - 1];
+            stack.push({ attrs: Object.assign({}, parent.attrs, { bold: true }) });
+          } else if (tk.type === 'strong_close') { if (stack.length > 1) stack.pop(); }
+          else if (tk.type === 'em_open' || tk.type === 'i_open') {
+            const parent = stack[stack.length - 1];
+            stack.push({ attrs: Object.assign({}, parent.attrs, { italic: true }) });
+          } else if (tk.type === 'em_close' || tk.type === 'i_close') { if (stack.length > 1) stack.pop(); }
+          else if (tk.type === 's_open' || tk.type === 'strikethrough_open') {
+            const parent = stack[stack.length - 1];
+            stack.push({ attrs: Object.assign({}, parent.attrs, { strike: true }) });
+          } else if (tk.type === 's_close' || tk.type === 'strikethrough_close') { if (stack.length > 1) stack.pop(); }
+          else if (tk.type === 'link_open') {
+            const href = (tk.attrs && tk.attrs.find(a => a[0] === 'href')) ? tk.attrs.find(a => a[0] === 'href')[1] : null;
+            const inner = [];
+            let k = i + 1;
+            while (k < inlineTokens.length && inlineTokens[k].type !== 'link_close') {
+              inner.push(inlineTokens[k]);
+              k++;
+            }
+            const innerRuns = inlineTokensToRunsSimple(inner, charStyleMap);
+            out.push({ type: 'link', href, runs: innerRuns });
+            i = k;
+          } else if (tk.type === 'image') {
+            const srcAttr = tk.attrs && tk.attrs.find(a => a[0] === 'src');
+            const altAttr = tk.attrs && tk.attrs.find(a => a[0] === 'alt');
+            out.push({ type: 'image', src: srcAttr ? srcAttr[1] : null, alt: altAttr ? altAttr[1] : (tk.content || '') });
+          } else {
+            if (tk.content) pushText(tk.content, stack[stack.length - 1].attrs);
+          }
+        }
+        return out;
+      }
+
+      function makeImageRunXml(rId, filename, widthEmu, heightEmu) {
+        return `<w:r>
+          <w:drawing>
+            <wp:inline distT="0" distB="0" distL="0" distR="0">
+              <wp:extent cx="${widthEmu}" cy="${heightEmu}"/>
+              <wp:effectExtent l="0" t="0" r="0" b="0"/>
+              <wp:docPr id="1" name="${escapeXml(filename)}"/>
+              <wp:cNvGraphicFramePr>
+                <a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/>
+              </wp:cNvGraphicFramePr>
+              <a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+                <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                  <pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                    <pic:nvPicPr>
+                      <pic:cNvPr id="0" name="${escapeXml(filename)}"/>
+                      <pic:cNvPicPr/>
+                    </pic:nvPicPr>
+                    <pic:blipFill>
+                      <a:blip r:embed="${rId}"/>
+                      <a:stretch>
+                        <a:fillRect/>
+                      </a:stretch>
+                    </pic:blipFill>
+                    <pic:spPr>
+                      <a:xfrm>
+                        <a:off x="0" y="0"/>
+                        <a:ext cx="${widthEmu}" cy="${heightEmu}"/>
+                      </a:xfrm>
+                      <a:prstGeom prst="rect">
+                        <a:avLst/>
+                      </a:prstGeom>
+                    </pic:spPr>
+                  </pic:pic>
+                </a:graphicData>
+              </a:graphic>
+            </wp:inline>
+          </w:drawing>
+        </w:r>`;
+      }
+
+      // 获取图片原始尺寸
+      function getImageDimensions(imageDataUrl) {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.onload = function () {
+            resolve({ width: this.width, height: this.height });
+          };
+          img.onerror = function () {
+            // 如果无法获取尺寸，使用默认值
+            resolve({ width: 300, height: 200 });
+          };
+          img.src = imageDataUrl;
+        });
+      }
+
+      // 计算合适的显示尺寸（EMU单位）
+      function calculateDisplaySize(originalWidth, originalHeight) {
+        const maxWidthInches = 6; // 最大宽度6英寸
+        const maxHeightInches = 4; // 最大高度4英寸
+        const emuPerInch = 914400;
+
+        // 计算缩放比例
+        const widthScale = (maxWidthInches * 96) / originalWidth; // 96 DPI
+        const heightScale = (maxHeightInches * 96) / originalHeight;
+        const scale = Math.min(widthScale, heightScale, 1); // 不放大，只缩小
+
+        const displayWidth = originalWidth * scale;
+        const displayHeight = originalHeight * scale;
+
+        // 转换为EMU单位
+        const widthEmu = Math.round((displayWidth / 96) * emuPerInch);
+        const heightEmu = Math.round((displayHeight / 96) * emuPerInch);
+
+        return { widthEmu, heightEmu };
+      }
+
+      function base64ToArrayBuffer(base64) {
+        const binary_string = atob(base64);
+        const len = binary_string.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) bytes[i] = binary_string.charCodeAt(i);
+        return bytes.buffer;
+      }
+
+      async function blocksToDocumentXmlFragment(blocks, zip, parStyleMap, charStyleMap, numberingInfo, relsObj, embedImages) {
+        let frag = '';
+        const defaultOlNumId = chooseNumIdForList('ol', parStyleMap, numberingInfo);
+        const defaultUlNumId = chooseNumIdForList('ul', parStyleMap, numberingInfo);
+
+        function ensureHyperlinkRel_for_processing(href, relsObj) {
+          if (!href) return null;
+          for (const id in relsObj) {
+            const r = relsObj[id];
+            if (r.Type && r.Type.endsWith('/hyperlink') && r.Target === href && (r.TargetMode === 'External' || !r.TargetMode)) return id;
+          }
+          let max = 0;
+          for (const id in relsObj) {
+            const m = id.match(/^rId(\d+)$/i);
+            if (m) max = Math.max(max, parseInt(m[1], 10));
+          }
+          const newId = 'rId' + (max + 1);
+          relsObj[newId] = { Id: newId, Type: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink', Target: href, TargetMode: 'External' };
+          return newId;
+        }
+
+        function generateMediaFilename(zip, ext) {
+          const mediaFiles = Object.keys(zip.files).filter(n => n.startsWith('word/media/')).map(n => n.replace(/^word\/media\//, ''));
+          let idx = 1;
+          let name = `image${idx}.${ext}`;
+          while (mediaFiles.includes(name)) { idx++; name = `image${idx}.${ext}`; }
+          return name;
+        }
+
+        async function processInlineTokens(inlineTokens) {
+          const runsOrObjs = inlineTokensToRunsSimple(inlineTokens, charStyleMap);
+          const outRuns = [];
+          for (const r of runsOrObjs) {
+            if (typeof r === 'string') { outRuns.push(r); }
+            else if (r.type === 'link') {
+              const href = r.href;
+              const rid = ensureHyperlinkRel_for_processing(href, relsObj);
+              outRuns.push(`<w:hyperlink r:id="${rid}">${r.runs.join('')}</w:hyperlink>`);
+            } else if (r.type === 'image') {
+              const src = r.src;
+              const alt = r.alt || '';
+              if (!src) { outRuns.push(`<w:r><w:t>${escapeXml(alt)}</w:t></w:r>`); continue; }
+              if (!embedImages) {
+                const rid = ensureHyperlinkRel_for_processing(src, relsObj);
+                outRuns.push(`<w:hyperlink r:id="${rid}"><w:r><w:rPr><w:rStyle w:val="InternetLink"/></w:rPr><w:t>${escapeXml(alt || src)}</w:t></w:r></w:hyperlink>`);
+              } else {
+                try {
+                  let dataBuf = null;
+                  let ext = 'png';
+                  let imageDataUrl = null;
+
+                  // 首先尝试从localStorage获取图片数据
+                  if (!src.startsWith('data:') && !src.startsWith('http')) {
+                    imageDataUrl = getImageFromStorage(src);
+                  } else {
+                    imageDataUrl = src;
+                  }
+
+                  if (imageDataUrl && imageDataUrl.startsWith('data:')) {
+                    const m = imageDataUrl.match(/^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i);
+                    if (m) {
+                      const mime = m[1];
+                      const b64 = m[2];
+                      const ab = base64ToArrayBuffer(b64);
+                      dataBuf = new Uint8Array(ab);
+                      ext = mime.split('/')[1] || ext;
+                    }
+                  } else if (imageDataUrl && imageDataUrl.startsWith('http')) {
+                    const resp = await fetch(imageDataUrl);
+                    if (!resp.ok) throw new Error('Fetch image failed: ' + resp.status);
+                    const blob = await resp.blob();
+                    const arr = await blob.arrayBuffer();
+                    dataBuf = new Uint8Array(arr);
+                    const mime = blob.type || '';
+                    if (mime && mime.startsWith('image/')) ext = mime.split('/')[1];
+                  }
+
+                  if (dataBuf && dataBuf.length > 0) {
+                    const name = generateMediaFilename(zip, ext);
+                    const mediaPath = `word/media/${name}`;
+                    zip.file(mediaPath, dataBuf);
+                    let newIdIndex = 0;
+                    for (const id in relsObj) {
+                      const m = id.match(/^rId(\d+)$/i);
+                      if (m) newIdIndex = Math.max(newIdIndex, parseInt(m[1], 10));
+                    }
+                    const newRid = 'rId' + (newIdIndex + 1);
+                    relsObj[newRid] = { Id: newRid, Type: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image', Target: `media/${name}`, TargetMode: null };
+
+                    // 获取图片原始尺寸并计算合适的显示尺寸
+                    const dimensions = await getImageDimensions(imageDataUrl);
+                    const { widthEmu, heightEmu } = calculateDisplaySize(dimensions.width, dimensions.height);
+                    outRuns.push(makeImageRunXml(newRid, name, widthEmu, heightEmu));
+                  } else {
+                    // 如果没有图片数据，显示图片占位符文本
+                    outRuns.push(`<w:r><w:t>[图片: ${escapeXml(alt || src)}]</w:t></w:r>`);
+                  }
+                } catch (e) {
+                  // 确保即使出错也显示一些文本
+                  outRuns.push(`<w:r><w:t>[图片加载失败: ${escapeXml(alt || src)}]</w:t></w:r>`);
+                }
+              }
+            } else {
+              if (r && typeof r === 'string') outRuns.push(r);
+              else if (r && r.runs) outRuns.push(...r.runs);
+            }
+          }
+          return outRuns;
+        }
+
+        async function processListItemBlocks(itemBlocks, level = 0) {
+          let itemFragments = [];
+
+          // 首先处理列表项的实际内容（如果有的话）
+          for (const block of itemBlocks) {
+            if (block.type === 'paragraph') {
+              const runs = await processInlineTokens(block.inline || []);
+              itemFragments.push(`<w:p><w:pPr><w:ind w:leftChars="${(level + 1) * 2 * 100}"/></w:pPr>${runs.join('')}</w:p>`);
+            } else if (block.type === 'codeblock') {
+              const text = block.text || '';
+              itemFragments.push(`<w:p><w:pPr><w:pStyle w:val="Code"/><w:ind w:leftChars="${(level + 1) * 2 * 100}"/></w:pPr><w:r><w:t xml:space="preserve">${escapeXml(text)}</w:t></w:r></w:p>`);
+            } else if (block.type === 'blockquote') {
+              for (const ch of block.children) {
+                if (ch.type === 'paragraph') {
+                  const runs = await processInlineTokens(ch.inline);
+                  itemFragments.push(`<w:p><w:pPr><w:pStyle w:val="BlockText"/><w:ind w:leftChars="${(level + 1) * 2 * 100}"/></w:pPr>${runs.join('')}</w:p>`);
+                }
+              }
+            }
+            // 注意：这里不处理 ul/ol，因为它们会在更高层级被处理
+          }
+
+          return itemFragments;
+        }
+
+        async function processListItems(listItems, isOrdered, level = 0) {
+          let fragments = [];
+          const styleId = decideStyleIdFor(isOrdered ? 'ol' : 'ul', level, parStyleMap);
+          const numId = chooseNumIdForList(isOrdered ? 'ol' : 'ul', parStyleMap, numberingInfo) || (isOrdered ? defaultOlNumId : defaultUlNumId);
+
+          for (const item of listItems) {
+            // 分离列表项的内容和嵌套列表
+            const contentBlocks = [];
+            const nestedLists = [];
+
+            for (const block of item) {
+              if (block.type === 'ul' || block.type === 'ol') {
+                nestedLists.push(block);
+              } else {
+                contentBlocks.push(block);
+              }
+            }
+
+            // 为当前列表项创建编号段落（包含内容）
+            if (numId) {
+              let contentRuns = '';
+              // 处理内容块
+              for (const block of contentBlocks) {
+                if (block.type === 'paragraph') {
+                  const runs = await processInlineTokens(block.inline || []);
+                  contentRuns += runs.join('');
+                }
+              }
+              // 若未解析到任何内容，补一个零宽空格，避免空段落导致渲染异常
+              if (!contentRuns) {
+                contentRuns = `<w:r><w:t xml:space="preserve">&#8203;</w:t></w:r>`;
+              }
+
+              fragments.push(`<w:p><w:pPr><w:ind w:leftChars="${(level + 1) * 2 * 100}" w:hangingChars="200"/><w:numPr><w:ilvl w:val="${level}"/><w:numId w:val="${numId}"/></w:numPr></w:pPr>${contentRuns}</w:p>`);
+            } else {
+              const prefix = isOrdered ? `${level + 1}.` : '•';
+              let contentRuns = `<w:r><w:t xml:space="preserve">${escapeXml(prefix)} </w:t></w:r>`;
+
+              // 处理内容块
+              for (const block of contentBlocks) {
+                if (block.type === 'paragraph') {
+                  const runs = await processInlineTokens(block.inline || []);
+                  contentRuns += runs.join('');
+                }
+              }
+
+              fragments.push(`<w:p><w:pPr><w:ind w:leftChars="${(level + 1) * 2 * 100}" w:hangingChars="200"/></w:pPr>${contentRuns}</w:p>`);
+            }
+
+            // 处理嵌套列表
+            for (const nestedList of nestedLists) {
+              const nestedFragments = await processListItems(nestedList.items, nestedList.type === 'ol', level + 1);
+              fragments.push(...nestedFragments);
+            }
+          }
+
+          return fragments;
+        }
+
+        for (const b of blocks) {
+          if (b.type === 'heading') {
+            const styleId = decideStyleIdFor('heading', b.level, parStyleMap);
+            const runs = await processInlineTokens(b.inline);
+            frag += `<w:p><w:pPr><w:pStyle w:val="${styleId}"/></w:pPr>${runs.join('')}</w:p>`;
+          } else if (b.type === 'paragraph') {
+            const styleId = decideStyleIdFor('paragraph', 0, parStyleMap);
+            const runs = await processInlineTokens(b.inline);
+            frag += `<w:p><w:pPr><w:pStyle w:val="${styleId}"/></w:pPr>${runs.join('')}</w:p>`;
+          } else if (b.type === 'blockquote') {
+            const styleId = decideStyleIdFor('blockquote', 0, parStyleMap);
+            for (const ch of b.children) {
+              if (ch.type === 'paragraph') {
+                const runs = await processInlineTokens(ch.inline);
+                frag += `<w:p><w:pPr><w:pStyle w:val="${styleId}"/></w:pPr>${runs.join('')}</w:p>`;
+              }
+            }
+          } else if (b.type === 'codeblock') {
+            const styleId = decideStyleIdFor('code', 0, parStyleMap);
+            const text = b.text || '';
+            frag += `<w:p><w:pPr><w:pStyle w:val="${styleId}"/></w:pPr><w:r><w:t xml:space="preserve">${escapeXml(text)}</w:t></w:r></w:p>`;
+          } else if (b.type === 'ul' || b.type === 'ol') {
+            const listFragments = await processListItems(b.items, b.type === 'ol', 0);
+            frag += listFragments.join('');
+          } else {
+            if (b.inline) {
+              const styleId = decideStyleIdFor('paragraph', 0, parStyleMap);
+              const runs = await processInlineTokens(b.inline);
+              frag += `<w:p><w:pPr><w:pStyle w:val="${styleId}"/></w:pPr>${runs.join('')}</w:p>`;
+            }
+          }
+        }
+        return frag;
+      }
+
+
+      // 基于 AST 的生成：将 AST 映射为 document.xml 片段
+      async function astToDocumentXmlFragment(ast, zip, parStyleMap, charStyleMap, numberingInfo, relsObj) {
+        const defaultOlNumId = chooseNumIdForList('ol', parStyleMap, numberingInfo);
+        const defaultUlNumId = chooseNumIdForList('ul', parStyleMap, numberingInfo);
+
+        function runsFromPlainText(text) {
+          const s = (text == null) ? '' : String(text);
+          if (!s) return `<w:r><w:t/></w:r>`;
+          // 保留首尾空白
+          if (/^\s|\s$/.test(s)) return `<w:r><w:t xml:space="preserve">${escapeXml(s)}</w:t></w:r>`;
+          return `<w:r><w:t>${escapeXml(s)}</w:t></w:r>`;
+        }
+
+        function paragraphXml(styleId, runs) {
+          return `<w:p><w:pPr><w:pStyle w:val="${styleId}"/></w:pPr>${runs}</w:p>`;
+        }
+
+        function listParagraphXml(styleId, numId, ilvl, runs) {
+          const leftChars = ((ilvl || 0) + 1) * 2 * 100; // 每层多2个字符（单位：1/100 字符）
+          const hangingChars = 2 * 100; // 悬挂缩进固定2个字符（单位：1/100 字符）
+          return `<w:p><w:pPr><w:ind w:leftChars="${leftChars}" w:hangingChars="${hangingChars}"/><w:numPr><w:ilvl w:val="${ilvl}"/><w:numId w:val="${numId}"/></w:numPr></w:pPr>${runs}</w:p>`;
+        }
+
+        function getListLevel(node) {
+          // 计算连续 list 祖先层数：标题/文档下直系 list 为0，list 的子 list 为父+1
+          let lvl = 0;
+          let p = node.parent;
+          while (p) {
+            if (p.type === 'list') lvl++;
+            else break;
+            p = p.parent;
+          }
+          return lvl;
+        }
+
+        function collectNodes(root) {
+          const out = [];
+          const stack = [root];
+          while (stack.length) {
+            const n = stack.pop();
+            out.push(n);
+            if (n.children && n.children.length) {
+              for (let i = n.children.length - 1; i >= 0; i--) stack.push(n.children[i]);
+            }
+          }
+          return out;
+        }
+
+        let frag = '';
+
+        async function emitNode(node) {
+          if (!node || !node.type) return;
+          if (node.type === 'heading') {
+            const styleId = decideStyleIdFor('heading', node.level || 1, parStyleMap) || 'Heading1';
+            const runs = runsFromPlainText(node.name || '');
+            frag += paragraphXml(styleId, runs);
+
+            // 备注（notes）作为正文段落
+            if (node.notes && String(node.notes).trim()) {
+              const ps = decideStyleIdFor('paragraph', 0, parStyleMap);
+              const lines = String(node.notes). split(/\r?\n/);
+              for (const ln of lines) {
+                if (ln.trim() === '') continue;
+                frag += paragraphXml(ps, runsFromPlainText(ln));
+              }
+            }
+          } else if (node.type === 'list') {
+            const isOrdered = !!node.ordered;
+            const styleId = decideStyleIdFor(isOrdered ? 'ol' : 'ul', 0, parStyleMap);
+            const numId = chooseNumIdForList(isOrdered ? 'ol' : 'ul', parStyleMap, numberingInfo) || (isOrdered ? defaultOlNumId : defaultUlNumId);
+            const ilvl = getListLevel(node);
+            const textRuns = runsFromPlainText(node.name || '');
+
+            if (numId) {
+              frag += listParagraphXml(styleId, numId, ilvl, textRuns || `<w:r><w:t xml:space="preserve">&#8203;</w:t></w:r>`);
+            } else {
+              // 极端回退（没有 numbering.xml）
+              const prefix = isOrdered ? `${(ilvl + 1)}.` : '•';
+              const runs = `<w:r><w:t xml:space="preserve">${escapeXml(prefix)} </w:t></w:r>` + (textRuns || '');
+              frag += `<w:p><w:pPr><w:ind w:leftChars="${(ilvl + 1) * 2 * 100}" w:hangingChars="200"/></w:pPr>${runs}</w:p>`;
+            }
+
+            // 备注（notes）作为正文段落，保持与该项同一 ilvl 的缩进
+            if (node.notes && String(node.notes).trim()) {
+              const ps = decideStyleIdFor('paragraph', 0, parStyleMap);
+              const lines = String(node.notes). split(/\r?\n/);
+              for (const ln of lines) {
+                if (ln.trim() === '') continue;
+                // 使用段落缩进模拟与该 list 项同级的附属内容
+                frag += `<w:p><w:pPr><w:pStyle w:val="${ps}"/><w:ind w:leftChars="${(ilvl + 1) * 2 * 100}"/></w:pPr>${runsFromPlainText(ln)}</w:p>`;
+              }
+            }
+          } else {
+            // 其他类型：按普通段落输出
+            const ps = decideStyleIdFor('paragraph', 0, parStyleMap);
+            const runs = runsFromPlainText(node.name || '');
+            if (runs) frag += paragraphXml(ps, runs);
+            if (node.notes && String(node.notes).trim()) {
+              const lines = String(node.notes). split(/\r?\n/);
+              for (const ln of lines) {
+                if (ln.trim() === '') continue;
+                frag += paragraphXml(ps, runsFromPlainText(ln));
+              }
+            }
+          }
+
+          // 子节点
+          if (node.children && node.children.length) {
+            for (const ch of node.children) await emitNode(ch);
+          }
+        }
+
+        // ast 可能是单节点或“Document”
+        await emitNode(ast);
+        return frag;
+      }
+
+      // main handler
+      document.getElementById('downloadBtn').addEventListener('click', async () => {
+        try {
+          errlogEl.style.display = 'none';
+          status('准备生成...');
+
+          // 根据选择的模板获取数据
+          const selectedTemplate = templateSelect.value;
+          let tplAB = null;
+
+          if (selectedTemplate === 'default') {
+            tplAB = defaultTplAB;
+          } else if (userTemplates.has(selectedTemplate)) {
+            tplAB = userTemplates.get(selectedTemplate).data;
+          }
+
+          if (!tplAB) { status('未找到选择的模板'); return; }
+
+          // create zip
+          const zip = new PizZip(tplAB);
+
+          // read styles.xml
+          let parStyleMap = new Map(), charStyleMap = new Map();
+          try {
+            const stylesTxt = await readZipFileAsync(zip, 'word/styles.xml');
+            if (stylesTxt) {
+              const maps = buildStyleMaps(stylesTxt);
+              parStyleMap = maps.parStyleMap;
+              charStyleMap = maps.charStyleMap;
+              status('已解析 styles.xml，段落样式数=' + parStyleMap.size + ' 字符样式数=' + charStyleMap.size);
+            } else status('模板中未找到 styles.xml（将使用默认样式）');
+          } catch (e) { console.warn(e); status('读取 styles.xml 失败，继续'); }
+
+          // numbering
+          let numberingInfo = { nums: {}, abstractNums: {} };
+          try {
+            const numberingTxt = await readZipFileAsync(zip, 'word/numbering.xml');
+            if (numberingTxt) {
+              numberingInfo = parseNumberingXml(numberingTxt);
+              status('已解析 numbering.xml');
+            } else status('模板无 numbering.xml（列表将回退为前缀或样式内 numId）');
+          } catch (e) { console.warn(e); status('读取 numbering.xml 失败，继续'); }
+
+          // rels
+          const relsPath = 'word/_rels/document.xml.rels';
+          let relsObj = {};
+          try {
+            const relsTxt = await readZipFileAsync(zip, relsPath);
+            if (relsTxt) relsObj = parseRels(relsTxt);
+          } catch (e) { console.warn(e); }
+
+          // 从 localStorage 获取 Markdown 数据
+          const markdownData = localStorage.getItem('mindword_markdown_data') || '';
+
+          status('正在生成段落与内联内容...');
+
+          // 优先走“Markdown -> AST（converter）-> Word”的稳定路径；失败则回退旧 tokens 流程
+          let bodyFrag = '';
+          try {
+            const convModule = await import('../converter/converter.js');
+            const cm = new convModule.ConverterManager();
+            const ast = cm.mdToAst(markdownData);
+
+            // 将父引用补齐，便于计算 list 层级（md-to-ast 中已设置 parent，但确保一致）
+            const fixParent = (node, parent = null) => {
+              if (!node || !node.children) return;
+              node.parent = parent;
+              node.children.forEach(ch => fixParent(ch, node));
+            };
+            fixParent(ast, null);
+
+            bodyFrag = await astToDocumentXmlFragment(ast, zip, parStyleMap, charStyleMap, numberingInfo, relsObj);
+          } catch (e) {
+            console.warn('AST 路径失败，回退 tokens→blocks：', e);
+            const tokens = md.parse(markdownData, {});
+            const blocks = mdTokensToBlocks(tokens);
+            // 默认嵌入图片（如果有图片数据的话）
+            const hasImages = localStorage.getItem('markdown-images');
+            const embedImages = !!hasImages;
+            bodyFrag = await blocksToDocumentXmlFragment(blocks, zip, parStyleMap, charStyleMap, numberingInfo, relsObj, embedImages);
+          }
+
+          // document.xml
+          const docTxt = await readZipFileAsync(zip, 'word/document.xml');
+          if (!docTxt) { status('模板缺失 word/document.xml'); return; }
+          let docXml = docTxt;
+          if (docXml.indexOf('{{CONTENT_PLACEHOLDER}}') >= 0) docXml = docXml.replace('{{CONTENT_PLACEHOLDER}}', bodyFrag);
+          else {
+            const startTag = '<w:body>';
+            const endTag = '</w:body>';
+            const si = docXml.indexOf(startTag);
+            const ei = docXml.lastIndexOf(endTag);
+            if (si < 0 || ei < 0) { status('无法找到 document.xml 的 <w:body>'); return; }
+            const prefix = docXml.slice(0, si + startTag.length);
+            const suffix = docXml.slice(ei);
+            docXml = prefix + bodyFrag + suffix;
+          }
+          zip.file('word/document.xml', docXml);
+
+          // write rels if modified
+          if (Object.keys(relsObj).length > 0) {
+            let relsXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">';
+            for (const id in relsObj) {
+              const r = relsObj[id];
+              const attrs = [`Id="${r.Id}"`, `Type="${r.Type}"`, `Target="${r.Target}"`];
+              if (r.TargetMode) attrs.push(`TargetMode="${r.TargetMode}"`);
+              relsXml += `<Relationship ${attrs.join(' ')}/>`;
+            }
+            relsXml += '</Relationships>';
+            zip.file(relsPath, relsXml);
+          }
+
+          status('打包生成 DOCX...');
+          // ZIP generate with fallbacks
+          let outBlob = null;
+          if (typeof zip.generateAsync === 'function') {
+            outBlob = await zip.generateAsync({ type: 'blob' });
+          } else if (typeof zip.generate === 'function') {
+            // old versions may return Uint8Array, string, or blob depending on options
+            const res = zip.generate({ type: 'blob' });
+            // if res is a Promise-like
+            if (res && typeof res.then === 'function') outBlob = await res;
+            else outBlob = res;
+          } else if (typeof PizZip.prototype.generateAsync === 'function') {
+            // try prototype
+            outBlob = await PizZip.prototype.generateAsync.call(zip, { type: 'blob' });
+          } else {
+            throw new Error('当前 PizZip 版本不支持生成方法（generateAsync/generate 不存在）');
+          }
+
+          // ensure outBlob is Blob
+          if (!(outBlob instanceof Blob)) {
+            // try convert Uint8Array to Blob
+            if (outBlob instanceof Uint8Array || ArrayBuffer.isView(outBlob)) {
+              outBlob = new Blob([outBlob.buffer || outBlob], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+            } else if (typeof outBlob === 'string') {
+              outBlob = new Blob([outBlob], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+            }
+          }
+
+          saveAs(outBlob, 'md-export.docx');
+          status('生成完成：md-export.docx 已下载');
+        } catch (e) {
+          console.error(e);
+          status('生成失败：' + (e && e.message ? e.message : String(e)));
+          showError(e);
+        }
+      });
+
+    })();
+  </script>
+
+  <!-- Bootstrap JS for notifications -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- 通知桥接器 -->
+  <script src="../notification-bridge.js"></script>
+</body>
+
+</html>

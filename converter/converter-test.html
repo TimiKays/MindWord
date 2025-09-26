@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>转换器测试 - 三区域布局 v1.5</title>
+    <!-- 啊，我忘记引入 jsmind 了 -->
+    <link type="text/css" rel="stylesheet" href="https://jsd.onmicrosoft.cn/npm/jsmind@0.8.7/style/jsmind.css" />
+    <link rel="stylesheet" href="main.css" />
+</head>
+
+<body>
+    <div class="header">
+        <h1>🔄 转换器测试 - 三区域实时同步</h1>
+    </div>
+
+    <div class="controls">
+        <button class="btn" onclick="convertMdToAst()">📄 → 🌳 (md→AST)</button>
+        <button class="btn" onclick="convertAstToMd()">📄 ← 🌳 (AST→md)</button>
+        <button class="btn" onclick="convertAstToNode()">🌳 → 🧠 (AST→node)</button>
+        <button class="btn" onclick="convertNodeToAst()">🌳 ← 🧠 (node→AST)</button>
+        <button class="btn" onclick="viewMindmap()" style="background: #9b59b6; margin-left: 10px;">查看思维导图</button>
+
+        <button class="btn" onclick="importMarkdown()" style="background: #27ae60;">导入MD</button>
+        <button class="btn" onclick="downloadCurrentMarkdown()" style="background: #3498db;">下载MD</button>
+        <button class="btn" onclick="downloadCurrentAst()" style="background: #9b59b6;">下载AST</button>
+        <button class="btn" onclick="downloadCurrentNodeTree()" style="background: #e67e22;">下载NodeTree</button>
+
+        <input type="file" id="markdownFileInput" accept=".md,.txt" style="display: none;"
+            onchange="handleMarkdownFile(event)">
+    </div>
+
+    <div class="main-container">
+        <!-- 左侧：Markdown -->
+        <div class="panel">
+            <div class="panel-header">📄 Markdown 编辑器</div>
+            <div class="panel-content">
+                <textarea class="panel-textarea" id="markdownInput" placeholder="输入或粘贴Markdown内容..."></textarea>
+                <div class="sample-buttons">
+                    <button class="sample-btn" onclick="loadSample('simple')">简单示例</button>
+                    <button class="sample-btn" onclick="loadSample('complex')">复杂示例</button>
+                    <button class="sample-btn" onclick="loadSample('heading')">标题示例</button>
+                </div>
+                <div id="markdownStats" class="stats" style="display: none;"></div>
+            </div>
+        </div>
+
+        <!-- 中间：AST JSON -->
+        <div class="panel">
+            <div class="panel-header">🌳 AST 结构 (JSON)</div>
+            <div class="panel-content">
+                <textarea class="panel-textarea" id="astOutput" placeholder="AST结构将显示在这里..."></textarea>
+                <div id="astStats" class="stats" style="display: none;"></div>
+            </div>
+        </div>
+
+        <!-- 右侧：Node-Tree -->
+        <div class="panel">
+            <div class="panel-header">🧠 Node-Tree 结构</div>
+            <div class="panel-content">
+                <textarea class="panel-textarea" id="nodeTreeOutput" placeholder="Node-tree结构将显示在这里..."></textarea>
+                <div id="nodeTreeStats" class="stats" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 思维导图iframe弹窗 -->
+    <div id="mindmapModal" class="mindmap-modal">
+        <div class="mindmap-container">
+            <div class="mindmap-header">
+                <h2>思维导图编辑器</h2>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <button class="btn" onclick="syncMindmapToMarkdown()"
+                        style="background: #27ae60; padding: 5px 10px; font-size: 12px;">同步到Markdown</button>
+                    <button class="btn" onclick="loadNodeTree()"
+                        style="background: #3498db; padding: 5px 10px; font-size: 12px;">重新加载</button>
+                    <button class="close-btn" onclick="closeMindmapModal()">&times;</button>
+                </div>
+            </div>
+            <div class="mindmap-content">
+                <iframe id="mindmapFrame" src=""
+                    style="width: 100%; height: 100%; border: none; border-radius: 4px;"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let mindmapFrame = null;
+        let mindmapWindow = null;
+        let isMindmapInitialized = false;
+
+        // 打开思维导图弹窗
+        function viewMindmap() {
+            document.getElementById('mindmapModal').style.display = 'block';
+
+            // 设置iframe的src为mindmap.html
+            const frame = document.getElementById('mindmapFrame');
+            frame.src = 'mindmap.html';
+        }
+
+        // 关闭思维导图弹窗
+        function closeMindmapModal() {
+            document.getElementById('mindmapModal').style.display = 'none';
+            // 关闭弹窗时刷新当前页面
+            window.location.reload();
+        }
+
+        // 监听来自iframe的消息
+        window.addEventListener('message', function (event) {
+            if (event.data && event.data.type === 'mindmapUpdated') {
+                console.log('思维导图已更新');
+                syncMindmapToMarkdown();
+            }
+        });
+    </script>
+    <!-- 转换器相关脚本 -->
+    <script type="module">
+        import { ConverterManager } from './converter.js';
+
+        // 将转换器暴露到全局作用域
+        window.converter = new ConverterManager();
+        console.log('🎯 转换器已全局暴露到 window.converter');
+
+        // 通知其他脚本转换器已就绪
+        window.dispatchEvent(new CustomEvent('converterReady'));
+    </script>
+
+    <script src="sync.js"></script>
+    <script src="load.js"></script>
+
+
+    <!-- 全局键盘监听事件：Ctrl+S保存当前markdown -->
+    <script>
+        document.addEventListener('keydown', function (event) {
+            // 检查是否按下Ctrl+S (Windows) 或 Cmd+S (Mac)
+            if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+                event.preventDefault(); // 阻止浏览器默认保存行为
+
+                // 检查saveCurrentMarkdown函数是否可用
+                if (typeof saveCurrentMarkdown === 'function') {
+                    try {
+                        saveCurrentMarkdown();
+
+                        console.log('已保存当前markdown到缓存');
+
+                        // 可选：显示保存成功的提示
+                        showSaveNotification('已保存到缓存');
+                    } catch (error) {
+                        console.error('保存失败:', error);
+                        showSaveNotification('保存失败: ' + error.message, true);
+                    }
+                } else {
+                    console.warn('saveCurrentMarkdown函数未定义');
+                    showSaveNotification('保存功能未就绪', true);
+                }
+            }
+        });
+
+        // 显示保存通知的辅助函数
+        function showSaveNotification(message, isError = false) {
+            // 创建通知元素
+            const notification = document.createElement('div');
+            notification.textContent = message;
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 10px 20px;
+                border-radius: 4px;
+                color: white;
+                font-size: 14px;
+                z-index: 10000;
+                transition: opacity 0.3s ease;
+                background: ${isError ? '#e74c3c' : '#27ae60'};
+            `;
+
+            document.body.appendChild(notification);
+
+            // 2秒后自动消失
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 2000);
+        }
+    </script>
+
+</body>
+
+</html>

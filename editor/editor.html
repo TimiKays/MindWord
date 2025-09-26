@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown 编辑器</title>
+    <link rel="stylesheet" href="../styles.css">
+    <!-- Bootstrap CSS for notifications -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f8f9fa;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* 保留文件输入框样式 */
+        .file-input {
+            display: none;
+        }
+
+        /* 主要内容区域 */
+        .main-content {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* 编辑器容器 */
+        .editor-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: #fff;
+            border-right: 1px solid #e1e5e9;
+        }
+
+        .editor-header {
+            background-color: #f8f9fa;
+            padding: 12px 16px;
+            border-bottom: 1px solid #e1e5e9;
+            font-weight: 500;
+            color: #495057;
+        }
+
+        .editor {
+            flex: 1;
+            border: none;
+            outline: none;
+            padding: 20px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            resize: none;
+            background-color: #fff;
+            color: #333;
+        }
+
+        .editor:focus {
+            box-shadow: inset 0 0 0 2px #3b82f6;
+        }
+
+        /* 帮助面板 */
+        .help-panel {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 350px;
+            height: 100%;
+            background-color: #fff;
+            border-left: 1px solid #e1e5e9;
+            box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+            z-index: 200;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .help-panel.open {
+            transform: translateX(0);
+        }
+
+        .help-header {
+            background-color: #6366f1;
+            color: white;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-weight: 500;
+        }
+
+        .help-close {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 4px;
+            border-radius: 4px;
+        }
+
+        .help-close:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .help-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .help-section {
+            margin-bottom: 24px;
+        }
+
+        .help-section h3 {
+            color: #374151;
+            margin-bottom: 12px;
+            font-size: 16px;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 6px;
+        }
+
+        .help-section p {
+            color: #6b7280;
+            margin-bottom: 8px;
+        }
+
+        .help-section code {
+            background-color: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+            color: #dc2626;
+        }
+
+        .help-list {
+            list-style: none;
+            margin: 8px 0;
+        }
+
+        .help-list li {
+            padding: 4px 0;
+            color: #4b5563;
+        }
+
+        .help-list li::before {
+            content: "•";
+            color: #6366f1;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        /* 状态消息 */
+        .status-message {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background-color: #10b981;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            transform: translateY(-100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+
+        .status-message.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .status-message.error {
+            background-color: #ef4444;
+        }
+
+        .status-message.warning {
+            background-color: #f59e0b;
+        }
+
+        /* 模态框 */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .modal.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background-color: #fff;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+
+        .modal.show .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #6b7280;
+            padding: 4px;
+        }
+
+        .modal-close:hover {
+            color: #374151;
+        }
+
+        .json-content {
+            background-color: #f3f4f6;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+            color: #374151;
+        }
+
+        /* 拖拽上传效果 - 编辑器特有 */
+        .editor.dragover {
+            background-color: #eff6ff;
+            border: 2px dashed #3b82f6;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 工具栏 -->
+    <div class="toolbar">
+        <button class="btn btn-success" id="export-btn">
+            <span>📤</span>
+            导出
+        </button>
+
+        <button class="btn btn-primary" id="upload-btn">
+            <span>📁</span>
+            上传
+        </button>
+
+        <button class="btn btn-warning" id="json-btn">
+            <span>🔍</span>
+            查看JSON
+        </button>
+
+        <button class="btn help-btn" id="help-btn" title="帮助文档">
+            ?
+        </button>
+
+        <input type="file" class="file-input" id="file-input" accept=".md,.zip" />
+
+        <div class="status-text">
+            <span id="save-status">自动保存 - Ctrl+S 手动保存</span>
+        </div>
+    </div>
+
+    <!-- 主内容区域 -->
+    <div class="main-content">
+        <!-- 编辑器 -->
+        <div class="editor-container">
+
+            <textarea class="editor" id="editor" placeholder="在这里输入 Markdown 内容...
+
+# 欢迎使用 Markdown 编辑器
+
+## 功能特性
+
+- 📝 实时预览
+- 🧠 思维导图生成
+- 📤 导出功能
+- 📁 文件上传
+- 🖼️ 图片支持（可粘贴）
+- 💾 自动保存
+
+## 快速开始
+
+输入 Markdown 语法，右侧会实时显示预览效果。
+
+### 示例
+
+**粗体文本** 和 *斜体文本*
+
+- 列表项 1
+- 列表项 2
+  - 子列表项
+
+1. 有序列表
+2. 第二项
+
+`代码片段`
+
+> 这是一个引用
+
+### 表格示例
+
+| 功能 | 状态 |
+|------|------|
+| 编辑 | ✅ |
+| 预览 | ✅ |
+| 导图 | ✅ |
+
+点击右上角的 **?** 查看完整帮助文档。"></textarea>
+        </div>
+
+        <!-- 帮助面板 -->
+        <div class="help-panel" id="help-panel">
+            <div class="help-header">
+                <span>📚 帮助文档</span>
+                <button class="help-close" id="help-close">&times;</button>
+            </div>
+            <div class="help-content">
+                <div class="help-section">
+                    <h3>⌨️ 快捷操作</h3>
+                    <ul class="help-list">
+                        <li><strong>点击节点</strong>：选中（高亮）</li>
+                        <li><strong>双击节点</strong>：编辑</li>
+                        <li><strong>Tab</strong>：添加子节点</li>
+                        <li><strong>Enter</strong>：添加同级节点</li>
+                        <li><strong>拖拽节点</strong> / 框选 / Space+拖动画布</li>
+                        <li><strong>Ctrl + 滚轮</strong>：放大/缩小画布</li>
+                        <li><strong>Delete/Backspace</strong>：删除选中节点</li>
+                        <li><strong>Ctrl + S</strong>：保存到本地存储</li>
+                        <li><strong>Ctrl + V</strong>：粘贴图片</li>
+                    </ul>
+                </div>
+
+                <div class="help-section">
+                    <h3>📝 支持的Markdown格式</h3>
+
+                    <p><strong>节点类型（会生成思维导图节点）：</strong></p>
+                    <ul class="help-list">
+                        <li><code># 标题</code> - 一级标题</li>
+                        <li><code>## 标题</code> - 二级标题</li>
+                        <li><code>### 标题</code> - 三级标题</li>
+                        <li><code>- 无序列表</code> - 列表项</li>
+                        <li><code>1. 有序列表</code> - 编号列表</li>
+                    </ul>
+
+                    <p><strong>非节点格式（不影响思维导图）：</strong></p>
+                    <ul class="help-list">
+                        <li>普通段落文本</li>
+                        <li><code>**粗体**</code> - <strong>粗体</strong></li>
+                        <li><code>*斜体*</code> - <em>斜体</em></li>
+                        <li><code>`代码`</code> - <code>行内代码</code></li>
+                        <li><code>&gt; 引用</code> - 引用块</li>
+                        <li><code>![图片](url)</code> - 图片</li>
+                        <li><code>[链接](url)</code> - 超链接</li>
+                        <li>表格、代码块等</li>
+                    </ul>
+                </div>
+
+                <div class="help-section">
+                    <h3>🖼️ 图片支持</h3>
+                    <ul class="help-list">
+                        <li>直接粘贴图片（Ctrl+V）</li>
+                        <li>拖拽图片文件到编辑器</li>
+                        <li>使用 Markdown 语法插入</li>
+                        <li>导出时自动打包所有图片</li>
+                    </ul>
+                </div>
+
+                <div class="help-section">
+                    <h3>💾 保存功能</h3>
+                    <ul class="help-list">
+                        <li>实时自动保存到浏览器存储</li>
+                        <li>Ctrl+S 手动保存</li>
+                        <li>重新打开页面自动恢复内容</li>
+                        <li>支持导出 .md 文件或 .zip 包</li>
+                    </ul>
+                </div>
+
+                <div class="help-section">
+                    <h3>🔧 调试功能</h3>
+                    <ul class="help-list">
+                        <li><strong>查看JSON</strong>：查看解析后的数据结构</li>
+                        <li>支持上传 .md 或 .zip 文件</li>
+                        <li>自动处理图片引用关系</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JSON查看模态框 -->
+    <div class="modal" id="json-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">📊 JSON 数据结构</h3>
+                <button class="modal-close" id="json-modal-close">&times;</button>
+            </div>
+            <div class="json-content" id="json-content"></div>
+        </div>
+    </div>
+
+    <!-- 状态消息 -->
+    <div class="status-message" id="status-message"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script>
+        // ===================================
+        // 🎯 核心功能类
+        // ===================================
+
+        class MarkdownEditor {
+            constructor() {
+                this.editor = document.getElementById('editor');
+                this.images = new Map(); // 存储图片数据
+                this.lastSaveTime = 0;
+                this.saveTimeout = null;
+
+                this.init();
+                this.loadFromStorage();
+            }
+
+            init() {
+                this.bindEvents();
+                // this.setupAutoSave();
+                this.setupImagePaste();
+                this.setupDragDrop();
+
+                // 监听跨页面/iframe 的缓存变化，markdown 有变更则刷新自己并执行同步
+                window.addEventListener('storage', (e) => {
+                    if (e.key === 'mindword_markdown_data') {
+                        const newVal = e.newValue ?? '';
+                        if (newVal !== this.getContent()) {
+                            this.setContent(newVal);
+                            this.updateSaveStatus('已同步');
+                        }
+                        if (window.syncAll) {
+                            try {
+                                window.syncAll('markdown', true, true);
+                            } catch (err) {
+                                console.warn('storage 触发 syncAll 失败:', err);
+                            }
+                        }
+                    }
+                });
+            }
+
+            // ===================================
+            // 📝 编辑器事件绑定
+            // ===================================
+
+            bindEvents() {
+                // 工具栏按钮
+                document.getElementById('export-btn').addEventListener('click', () => this.exportContent());
+                document.getElementById('upload-btn').addEventListener('click', () => this.uploadFile());
+                document.getElementById('json-btn').addEventListener('click', () => this.showJSON());
+                document.getElementById('help-btn').addEventListener('click', () => this.toggleHelp());
+                document.getElementById('help-close').addEventListener('click', () => this.toggleHelp());
+
+                // 文件上传
+                document.getElementById('file-input').addEventListener('change', (e) => this.handleFileUpload(e));
+
+                // 模态框关闭
+                document.getElementById('json-modal-close').addEventListener('click', () => this.hideJSON());
+                document.getElementById('json-modal').addEventListener('click', (e) => {
+                    if (e.target === e.currentTarget) this.hideJSON();
+                });
+
+                // 键盘快捷键
+                document.addEventListener('keydown', (e) => this.handleKeyboard(e));
+
+                // 编辑器内容变化
+                this.editor.addEventListener('input', () => this.onContentChange());
+
+                // 点击模态框外部关闭
+                document.addEventListener('click', (e) => {
+                    if (e.target.closest('.modal') === null &&
+                        !e.target.closest('#json-btn')) {
+                        this.hideJSON();
+                    }
+                });
+            }
+
+            // ===================================
+            // ⌨️ 键盘快捷键
+            // ===================================
+
+            handleKeyboard(e) {
+                if (e.ctrlKey && e.key === 's') {
+                    e.preventDefault();
+                    this.saveToStorage(true);
+                }
+
+                if (e.key === 'Escape') {
+                    this.hideJSON();
+                }
+            }
+
+            // ===================================
+            // 💾 自动保存功能
+            // ===================================
+
+            // setupAutoSave() {
+            //     this.autoSaveInterval = setInterval(() => {
+            //         if (this.hasUnsavedChanges()) {
+            //             this.saveToStorage(false);
+            //         }
+            //     }, 5000); // 每5秒自动保存
+            // }
+
+            onContentChange() {
+                this.lastSaveTime = Date.now();
+
+                // 防抖保存
+                clearTimeout(this.saveTimeout);
+                this.saveTimeout = setTimeout(() => {
+                    this.saveToStorage(false);
+                }, 2000);
+
+                // 通知其他窗口内容变化
+                this.broadcastChange();
+            }
+
+            hasUnsavedChanges() {
+                const current = this.getContent();
+                const saved = localStorage.getItem('markdown-content');
+                return current !== saved;
+            }
+
+            saveToStorage(manual = false) {
+                const content = this.getContent();
+                const images = Array.from(this.images.entries());
+
+                localStorage.setItem('mindword_markdown_data', content);
+                localStorage.setItem('markdown-images', JSON.stringify(images));
+                localStorage.setItem('markdown-save-time', Date.now().toString());
+
+                // 使用 converter 的同步能力，联动更新 AST 与 NodeTree 并写入缓存
+                if (window.syncAll) {
+                    try {
+                        window.syncAll('markdown', true, true);
+                    } catch (e) {
+                        console.warn('syncAll 调用失败:', e);
+                    }
+                }
+
+                if (manual) {
+                    this.showMessage('✅ 手动保存成功', 'success');
+                } else {
+                    this.updateSaveStatus('已保存');
+                }
+            }
+
+            loadFromStorage() {
+                const savedContent = localStorage.getItem('mindword_markdown_data');
+                const savedImages = localStorage.getItem('markdown-images');
+
+                if (savedContent) {
+                    this.setContent(savedContent);
+                }
+
+                if (savedImages) {
+                    try {
+                        const imageArray = JSON.parse(savedImages);
+                        this.images = new Map(imageArray);
+                    } catch (e) {
+                        console.warn('Failed to load images from storage:', e);
+                    }
+                }
+            }
+
+            updateSaveStatus(status) {
+                const statusElement = document.getElementById('save-status');
+                statusElement.textContent = `${status} - Ctrl+S 手动保存`;
+            }
+
+            // ===================================
+            // 🖼️ 图片处理功能
+            // ===================================
+
+            setupImagePaste() {
+                this.editor.addEventListener('paste', (e) => {
+                    const items = e.clipboardData.items;
+                    const types = e.clipboardData.types;
+                    
+                    // 首先检查是否有图片
+                    let hasImage = false;
+                    for (let item of items) {
+                        if (item.type.indexOf('image') !== -1) {
+                            e.preventDefault();
+                            const file = item.getAsFile();
+                            this.handleImageFile(file);
+                            hasImage = true;
+                            break;
+                        }
+                    }
+                    
+                    // 如果没有图片，检查是否有富文本内容（HTML）
+                    if (!hasImage) {
+                        // 检查是否有HTML内容
+                        const htmlData = e.clipboardData.getData('text/html');
+                        if (htmlData) {
+                            // 有HTML内容，转换为Markdown
+                            e.preventDefault();
+                            const markdownText = this.convertHtmlToMarkdown(htmlData);
+                            this.insertAtCursor(markdownText);
+                        }
+                        // 只有纯文本，允许默认处理
+                    }
+                });
+            }
+
+            setupDragDrop() {
+                this.editor.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    this.editor.classList.add('dragover');
+                });
+
+                this.editor.addEventListener('dragleave', (e) => {
+                    e.preventDefault();
+                    this.editor.classList.remove('dragover');
+                });
+
+                this.editor.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    this.editor.classList.remove('dragover');
+
+                    const files = e.dataTransfer.files;
+                    for (let file of files) {
+                        if (file.type.startsWith('image/')) {
+                            this.handleImageFile(file);
+                        }
+                    }
+                });
+            }
+
+            async handleImageFile(file) {
+                const id = this.generateImageId();
+                const reader = new FileReader();
+
+                reader.onload = (e) => {
+                    const dataUrl = e.target.result;
+                    this.images.set(id, {
+                        name: file.name,
+                        data: dataUrl,
+                        type: file.type
+                    });
+
+                    // 插入Markdown图片语法
+                    const imageMarkdown = `![${file.name}](${id})`;
+                    this.insertAtCursor(imageMarkdown);
+
+                    this.saveToStorage(false);
+                    this.showMessage('🖼️ 图片已添加', 'success');
+                };
+
+                reader.readAsDataURL(file);
+            }
+
+            generateImageId() {
+                return 'img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            }
+
+            insertAtCursor(text) {
+                const start = this.editor.selectionStart;
+                const end = this.editor.selectionEnd;
+                const content = this.getContent();
+
+                const newContent = content.substring(0, start) + text + content.substring(end);
+                this.setContent(newContent);
+
+                // 设置光标位置
+                const newPosition = start + text.length;
+                this.editor.setSelectionRange(newPosition, newPosition);
+                this.editor.focus();
+
+                this.onContentChange();
+            }
+
+            // ===================================
+            // 📤 导出功能
+            // ===================================
+
+            async exportContent() {
+                const content = this.getContent();
+                const hasImages = this.images.size > 0;
+
+                if (!hasImages) {
+                    // 只导出MD文件
+                    this.downloadFile('document.md', content, 'text/markdown');
+                    this.showMessage('📄 MD文件已导出', 'success');
+                } else {
+                    // 导出ZIP包
+                    await this.exportZip(content);
+                    this.showMessage('📦 ZIP包已导出', 'success');
+                }
+            }
+
+            async exportZip(content) {
+                const zip = new JSZip();
+
+                // 添加MD文件
+                zip.file('document.md', content);
+
+                // 添加图片文件夹
+                const imagesFolder = zip.folder('images');
+
+                for (let [id, imageData] of this.images) {
+                    const extension = this.getImageExtension(imageData.type);
+                    const filename = `${id}${extension}`;
+
+                    // 转换dataURL为blob
+                    const base64Data = imageData.data.split(',')[1];
+                    imagesFolder.file(filename, base64Data, { base64: true });
+                }
+
+                // 生成ZIP并下载
+                const zipBlob = await zip.generateAsync({ type: 'blob' });
+                this.downloadFile('markdown-export.zip', zipBlob, 'application/zip');
+            }
+
+            getImageExtension(mimeType) {
+                const extensions = {
+                    'image/jpeg': '.jpg',
+                    'image/png': '.png',
+                    'image/gif': '.gif',
+                    'image/webp': '.webp',
+                    'image/svg+xml': '.svg'
+                };
+                return extensions[mimeType] || '.png';
+            }
+
+            downloadFile(filename, content, mimeType) {
+                const blob = content instanceof Blob ? content : new Blob([content], { type: mimeType });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+
+            // ===================================
+            // 📁 文件上传功能
+            // ===================================
+
+            uploadFile() {
+                document.getElementById('file-input').click();
+            }
+
+            async handleFileUpload(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const loadingBtn = document.getElementById('upload-btn');
+                const originalText = loadingBtn.innerHTML;
+                loadingBtn.innerHTML = '<div class="loading"></div> 加载中...';
+                loadingBtn.disabled = true;
+
+                try {
+                    if (file.name.endsWith('.md')) {
+                        await this.loadMarkdownFile(file);
+                    } else if (file.name.endsWith('.zip')) {
+                        await this.loadZipFile(file);
+                    } else {
+                        throw new Error('不支持的文件格式');
+                    }
+
+                    this.showMessage('📁 文件加载成功', 'success');
+                } catch (error) {
+                    this.showMessage(`❌ 加载失败: ${error.message}`, 'error');
+                } finally {
+                    loadingBtn.innerHTML = originalText;
+                    loadingBtn.disabled = false;
+                    e.target.value = ''; // 清除选择
+                }
+            }
+
+            async loadMarkdownFile(file) {
+                const content = await this.readFileAsText(file);
+                this.setContent(content);
+                this.images.clear(); // 清除之前的图片
+                this.saveToStorage(false);
+            }
+
+            async loadZipFile(file) {
+                const zip = new JSZip();
+                const zipContent = await zip.loadAsync(file);
+
+                let markdownContent = '';
+                const newImages = new Map();
+
+                // 查找MD文件
+                for (let [filename, zipEntry] of Object.entries(zipContent.files)) {
+                    if (filename.endsWith('.md') && !zipEntry.dir) {
+                        markdownContent = await zipEntry.async('text');
+                        break;
+                    }
+                }
+
+                if (!markdownContent) {
+                    throw new Error('ZIP文件中未找到.md文件');
+                }
+
+                // 处理图片文件
+                for (let [filename, zipEntry] of Object.entries(zipContent.files)) {
+                    if (this.isImageFile(filename) && !zipEntry.dir) {
+                        const imageData = await zipEntry.async('base64');
+                        const mimeType = this.getMimeTypeFromExtension(filename);
+                        const dataUrl = `data:${mimeType};base64,${imageData}`;
+
+                        const imageId = this.generateImageId();
+                        newImages.set(imageId, {
+                            name: filename,
+                            data: dataUrl,
+                            type: mimeType
+                        });
+
+                        // 替换MD内容中的图片引用
+                        const imagePath = filename.replace(/^images\//, '');
+                        markdownContent = markdownContent.replace(
+                            new RegExp(`!\\[([^\\]]*)\\]\\(images/${imagePath}\\)`, 'g'),
+                            `![$1](${imageId})`
+                        );
+                    }
+                }
+
+                this.setContent(markdownContent);
+                this.images = newImages;
+                this.saveToStorage(false);
+            }
+
+            isImageFile(filename) {
+                return /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(filename);
+            }
+
+            getMimeTypeFromExtension(filename) {
+                const ext = filename.toLowerCase().split('.').pop();
+                const mimeTypes = {
+                    'jpg': 'image/jpeg',
+                    'jpeg': 'image/jpeg',
+                    'png': 'image/png',
+                    'gif': 'image/gif',
+                    'webp': 'image/webp',
+                    'svg': 'image/svg+xml'
+                };
+                return mimeTypes[ext] || 'image/png';
+            }
+
+            readFileAsText(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.onerror = (e) => reject(new Error('文件读取失败'));
+                    reader.readAsText(file);
+                });
+            }
+
+            // ===================================
+            // 🔍 JSON查看功能
+            // ===================================
+
+            showJSON() {
+                const content = this.getContent();
+                const data = this.parseMarkdownToJSON(content);
+
+                document.getElementById('json-content').textContent = JSON.stringify(data, null, 2);
+                document.getElementById('json-modal').classList.add('show');
+            }
+
+            hideJSON() {
+                document.getElementById('json-modal').classList.remove('show');
+            }
+
+            parseMarkdownToJSON(content) {
+                const lines = content.split('\n');
+                const result = {
+                    metadata: {
+                        createdAt: new Date().toISOString(),
+                        nodeCount: 0,
+                        imageCount: this.images.size,
+                        hasImages: this.images.size > 0
+                    },
+                    nodes: [],
+                    images: Object.fromEntries(this.images),
+                    content: content
+                };
+
+                let nodeId = 0;
+                const nodeStack = [];
+
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line) continue;
+
+                    // 标题节点
+                    const headerMatch = line.match(/^(#{1,6})\s+(.+)$/);
+                    if (headerMatch) {
+                        const level = headerMatch[1].length;
+                        const text = headerMatch[2];
+
+                        const node = {
+                            id: ++nodeId,
+                            type: 'header',
+                            level: level,
+                            text: text,
+                            children: []
+                        };
+
+                        this.addNodeToStack(nodeStack, node, level);
+                        continue;
+                    }
+
+                    // 列表节点
+                    const listMatch = line.match(/^(\s*)([-*+]|\d+\.)\s+(.+)$/);
+                    if (listMatch) {
+                        const indent = listMatch[1].length;
+                        const marker = listMatch[2];
+                        const text = listMatch[3];
+                        const level = Math.floor(indent / 2) + 1;
+
+                        const node = {
+                            id: ++nodeId,
+                            type: marker.match(/\d+\./) ? 'ordered-list' : 'unordered-list',
+                            level: level,
+                            text: text,
+                            children: []
+                        };
+
+                        this.addNodeToStack(nodeStack, node, level);
+                        continue;
+                    }
+                }
+
+                result.nodes = nodeStack.filter(node => node.level === 1);
+                result.metadata.nodeCount = nodeId;
+
+                return result;
+            }
+
+            addNodeToStack(stack, node, level) {
+                // 清理栈中更深层级的节点
+                while (stack.length > 0 && stack[stack.length - 1].level >= level) {
+                    stack.pop();
+                }
+
+                // 添加到父节点
+                if (stack.length > 0) {
+                    stack[stack.length - 1].children.push(node);
+                }
+
+                stack.push(node);
+            }
+
+            // ===================================
+            // 📚 帮助面板
+            // ===================================
+
+            toggleHelp() {
+                const panel = document.getElementById('help-panel');
+                panel.classList.toggle('open');
+            }
+
+            // ===================================
+            // 💬 消息提示
+            // ===================================
+
+            showMessage(message, type = 'success') {
+                // 使用通知桥接器发送通知
+                if (window.NotificationBridge) {
+                    switch (type) {
+                        case 'success':
+                            window.NotificationBridge.showSuccess(message);
+                            break;
+                        case 'error':
+                            window.NotificationBridge.showError(message);
+                            break;
+                        case 'warning':
+                            window.NotificationBridge.showWarning(message);
+                            break;
+                        default:
+                            window.NotificationBridge.showInfo(message);
+                    }
+                } else {
+                    // 回退到本地状态消息
+                    const messageEl = document.getElementById('status-message');
+                    messageEl.textContent = message;
+                    messageEl.className = `status-message ${type}`;
+                    messageEl.classList.add('show');
+
+                    setTimeout(() => {
+                        messageEl.classList.remove('show');
+                    }, 3000);
+                }
+            }
+
+            // ===================================
+            // 🔄 跨窗口通信
+            // ===================================
+
+            broadcastChange() {
+                // 向其他窗口广播内容变化
+                const data = {
+                    type: 'markdown-content-change',
+                    content: this.getContent(),
+                    timestamp: Date.now()
+                };
+
+                try {
+                    window.parent.postMessage(data, '*');
+                } catch (e) {
+                    // 忽略跨域错误
+                }
+            }
+
+            // ===================================
+            // 🎨 内容操作辅助方法
+            // ===================================
+
+            getContent() {
+                return this.editor.value;
+            }
+
+            setContent(content) {
+                this.editor.value = content;
+            }
+
+            convertHtmlToMarkdown(html) {
+                // 简单的HTML转Markdown实现
+                let markdown = html;
+                
+                // 标题
+                markdown = markdown.replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n\n');
+                markdown = markdown.replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n\n');
+                markdown = markdown.replace(/<h3[^>]*>(.*?)<\/h3>/gi, '### $1\n\n');
+                markdown = markdown.replace(/<h4[^>]*>(.*?)<\/h4>/gi, '#### $1\n\n');
+                markdown = markdown.replace(/<h5[^>]*>(.*?)<\/h5>/gi, '##### $1\n\n');
+                markdown = markdown.replace(/<h6[^>]*>(.*?)<\/h6>/gi, '###### $1\n\n');
+                
+                // 粗体
+                markdown = markdown.replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**');
+                markdown = markdown.replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**');
+                
+                // 斜体
+                markdown = markdown.replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*');
+                markdown = markdown.replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*');
+                
+                // 代码
+                markdown = markdown.replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`');
+                
+                // 链接
+                markdown = markdown.replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)');
+                
+                // 图片
+                markdown = markdown.replace(/<img[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*>/gi, '![$2]($1)');
+                markdown = markdown.replace(/<img[^>]*alt="([^"]*)"[^>]*src="([^"]*)"[^>]*>/gi, '![$1]($2)');
+                
+                // 列表项
+                markdown = markdown.replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n');
+                
+                // 段落
+                markdown = markdown.replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n');
+                
+                // 换行
+                markdown = markdown.replace(/<br[^>]*>/gi, '\n');
+                
+                // 移除所有其他HTML标签
+                markdown = markdown.replace(/<[^>]+>/g, '');
+                
+                // 清理多余的空行
+                markdown = markdown.replace(/\n{3,}/g, '\n\n');
+                
+                return markdown.trim();
+            }
+        }
+
+        // ===================================
+        // 🚀 应用初始化
+        // ===================================
+
+        // 页面加载完成后初始化编辑器
+        document.addEventListener('DOMContentLoaded', () => {
+            window.markdownEditor = new MarkdownEditor();
+            console.log('📝 Markdown Editor 已初始化');
+        });
+
+        // 页面卸载前保存
+        window.addEventListener('beforeunload', () => {
+            if (window.markdownEditor && window.markdownEditor.hasUnsavedChanges()) {
+                window.markdownEditor.saveToStorage(false);
+            }
+        });
+    </script>
+
+    <!-- 引入并初始化 converter，提供 syncAll 能力 -->
+    <script type="module">
+        import ConverterManager from '../converter/converter.js';
+        // 创建并暴露转换器实例
+        window.converter = new ConverterManager();
+        // 广播就绪事件，供 sync.js / load.js 等等待
+        window.dispatchEvent(new Event('converterReady'));
+    </script>
+    <script type="module" src="../converter/sync.js"></script>
+    <script type="module" src="../converter/load.js"></script>
+
+    <!-- Bootstrap JS for notifications -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- 通知桥接器 -->
+    <script src="../notification-bridge.js"></script>
+</body>
+
+</html>

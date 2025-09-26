@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多选功能测试</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 5px solid #4c9aff;
+        }
+        
+        .test-section h3 {
+            color: #495057;
+            margin-top: 0;
+            font-size: 1.4em;
+        }
+        
+        .test-button {
+            background: linear-gradient(45deg, #4c9aff, #0066cc);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            margin: 8px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(76, 154, 255, 0.3);
+        }
+        
+        .test-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(76, 154, 255, 0.4);
+        }
+        
+        .test-button:active {
+            transform: translateY(0);
+        }
+        
+        .status {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 8px;
+            font-weight: 600;
+            text-align: center;
+        }
+        
+        .status.success {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        }
+        
+        .status.error {
+            background: linear-gradient(45deg, #dc3545, #fd7e14);
+            color: white;
+            box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+        }
+        
+        .status.info {
+            background: linear-gradient(45deg, #17a2b8, #6f42c1);
+            color: white;
+            box-shadow: 0 4px 15px rgba(23, 162, 184, 0.3);
+        }
+        
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .feature-list li {
+            padding: 10px 0;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            align-items: center;
+        }
+        
+        .feature-list li:before {
+            content: "✅";
+            margin-right: 10px;
+            font-size: 1.2em;
+        }
+        
+        .feature-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .mindmap-link {
+            display: inline-block;
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            text-decoration: none;
+            padding: 15px 30px;
+            border-radius: 30px;
+            font-size: 18px;
+            font-weight: bold;
+            margin: 20px 0;
+            transition: all 0.3s ease;
+            box-shadow: 0 6px 25px rgba(255, 107, 107, 0.4);
+        }
+        
+        .mindmap-link:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(255, 107, 107, 0.5);
+        }
+        
+        .console-output {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 15px 0;
+            border: 2px solid #4a5568;
+        }
+        
+        .console-line {
+            margin: 5px 0;
+            padding: 5px;
+            border-radius: 3px;
+        }
+        
+        .console-info {
+            background: rgba(76, 154, 255, 0.2);
+            border-left: 3px solid #4c9aff;
+        }
+        
+        .console-success {
+            background: rgba(40, 167, 69, 0.2);
+            border-left: 3px solid #28a745;
+        }
+        
+        .console-error {
+            background: rgba(220, 53, 69, 0.2);
+            border-left: 3px solid #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧠 思维导图多选功能测试</h1>
+        
+        <div class="test-section">
+            <h3>📋 测试说明</h3>
+            <p>这个页面用于测试思维导图的多选功能是否正常工作。请按照以下步骤进行测试：</p>
+            <ul class="feature-list">
+                <li>点击下面的链接打开思维导图</li>
+                <li>使用 Ctrl+点击 选择多个节点</li>
+                <li>点击"调试多选样式"按钮检查样式应用情况</li>
+                <li>验证多选节点的视觉效果是否正常</li>
+            </ul>
+        </div>
+        
+        <div class="test-section">
+            <h3>🎯 快速测试</h3>
+            <a href="mindmap.html" target="_blank" class="mindmap-link">🚀 打开思维导图测试页面</a>
+            <div id="testStatus" class="status info">准备就绪 - 点击上方链接开始测试</div>
+        </div>
+        
+        <div class="test-section">
+            <h3>🔧 功能检查</h3>
+            <button class="test-button" onclick="checkBrowserSupport()">检查浏览器支持</button>
+            <button class="test-button" onclick="simulateMultiSelect()">模拟多选操作</button>
+            <button class="test-button" onclick="clearConsole()">清空控制台</button>
+            <div id="consoleOutput" class="console-output"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>📊 预期效果</h3>
+            <p>多选节点应该显示以下效果：</p>
+            <ul class="feature-list">
+                <li>背景色：半透明蓝色 (rgba(76, 154, 255, 0.8))</li>
+                <li>边框：4px 实线蓝色 (#4c9aff)</li>
+                <li>阴影：多层发光效果</li>
+                <li>动画：脉冲呼吸效果</li>
+                <li>文字：白色粗体</li>
+                <li>层级：最高z-index (999)</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // 控制台输出函数
+        function log(message, type = 'info') {
+            const consoleOutput = document.getElementById('consoleOutput');
+            const line = document.createElement('div');
+            line.className = `console-line console-${type}`;
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            consoleOutput.appendChild(line);
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        }
+        
+        // 检查浏览器支持
+        function checkBrowserSupport() {
+            log('开始检查浏览器支持...', 'info');
+            
+            try {
+                // 检查基本功能
+                const features = {
+                    'classList': typeof document.createElement('div').classList !== 'undefined',
+                    'addEventListener': typeof document.addEventListener === 'function',
+                    'querySelector': typeof document.querySelector === 'function',
+                    'getComputedStyle': typeof window.getComputedStyle === 'function',
+                    'localStorage': typeof localStorage !== 'undefined',
+                    'JSON': typeof JSON !== 'undefined'
+                };
+                
+                let allSupported = true;
+                for (const [feature, supported] of Object.entries(features)) {
+                    if (supported) {
+                        log(`✅ ${feature} 支持`, 'success');
+                    } else {
+                        log(`❌ ${feature} 不支持`, 'error');
+                        allSupported = false;
+                    }
+                }
+                
+                // 检查键盘事件支持
+                const keyboardSupported = 'onkeydown' in document;
+                if (keyboardSupported) {
+                    log('✅ 键盘事件支持', 'success');
+                } else {
+                    log('❌ 键盘事件不支持', 'error');
+                    allSupported = false;
+                }
+                
+                if (allSupported) {
+                    log('🎉 所有必要功能都已支持！', 'success');
+                    updateStatus('浏览器支持检查完成 - 所有功能正常', 'success');
+                } else {
+                    log('⚠️ 部分功能不支持，可能影响使用体验', 'error');
+                    updateStatus('浏览器支持检查完成 - 部分功能缺失', 'error');
+                }
+                
+            } catch (error) {
+                log(`❌ 检查过程中出错: ${error.message}`, 'error');
+                updateStatus('浏览器支持检查失败', 'error');
+            }
+        }
+        
+        // 模拟多选操作
+        function simulateMultiSelect() {
+            log('开始模拟多选操作...', 'info');
+            
+            try {
+                // 模拟Ctrl键按下
+                const ctrlEvent = new KeyboardEvent('keydown', {
+                    key: 'Control',
+                    code: 'ControlLeft',
+                    ctrlKey: true,
+                    bubbles: true
+                });
+                document.dispatchEvent(ctrlEvent);
+                log('✅ Ctrl键按下事件已模拟', 'success');
+                
+                // 模拟点击事件（这里只是演示，实际需要在思维导图页面执行）
+                setTimeout(() => {
+                    const clickEvent = new MouseEvent('click', {
+                        ctrlKey: true,
+                        bubbles: true,
+                        cancelable: true
+                    });
+                    log('✅ 点击事件已模拟（带Ctrl键）', 'success');
+                    
+                    // 模拟Ctrl键释放
+                    const ctrlUpEvent = new KeyboardEvent('keyup', {
+                        key: 'Control',
+                        code: 'ControlLeft',
+                        ctrlKey: false,
+                        bubbles: true
+                    });
+                    document.dispatchEvent(ctrlUpEvent);
+                    log('✅ Ctrl键释放事件已模拟', 'success');
+                    
+                    log('🎉 多选操作模拟完成！', 'success');
+                    updateStatus('多选操作模拟完成 - 请在思维导图页面验证效果', 'success');
+                }, 500);
+                
+            } catch (error) {
+                log(`❌ 模拟过程中出错: ${error.message}`, 'error');
+                updateStatus('多选操作模拟失败', 'error');
+            }
+        }
+        
+        // 清空控制台
+        function clearConsole() {
+            document.getElementById('consoleOutput').innerHTML = '';
+            log('控制台已清空', 'info');
+        }
+        
+        // 更新状态显示
+        function updateStatus(message, type) {
+            const statusElement = document.getElementById('testStatus');
+            statusElement.textContent = message;
+            statusElement.className = `status ${type}`;
+        }
+        
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            log('测试页面加载完成', 'info');
+            log('点击"检查浏览器支持"开始测试', 'info');
+            
+            // 监听来自思维导图页面的消息
+            window.addEventListener('message', function(event) {
+                if (event.data.type === 'multiselect-test') {
+                    log(`收到来自思维导图的消息: ${event.data.message}`, 'info');
+                    updateStatus(`收到反馈: ${event.data.message}`, 'success');
+                }
+            });
+        });
+        
+        // 添加键盘快捷键支持
+        document.addEventListener('keydown', function(event) {
+            if (event.ctrlKey && event.key === 't') {
+                event.preventDefault();
+                checkBrowserSupport();
+            } else if (event.ctrlKey && event.key === 'm') {
+                event.preventDefault();
+                simulateMultiSelect();
+            } else if (event.ctrlKey && event.key === 'l') {
+                event.preventDefault();
+                clearConsole();
+            }
+        });
+        
+        log('快捷键支持已启用:', 'info');
+        log('Ctrl+T: 检查浏览器支持', 'info');
+        log('Ctrl+M: 模拟多选操作', 'info');
+        log('Ctrl+L: 清空控制台', 'info');
+    </script>
+</body>
+</html>
