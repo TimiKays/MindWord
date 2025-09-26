@@ -161,8 +161,8 @@
   <!-- 控制按钮区域 -->
   <div class="toolbar">
     <button class="btn btn-primary" id="downloadBtn">生成 Word</button>
-    <button class="btn" id="uploadTplBtn">上传模板</button>
-    <button class="btn btn-success" id="downloadDefaultTplBtn">下载模板</button>
+    <button class="btn btn-secondary" id="uploadTplBtn">上传模板</button>
+    <button class="btn" id="downloadDefaultTplBtn">下载模板</button>
     <select id="templateSelect" class="toolbar-select">
       <option value="default">默认模板</option>
     </select>
@@ -1096,7 +1096,7 @@
             // 备注（notes）作为正文段落
             if (node.notes && String(node.notes).trim()) {
               const ps = decideStyleIdFor('paragraph', 0, parStyleMap);
-              const lines = String(node.notes). split(/\r?\n/);
+              const lines = String(node.notes).split(/\r?\n/);
               for (const ln of lines) {
                 if (ln.trim() === '') continue;
                 frag += paragraphXml(ps, runsFromPlainText(ln));
@@ -1121,7 +1121,7 @@
             // 备注（notes）作为正文段落，保持与该项同一 ilvl 的缩进
             if (node.notes && String(node.notes).trim()) {
               const ps = decideStyleIdFor('paragraph', 0, parStyleMap);
-              const lines = String(node.notes). split(/\r?\n/);
+              const lines = String(node.notes).split(/\r?\n/);
               for (const ln of lines) {
                 if (ln.trim() === '') continue;
                 // 使用段落缩进模拟与该 list 项同级的附属内容
@@ -1134,7 +1134,7 @@
             const runs = runsFromPlainText(node.name || '');
             if (runs) frag += paragraphXml(ps, runs);
             if (node.notes && String(node.notes).trim()) {
-              const lines = String(node.notes). split(/\r?\n/);
+              const lines = String(node.notes).split(/\r?\n/);
               for (const ln of lines) {
                 if (ln.trim() === '') continue;
                 frag += paragraphXml(ps, runsFromPlainText(ln));

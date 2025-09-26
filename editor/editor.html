@@ -167,34 +167,7 @@
             margin-right: 8px;
         }
 
-        /* 状态消息 */
-        .status-message {
-            position: fixed;
-            top: 80px;
-            right: 20px;
-            background-color: #10b981;
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            z-index: 1000;
-            transform: translateY(-100px);
-            opacity: 0;
-            transition: all 0.3s ease;
-        }
 
-        .status-message.show {
-            transform: translateY(0);
-            opacity: 1;
-        }
-
-        .status-message.error {
-            background-color: #ef4444;
-        }
-
-        .status-message.warning {
-            background-color: #f59e0b;
-        }
 
         /* 模态框 */
         .modal {
@@ -285,18 +258,18 @@
 <body>
     <!-- 工具栏 -->
     <div class="toolbar">
-        <button class="btn btn-success" id="export-btn">
-            <span>📤</span>
+        <button class="btn" id="export-btn">
+
             导出
         </button>
 
-        <button class="btn btn-primary" id="upload-btn">
-            <span>📁</span>
+        <button class="btn" id="upload-btn">
+
             上传
         </button>
 
-        <button class="btn btn-warning" id="json-btn">
-            <span>🔍</span>
+        <button class="btn" id="json-btn">
+
             查看JSON
         </button>
 
@@ -305,16 +278,14 @@
         </button>
 
         <input type="file" class="file-input" id="file-input" accept=".md,.zip" />
-
-        <div class="status-text">
-            <span id="save-status">自动保存 - Ctrl+S 手动保存</span>
-        </div>
     </div>
 
     <!-- 主内容区域 -->
     <div class="main-content">
         <!-- 编辑器 -->
         <div class="editor-container">
+            <!-- 保存提示 -->
+            <div class="save-notification" id="save-notification"></div>
 
             <textarea class="editor" id="editor" placeholder="在这里输入 Markdown 内容...
 
@@ -596,7 +567,8 @@
                 if (manual) {
                     this.showMessage('✅ 手动保存成功', 'success');
                 } else {
-                    this.updateSaveStatus('已保存');
+                    // 自动保存时显示小绿钩提示
+                    this.showSaveNotification();
                 }
             }
 
@@ -618,11 +590,6 @@
                 }
             }
 
-            updateSaveStatus(status) {
-                const statusElement = document.getElementById('save-status');
-                statusElement.textContent = `${status} - Ctrl+S 手动保存`;
-            }
-
             // ===================================
             // 🖼️ 图片处理功能
             // ===================================
@@ -631,7 +598,7 @@
                 this.editor.addEventListener('paste', (e) => {
                     const items = e.clipboardData.items;
                     const types = e.clipboardData.types;
-                    
+
                     // 首先检查是否有图片
                     let hasImage = false;
                     for (let item of items) {
@@ -643,7 +610,7 @@
                             break;
                         }
                     }
-                    
+
                     // 如果没有图片，检查是否有富文本内容（HTML）
                     if (!hasImage) {
                         // 检查是否有HTML内容
@@ -1031,16 +998,31 @@
                             window.NotificationBridge.showInfo(message);
                     }
                 } else {
-                    // 回退到本地状态消息
+                    // 回退到本地状态消息（主要用于非保存操作）
                     const messageEl = document.getElementById('status-message');
-                    messageEl.textContent = message;
-                    messageEl.className = `status-message ${type}`;
-                    messageEl.classList.add('show');
+                    if (messageEl) {
+                        messageEl.textContent = message;
+                        messageEl.className = `status-message ${type}`;
+                        messageEl.classList.add('show');
 
-                    setTimeout(() => {
-                        messageEl.classList.remove('show');
-                    }, 3000);
+                        setTimeout(() => {
+                            messageEl.classList.remove('show');
+                        }, 3000);
+                    }
                 }
+            }
+
+            // 显示保存成功提示（小绿钩）
+            showSaveNotification() {
+                const notificationEl = document.getElementById('save-notification');
+                if (!notificationEl) return;
+
+                notificationEl.textContent = '保存成功';
+                notificationEl.classList.add('show');
+
+                setTimeout(() => {
+                    notificationEl.classList.remove('show');
+                }, 3000);
             }
 
             // ===================================
@@ -1077,7 +1059,7 @@
             convertHtmlToMarkdown(html) {
                 // 简单的HTML转Markdown实现
                 let markdown = html;
-                
+
                 // 标题
                 markdown = markdown.replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n\n');
                 markdown = markdown.replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n\n');
@@ -1085,40 +1067,40 @@
                 markdown = markdown.replace(/<h4[^>]*>(.*?)<\/h4>/gi, '#### $1\n\n');
                 markdown = markdown.replace(/<h5[^>]*>(.*?)<\/h5>/gi, '##### $1\n\n');
                 markdown = markdown.replace(/<h6[^>]*>(.*?)<\/h6>/gi, '###### $1\n\n');
-                
+
                 // 粗体
                 markdown = markdown.replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**');
                 markdown = markdown.replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**');
-                
+
                 // 斜体
                 markdown = markdown.replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*');
                 markdown = markdown.replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*');
-                
+
                 // 代码
                 markdown = markdown.replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`');
-                
+
                 // 链接
                 markdown = markdown.replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)');
-                
+
                 // 图片
                 markdown = markdown.replace(/<img[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*>/gi, '![$2]($1)');
                 markdown = markdown.replace(/<img[^>]*alt="([^"]*)"[^>]*src="([^"]*)"[^>]*>/gi, '![$1]($2)');
-                
+
                 // 列表项
                 markdown = markdown.replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n');
-                
+
                 // 段落
                 markdown = markdown.replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n');
-                
+
                 // 换行
                 markdown = markdown.replace(/<br[^>]*>/gi, '\n');
-                
+
                 // 移除所有其他HTML标签
                 markdown = markdown.replace(/<[^>]+>/g, '');
-                
+
                 // 清理多余的空行
                 markdown = markdown.replace(/\n{3,}/g, '\n\n');
-                
+
                 return markdown.trim();
             }
         }

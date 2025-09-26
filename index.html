@@ -577,11 +577,16 @@
                 info: 'background-color: #17a2b8; border-color: #17a2b8; color: white;'     // 蓝色
             };
 
+            // 创建通知容器（如果不存在）
+            if ($('#global-notification-container').length === 0) {
+                $('body').append('<div id="global-notification-container" style="position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;"></div>');
+            }
+
             // 创建通知元素
             const notificationId = 'global-notification-' + Date.now();
             const notificationHtml = `
-                <div id="${notificationId}" class="alert alert-dismissible fade show position-fixed" 
-                     style="top: 20px; right: 20px; z-index: 9999; min-width: 300px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); ${typeStyles[type] || typeStyles.info}">
+                <div id="${notificationId}" class="alert alert-dismissible fade show" 
+                     style="min-width: 300px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin: 0; ${typeStyles[type] || typeStyles.info}">
                     ${message}
                     <button type="button" class="close" data-dismiss="alert" aria-label="Close" style="color: inherit; opacity: 0.8;">
                         <span aria-hidden="true">&times;</span>
@@ -589,17 +594,49 @@
                 </div>
             `;
 
-            // 添加到body
-            $('body').append(notificationHtml);
+            // 添加到通知容器
+            $('#global-notification-container').append(notificationHtml);
 
             // 自动移除
             setTimeout(() => {
-                $(`#${notificationId}`).alert('close');
+                const $notification = $(`#${notificationId}`);
+                $notification.fadeOut(300, function () {
+                    $notification.remove();
+                    // 重新排列剩余通知
+                    rearrangeGlobalNotifications();
+                });
             }, duration);
 
             // 点击关闭按钮时移除
             $(`#${notificationId} .close`).click(() => {
-                $(`#${notificationId}`).alert('close');
+                const $notification = $(`#${notificationId}`);
+                $notification.fadeOut(300, function () {
+                    $notification.remove();
+                    // 重新排列剩余通知
+                    rearrangeGlobalNotifications();
+                });
+            });
+        }
+
+        /**
+         * 重新排列全局通知
+         */
+        function rearrangeGlobalNotifications() {
+            const $container = $('#global-notification-container');
+            const $notifications = $container.children('.alert');
+
+            if ($notifications.length === 0) {
+                // 如果没有通知了，移除容器
+                $container.remove();
+                return;
+            }
+
+            // 重新计算位置
+            $notifications.each(function (index) {
+                const $notification = $(this);
+                // 添加平滑过渡效果
+                $notification.css('transition', 'transform 0.3s ease');
+                $notification.css('transform', `translateY(0)`);
             });
         }
 

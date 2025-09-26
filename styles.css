@@ -69,10 +69,121 @@ body {
 }
 
 /* ===================================
-   现代简约按钮样式
+   核心按钮样式 - 简化版本
    =================================== */
-.header .btn,
+
+/* 基础按钮样式 - 白色灰框黑字 */
 .btn {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    color: #374151;
+    padding: 10px 20px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 14px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    line-height: 1;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    font-family: inherit;
+}
+
+.btn:hover {
+    background-color: #f9fafb;
+    color: #1f2937;
+    border-color: #d1d5db;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+}
+
+.btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* 主要按钮样式 - 主题色底色白字 */
+.btn-primary {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    border-color: #3b82f6;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #487ae6 0%, #456edd 100%);
+    color: white;
+    border-color: #487ae6;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    transform: translateY(-1px);
+}
+
+/* 次要按钮样式 - 小尺寸 */
+.btn-small {
+    padding: 8px 14px;
+    font-size: 12px;
+    border-radius: 10px;
+}
+
+/* 图标按钮样式 */
+.btn-icon {
+    padding: 8px 12px;
+    font-size: 16px;
+    border-radius: 10px;
+}
+
+/* 专注模式按钮特定样式 */
+#focus-toggle {
+    font-size: 12px !important;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* 面板关闭按钮 - 简约风格 */
+.panel-header .btn-icon {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    padding: 6px 12px;
+    font-size: 27px;
+    font-weight: 300;
+    line-height: 1;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: none;
+    min-width: auto;
+    margin-right: -16px;
+}
+
+.panel-header .btn-icon:hover {
+    color: #64748b;
+    background: transparent;
+    transform: none;
+    box-shadow: none;
+}
+
+.panel-header .btn-icon:active {
+    color: #475569;
+    transform: none;
+}
+
+/* ===================================
+   iframe样式继承
+   =================================== */
+
+/* 确保iframe中的按钮继承框架样式 */
+iframe .btn,
+iframe button {
+    font-family: inherit !important;
+    box-sizing: border-box !important;
+}
+
+/* 如果iframe中的页面没有自己的按钮样式，则继承框架样式 */
+iframe .btn:not([class*="btn-"]) {
     background: #ffffff !important;
     border: 1px solid #e5e7eb !important;
     color: #374151 !important;
@@ -90,97 +201,12 @@ body {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
 }
 
-/* AI扩写按钮特殊样式 - 现代简约紫色渐变 */
-.btn[onclick*="expandWithAI"] {
-    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%) !important;
-    border-color: #8b5cf6 !important;
-    color: white !important;
-    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3) !important;
-}
-
-.btn[onclick*="expandWithAI"]:hover {
-    background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%) !important;
-    border-color: #7c3aed !important;
-    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4) !important;
-    transform: translateY(-1px) !important;
-}
-
-/* AI配置按钮特殊样式 - 现代简约灰色渐变 */
-.btn[onclick*="AIExpander.showConfig"] {
-    background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%) !important;
-    border-color: #6b7280 !important;
-    color: white !important;
-    box-shadow: 0 2px 8px rgba(107, 114, 128, 0.3) !important;
-}
-
-.btn[onclick*="AIExpander.showConfig"]:hover {
-    background: linear-gradient(135deg, #4b5563 0%, #374151 100%) !important;
-    border-color: #4b5563 !important;
-    box-shadow: 0 4px 12px rgba(107, 114, 128, 0.4) !important;
-    transform: translateY(-1px) !important;
-}
-
-.header .btn:hover,
-.btn:hover {
+iframe .btn:not([class*="btn-"]):hover {
     background-color: #f9fafb !important;
     color: #1f2937 !important;
     border-color: #d1d5db !important;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
     transform: translateY(-1px) !important;
-}
-
-.header .btn:active,
-.btn:active {
-    transform: translateY(0) !important;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
-}
-
-.header .btn.active,
-.btn.active {
-    background-color: #3b82f6 !important;
-    color: white !important;
-    border-color: #3b82f6 !important;
-    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3) !important;
-}
-
-.header .btn-small,
-.btn-small {
-    padding: 8px 14px !important;
-    font-size: 13px !important;
-    border-radius: 10px !important;
-}
-
-.btn-icon {
-    padding: 8px 12px;
-    font-size: 16px;
-    border-radius: 10px !important;
-}
-
-/* 面板关闭按钮 - 简约风格 */
-.panel-header .btn-icon {
-    background: transparent !important;
-    border: none !important;
-    color: #94a3b8 !important;
-    padding: 6px 12px !important;
-    font-size: 27px !important;
-    font-weight: 300 !important;
-    line-height: 1 !important;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
-    box-shadow: none !important;
-    min-width: auto !important;
-    margin-right: -16px !important;
-}
-
-.panel-header .btn-icon:hover {
-    color: #64748b !important;
-    background: transparent !important;
-    transform: none !important;
-    box-shadow: none !important;
-}
-
-.panel-header .btn-icon:active {
-    color: #475569 !important;
-    transform: none !important;
 }
 
 /* ===================================
@@ -349,8 +375,37 @@ body {
     height: 16px;
     border-radius: 50%;
     background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-    margin-right: 8px;
     box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+    position: relative;
+    flex-shrink: 0;
+}
+
+/* 空心状态（默认） */
+.focus-icon::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: white;
+}
+
+/* 实心状态（选中时） */
+#focus-toggle.active .focus-icon::before {
+    content: '✓';
+    background: transparent;
+    color: white;
+    font-size: 10px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    top: 0;
+    left: 0;
+    width: 16px;
+    height: 16px;
 }
 
 /* ===================================
@@ -418,6 +473,8 @@ body {
 .toolbar .btn-primary:hover,
 .toolbar .primary:hover {
     background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+    color: white !important;
+    border-color: #2563eb !important;
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4) !important;
     transform: translateY(-1px) !important;
 }
@@ -453,22 +510,22 @@ body {
 
 /* 帮助按钮特殊样式 */
 .toolbar .help-btn {
-    width: 32px !important;
-    height: 32px !important;
+    width: 28px !important;
+    height: 28px !important;
     border-radius: 50% !important;
     padding: 0 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    background-color: #6366f1 !important;
+    background-color: #60a5fa !important;
     color: white !important;
-    border-color: #6366f1 !important;
+    border-color: #60a5fa !important;
     font-weight: bold !important;
     position: relative !important;
 }
 
 .toolbar .help-btn:hover {
-    background-color: #5b21b6 !important;
+    background-color: #3b82f6 !important;
 }
 
 /* 工具栏中的选择框 */
@@ -726,7 +783,7 @@ body {
 
     .btn {
         padding: 8px 16px;
-        font-size: 13px;
+        font-size: 12px;
         border-radius: 10px;
     }
 
@@ -736,6 +793,19 @@ body {
     }
 
     .focus-icon {
+        width: 14px;
+        height: 14px;
+    }
+
+    .focus-icon::before {
+        top: 2px;
+        left: 2px;
+        width: 10px;
+        height: 10px;
+    }
+
+    #focus-toggle.active .focus-icon::before {
+        font-size: 9px;
         width: 14px;
         height: 14px;
     }

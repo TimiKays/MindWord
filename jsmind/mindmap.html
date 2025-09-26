@@ -81,22 +81,7 @@
       background: #f8f9fa;
     }
 
-    #notesOverlay {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      background: rgba(255, 255, 255, 0.95);
-      border: 1px solid #dee2e6;
-      border-radius: 4px;
-      padding: 8px;
-      max-width: 250px;
-      max-height: 200px;
-      overflow-y: auto;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-      display: none;
-      font-size: 12px;
-      z-index: 100;
-    }
+
 
     .node-info {
       background: white;
@@ -193,144 +178,164 @@
     .auto-update-show {
       animation: fadeIn 0.3s ease-in-out;
     }
-  /* 框选矩形与多选高亮 */
-  #selectionRect {
-    position: absolute;
-    border: 1px dashed #4c9aff;
-    background: rgba(76, 154, 255, 0.15);
-    pointer-events: none;
-    display: none;
-    z-index: 999;
-  }
-  /* 被多选的节点高亮：内外描边 + 淡蓝底色 + 提高层级，明显可见 */
-  #fullScreenMindmap .jmnode.multi-selected,
-  #fullScreenMindmap jmnodes jmnode.multi-selected,
-  jmnodes jmnode.multi-selected {
-    position: relative !important;
-    background-color: rgba(76, 154, 255, 0.5) !important;
-    background: rgba(76, 154, 255, 0.5) !important;
-    box-shadow:
-      0 0 0 4px #4c9aff !important,         /* 外描边 */
-      inset 0 0 0 3px #4c9aff !important,   /* 内描边 */
-      0 6px 20px rgba(76, 154, 255, 0.6) !important, /* 发光效果 */
-      0 0 30px rgba(76, 154, 255, 0.4) !important; /* 额外光晕 */
-    border-radius: 8px !important;
-    z-index: 999 !important;
-    transform: scale(1.08) !important;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-    animation: pulse 1.2s infinite ease-in-out !important;
-    border: 3px solid #4c9aff !important;
-    color: #fff !important;
-    font-weight: bold !important;
-  }
 
-  /* 确保多选节点在悬停时仍然保持高亮 */
-  #fullScreenMindmap .jmnode.multi-selected:hover,
-  #fullScreenMindmap jmnodes jmnode.multi-selected:hover,
-  jmnodes jmnode.multi-selected:hover {
-    background-color: rgba(76, 154, 255, 0.7) !important;
-    background: rgba(76, 154, 255, 0.7) !important;
-    box-shadow:
-      0 0 0 5px #4c9aff !important,
-      inset 0 0 0 4px #4c9aff !important,
-      0 8px 30px rgba(76, 154, 255, 0.8) !important,
-      0 0 40px rgba(76, 154, 255, 0.5) !important;
-    transform: scale(1.12) !important;
-    border: 4px solid #4c9aff !important;
-  }
+    /* 框选矩形与多选高亮 */
+    #selectionRect {
+      position: absolute;
+      border: 1px dashed #4c9aff;
+      background: rgba(76, 154, 255, 0.15);
+      pointer-events: none;
+      display: none;
+      z-index: 999;
+    }
 
-  /* 选中节点的脉冲动画 - 更明显的呼吸效果 */
-  @keyframes pulse {
-    0% {
-      box-shadow: 
-        0 0 0 4px #4c9aff,
-        inset 0 0 0 3px #4c9aff,
-        0 6px 20px rgba(76, 154, 255, 0.6),
-        0 0 30px rgba(76, 154, 255, 0.4);
-      transform: scale(1.08);
-      background-color: rgba(76, 154, 255, 0.5);
+    /* 被多选的节点高亮：内外描边 + 淡蓝底色 + 提高层级，明显可见 */
+    #fullScreenMindmap .jmnode.multi-selected {
+      position: relative !important;
+      background-color: rgba(76, 154, 255, 0.5) !important;
+      background: rgba(76, 154, 255, 0.5) !important;
+      box-shadow:
+        0 0 0 4px #4c9aff !important,
+        /* 外描边 */
+        inset 0 0 0 3px #4c9aff !important,
+        /* 内描边 */
+        0 6px 20px rgba(76, 154, 255, 0.6) !important,
+        /* 发光效果 */
+        0 0 30px rgba(76, 154, 255, 0.4) !important;
+      /* 额外光晕 */
+      border-radius: 8px !important;
+      z-index: 999 !important;
+      transform: scale(1.08) !important;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+      animation: pulse 1.2s infinite ease-in-out !important;
+      border: 3px solid #4c9aff !important;
+      color: #fff !important;
+      font-weight: bold !important;
     }
-    25% {
-      box-shadow: 
-        0 0 0 5px #4c9aff,
-        inset 0 0 0 4px #4c9aff,
-        0 8px 30px rgba(76, 154, 255, 0.8),
-        0 0 40px rgba(76, 154, 255, 0.5);
-      transform: scale(1.1);
-      background-color: rgba(76, 154, 255, 0.6);
-    }
-    50% {
-      box-shadow: 
-        0 0 0 6px #4c9aff,
-        inset 0 0 0 5px #4c9aff,
-        0 10px 40px rgba(76, 154, 255, 1),
-        0 0 50px rgba(76, 154, 255, 0.6);
-      transform: scale(1.12);
-      background-color: rgba(76, 154, 255, 0.7);
-    }
-    75% {
-      box-shadow: 
-        0 0 0 5px #4c9aff,
-        inset 0 0 0 4px #4c9aff,
-        0 8px 30px rgba(76, 154, 255, 0.8),
-        0 0 40px rgba(76, 154, 255, 0.5);
-      transform: scale(1.1);
-      background-color: rgba(76, 154, 255, 0.6);
-    }
-    100% {
-      box-shadow: 
-        0 0 0 4px #4c9aff,
-        inset 0 0 0 3px #4c9aff,
-        0 6px 20px rgba(76, 154, 255, 0.6),
-        0 0 30px rgba(76, 154, 255, 0.4);
-      transform: scale(1.08);
-      background-color: rgba(76, 154, 255, 0.5);
-    }
-  }
 
-  /* 额外的样式覆盖 - 确保我们的多选样式优先级最高 */
-  /* 只覆盖jsMind的多选冲突，保留单选样式 */
-  /* 注意：单选节点只有 .selected 类，多选节点同时有 .selected 和 .multi-selected 类 */
-  
-  /* 恢复单选节点的默认样式（只有.selected类，没有.multi-selected类） */
-  html body #fullScreenMindmap .jsmind-inner jmnodes jmnode.selected:not(.multi-selected),
-  html body .jsmind-inner jmnodes jmnode.selected:not(.multi-selected) {
-    background-color: #11f !important;
-    color: #fff !important;
-    box-shadow: 2px 2px 8px #000 !important;
-  }
-  
-  /* 多选节点的样式重置（同时有.selected和.multi-selected类） */
-  #fullScreenMindmap .jsmind-inner jmnodes jmnode.selected.multi-selected,
-  .jsmind-inner jmnodes jmnode.selected.multi-selected {
-    background-color: inherit !important;
-    border: inherit !important;
-    box-shadow: inherit !important;
-  }
+    /* 确保多选节点在悬停时仍然保持高亮 */
+    #fullScreenMindmap .jmnode.multi-selected:hover {
+      background-color: rgba(76, 154, 255, 0.7) !important;
+      background: rgba(76, 154, 255, 0.7) !important;
+      box-shadow:
+        0 0 0 5px #4c9aff !important,
+        inset 0 0 0 4px #4c9aff !important,
+        0 8px 30px rgba(76, 154, 255, 0.8) !important,
+        0 0 40px rgba(76, 154, 255, 0.5) !important;
+      transform: scale(1.12) !important;
+      border: 4px solid #4c9aff !important;
+    }
 
-  /* 最高优先级的多选样式 */
-  html body #fullScreenMindmap .jsmind-inner jmnodes jmnode.multi-selected,
-  html body .jsmind-inner jmnodes jmnode.multi-selected {
-    background-color: rgba(76, 154, 255, 0.8) !important;
-    border: 4px solid #4c9aff !important;
-    transform: scale(1.1) !important;
-    box-shadow: 0 0 0 4px #4c9aff, inset 0 0 0 3px #4c9aff, 0 6px 20px rgba(76, 154, 255, 0.6), 0 0 30px rgba(76, 154, 255, 0.4) !important;
-    animation: pulse 1.2s infinite ease-in-out !important;
-    color: #fff !important;
-    font-weight: bold !important;
-    z-index: 999 !important;
-  }
+    /* 选中节点的脉冲动画 - 更明显的呼吸效果 */
+    @keyframes pulse {
+      0% {
+        box-shadow:
+          0 0 0 4px #4c9aff,
+          inset 0 0 0 3px #4c9aff,
+          0 6px 20px rgba(76, 154, 255, 0.6),
+          0 0 30px rgba(76, 154, 255, 0.4);
+        transform: scale(1.08);
+        background-color: rgba(76, 154, 255, 0.5);
+      }
+
+      25% {
+        box-shadow:
+          0 0 0 5px #4c9aff,
+          inset 0 0 0 4px #4c9aff,
+          0 8px 30px rgba(76, 154, 255, 0.8),
+          0 0 40px rgba(76, 154, 255, 0.5);
+        transform: scale(1.1);
+        background-color: rgba(76, 154, 255, 0.6);
+      }
+
+      50% {
+        box-shadow:
+          0 0 0 6px #4c9aff,
+          inset 0 0 0 5px #4c9aff,
+          0 10px 40px rgba(76, 154, 255, 1),
+          0 0 50px rgba(76, 154, 255, 0.6);
+        transform: scale(1.12);
+        background-color: rgba(76, 154, 255, 0.7);
+      }
+
+      75% {
+        box-shadow:
+          0 0 0 5px #4c9aff,
+          inset 0 0 0 4px #4c9aff,
+          0 8px 30px rgba(76, 154, 255, 0.8),
+          0 0 40px rgba(76, 154, 255, 0.5);
+        transform: scale(1.1);
+        background-color: rgba(76, 154, 255, 0.6);
+      }
+
+      100% {
+        box-shadow:
+          0 0 0 4px #4c9aff,
+          inset 0 0 0 3px #4c9aff,
+          0 6px 20px rgba(76, 154, 255, 0.6),
+          0 0 30px rgba(76, 154, 255, 0.4);
+        transform: scale(1.08);
+        background-color: rgba(76, 154, 255, 0.5);
+      }
+    }
+
+    /* 额外的样式覆盖 - 确保我们的多选样式优先级最高 */
+    /* 只覆盖jsMind的多选冲突，保留单选样式 */
+    /* 注意：单选节点只有 .selected 类，多选节点同时有 .selected 和 .multi-selected 类 */
+
+    /* 恢复单选节点的默认样式（只有.selected类，没有.multi-selected类） */
+    html body #fullScreenMindmap .jsmind-inner .jmnodes .jmnode.selected:not(.multi-selected),
+    html body .jsmind-inner .jmnodes .jmnode.selected:not(.multi-selected) {
+      background-color: #11f !important;
+      color: #fff !important;
+      box-shadow: 2px 2px 8px #000 !important;
+    }
+
+    /* 多选节点的样式重置（同时有.selected和.multi-selected类） */
+    #fullScreenMindmap .jsmind-inner .jmnodes .jmnode.selected.multi-selected,
+    .jsmind-inner .jmnodes .jmnode.selected.multi-selected {
+      background-color: inherit !important;
+      border: inherit !important;
+      box-shadow: inherit !important;
+    }
+
+    /* 最高优先级的多选样式 */
+    html body #fullScreenMindmap .jsmind-inner .jmnodes .jmnode.multi-selected,
+    html body .jsmind-inner .jmnodes .jmnode.multi-selected {
+      background-color: rgba(76, 154, 255, 0.8) !important;
+      border: 4px solid #4c9aff !important;
+      transform: scale(1.1) !important;
+      box-shadow: 0 0 0 4px #4c9aff, inset 0 0 0 3px #4c9aff, 0 6px 20px rgba(76, 154, 255, 0.6), 0 0 30px rgba(76, 154, 255, 0.4) !important;
+      animation: pulse 1.2s infinite ease-in-out !important;
+      color: #fff !important;
+      font-weight: bold !important;
+      z-index: 999 !important;
+    }
+
+    /* 编辑输入最小宽度，避免过短导致编辑体验差 */
+    .jsmind-editor,
+    #jsmind-editor {
+      min-width: 180px;
+      padding: 2px 6px;
+      line-height: 1.4;
+      font-size: 14px;
+    }
   </style>
 </head>
 
 <body>
   <div class="toolbar">
     <!-- 批量操作工具栏 -->
-    <div id="batchOperations" style="display: none; margin-right: 20px; padding: 5px 10px; background: rgba(76, 154, 255, 0.1); border-radius: 4px; border: 1px solid #4c9aff;">
-      <span style="color: #4c9aff; font-size: 12px; margin-right: 10px;">已选中 <span id="selectedCount">0</span> 个节点</span>
-      <button class="btn" onclick="batchDelete()" style="background: #dc3545; margin-right: 5px;" title="删除选中的节点">删除</button>
-      <button class="btn" onclick="batchMove()" style="background: #28a745; margin-right: 5px;" title="移动选中的节点">移动</button>
-      <button class="btn" onclick="clearMultiSelection()" style="background: #6c757d; margin-right: 5px;" title="清除选择">清除</button>
+    <div id="batchOperations"
+      style="display: none; margin-right: 20px; padding: 5px 10px; background: rgba(76, 154, 255, 0.1); border-radius: 4px; border: 1px solid #4c9aff;">
+      <span style="color: #4c9aff; font-size: 12px; margin-right: 10px;">已选中 <span id="selectedCount">0</span>
+        个节点</span>
+      <button class="btn" onclick="batchDelete()" style="background: #dc3545; margin-right: 5px;"
+        title="删除选中的节点">删除</button>
+      <button class="btn" onclick="batchMove()" style="background: #28a745; margin-right: 5px;"
+        title="移动选中的节点">移动</button>
+      <button class="btn" onclick="clearMultiSelection()" style="background: #6c757d; margin-right: 5px;"
+        title="清除选择">清除</button>
       <button class="btn" onclick="debugMultiSelect()" style="background: #17a2b8;" title="调试多选样式">🔍 调试</button>
     </div>
 
@@ -404,11 +409,7 @@
   </div>
   </div>
 
-  <!-- 鼠标悬停备注层 -->
-  <div id="notesOverlay">
-    <div style="font-weight: bold; color: #007bff; margin-bottom: 4px;">节点备注</div>
-    <div id="hoverNote"></div>
-  </div>
+
 
   <script src="https://jsd.onmicrosoft.cn/npm/jsmind@0.8.7/es6/jsmind.js"></script>
   <script src="https://jsd.onmicrosoft.cn/npm/jsmind@0.8.7/es6/jsmind.draggable-node.js"></script>
@@ -712,12 +713,12 @@
               try {
                 const targetNodeId = selectedNodeid;
                 const idsToMove = [...window.__batchMoveIds];
-                
+
                 // 取消批量移动模式
                 if (window.cancelBatchMove) {
                   window.cancelBatchMove();
                 }
-                
+
                 // 执行批量移动
                 let anchorId = targetNodeId;
                 for (const nodeId of idsToMove) {
@@ -729,7 +730,7 @@
                     console.warn('节点移动失败:', nodeId, e);
                   }
                 }
-                
+
                 showSuccess(`成功移动 ${idsToMove.length} 个节点`);
               } catch (e) {
                 console.error('批量移动失败:', e);
@@ -771,26 +772,7 @@
           jsmindInner.style.height = '100%';
         }
 
-        // 检查滚动状态
-        const checkScrollStatus = () => {
-          console.log('滚动状态检查:', {
-            scrollHeight: container.scrollHeight,
-            clientHeight: container.clientHeight,
-            scrollWidth: container.scrollWidth,
-            clientWidth: container.clientWidth,
-            scrollTop: container.scrollTop,
-            scrollLeft: container.scrollLeft
-          });
-        };
-
-        // 初始检查
-        checkScrollStatus();
-
-        // 延迟再次检查，确保jsmind完全渲染
-        setTimeout(checkScrollStatus, 1000);
-        setTimeout(checkScrollStatus, 2000);
-
-        console.log('思维导图滚动功能已配置，浏览器将处理滚动');
+        // 已移除冗余滚动调试输出
       }, 500); // 延迟500ms确保jsmind完成DOM创建
     }
 
@@ -823,7 +805,7 @@
 
         // 延迟执行DOM操作，确保元素已加载
         setTimeout(() => {
-          refreshAllNotesDisplay();
+
 
           // 自动选择根节点并显示详情
           const rootNode = jm.get_root();
@@ -936,7 +918,10 @@
           hasChanges = true;
         }
 
-        if (newNotes !== (selected.notes || '')) {
+        // 确保 data 存在，避免空引用
+        if (!selected.data) selected.data = {};
+        const prevNotes = (selected.notes != null ? selected.notes : (selected.data.notes != null ? selected.data.notes : ''));
+        if (newNotes !== prevNotes) {
           selected.data.notes = newNotes;
           hasChanges = true;
         }
@@ -1142,32 +1127,12 @@
       // 使容器可聚焦，确保在 iframe 中可接收空格键
       inner.setAttribute('tabindex', '0');
       inner.style.outline = 'none';
-      inner.addEventListener('mouseenter', () => { try { inner.focus({ preventScroll: true }); } catch (e) {} });
-      inner.addEventListener('mousedown', () => { try { inner.focus({ preventScroll: true }); } catch (e) {} });
+      inner.addEventListener('mouseenter', () => { try { inner.focus({ preventScroll: true }); } catch (e) { } });
+      inner.addEventListener('mousedown', () => { try { inner.focus({ preventScroll: true }); } catch (e) { } });
       // 节点容器（jsMind 会把节点放在 .jmnodes 下）
       const nodesRoot = container.querySelector('.jmnodes') || inner;
-      
-      // 🔍 简化的DOM结构分析 - 只输出关键信息
-      console.log('=== 节点查询分析 ===');
-      
-      // 获取所有包含nodeid属性的元素（这是最可靠的方式）
-      const allNodeElements = document.querySelectorAll('[nodeid]');
-      console.log('📊 找到的总节点数（带nodeid）:', allNodeElements.length);
-      
-      if (allNodeElements.length > 0) {
-        // 显示前几个节点的实际类名，帮助我们了解结构
-        const sampleNodes = Array.from(allNodeElements).slice(0, 3);
-        sampleNodes.forEach((el, i) => {
-          console.log(`节点${i+1}: ${el.tagName}."${el.className}" #${el.id} [nodeid="${el.getAttribute('nodeid')}"]`);
-        });
-      } else {
-        console.log('❌ 没有找到任何带nodeid属性的节点！');
-      }
-      
-      // 检查.jmnode类名（传统方式）
-      const jmnodeCount = document.querySelectorAll('.jmnode').length;
-      console.log('传统.jmnode类名数量:', jmnodeCount);
-     
+
+      // 已移除冗余节点分析日志
 
       // 创建框选矩形元素（若不存在）
       let rectEl = inner.querySelector('#selectionRect');
@@ -1222,56 +1187,56 @@
             clearCount++;
           }
         });
-        
+
         // 应用高亮
         multiSelected.forEach(id => {
           const el = document.querySelector(`[nodeid="${id}"]`);
           if (el) {
             el.classList.add('multi-selected');
             console.log(`✅ 添加 multi-selected 类到节点 ${id}:`, el.className);
-            
+
             // 检查计算样式
             const computedStyle = window.getComputedStyle(el);
             console.log(`🎨 背景色:`, computedStyle.backgroundColor);
             console.log(`🎨 边框:`, computedStyle.border);
             console.log(`🎨 变换:`, computedStyle.transform);
             console.log(`🎨 阴影:`, computedStyle.boxShadow);
-            
+
             // 检查是否有内联样式覆盖了我们的样式
             console.log(`🔍 内联样式背景色:`, el.style.backgroundColor);
             console.log(`🔍 内联样式边框:`, el.style.border);
             console.log(`🔍 内联样式变换:`, el.style.transform);
             console.log(`🔍 内联样式阴影:`, el.style.boxShadow);
-            
+
             // 检查jsMind是否通过其他方式设置了样式
-             console.log(`🔍 元素属性:`, {
-               style: el.getAttribute('style'),
-               class: el.getAttribute('class'),
-               'data-jmstyle': el.getAttribute('data-jmstyle'),
-               'data-theme': el.getAttribute('data-theme')
-             });
-             
-             // 检查jsMind的内置选中状态
-             console.log(`🔍 jsMind选中状态:`, {
-               selected: el.classList.contains('selected'),
-               'jsMind主题': window.getComputedStyle(el).getPropertyValue('--jsmind-theme') || '未设置'
-             });
-             
-             // 向测试页面发送反馈（如果存在）
-             if (window.opener && !window.opener.closed) {
-               try {
-                 window.opener.postMessage({
-                   type: 'multiselect-test',
-                   message: `多选节点检查完成 - 样式应用${hasStyle ? '成功' : '失败'}`,
-                   nodeId: el.getAttribute('nodeid'),
-                   hasMultiSelected: el.classList.contains('multi-selected'),
-                   hasSelected: el.classList.contains('selected')
-                 }, '*');
-               } catch (e) {
-                 console.log('无法向测试页面发送消息:', e.message);
-               }
-             }
-            
+            console.log(`🔍 元素属性:`, {
+              style: el.getAttribute('style'),
+              class: el.getAttribute('class'),
+              'data-jmstyle': el.getAttribute('data-jmstyle'),
+              'data-theme': el.getAttribute('data-theme')
+            });
+
+            // 检查jsMind的内置选中状态
+            console.log(`🔍 jsMind选中状态:`, {
+              selected: el.classList.contains('selected'),
+              'jsMind主题': window.getComputedStyle(el).getPropertyValue('--jsmind-theme') || '未设置'
+            });
+
+            // 向测试页面发送反馈（如果存在）
+            if (window.opener && !window.opener.closed) {
+              try {
+                window.opener.postMessage({
+                  type: 'multiselect-test',
+                  message: '多选节点检查完成',
+                  nodeId: el.getAttribute('nodeid'),
+                  hasMultiSelected: el.classList.contains('multi-selected'),
+                  hasSelected: el.classList.contains('selected')
+                }, '*');
+              } catch (e) {
+                console.log('无法向测试页面发送消息:', e.message);
+              }
+            }
+
             // 强制应用样式以确保生效 - 使用更激进的方法
             setTimeout(() => {
               // 首先清除可能冲突的内联样式
@@ -1279,7 +1244,7 @@
               el.style.border = '';
               el.style.transform = '';
               el.style.boxShadow = '';
-              
+
               // 然后应用我们的样式
               el.style.setProperty('background-color', 'rgba(76, 154, 255, 0.8)', 'important');
               el.style.setProperty('border', '4px solid #4c9aff', 'important');
@@ -1288,9 +1253,9 @@
               el.style.setProperty('color', '#fff', 'important');
               el.style.setProperty('font-weight', 'bold', 'important');
               el.style.setProperty('z-index', '999', 'important');
-              
+
               console.log(`🔧 强制应用样式到节点 ${id}`);
-              
+
               // 再次检查样式是否生效
               setTimeout(() => {
                 const newComputedStyle = window.getComputedStyle(el);
@@ -1304,19 +1269,19 @@
             console.log(`❌ 未找到节点元素: ${id}`);
           }
         });
-        
+
         // 更新批量操作工具栏
         const batchOps = document.getElementById('batchOperations');
         const selectedCount = document.getElementById('selectedCount');
         const count = multiSelected.size;
-        
+
         if (count > 0) {
           batchOps.style.display = 'inline-block';
           selectedCount.textContent = count;
         } else {
           batchOps.style.display = 'none';
         }
-        
+
         // 暴露便捷 API
         window.getMultiSelection = () => Array.from(multiSelected);
         window.clearMultiSelection = () => { multiSelected.clear(); updateHighlight(); };
@@ -1325,34 +1290,34 @@
           ids.forEach(id => id && multiSelected.add(id));
           updateHighlight();
         };
-        
+
         // 调试函数：检查多选样式应用情况
-        window.debugMultiSelect = function() {
+        window.debugMultiSelect = function () {
           console.log('=== 多选调试信息 ===');
           console.log('多选集合大小:', multiSelected.size);
           console.log('多选节点ID:', Array.from(multiSelected));
-          
+
           multiSelected.forEach(id => {
-               const el = document.querySelector(`[nodeid="${id}"]`);
-               if (el) {
-                 console.log(`节点 ${id}:`);
-                 console.log('  - 类名:', el.className);
-                 console.log('  - 有multi-selected类:', el.classList.contains('multi-selected'));
-                 console.log('  - 计算背景色:', window.getComputedStyle(el).backgroundColor);
-                 console.log('  - 计算边框:', window.getComputedStyle(el).border);
-                 console.log('  - 计算变换:', window.getComputedStyle(el).transform);
-                 console.log('  - 计算阴影:', window.getComputedStyle(el).boxShadow);
-                 console.log('  - 内联样式:', el.getAttribute('style'));
-                 console.log('  - z-index:', window.getComputedStyle(el).zIndex);
-               } else {
-                 console.log(`节点 ${id}: 未找到元素`);
-               }
-             });
-          
+            const el = document.querySelector(`[nodeid="${id}"]`);
+            if (el) {
+              console.log(`节点 ${id}:`);
+              console.log('  - 类名:', el.className);
+              console.log('  - 有multi-selected类:', el.classList.contains('multi-selected'));
+              console.log('  - 计算背景色:', window.getComputedStyle(el).backgroundColor);
+              console.log('  - 计算边框:', window.getComputedStyle(el).border);
+              console.log('  - 计算变换:', window.getComputedStyle(el).transform);
+              console.log('  - 计算阴影:', window.getComputedStyle(el).boxShadow);
+              console.log('  - 内联样式:', el.getAttribute('style'));
+              console.log('  - z-index:', window.getComputedStyle(el).zIndex);
+            } else {
+              console.log(`节点 ${id}: 未找到元素`);
+            }
+          });
+
           // 检查CSS规则是否加载
           const stylesheets = Array.from(document.styleSheets);
           console.log('样式表数量:', stylesheets.length);
-          
+
           let foundMultiSelectRule = false;
           stylesheets.forEach((sheet, index) => {
             try {
@@ -1368,7 +1333,7 @@
               console.log(`无法访问样式表 ${index}:`, e.message);
             }
           });
-          
+
           if (!foundMultiSelectRule) {
             console.log('❌ 未找到任何 multi-selected CSS 规则！');
           }
@@ -1381,12 +1346,17 @@
 
       function onMouseDown(e) {
         if (e.button !== 0) return; // 仅左键
+        // 若正在编辑或点击到编辑输入，忽略本模块，交给 jsMind 处理
+        const tt = e.target;
+        if (tt && (tt.tagName === 'INPUT' || tt.tagName === 'TEXTAREA' || tt.isContentEditable || tt.id === 'jsmind-editor' || (tt.closest && (tt.closest('.jsmind-editor') || tt.closest('#jsmind-editor'))))) {
+          return;
+        }
         // 避免在节点/右侧面板/工具栏上触发框选/拖拽
-        
+
         // 简化节点检测 - 直接检查目标元素及其父元素
         let nodeElement = null;
         const target = e.target;
-        
+
         // 方法1: 检查目标元素本身是否有.jmnode类
         if (target.classList && target.classList.contains('jmnode')) {
           nodeElement = target;
@@ -1402,32 +1372,32 @@
             nodeElement = target.closest('[nodeid]');
           }
         }
-        
+
         isDownOnNode = !!nodeElement;
-        
+
         // 后备方案：检查鼠标位置是否在节点区域内
         if (!isDownOnNode) {
           const allNodes = document.querySelectorAll('[nodeid]');
-          
+
           for (let i = 0; i < allNodes.length; i++) {
             const node = allNodes[i];
             const rect = node.getBoundingClientRect();
             const mouseX = e.clientX;
             const mouseY = e.clientY;
-            
+
             if (mouseX >= rect.left && mouseX <= rect.right && mouseY >= rect.top && mouseY <= rect.bottom) {
               isDownOnNode = true;
               break;
             }
           }
         }
-        
+
         // 如果点击在空白区域（非节点、非工具栏、非批量操作面板），清除选择
         if (!isDownOnNode && !e.target.closest('#toolbar') && !e.target.closest('#batchOperations')) {
           multiSelected.clear();
           updateHighlight();
         }
-         
+
         if (isDownOnNode) {
           // 在节点上按下，标记为拖拽状态，禁用框选
           isDraggingNode = true;
@@ -1435,7 +1405,7 @@
           isSelectingPrimed = false;
           rectEl.style.display = 'none';
 
-          
+
           // 如果按住Shift键点击节点，切换选择状态
           if (e.shiftKey || e.metaKey) {
             const clickedNode = e.target.closest('.jmnode');
@@ -1453,7 +1423,7 @@
               }
             }
           }
-          
+
           // **关键修复**：如果当前节点在多选集合中，阻止jsMind的拖拽插件处理
           // 避免多选节点拖拽时出现 "Cannot read properties of null (reading 'tagName')" 错误
           const clickedNode = e.target.closest('.jmnode');
@@ -1467,11 +1437,11 @@
               return;
             }
           }
-          
+
           // 单个节点时，不阻止事件冒泡，让jsMind处理拖拽
           return;
         }
-        
+
         if (e.target.closest('#nodeDetails') || e.target.closest('.toolbar')) {
           // 在面板/工具栏上按下，禁止框选
           isSelecting = false;
@@ -1519,6 +1489,11 @@
       }
 
       function onMouseMove(e) {
+        // 编辑输入命中时不参与框选/拖拽判定
+        const tmm = e.target;
+        if (tmm && ((tmm.id === 'jsmind-editor') || (tmm.closest && (tmm.closest('.jsmind-editor') || tmm.closest('#jsmind-editor'))) || tmm.tagName === 'INPUT' || tmm.tagName === 'TEXTAREA' || tmm.isContentEditable)) {
+          return;
+        }
         // 画布平移模式
         if (isPanning) {
           const dx = e.clientX - startClientX;
@@ -1530,10 +1505,10 @@
         }
 
         // 如果正在拖拽节点，完全跳过框选逻辑
-        if (isDownOnNode || isDraggingNode) { 
+        if (isDownOnNode || isDraggingNode) {
           // 隐藏框选矩形，但**不阻止**jsMind的事件处理
-          rectEl.style.display = 'none'; 
-          
+          rectEl.style.display = 'none';
+
           // **新增**：多选节点拖拽时的视觉反馈
           if (isDraggingNode && multiSelected.size > 1) {
             // 为多选节点添加拖拽时的特殊样式
@@ -1546,7 +1521,7 @@
               }
             });
           }
-          
+
           return;
         }
 
@@ -1561,7 +1536,7 @@
             return;
           }
         }
-        
+
         if (!isSelecting && !isSelectingPrimed) return;
 
         const r = inner.getBoundingClientRect();
@@ -1605,19 +1580,19 @@
         // 节点查询
         let nodeElements = [];
         const allNodeElements = document.querySelectorAll('[nodeid]');
-        
+
         if (allNodeElements.length > 0) {
           nodeElements = Array.from(allNodeElements);
         } else {
           if (nodesRoot) {
             nodeElements = Array.from(nodesRoot.querySelectorAll('.jmnode'));
           }
-          
+
           if (nodeElements.length === 0) {
             nodeElements = Array.from(document.querySelectorAll('.jmnode'));
           }
         }
-        
+
         let intersectedCount = 0;
         nodeElements.forEach(el => {
           const nb = el.getBoundingClientRect();
@@ -1636,9 +1611,7 @@
           }
         });
 
-        if (intersectedCount > 0) {
-          console.log(`🎯 框选到 ${intersectedCount} 个节点，当前共选中 ${multiSelected.size} 个`);
-        }
+        // 已移除框选统计日志
 
         updateHighlight();
       }
@@ -1671,7 +1644,7 @@
               }
             });
           }
-          
+
           isDownOnNode = false;
           isDraggingNode = false;
           isSelecting = false;
@@ -1692,9 +1665,24 @@
       inner.addEventListener('mousemove', onMouseMove);
       // mouseup 绑定到 window，避免在快速拖动出容器时丢事件
       window.addEventListener('mouseup', onMouseUp);
-      
-      // 添加双击事件监听，用于切换节点选择状态
-      inner.addEventListener('dblclick', function(e) {
+      // 在编辑输入上阻止事件传播，避免拖拽/框选/双击干扰（捕获阶段，保留默认以保证光标定位）
+      const isEditTarget = (t) => !!(t && ((t.id === 'jsmind-editor') || (t.closest && (t.closest('.jsmind-editor') || t.closest('#jsmind-editor'))) || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable));
+      ['mousedown', 'mousemove', 'click', 'dblclick'].forEach(ev => {
+        document.addEventListener(ev, function (e) {
+          const t = e.target;
+          if (isEditTarget(t)) {
+            e.stopImmediatePropagation();
+            e.stopPropagation();
+            // 不要 preventDefault，确保光标与选择正常
+          }
+        }, true);
+      });
+
+      // 添加双击事件监听，用于切换节点选择状态（编辑态下不处理，避免冲突）
+      inner.addEventListener('dblclick', function (e) {
+        if (document.querySelector('.jsmind-editor') || document.querySelector('#jsmind-editor') || (e.target && (e.target.tagName === 'INPUT' || e.target.isContentEditable || (e.target.closest && (e.target.closest('.jsmind-editor') || e.target.closest('#jsmind-editor')))))) {
+          return;
+        }
         const clickedNode = e.target.closest('.jmnode');
         if (clickedNode) {
           const nodeId = clickedNode.getAttribute('nodeid');
@@ -1713,7 +1701,7 @@
       // 使用jsMind原生事件系统检测拖拽
       if (window.jsMind && jm) {
         // 监听所有jsMind事件
-        jm.add_event_listener(function(type, data) {
+        jm.add_event_listener(function (type, data) {
           // 拖拽开始事件
           if (type === jsMind.event_type.move_node) {
             if (data && data.data && Array.isArray(data.data) && data.data.length >= 3) {
@@ -1723,7 +1711,7 @@
               rectEl.style.display = 'none';
             }
           }
-          
+
           // 监听节点选择变化（可能表示拖拽结束）
           if (type === jsMind.event_type.select_node || type === jsMind.event_type.select_clear) {
             if (isDraggingNode) {
@@ -1736,9 +1724,9 @@
       } else {
         // 备用拖拽检测机制
         let dragStartTimer = null;
-        
+
         // 监听mousedown事件，检测是否在节点上
-        inner.addEventListener('mousedown', function(e) {
+        inner.addEventListener('mousedown', function (e) {
           if (e.target && e.target.closest && e.target.closest('.jmnode')) {
             // 延迟设置拖拽状态，避免误触发
             dragStartTimer = setTimeout(() => {
@@ -1751,7 +1739,7 @@
         }, true);
 
         // 监听mouseup事件，重置拖拽状态
-        window.addEventListener('mouseup', function() {
+        window.addEventListener('mouseup', function () {
           if (dragStartTimer) {
             clearTimeout(dragStartTimer);
             dragStartTimer = null;
@@ -1762,7 +1750,7 @@
         });
 
         // 监听mousemove事件，如果在节点上移动且按下了鼠标，认为是拖拽
-        inner.addEventListener('mousemove', function(e) {
+        inner.addEventListener('mousemove', function (e) {
           if (e.buttons === 1 && e.target && e.target.closest && e.target.closest('.jmnode')) {
             if (!isDraggingNode) {
               isDraggingNode = true;
@@ -1783,7 +1771,7 @@
             e.preventDefault();
             e.stopPropagation();
             ids.filter(id => id && id !== 'root').forEach(id => {
-              try { jm.remove_node(id); } catch (err) {}
+              try { jm.remove_node(id); } catch (err) { }
             });
             if (typeof window.clearMultiSelection === 'function') window.clearMultiSelection();
             if (typeof debouncedSave === 'function') debouncedSave();
@@ -1792,43 +1780,43 @@
       }, true);
 
       // 批量删除函数（供按钮调用）
-      window.batchDelete = function() {
+      window.batchDelete = function () {
         const ids = window.getMultiSelection();
         if (!Array.isArray(ids) || ids.length === 0) {
           showWarning('请先选择要删除的节点');
           return;
         }
-        
+
         if (!confirm(`确定要删除选中的 ${ids.length} 个节点吗？`)) return;
-        
+
         let deletedCount = 0;
         ids.filter(id => id && id !== 'root').forEach(id => {
-          try { 
-            jm.remove_node(id); 
+          try {
+            jm.remove_node(id);
             deletedCount++;
           } catch (err) {
             console.warn(`删除节点 ${id} 失败:`, err);
           }
         });
-        
+
         if (typeof window.clearMultiSelection === 'function') window.clearMultiSelection();
         if (typeof debouncedSave === 'function') debouncedSave();
-        
+
         showSuccess(`成功删除 ${deletedCount} 个节点`);
       };
 
       // 批量移动函数
-      window.batchMove = function() {
+      window.batchMove = function () {
         const ids = window.getMultiSelection();
         if (!Array.isArray(ids) || ids.length === 0) {
           showWarning('请先选择要移动的节点');
           return;
         }
-        
+
         // 设置批量移动模式
         window.__batchMoving = true;
         window.__batchMoveIds = ids;
-        
+
         // 显示移动提示
         const hint = document.createElement('div');
         hint.id = 'batchMoveHint';
@@ -1853,17 +1841,17 @@
           <div style="margin-top: 10px; font-size: 12px; opacity: 0.8;">按 ESC 键取消</div>
         `;
         document.body.appendChild(hint);
-        
+
         // 添加ESC键取消功能
-        const escHandler = function(e) {
+        const escHandler = function (e) {
           if (e.key === 'Escape') {
             cancelBatchMove();
           }
         };
         document.addEventListener('keydown', escHandler);
-        
+
         // 取消批量移动函数
-        window.cancelBatchMove = function() {
+        window.cancelBatchMove = function () {
           window.__batchMoving = false;
           window.__batchMoveIds = [];
           const hint = document.getElementById('batchMoveHint');
@@ -1871,7 +1859,7 @@
           document.removeEventListener('keydown', escHandler);
           delete window.cancelBatchMove;
         };
-        
+
         showInfo('批量移动模式已激活，点击目标节点完成移动');
       };
     }
@@ -1903,38 +1891,22 @@
     // 提示信息函数
     function showWarning(msg) {
       console.warn(msg);
-      if (typeof NotificationBridge !== 'undefined') {
-        NotificationBridge.showWarning(msg);
-      } else {
-        alert(msg);
-      }
+      alert(msg);
     }
 
     function showError(msg) {
       console.error(msg);
-      if (typeof NotificationBridge !== 'undefined') {
-        NotificationBridge.showError(msg);
-      } else {
-        alert(msg);
-      }
+      alert(msg);
     }
 
     function showSuccess(msg) {
       console.log(msg);
-      if (typeof NotificationBridge !== 'undefined') {
-        NotificationBridge.showSuccess(msg);
-      } else {
-        alert(msg);
-      }
+      alert(msg);
     }
 
     function showInfo(msg) {
       console.log(msg);
-      if (typeof NotificationBridge !== 'undefined') {
-        NotificationBridge.showInfo(msg);
-      } else {
-        alert(msg);
-      }
+      alert(msg);
     }
 
     // 获取默认NodeTree
