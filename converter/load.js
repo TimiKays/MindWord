@@ -485,9 +485,9 @@ class DataManager {
                 }
 
                 console.log('所有缓存数据加载完成');
-                console.log('- markdown长度:', markdown.length);
-                console.log('- AST数据长度:', astData.length);
-                console.log('- NodeTree数据长度:', nodeTreeData.length);
+                console.log('- markdown长度:', markdown ? markdown.length : 0);
+                console.log('- AST数据长度:', astData ? astData.length : 0);
+                console.log('- NodeTree数据长度:', nodeTreeData ? nodeTreeData.length : 0);
 
                 // 如果有数据，更新统计信息
                 if (window.updateStats) {

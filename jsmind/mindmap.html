@@ -260,24 +260,17 @@
 <body>
   <div class="toolbar">
     <!-- 批量操作工具栏 -->
-    <div id="batchOperations"
-      style="display: inline-block; margin-top: 200px; padding: 5px 10px; background: rgba(76, 154, 255, 0.1); border-radius: 4px; border: 1px solid #4c9aff;">
-      <span style="color: #4c9aff; font-size: 12px; margin-right: 10px;">已选中 <span id="selectedCount">0</span>
-        个节点</span>
-      <button class="btn" onclick="batchDelete()" style="background: #dc3545; margin-right: 5px;"
-        title="删除选中的节点">删除</button>
-      <button class="btn" onclick="batchMove()" style="background: #28a745; margin-right: 5px;"
-        title="移动选中的节点">移动</button>
-      <button class="btn" onclick="clearMultiSelection()" style="background: #6c757d; margin-right: 5px;"
-        title="清除选择">清除</button>
-      <button class="btn" onclick="debugMultiSelect()" style="background: #17a2b8; margin-right: 5px;" title="调试多选样式">🔍
-        调试</button>
-      <button class="btn" onclick="forceMultiSelectStyle()" style="background: #fd7e14;" title="强制应用多选样式">⚡
-        强制样式</button>
-    </div>
+
 
     <button class="btn" onclick="exportData()">查看JSON</button>
     <button class="btn" onclick="downloadMindmap()">下载图片</button>
+
+    <div id="batchOperations"
+      style="display: inline-block; margin-top: 2px; padding: 5px 10px; background: rgba(76, 154, 255, 0.1); border-radius: 4px; border: 1px solid #4c9aff;">
+      <span style="color: #4c9aff; font-size: 12px; margin-right: 10px;">已选中 <span id="selectedCount">0</span>
+        个节点</span>
+
+    </div>
 
   </div>
 
@@ -415,6 +408,7 @@
 
       // 将jsMind实例赋值给window，供其他模块访问
       window.jm = jm;
+      const multiSelected = new Set();
 
       // 配置思维导图容器的滚动行为
       setupMindmapScrolling();
@@ -455,6 +449,106 @@
         const __origMove = jm.move_node && jm.move_node.bind(jm);
         if (__origMove) {
           jm.move_node = function (nodeid, beforeid, parentid, direction) {
+            console.log(`🔄 jm.move_node被调用 - 节点:${nodeid}, 之前:${beforeid}, 父节点:${parentid}, 方向:${direction}`);
+            
+            // 检查是否是批量拖拽模式
+            console.log('🔍 检查批量拖拽模式:', {
+              hasBatchDragData: !!window.__batchDragData,
+              isBatchDragging: window.__batchDragData?.isBatchDragging,
+              selectedNodesLength: window.__batchDragData?.selectedNodes?.length
+            });
+            
+            if (window.__batchDragData && window.__batchDragData.isBatchDragging && 
+                window.__batchDragData.selectedNodes && window.__batchDragData.selectedNodes.length > 0) {
+              
+              console.log('🎯 检测到批量拖拽模式，开始处理批量移动');
+              
+              // 获取当前被移动的节点在多选列表中的索引
+              const currentIndex = window.__batchDragData.selectedNodes.indexOf(nodeid);
+              
+              // 修复：只要被移动的节点在多选列表中，就触发批量移动
+              // 但确保每个节点只被移动一次，避免重复移动
+              if (currentIndex !== -1) {
+                console.log(`🚀 触发批量跟随移动 - 节点 ${nodeid} 被移动`);
+                
+                // 初始化已移动节点记录（如果不存在）
+                if (!window.__batchDragData.movedNodes) {
+                  window.__batchDragData.movedNodes = new Set();
+                }
+                
+                // 如果当前节点已经移动过，直接返回
+                if (window.__batchDragData.movedNodes.has(nodeid)) {
+                  console.log(`⏭️ 跳过节点 ${nodeid} 的移动 - 已在本次拖拽中移动`);
+                  return true;
+                }
+                
+                // 先移动当前节点
+                const ret = __origMove(nodeid, beforeid, parentid, direction);
+                window.__batchDragData.movedNodes.add(nodeid);
+                
+                // 然后移动其他未移动的选中节点
+                let movedCount = 1;
+                for (let i = 0; i < window.__batchDragData.selectedNodes.length; i++) {
+                  const otherNodeId = window.__batchDragData.selectedNodes[i];
+                  // 跳过已经移动过的节点和当前节点
+                  if (otherNodeId === nodeid || window.__batchDragData.movedNodes.has(otherNodeId)) {
+                    continue;
+                  }
+                  
+                  try {
+                    // 获取当前节点的信息来确定其他节点的位置
+                    const currentNode = jm.get_node(nodeid);
+                    const otherNode = jm.get_node(otherNodeId);
+                    
+                    if (currentNode && otherNode) {
+                      // 将其他节点移动到相同的位置
+                      __origMove(otherNodeId, beforeid, parentid, direction);
+                      window.__batchDragData.movedNodes.add(otherNodeId);
+                      movedCount++;
+                      console.log(`✅ 批量移动节点 ${otherNodeId} 成功`);
+                    }
+                  } catch (moveError) {
+                    console.warn(`❌ 批量移动节点 ${otherNodeId} 失败:`, moveError);
+                  }
+                }
+                
+                console.log(`🎉 批量移动完成 - 共移动 ${movedCount} 个节点`);
+                
+                // 批量移动完成后的处理
+                try {
+                  // 应用类型对齐
+                  if (nodeid && typeof applySiblingOrParentType === 'function') {
+                    applySiblingOrParentType(nodeid);
+                  }
+                  
+                  // 列表归一化
+                  if (parentid) {
+                    const p = jm.get_node(parentid);
+                    if (p && typeof getNodeType === 'function' && getNodeType(p) === 'list') {
+                      // 对所有移动的节点进行列表归一化
+                      normalizeSubtreeUnderList(nodeid, p);
+                      window.__batchDragData.selectedNodes.forEach(otherId => {
+                        if (otherId !== nodeid) {
+                          normalizeSubtreeUnderList(otherId, p);
+                        }
+                      });
+                    }
+                  }
+                  
+                  if (typeof debouncedSave === 'function') debouncedSave();
+                } catch (e) {
+                  // 忽略后置处理错误
+                }
+                
+                return ret;
+              } else {
+                // 如果节点不在多选列表中，执行普通移动
+                console.log(`🔄 节点 ${nodeid} 不在多选列表中，执行普通移动`);
+              }
+            }
+            
+            // 普通单个节点移动
+            console.log('🔄 普通单个节点移动');
             const ret = __origMove(nodeid, beforeid, parentid, direction);
             try {
               if (nodeid && typeof applySiblingOrParentType === 'function') {
@@ -483,44 +577,13 @@
       // 初始化完成后加载数据
       loadNodeTree();
 
-      // 绑定事件
+      // 绑定事件 - 删除旧的批量移动逻辑，现在使用拖拽批量移动
       jm.add_event_listener(function (type, data) {
         if (type === jsMind.event_type.select) {
           const selectedNodeid = jm.get_selected_node();
           if (selectedNodeid) {
-            // 检查是否处于批量移动模式
-            if (window.__batchMoving && window.__batchMoveIds && window.__batchMoveIds.length > 0) {
-              // 批量移动模式：执行移动操作
-              try {
-                const targetNodeId = selectedNodeid;
-                const idsToMove = [...window.__batchMoveIds];
-
-                // 取消批量移动模式
-                if (window.cancelBatchMove) {
-                  window.cancelBatchMove();
-                }
-
-                // 执行批量移动
-                let anchorId = targetNodeId;
-                for (const nodeId of idsToMove) {
-                  if (!nodeId || nodeId === targetNodeId) continue;
-                  try {
-                    jm.move_node(nodeId, anchorId, jm.get_node(targetNodeId).parent.id);
-                    anchorId = nodeId;
-                  } catch (e) {
-                    console.warn('节点移动失败:', nodeId, e);
-                  }
-                }
-
-                showSuccess(`成功移动 ${idsToMove.length} 个节点`);
-              } catch (e) {
-                console.error('批量移动失败:', e);
-                showError('批量移动失败');
-              }
-            } else {
-              // 正常模式：显示节点详情
-              showNodeDetails(selectedNodeid);
-            }
+            // 正常模式：显示节点详情
+            showNodeDetails(selectedNodeid);
           }
         }
       });
@@ -1095,40 +1158,14 @@
         };
       }
 
-      // 简化的调试函数
-      window.debugMultiSelect = function () {
-        console.log('多选集合大小:', multiSelected.size);
-        console.log('多选节点ID:', Array.from(multiSelected));
-      };
-
-      // 强制重置样式函数
-      window.forceMultiSelectStyle = function () {
-        multiSelected.forEach(id => {
-          const el = getNodeElement(id);
-          if (el) {
-            // 强制移除可能冲突的内联样式
-            el.style.background = '';
-            el.style.backgroundColor = '';
-            el.style.backgroundImage = '';
-
-            // 应用多选样式（复用核心逻辑）
-            applyMultiSelectStyle(el, id);
-
-            // **关键修复**：确保节点元素本身可见，即使其内部的jmexpander被隐藏
-            const computedStyle = window.getComputedStyle(el);
-            if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
-              el.style.display = 'block !important';
-              el.style.visibility = 'visible !important';
-            }
-          }
-        });
-      };
 
       function rectsIntersect(a, b) {
         return a.left <= b.right && a.right >= b.left && a.top <= b.bottom && a.bottom >= b.top;
       }
 
       function onMouseDown(e) {
+        console.log('🖱️ onMouseDown事件触发 - 按钮:', e.button, '目标元素:', e.target.tagName, '类名:', e.target.className, 'ID:', e.target.id);
+
         if (e.button !== 0) return; // 仅左键
         // 若正在编辑或点击到编辑输入，忽略本模块，交给 jsMind 处理
         const tt = e.target;
@@ -1190,7 +1227,6 @@
           isSelectingPrimed = false;
           rectEl.style.display = 'none';
 
-
           // 如果按住Shift键点击节点，切换选择状态
           if (e.shiftKey || e.metaKey) {
             const clickedNode = e.target.closest('.jmnode');
@@ -1209,21 +1245,37 @@
             }
           }
 
-          // **关键修复**：如果当前节点在多选集合中，阻止jsMind的拖拽插件处理
-          // 避免多选节点拖拽时出现 "Cannot read properties of null (reading 'tagName')" 错误
-          const clickedNode = e.target.closest('.jmnode');
-          if (clickedNode) {
-            const nodeId = clickedNode.getAttribute('nodeid');
-            if (nodeId && multiSelected.has(nodeId) && multiSelected.size > 1) {
-              // 多选节点被点击，阻止jsMind拖拽插件的默认行为
-              e.preventDefault();
-              e.stopPropagation();
-              console.log('阻止jsMind拖拽插件处理多选节点');
-              return;
-            }
+          // **关键修复**：如果当前有框选的节点，直接启动批量拖拽
+          // **简化逻辑**：只要有框选节点（multiSelected.size > 0），就走批量拖拽路线
+          if (multiSelected.size > 0) {
+            console.log('🎯 启动批量拖拽模式 - 选中节点数:', multiSelected.size);
+            // 设置批量拖拽状态
+            isDraggingNode = true;
+            window.__batchDragLocked = true;
+            window.__batchDragData = {
+              selectedNodes: Array.from(multiSelected),
+              dragStartNode: null,
+              targetParent: null,
+              isBatchDragging: true
+            };
+
+            // 视觉反馈
+            multiSelected.forEach(id => {
+              const nodeEl = document.querySelector(`[nodeid="${id}"]`);
+              if (nodeEl) {
+                nodeEl.style.opacity = '0.7';
+                nodeEl.style.transform = 'scale(1.05)';
+                nodeEl.style.transition = 'all 0.2s ease';
+              }
+            });
+
+            // **关键**：让jsMind正常处理拖拽，我们在move_node事件中处理批量跟随移动
+            // 不阻止事件，让jsMind的原生拖拽机制正常工作
+            return;
           }
 
           // 单个节点时，不阻止事件冒泡，让jsMind处理拖拽
+          console.log('🎯 单选模式，允许jsMind处理拖拽');
           return;
         }
 
@@ -1296,9 +1348,35 @@
           // 隐藏框选矩形，但**不阻止**jsMind的事件处理
           rectEl.style.display = 'none';
 
-          // **新增**：多选节点拖拽时的视觉反馈
-          if (isDraggingNode && multiSelected.size > 1) {
-            // 为多选节点添加拖拽时的特殊样式
+          // **批量拖拽模式下的目标检测和视觉反馈
+          if (window.__batchDragData && window.__batchDragData.isBatchDragging) {
+            // 更新目标父节点检测
+            const targetElement = document.elementFromPoint(e.clientX, e.clientY);
+            if (targetElement) {
+              const targetNode = targetElement.closest('.jmnode');
+              if (targetNode) {
+                const targetNodeId = targetNode.getAttribute('nodeid');
+                // 确保目标节点不在多选集合中，且不是根节点
+                if (targetNodeId && !multiSelected.has(targetNodeId) && targetNodeId !== 'root') {
+                  // 记录目标父节点
+                  window.__batchDragData.targetParent = targetNodeId;
+
+                  // 高亮显示目标父节点
+                  targetNode.style.outline = '3px dashed #007bff';
+                  targetNode.style.outlineOffset = '2px';
+                  targetNode.style.transition = 'outline 0.2s ease';
+
+                  // 清除之前的高亮
+                  if (window._lastTargetNode && window._lastTargetNode !== targetNode) {
+                    window._lastTargetNode.style.outline = '';
+                    window._lastTargetNode.style.outlineOffset = '';
+                  }
+                  window._lastTargetNode = targetNode;
+                }
+              }
+            }
+          } else if (isDraggingNode && multiSelected.size > 0) {
+            // 为框选节点添加拖拽时的特殊样式
             multiSelected.forEach(nodeId => {
               const nodeEl = document.querySelector(`[nodeid="${nodeId}"]`);
               if (nodeEl) {
@@ -1430,9 +1508,55 @@
 
         // 若本次拖拽起点在节点上或正在拖拽节点，则不进行框选
         if (isDownOnNode || isDraggingNode) {
-          // **新增**：多选节点拖拽结束时的样式恢复
-          if (isDraggingNode && multiSelected.size > 1) {
+          // **批量拖拽模式处理
+          if (window.__batchDragData && window.__batchDragData.isBatchDragging) {
+            const batchData = window.__batchDragData;
+            const selectedCount = parseInt(document.getElementById('selectedCount')?.textContent || '0');
+
+            console.log('🎯 鼠标释放 - 批量拖拽模式检测:', {
+              targetParent: batchData.targetParent,
+              selectedCount: selectedCount,
+              selectedNodes: batchData.selectedNodes
+            });
+
+            // 注意：我们不再在这里手动执行批量移动！
+            // 而是让jsMind的原生拖拽完成第一个节点的移动，
+            // 然后由move_node事件监听器自动处理其他节点的批量跟随移动
+            if (batchData.targetParent && selectedCount > 0) {
+              // 只需要记录状态，实际的批量移动由move_node事件监听器处理
+              console.log(`批量拖拽结束，目标父节点: ${batchData.targetParent}, 选中节点数: ${selectedCount}`);
+            }
+
+            // 延迟清理批量拖拽数据，确保move_node事件先处理完
+            setTimeout(() => {
+              if (window.__batchDragData) {
+                // 清理已移动节点记录，为下一次拖拽做准备
+                if (window.__batchDragData.movedNodes) {
+                  window.__batchDragData.movedNodes.clear();
+                }
+                delete window.__batchDragData;
+                console.log('批量拖拽数据已清理');
+              }
+            }, 100);
+
+            // 清除目标节点高亮
+            if (window._lastTargetNode) {
+              window._lastTargetNode.style.border = '';
+              window._lastTargetNode.style.backgroundColor = '';
+              delete window._lastTargetNode;
+            }
+
             // 恢复多选节点的原始样式
+            multiSelected.forEach(nodeId => {
+              const nodeEl = document.querySelector(`[nodeid="${nodeId}"]`);
+              if (nodeEl) {
+                nodeEl.style.opacity = '';
+                nodeEl.style.transform = '';
+                nodeEl.style.transition = '';
+              }
+            });
+          } else if (isDraggingNode && multiSelected.size > 0) {
+            // 普通多选拖拽结束时的样式恢复（非批量拖拽模式）
             multiSelected.forEach(nodeId => {
               const nodeEl = document.querySelector(`[nodeid="${nodeId}"]`);
               if (nodeEl) {
@@ -1443,11 +1567,24 @@
             });
           }
 
+          // 清除目标节点高亮
+          if (window._lastTargetNode) {
+            window._lastTargetNode.style.outline = '';
+            window._lastTargetNode.style.outlineOffset = '';
+            window._lastTargetNode = null;
+          }
+
           isDownOnNode = false;
           isDraggingNode = false;
           isSelecting = false;
           isSelectingPrimed = false;
           rectEl.style.display = 'none';
+
+          // 清除批量拖拽锁定
+          if (window.__batchDragLocked) {
+            window.__batchDragLocked = false;
+          }
+
           return;
         }
 
@@ -1497,17 +1634,35 @@
         }
       });
 
-      // 使用jsMind原生事件系统检测拖拽
+      // 使用jsMind原生事件系统检测拖拽 - 但避免干扰批量拖拽
       if (window.jsMind && jm) {
         // 监听所有jsMind事件
         jm.add_event_listener(function (type, data) {
-          // 拖拽开始事件
+          // 拖拽开始事件 - 但避免干扰批量拖拽模式
           if (type === jsMind.event_type.move_node) {
             if (data && data.data && Array.isArray(data.data) && data.data.length >= 3) {
-              isDraggingNode = true;
-              isSelecting = false;
-              isSelectingPrimed = false;
-              rectEl.style.display = 'none';
+              // 只有在非批量拖拽模式下才设置isDraggingNode
+              if (!window.__batchDragData || !window.__batchDragData.isBatchDragging) {
+                isDraggingNode = true;
+                isSelecting = false;
+                isSelectingPrimed = false;
+                rectEl.style.display = 'none';
+              }
+            }
+          }
+
+          // 监听拖拽开始事件，在多选模式下阻止jsMind的内置拖拽
+          if (type === 'drag_start' || type === jsMind.event_type.drag_start) {
+            if (multiSelected && multiSelected.size > 0) {
+              console.log('🚫 drag_start事件 - 多选集合大小:', multiSelected.size, '批量拖拽锁定:', window.__batchDragLocked);
+              // 只有在批量拖拽锁定未激活时才阻止拖拽
+              // 如果批量拖拽锁定激活，说明我们正在处理批量拖拽，应该允许jsMind处理
+              if (!window.__batchDragLocked) {
+                console.log('🚫 阻止拖拽 - 多选模式但未激活批量拖拽');
+                return false; // 阻止拖拽
+              } else {
+                console.log('✅ 允许拖拽 - 批量拖拽模式已激活');
+              }
             }
           }
 
@@ -1527,8 +1682,12 @@
         // 监听mousedown事件，检测是否在节点上
         inner.addEventListener('mousedown', function (e) {
           if (e.target && e.target.closest && e.target.closest('.jmnode')) {
+            // 如果批量拖拽锁定激活，不触发备用拖拽检测
+            if (window.__batchDragLocked) {
+              return;
+            }
             // 延迟设置拖拽状态，避免误触发
-            dragStartTimer = setTimeout(() => {
+            window._batchDragStartTimer = setTimeout(() => {
               isDraggingNode = true;
               isSelecting = false;
               isSelectingPrimed = false;
@@ -1539,18 +1698,26 @@
 
         // 监听mouseup事件，重置拖拽状态
         window.addEventListener('mouseup', function () {
-          if (dragStartTimer) {
-            clearTimeout(dragStartTimer);
-            dragStartTimer = null;
+          if (window._batchDragStartTimer) {
+            clearTimeout(window._batchDragStartTimer);
+            window._batchDragStartTimer = null;
           }
           if (isDraggingNode) {
             isDraggingNode = false;
+          }
+          // 清除批量拖拽锁定
+          if (window.__batchDragLocked) {
+            window.__batchDragLocked = false;
           }
         });
 
         // 监听mousemove事件，如果在节点上移动且按下了鼠标，认为是拖拽
         inner.addEventListener('mousemove', function (e) {
           if (e.buttons === 1 && e.target && e.target.closest && e.target.closest('.jmnode')) {
+            // 如果批量拖拽锁定激活，不触发备用拖拽检测
+            if (window.__batchDragLocked) {
+              return;
+            }
             if (!isDraggingNode) {
               isDraggingNode = true;
               isSelecting = false;
@@ -1604,63 +1771,7 @@
         showSuccess(`成功删除 ${deletedCount} 个节点`);
       };
 
-      // 批量移动函数
-      window.batchMove = function () {
-        const ids = window.getMultiSelection();
-        if (!Array.isArray(ids) || ids.length === 0) {
-          showWarning('请先选择要移动的节点');
-          return;
-        }
-
-        // 设置批量移动模式
-        window.__batchMoving = true;
-        window.__batchMoveIds = ids;
-
-        // 显示移动提示
-        const hint = document.createElement('div');
-        hint.id = 'batchMoveHint';
-        hint.style.cssText = `
-          position: fixed;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          background: rgba(76, 154, 255, 0.9);
-          color: white;
-          padding: 15px 25px;
-          border-radius: 8px;
-          font-size: 14px;
-          z-index: 1000;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-          text-align: center;
-          max-width: 300px;
-        `;
-        hint.innerHTML = `
-          <div style="font-weight: bold; margin-bottom: 8px;">批量移动模式</div>
-          <div>点击目标节点，将选中的 ${ids.length} 个节点移动到该节点后面</div>
-          <div style="margin-top: 10px; font-size: 12px; opacity: 0.8;">按 ESC 键取消</div>
-        `;
-        document.body.appendChild(hint);
-
-        // 添加ESC键取消功能
-        const escHandler = function (e) {
-          if (e.key === 'Escape') {
-            cancelBatchMove();
-          }
-        };
-        document.addEventListener('keydown', escHandler);
-
-        // 取消批量移动函数
-        window.cancelBatchMove = function () {
-          window.__batchMoving = false;
-          window.__batchMoveIds = [];
-          const hint = document.getElementById('batchMoveHint');
-          if (hint) hint.remove();
-          document.removeEventListener('keydown', escHandler);
-          delete window.cancelBatchMove;
-        };
-
-        showInfo('批量移动模式已激活，点击目标节点完成移动');
-      };
+      // 批量移动函数已删除 - 现在使用拖拽批量移动
     }
 
     function exportData() {
@@ -2070,25 +2181,50 @@
               const newParentId = data.data[2];
               const direction = data.data.length > 3 ? data.data[3] : null;
 
+              console.log(`move_node事件数据:`, data);
+              console.log(`解析结果 - movedId: ${movedId}, beforeId: ${beforeId}, newParentId: ${newParentId}, direction: ${direction}`);
+
               // 批量跟随移动：如果存在多选并且当前移动的是多选集合中的一个，则把其余选中节点也移动到相同的新父节点，依次跟在 movedId 之后
               try {
+                // 检查是否是批量拖拽模式
+                const isBatchDragMode = window.__batchDragData && window.__batchDragData.isBatchDragging;
+
+                console.log(`move_node事件触发 - 节点: ${movedId}, 批量拖拽模式: ${isBatchDragMode}, __batchMoving: ${window.__batchMoving}`);
+
                 if (!window.__batchMoving && typeof window.getMultiSelection === 'function') {
                   const selectedIds = window.getMultiSelection ? window.getMultiSelection() : [];
+                  console.log(`多选节点列表:`, selectedIds);
+
                   if (Array.isArray(selectedIds) && selectedIds.length > 1 && selectedIds.includes(movedId)) {
                     window.__batchMoving = true;
+                    console.log(`批量移动触发：移动节点 ${movedId}，选中节点数: ${selectedIds.length}`);
+
                     // 先将 movedId 作为锚点，之后的节点依次插入到它后面
                     let anchorId = movedId;
+                    let movedCount = 0;
                     for (const sid of selectedIds) {
                       if (!sid || sid === movedId) continue;
                       try {
                         // 将其他节点移动到与 movedId 相同的新父节点，并排在 anchorId 后面
+                        console.log(`正在移动节点 ${sid} 到父节点 ${newParentId}, 锚点: ${anchorId}`);
                         jm.move_node(sid, anchorId, newParentId, direction);
                         anchorId = sid;
+                        movedCount++;
+                        console.log(`批量移动节点 ${sid} 完成`);
                       } catch (eMoveBatch) {
-                        // 忽略某个节点移动失败，继续其他
+                        console.warn(`移动节点 ${sid} 失败:`, eMoveBatch);
                       }
                     }
+
+                    if (movedCount > 0) {
+                      console.log(`批量移动完成，共移动 ${movedCount} 个节点`);
+                      showSuccess(`成功批量移动 ${selectedIds.length} 个节点`);
+                    }
+                  } else {
+                    console.log(`不满足批量移动条件 - 选中数量: ${selectedIds.length}, 包含当前节点: ${selectedIds.includes(movedId)}`);
                   }
+                } else {
+                  console.log(`跳过批量移动 - __batchMoving: ${window.__batchMoving}, getMultiSelection存在: ${typeof window.getMultiSelection === 'function'}`);
                 }
               } finally {
                 // 短暂延迟后解除批量标记，允许后续正常 move 事件
