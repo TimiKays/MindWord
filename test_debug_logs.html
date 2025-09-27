@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Selection Rect 调试日志测试</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #f0f0f0;
+        }
+
+        .container {
+            width: 800px;
+            height: 600px;
+            margin: 20px auto;
+            border: 2px solid #333;
+            position: relative;
+            background: white;
+            overflow: hidden;
+        }
+
+        .inner {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-origin: center center;
+            transition: transform 0.3s ease;
+        }
+
+        .node {
+            position: absolute;
+            width: 80px;
+            height: 40px;
+            background: #4CAF50;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .selection-rect {
+            position: absolute;
+            border: 2px dashed #2196F3;
+            background: rgba(33, 150, 243, 0.1);
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+        }
+
+        .controls {
+            text-align: center;
+            margin: 20px;
+        }
+
+        .controls button {
+            margin: 0 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .info {
+            text-align: center;
+            margin: 10px;
+            color: #666;
+        }
+
+        .log-area {
+            width: 800px;
+            height: 200px;
+            margin: 20px auto;
+            border: 1px solid #ccc;
+            background: #f9f9f9;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            padding: 10px;
+        }
+
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px 5px;
+            border-left: 3px solid #2196F3;
+            background: white;
+        }
+    </style>
+</head>
+
+<body>
+    <h1 style="text-align: center;">Selection Rect 调试日志测试</h1>
+    <div class="info">查看控制台日志，观察鼠标按下和松开时的位置信息</div>
+
+    <div class="controls">
+        <button onclick="setZoom(0.5)">50% 缩放</button>
+        <button onclick="setZoom(0.8)">80% 缩放</button>
+        <button onclick="setZoom(1)">100% 缩放</button>
+        <button onclick="setZoom(1.2)">120% 缩放</button>
+        <button onclick="setZoom(1.5)">150% 缩放</button>
+        <button onclick="setZoom(2)">200% 缩放</button>
+        <button onclick="clearLogs()">清除日志</button>
+    </div>
+
+    <div class="container" id="container">
+        <div class="inner" id="inner">
+            <div class="node" style="left: 100px; top: 100px;">节点 1</div>
+            <div class="node" style="left: 300px; top: 150px;">节点 2</div>
+            <div class="node" style="left: 500px; top: 200px;">节点 3</div>
+            <div class="node" style="left: 200px; top: 300px;">节点 4</div>
+            <div class="node" style="left: 400px; top: 350px;">节点 5</div>
+            <div class="selection-rect" id="selectionRect"></div>
+        </div>
+    </div>
+
+    <div class="info" id="info">
+        当前缩放: 100% | 框选状态: 未开始
+    </div>
+
+    <div class="log-area" id="logArea">
+        <div style="color: #666;">日志将在这里显示...</div>
+    </div>
+
+    <script>
+        let currentZoom = 1;
+        let isSelecting = false;
+        let startX, startY;
+        let startClientX, startClientY;
+        let logCount = 0;
+
+        const inner = document.getElementById('inner');
+        const selectionRect = document.getElementById('selectionRect');
+        const info = document.getElementById('info');
+        const logArea = document.getElementById('logArea');
+
+        function addLog(message, data) {
+            logCount++;
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            logEntry.innerHTML = `<strong>[${timestamp}] ${message}</strong><br>${JSON.stringify(data, null, 2)}`;
+            logArea.appendChild(logEntry);
+            logArea.scrollTop = logArea.scrollHeight;
+
+            // 同时输出到控制台
+            console.log(message, data);
+        }
+
+        function setZoom(zoom) {
+            currentZoom = zoom;
+            inner.style.transform = `scale(${zoom})`;
+            updateInfo();
+            addLog('缩放级别改变', { zoom: Math.round(zoom * 100) + '%' });
+        }
+
+        function getInnerScale() {
+            const rect = inner.getBoundingClientRect();
+            const sxRaw = rect.width / (inner.clientWidth || rect.width);
+            const syRaw = rect.height / (inner.clientHeight || rect.height);
+            const sx = (isFinite(sxRaw) && sxRaw > 0) ? sxRaw : 1;
+            const sy = (isFinite(syRaw) && syRaw > 0) ? syRaw : 1;
+            return { sx, sy };
+        }
+
+        function updateInfo() {
+            info.textContent = `当前缩放: ${Math.round(currentZoom * 100)}% | 框选状态: ${isSelecting ? '进行中' : '未开始'}`;
+        }
+
+        inner.addEventListener('mousedown', (e) => {
+            if (e.target.classList.contains('node')) return;
+
+            isSelecting = true;
+            startClientX = e.clientX;
+            startClientY = e.clientY;
+
+            const rect = inner.getBoundingClientRect();
+            const { sx, sy } = getInnerScale();
+
+            startX = (e.clientX - rect.left) / sx + inner.scrollLeft;
+            startY = (e.clientY - rect.top) / sy + inner.scrollTop;
+
+            selectionRect.style.display = 'block';
+            selectionRect.style.left = startX + 'px';
+            selectionRect.style.top = startY + 'px';
+            selectionRect.style.width = '0px';
+            selectionRect.style.height = '0px';
+
+            // 添加详细日志
+            addLog('🖱️ 鼠标按下 - 详细信息', {
+                clientX: e.clientX,
+                clientY: e.clientY,
+                innerRect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+                scale: { sx, sy },
+                startX,
+                startY,
+                scrollLeft: inner.scrollLeft,
+                scrollTop: inner.scrollTop,
+                isSelecting: true
+            });
+
+            updateInfo();
+        });
+
+        inner.addEventListener('mousemove', (e) => {
+            if (!isSelecting) return;
+
+            const rect = inner.getBoundingClientRect();
+            const { sx, sy } = getInnerScale();
+
+            const curX = (e.clientX - rect.left) / sx + inner.scrollLeft;
+            const curY = (e.clientY - rect.top) / sy + inner.scrollTop;
+
+            const x = Math.min(startX, curX);
+            const y = Math.min(startY, curY);
+            const w = Math.abs(curX - startX);
+            const h = Math.abs(curY - startY);
+
+            // 修复方案：直接使用逻辑坐标，因为inner容器已经应用了transform scale
+            selectionRect.style.left = x + 'px';
+            selectionRect.style.top = y + 'px';
+            selectionRect.style.width = w + 'px';
+            selectionRect.style.height = h + 'px';
+        });
+
+        inner.addEventListener('mouseup', (e) => {
+            if (isSelecting) {
+                const rectStyle = window.getComputedStyle(selectionRect);
+
+                addLog('🖱️ 鼠标松开 - 最终状态', {
+                    isSelecting: false,
+                    rectPosition: {
+                        left: rectStyle.left,
+                        top: rectStyle.top,
+                        width: rectStyle.width,
+                        height: rectStyle.height
+                    },
+                    clientX: e.clientX,
+                    clientY: e.clientY,
+                    finalZoom: Math.round(currentZoom * 100) + '%'
+                });
+
+                isSelecting = false;
+                selectionRect.style.display = 'none';
+                updateInfo();
+            }
+        });
+
+        function clearLogs() {
+            logArea.innerHTML = '<div style="color: #666;">日志已清除</div>';
+            console.clear();
+        }
+
+        // 初始化
+        setZoom(1);
+    </script>
+</body>
+
+</html>

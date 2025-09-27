@@ -181,7 +181,7 @@
 
     /* 框选矩形与多选高亮 */
     #selectionRect {
-      position: absolute;
+      position: fixed;
       border: 1px dashed #4c9aff;
       background: rgba(76, 154, 255, 0.15);
       pointer-events: none;
@@ -277,92 +277,93 @@
         transform: scale(1.08);
         background-color: rgba(76, 154, 255, 0.5);
       }
+    }
 
-      /* 额外的样式覆盖 - 确保我们的多选样式优先级最高 */
-      /* 只覆盖jsMind的多选冲突，保留单选样式 */
-      /* 注意：单选节点只有 .selected 类，多选节点同时有 .selected 和 .multi-selected 类 */
+    /* 额外的样式覆盖 - 确保我们的多选样式优先级最高 */
+    /* 只覆盖jsMind的多选冲突，保留单选样式 */
+    /* 注意：单选节点只有 .selected 类，多选节点同时有 .selected 和 .multi-selected 类 */
 
-      /* 恢复单选节点的默认样式（只有.selected类，没有.multi-selected类） */
-      html body #fullScreenMindmap .jsmind-inner .jmnodes .jmnode.selected:not(.multi-selected),
-      html body .jsmind-inner .jmnodes .jmnode.selected:not(.multi-selected) {
-        background-color: #11f !important;
-        color: #fff !important;
-        box-shadow: 2px 2px 8px #000 !important;
-      }
+    /* 恢复单选节点的默认样式（只有.selected类，没有.multi-selected类） */
+    html body #fullScreenMindmap .jsmind-inner .jmnodes .jmnode.selected:not(.multi-selected),
+    html body .jsmind-inner .jmnodes .jmnode.selected:not(.multi-selected) {
+      background-color: #11f !important;
+      color: #fff !important;
+      box-shadow: 2px 2px 8px #000 !important;
+    }
 
-      /* 多选节点的样式重置（同时有.selected和.multi-selected类） */
+    /* 多选节点的样式重置（同时有.selected和.multi-selected类） */
 
 
-      /* 最高优先级的多选样式 */
-      html body #fullScreenMindmap .jsmind-inner .jmnodes .jmnode.multi-selected,
-      html body .jsmind-inner .jmnodes .jmnode.multi-selected {
-        background-color: rgba(76, 154, 255, 0.8) !important;
-        border: 4px solid #4c9aff !important;
-        transform: scale(1.1) !important;
-        box-shadow: 0 0 0 4px #4c9aff, inset 0 0 0 3px #4c9aff, 0 6px 20px rgba(76, 154, 255, 0.6), 0 0 30px rgba(76, 154, 255, 0.4) !important;
-        animation: pulse 1.2s infinite ease-in-out !important;
-        color: #fff !important;
-        font-weight: bold !important;
-        z-index: 999 !important;
-      }
+    /* 最高优先级的多选样式 */
+    html body #fullScreenMindmap .jsmind-inner .jmnodes .jmnode.multi-selected,
+    html body .jsmind-inner .jmnodes .jmnode.multi-selected {
+      background-color: rgba(76, 154, 255, 0.8) !important;
+      border: 4px solid #4c9aff !important;
+      transform: scale(1.1) !important;
+      box-shadow: 0 0 0 4px #4c9aff, inset 0 0 0 3px #4c9aff, 0 6px 20px rgba(76, 154, 255, 0.6), 0 0 30px rgba(76, 154, 255, 0.4) !important;
+      animation: pulse 1.2s infinite ease-in-out !important;
+      color: #fff !important;
+      font-weight: bold !important;
+      z-index: 999 !important;
+    }
 
-      /* 文本换行与展开器统一样式（新增） */
-      #fullScreenMindmap .jmnode {
-        white-space: normal !important;
-        word-break: break-word !important;
-        /* 确保节点内容不被隐藏，即使在多选状态下 */
-        overflow: visible !important;
-      }
+    /* 文本换行与展开器统一样式（新增） */
+    #fullScreenMindmap .jmnode {
+      white-space: normal !important;
+      word-break: break-word !important;
+      /* 确保节点内容不被隐藏，即使在多选状态下 */
+      overflow: visible !important;
+    }
 
-      #fullScreenMindmap .jmnode.multi-selected .jmexpander {
-        background-color: #4c9aff !important;
-        border-color: #4c9aff !important;
-        color: #fff !important;
-      }
+    #fullScreenMindmap .jmnode.multi-selected .jmexpander {
+      background-color: #4c9aff !important;
+      border-color: #4c9aff !important;
+      color: #fff !important;
+    }
 
-      /* 让多选高亮也作用到节点内部内容容器，并给主题矩形增加描边，确保所有被框选的节点明显高亮 */
-      #fullScreenMindmap .jmnode.multi-selected * {
-        color: #fff !important;
-        background-color: rgba(76, 154, 255, 0.15) !important;
-      }
+    /* 让多选高亮也作用到节点内部内容容器，并给主题矩形增加描边，确保所有被框选的节点明显高亮 */
+    #fullScreenMindmap .jmnode.multi-selected * {
+      color: #fff !important;
+      background-color: rgba(76, 154, 255, 0.15) !important;
+    }
 
-      /* 增强多选节点的背景和边框样式，确保高亮效果明显 */
-      #fullScreenMindmap .jmnode.multi-selected {
-        background-color: rgba(243, 211, 30, 0.3) !important;
-        border: 2px solid #4c9aff !important;
-        box-shadow: 0 0 0 3px rgba(76, 154, 255, 0.8) !important;
-        outline: 3px solid #4c9aff !important;
-        outline-offset: 0 !important;
-      }
+    /* 增强多选节点的背景和边框样式，确保高亮效果明显 */
+    #fullScreenMindmap .jmnode.multi-selected {
+      background-color: rgba(243, 211, 30, 0.3) !important;
+      border: 2px solid #4c9aff !important;
+      box-shadow: 0 0 0 3px rgba(76, 154, 255, 0.8) !important;
+      outline: 3px solid #4c9aff !important;
+      outline-offset: 0 !important;
+    }
 
-      /* 编辑输入最小宽度，避免过短导致编辑体验差 */
-      .jsmind-editor,
-      #jsmind-editor {
-        min-width: 180px;
-        padding: 2px 6px;
-        line-height: 1.4;
-        font-size: 14px;
-      }
+    /* 编辑输入最小宽度，避免过短导致编辑体验差 */
+    .jsmind-editor,
+    #jsmind-editor {
+      min-width: 180px;
+      padding: 2px 6px;
+      line-height: 1.4;
+      font-size: 14px;
+    }
 
-      /* 多选覆盖层样式 - 确保高亮肉眼可见 */
-      .multi-overlay {
-        position: absolute;
-        left: -6px;
-        top: -6px;
-        right: -6px;
-        bottom: -6px;
-        border: 4px solid #4c9aff !important;
-        border-radius: 12px !important;
-        box-shadow:
-          0 0 0 3px rgba(255, 238, 3, 0.8) !important,
-          0 0 30px rgba(76, 154, 255, 0.9) !important,
-          inset 0 0 15px rgba(76, 154, 255, 0.3) !important;
-        pointer-events: none;
-        z-index: 10000 !important;
-        background: linear-gradient(135deg, rgba(76, 154, 255, 0.4) 0%, rgba(76, 154, 255, 0.6) 100%) !important;
-        animation: pulse 1.2s infinite ease-in-out !important;
-        backdrop-filter: blur(1px);
-      }
+    /* 多选覆盖层样式 - 确保高亮肉眼可见 */
+    .multi-overlay {
+      position: absolute;
+      left: -6px;
+      top: -6px;
+      right: -6px;
+      bottom: -6px;
+      border: 4px solid #4c9aff !important;
+      border-radius: 12px !important;
+      box-shadow:
+        0 0 0 3px rgba(255, 238, 3, 0.8) !important,
+        0 0 30px rgba(76, 154, 255, 0.9) !important,
+        inset 0 0 15px rgba(76, 154, 255, 0.3) !important;
+      pointer-events: none;
+      z-index: 10000 !important;
+      background: linear-gradient(135deg, rgba(76, 154, 255, 0.4) 0%, rgba(76, 154, 255, 0.6) 100%) !important;
+      animation: pulse 1.2s infinite ease-in-out !important;
+      /* backdrop-filter: blur(1px); */
+    }
   </style>
 </head>
 
@@ -1023,12 +1024,12 @@
 
       // 已移除冗余节点分析日志
 
-      // 创建框选矩形元素（若不存在）
-      let rectEl = inner.querySelector('#selectionRect');
+      // 创建框选矩形元素（若不存在） - 使用视口坐标系，挂到 document.body 避免被缩放层影响
+      let rectEl = document.querySelector('#selectionRect');
       if (!rectEl) {
         rectEl = document.createElement('div');
         rectEl.id = 'selectionRect';
-        inner.appendChild(rectEl);
+        document.body.appendChild(rectEl);
       }
 
       let isSelecting = false;
@@ -1041,6 +1042,16 @@
       let startScrollLeft = 0, startScrollTop = 0;
       let addMode = false; // 是否叠加选择（Shift/Meta），空格为画布拖拽
       let isSpacePressed = false; // 空格按下时启用画布拖拽
+
+      // 计算内层容器的缩放比例（CSS transform: scale），用于坐标换算
+      function getInnerScale() {
+        const r = inner.getBoundingClientRect();
+        const sxRaw = r.width / (inner.clientWidth || r.width);
+        const syRaw = r.height / (inner.clientHeight || r.height);
+        const sx = (isFinite(sxRaw) && sxRaw > 0) ? sxRaw : 1;
+        const sy = (isFinite(syRaw) && syRaw > 0) ? syRaw : 1;
+        return { sx, sy };
+      }
 
       // 监听空格键状态；在输入框/文本域/可编辑内容内按空格不触发拖拽
       window.addEventListener('keydown', (e) => {
@@ -1467,18 +1478,46 @@
         isSelectingPrimed = true;
         addMode = !!(e.shiftKey || e.metaKey);
 
-        const r = inner.getBoundingClientRect();
-        // 将 client 坐标换算到 inner 的滚动坐标系
-        startX = e.clientX - r.left + inner.scrollLeft;
-        startY = e.clientY - r.top + inner.scrollTop;
+        // 记录起点的视口(client)坐标，后续全部以 client 坐标系绘制，避免缩放/滚动换算误差
+        startClientX = e.clientX;
+        startClientY = e.clientY;
+        // 兼容性保留逻辑坐标（但不用于碰撞检测）
+        startX = startClientX;
+        startY = startClientY;
 
         // 暂不清空，等真正开始框选时再决定是否清空
         Object.assign(rectEl.style, {
           display: 'none',
-          left: `${startX}px`,
-          top: `${startY}px`,
+          left: `${startClientX}px`,
+          top: `${startClientY}px`,
           width: '0px',
           height: '0px'
+        });
+
+        // 添加详细调试日志
+        console.log('🖱️ 鼠标按下 - 详细调试:', {
+          clientX: e.clientX,
+          clientY: e.clientY,
+          innerRect: { left: r.left, top: r.top, width: r.width, height: r.height },
+          innerClient: { width: inner.clientWidth, height: inner.clientHeight },
+          innerScroll: { width: inner.scrollWidth, height: inner.scrollHeight, left: inner.scrollLeft, top: inner.scrollTop },
+          scale: { sx, sy },
+          rawCalculation: {
+            deltaX: e.clientX - r.left,
+            deltaY: e.clientY - r.top,
+            scaledX: (e.clientX - r.left) / sx,
+            scaledY: (e.clientY - r.top) / sy
+          },
+          finalCalculation: {
+            startX: (e.clientX - r.left) / sx + inner.scrollLeft,
+            startY: (e.clientY - r.top) / sy + inner.scrollTop
+          },
+          startX,
+          startY,
+          scrollLeft: inner.scrollLeft,
+          scrollTop: inner.scrollTop,
+          isSelectingPrimed: true,
+          addMode: addMode
         });
 
         // 阻止默认选择行为，避免文字选中
@@ -1536,14 +1575,14 @@
 
         if (!isSelecting && !isSelectingPrimed) return;
 
-        const r = inner.getBoundingClientRect();
-        const curX = e.clientX - r.left + inner.scrollLeft;
-        const curY = e.clientY - r.top + inner.scrollTop;
+        // 使用视口(client)坐标系绘制选框，避免 transform/scroll 换算误差
+        const curClientX = e.clientX;
+        const curClientY = e.clientY;
 
-        const x = Math.min(startX, curX);
-        const y = Math.min(startY, curY);
-        const w = Math.abs(curX - startX);
-        const h = Math.abs(curY - startY);
+        const x = Math.min(startClientX, curClientX);
+        const y = Math.min(startClientY, curClientY);
+        const w = Math.abs(curClientX - startClientX);
+        const h = Math.abs(curClientY - startClientY);
 
         // 移动超过阈值(>4px)才真正开始框选
         if (isSelectingPrimed && !isSelecting) {
@@ -1557,19 +1596,72 @@
           }
         }
 
+        // 修复：直接使用逻辑坐标，因为inner容器已经应用了transform scale
+        // selectionRect作为inner的子元素，会自动继承缩放效果
+
+        // 边界检查：确保矩形不会超出inner容器的逻辑边界
+        const maxX = inner.scrollWidth;
+        const maxY = inner.scrollHeight;
+        const clampedX = Math.max(0, Math.min(x, maxX));
+        const clampedY = Math.max(0, Math.min(y, maxY));
+        const clampedW = Math.min(w, maxX - clampedX);
+        const clampedH = Math.min(h, maxY - clampedY);
+
+        // 边界检查调试日志
+        if (clampedX !== x || clampedY !== y || clampedW !== w || clampedH !== h) {
+          console.log('🛡️ 边界检查触发:', {
+            original: { x, y, w, h },
+            clamped: { x: clampedX, y: clampedY, w: clampedW, h: clampedH },
+            innerBounds: { maxX, maxY },
+            needsClamping: {
+              x: clampedX !== x,
+              y: clampedY !== y,
+              w: clampedW !== w,
+              h: clampedH !== h
+            }
+          });
+        }
+
         Object.assign(rectEl.style, {
-          left: `${x}px`,
-          top: `${y}px`,
-          width: `${w}px`,
-          height: `${h}px`
+          left: `${clampedX}px`,
+          top: `${clampedY}px`,
+          width: `${clampedW}px`,
+          height: `${clampedH}px`
         });
 
-        // 将选框转换回 client 坐标用于与节点 getBoundingClientRect 相交测试
+        // 添加mousemove调试日志（节流，避免过多输出）
+        if (Math.random() < 0.05) { // 大约5%的概率输出，避免控制台爆炸
+          console.log('🖱️ mousemove调试:', {
+            clientX: e.clientX,
+            clientY: e.clientY,
+            curX,
+            curY,
+            startX,
+            startY,
+            finalRect: { x, y, w, h },
+            scale: { sx, sy },
+            innerScroll: { left: inner.scrollLeft, top: inner.scrollTop },
+            innerDimensions: {
+              clientWidth: inner.clientWidth,
+              clientHeight: inner.clientHeight,
+              scrollWidth: inner.scrollWidth,
+              scrollHeight: inner.scrollHeight
+            },
+            boundaryCheck: {
+              isStartXValid: startX >= 0 && startX <= inner.scrollWidth,
+              isStartYValid: startY >= 0 && startY <= inner.scrollHeight,
+              isCurXValid: curX >= 0 && curX <= inner.scrollWidth,
+              isCurYValid: curY >= 0 && curY <= inner.scrollHeight
+            }
+          });
+        }
+
+        // 选框与节点均使用 client(getBoundingClientRect) 坐标系进行相交检测（直接使用视口坐标）
         const selClient = {
-          left: x - inner.scrollLeft + r.left,
-          top: y - inner.scrollTop + r.top,
-          right: x - inner.scrollLeft + r.left + w,
-          bottom: y - inner.scrollTop + r.top + h
+          left: x,
+          top: y,
+          right: x + w,
+          bottom: y + h
         };
 
 
@@ -1651,6 +1743,34 @@
         }
 
         if (!isSelecting) return;
+
+        // 添加日志：鼠标松开时的最终状态
+        const rectStyle = window.getComputedStyle(rectEl);
+        console.log('🖱️ 鼠标松开 - 最终状态:', {
+          isSelecting: false,
+          rectDisplay: rectEl.style.display,
+          rectPosition: {
+            left: rectEl.style.left,
+            top: rectEl.style.top,
+            width: rectEl.style.width,
+            height: rectEl.style.height
+          },
+          rectBounds: {
+            left: parseFloat(rectEl.style.left) || 0,
+            top: parseFloat(rectEl.style.top) || 0,
+            width: parseFloat(rectEl.style.width) || 0,
+            height: parseFloat(rectEl.style.height) || 0
+          },
+          innerBounds: {
+            scrollWidth: inner.scrollWidth,
+            scrollHeight: inner.scrollHeight,
+            scrollLeft: inner.scrollLeft,
+            scrollTop: inner.scrollTop
+          },
+          multiSelectedCount: multiSelected.size,
+          selectedIds: Array.from(multiSelected)
+        });
+
         isSelecting = false;
         rectEl.style.display = 'none';
         updateHighlight();

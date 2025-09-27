@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Selection Rect 缩放修复测试</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #f0f0f0;
+        }
+
+        .container {
+            width: 800px;
+            height: 600px;
+            margin: 20px auto;
+            border: 2px solid #333;
+            position: relative;
+            background: white;
+            overflow: hidden;
+        }
+
+        .inner {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-origin: center center;
+            transition: transform 0.3s ease;
+        }
+
+        .node {
+            position: absolute;
+            width: 80px;
+            height: 40px;
+            background: #4CAF50;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .selection-rect {
+            position: absolute;
+            border: 2px dashed #2196F3;
+            background: rgba(33, 150, 243, 0.1);
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+        }
+
+        .controls {
+            text-align: center;
+            margin: 20px;
+        }
+
+        .controls button {
+            margin: 0 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .info {
+            text-align: center;
+            margin: 10px;
+            color: #666;
+        }
+    </style>
+</head>
+
+<body>
+    <h1 style="text-align: center;">Selection Rect 缩放修复测试</h1>
+    <div class="info">使用鼠标拖拽框选节点，测试不同缩放级别下selection rect的位置是否正确</div>
+
+    <div class="controls">
+        <button onclick="setZoom(0.5)">50% 缩放</button>
+        <button onclick="setZoom(0.8)">80% 缩放</button>
+        <button onclick="setZoom(1)">100% 缩放</button>
+        <button onclick="setZoom(1.2)">120% 缩放</button>
+        <button onclick="setZoom(1.5)">150% 缩放</button>
+        <button onclick="setZoom(2)">200% 缩放</button>
+    </div>
+
+    <div class="container" id="container">
+        <div class="inner" id="inner">
+            <div class="node" style="left: 100px; top: 100px;">节点 1</div>
+            <div class="node" style="left: 300px; top: 150px;">节点 2</div>
+            <div class="node" style="left: 500px; top: 200px;">节点 3</div>
+            <div class="node" style="left: 200px; top: 300px;">节点 4</div>
+            <div class="node" style="left: 400px; top: 350px;">节点 5</div>
+            <div class="selection-rect" id="selectionRect"></div>
+        </div>
+    </div>
+
+    <div class="info" id="info">
+        当前缩放: 100% | 框选状态: 未开始
+    </div>
+
+    <script>
+        let currentZoom = 1;
+        let isSelecting = false;
+        let startX, startY;
+        let startClientX, startClientY;
+
+        const inner = document.getElementById('inner');
+        const selectionRect = document.getElementById('selectionRect');
+        const info = document.getElementById('info');
+
+        function setZoom(zoom) {
+            currentZoom = zoom;
+            inner.style.transform = `scale(${zoom})`;
+            updateInfo();
+        }
+
+        function getInnerScale() {
+            const rect = inner.getBoundingClientRect();
+            const sxRaw = rect.width / (inner.clientWidth || rect.width);
+            const syRaw = rect.height / (inner.clientHeight || rect.height);
+            const sx = (isFinite(sxRaw) && sxRaw > 0) ? sxRaw : 1;
+            const sy = (isFinite(syRaw) && syRaw > 0) ? syRaw : 1;
+            return { sx, sy };
+        }
+
+        function updateInfo() {
+            info.textContent = `当前缩放: ${Math.round(currentZoom * 100)}% | 框选状态: ${isSelecting ? '进行中' : '未开始'}`;
+        }
+
+        inner.addEventListener('mousedown', (e) => {
+            if (e.target.classList.contains('node')) return;
+
+            isSelecting = true;
+            startClientX = e.clientX;
+            startClientY = e.clientY;
+
+            const rect = inner.getBoundingClientRect();
+            const { sx, sy } = getInnerScale();
+
+            startX = (e.clientX - rect.left) / sx + inner.scrollLeft;
+            startY = (e.clientY - rect.top) / sy + inner.scrollTop;
+
+            selectionRect.style.display = 'block';
+            selectionRect.style.left = startX + 'px';
+            selectionRect.style.top = startY + 'px';
+            selectionRect.style.width = '0px';
+            selectionRect.style.height = '0px';
+
+            updateInfo();
+        });
+
+        inner.addEventListener('mousemove', (e) => {
+            if (!isSelecting) return;
+
+            const rect = inner.getBoundingClientRect();
+            const { sx, sy } = getInnerScale();
+
+            const curX = (e.clientX - rect.left) / sx + inner.scrollLeft;
+            const curY = (e.clientY - rect.top) / sy + inner.scrollTop;
+
+            const x = Math.min(startX, curX);
+            const y = Math.min(startY, curY);
+            const w = Math.abs(curX - startX);
+            const h = Math.abs(curY - startY);
+
+            // 修复方案：将逻辑坐标转换为视觉坐标
+            const visualX = (x - inner.scrollLeft) * sx + inner.scrollLeft;
+            const visualY = (y - inner.scrollTop) * sy + inner.scrollTop;
+            const visualW = w * sx;
+            const visualH = h * sy;
+
+            selectionRect.style.left = visualX + 'px';
+            selectionRect.style.top = visualY + 'px';
+            selectionRect.style.width = visualW + 'px';
+            selectionRect.style.height = visualH + 'px';
+        });
+
+        inner.addEventListener('mouseup', () => {
+            if (isSelecting) {
+                isSelecting = false;
+                selectionRect.style.display = 'none';
+                updateInfo();
+            }
+        });
+
+        // 初始化
+        setZoom(1);
+    </script>
+</body>
+
+</html>

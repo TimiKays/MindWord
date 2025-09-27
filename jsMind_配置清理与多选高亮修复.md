@@ -1,0 +1,50 @@
+# jsMind 配置清理与多选高亮修复
+
+## Core Features
+
+- 去除/修正不受支持的 jsMind 配置项
+
+- 修复多选时节点主题矩形高亮显示
+
+- 统一节点矩形与展开器的多选视觉
+
+- 保留现有多选、拖拽、截图、AI 扩写等功能
+
+## Tech Stack
+
+{
+  "Web": {
+    "arch": "html",
+    "component": null
+  },
+  "iOS": null,
+  "Android": null
+}
+
+## Design
+
+保持现有主题风格，仅修复与增强多选高亮的一致性与可见性。
+
+## Plan
+
+Note: 
+
+- [ ] is holding
+- [/] is doing
+- [X] is done
+
+---
+
+[X] 对齐配置：将 view.expander_style 从 number 改为 circle（或 square）；删除 view.expander_color、view.expander_size、view.zoom、view.enable_draggable、view.mouse_wheel_enabled；将 node_overflow 从 wrap 改为 hidden（若需换行用 CSS 实现）。
+
+[X] CSS 修复：删除或注释 .jmnode.selected.multi-selected { background/border/box-shadow: inherit !重要; } 的“重置规则”。
+
+[X] 为多选添加明确高亮：.jmnode.multi-selected（含 !important）设置背景、边框、阴影；如存在内部容器，一并覆盖 .jmnode.multi-selected > *。
+
+[X] 统一展开器与矩形视觉：为 .jmnode.multi-selected .jmexpander 增加同色状态，确保按钮与矩形一致。
+
+[/] 验证 class 绑定目标：确保框选逻辑将 multi-selected 添加到 div.jmnode[nodeid=...]，必要时补充选择器匹配（并修正坐标系为全 client 计算）。
+
+[X] 修复样式编译错误：去除 @keyframes pulse 结束后的多余右花括号，恢复样式解析。
+
+[/] 回归验证：单选/多选（框选/Shift 点选）、展开/收起、拖拽、快捷键、存储与截图，确保无回归与样式一致。
