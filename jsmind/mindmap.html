@@ -277,49 +277,92 @@
         transform: scale(1.08);
         background-color: rgba(76, 154, 255, 0.5);
       }
-    }
 
-    /* 额外的样式覆盖 - 确保我们的多选样式优先级最高 */
-    /* 只覆盖jsMind的多选冲突，保留单选样式 */
-    /* 注意：单选节点只有 .selected 类，多选节点同时有 .selected 和 .multi-selected 类 */
+      /* 额外的样式覆盖 - 确保我们的多选样式优先级最高 */
+      /* 只覆盖jsMind的多选冲突，保留单选样式 */
+      /* 注意：单选节点只有 .selected 类，多选节点同时有 .selected 和 .multi-selected 类 */
 
-    /* 恢复单选节点的默认样式（只有.selected类，没有.multi-selected类） */
-    html body #fullScreenMindmap .jsmind-inner .jmnodes .jmnode.selected:not(.multi-selected),
-    html body .jsmind-inner .jmnodes .jmnode.selected:not(.multi-selected) {
-      background-color: #11f !important;
-      color: #fff !important;
-      box-shadow: 2px 2px 8px #000 !important;
-    }
+      /* 恢复单选节点的默认样式（只有.selected类，没有.multi-selected类） */
+      html body #fullScreenMindmap .jsmind-inner .jmnodes .jmnode.selected:not(.multi-selected),
+      html body .jsmind-inner .jmnodes .jmnode.selected:not(.multi-selected) {
+        background-color: #11f !important;
+        color: #fff !important;
+        box-shadow: 2px 2px 8px #000 !important;
+      }
 
-    /* 多选节点的样式重置（同时有.selected和.multi-selected类） */
-    #fullScreenMindmap .jsmind-inner .jmnodes .jmnode.selected.multi-selected,
-    .jsmind-inner .jmnodes .jmnode.selected.multi-selected {
-      background-color: inherit !important;
-      border: inherit !important;
-      box-shadow: inherit !important;
-    }
+      /* 多选节点的样式重置（同时有.selected和.multi-selected类） */
 
-    /* 最高优先级的多选样式 */
-    html body #fullScreenMindmap .jsmind-inner .jmnodes .jmnode.multi-selected,
-    html body .jsmind-inner .jmnodes .jmnode.multi-selected {
-      background-color: rgba(76, 154, 255, 0.8) !important;
-      border: 4px solid #4c9aff !important;
-      transform: scale(1.1) !important;
-      box-shadow: 0 0 0 4px #4c9aff, inset 0 0 0 3px #4c9aff, 0 6px 20px rgba(76, 154, 255, 0.6), 0 0 30px rgba(76, 154, 255, 0.4) !important;
-      animation: pulse 1.2s infinite ease-in-out !important;
-      color: #fff !important;
-      font-weight: bold !important;
-      z-index: 999 !important;
-    }
 
-    /* 编辑输入最小宽度，避免过短导致编辑体验差 */
-    .jsmind-editor,
-    #jsmind-editor {
-      min-width: 180px;
-      padding: 2px 6px;
-      line-height: 1.4;
-      font-size: 14px;
-    }
+      /* 最高优先级的多选样式 */
+      html body #fullScreenMindmap .jsmind-inner .jmnodes .jmnode.multi-selected,
+      html body .jsmind-inner .jmnodes .jmnode.multi-selected {
+        background-color: rgba(76, 154, 255, 0.8) !important;
+        border: 4px solid #4c9aff !important;
+        transform: scale(1.1) !important;
+        box-shadow: 0 0 0 4px #4c9aff, inset 0 0 0 3px #4c9aff, 0 6px 20px rgba(76, 154, 255, 0.6), 0 0 30px rgba(76, 154, 255, 0.4) !important;
+        animation: pulse 1.2s infinite ease-in-out !important;
+        color: #fff !important;
+        font-weight: bold !important;
+        z-index: 999 !important;
+      }
+
+      /* 文本换行与展开器统一样式（新增） */
+      #fullScreenMindmap .jmnode {
+        white-space: normal !important;
+        word-break: break-word !important;
+        /* 确保节点内容不被隐藏，即使在多选状态下 */
+        overflow: visible !important;
+      }
+
+      #fullScreenMindmap .jmnode.multi-selected .jmexpander {
+        background-color: #4c9aff !important;
+        border-color: #4c9aff !important;
+        color: #fff !important;
+      }
+
+      /* 让多选高亮也作用到节点内部内容容器，并给主题矩形增加描边，确保所有被框选的节点明显高亮 */
+      #fullScreenMindmap .jmnode.multi-selected * {
+        color: #fff !important;
+        background-color: rgba(76, 154, 255, 0.15) !important;
+      }
+
+      /* 增强多选节点的背景和边框样式，确保高亮效果明显 */
+      #fullScreenMindmap .jmnode.multi-selected {
+        background-color: rgba(243, 211, 30, 0.3) !important;
+        border: 2px solid #4c9aff !important;
+        box-shadow: 0 0 0 3px rgba(76, 154, 255, 0.8) !important;
+        outline: 3px solid #4c9aff !important;
+        outline-offset: 0 !important;
+      }
+
+      /* 编辑输入最小宽度，避免过短导致编辑体验差 */
+      .jsmind-editor,
+      #jsmind-editor {
+        min-width: 180px;
+        padding: 2px 6px;
+        line-height: 1.4;
+        font-size: 14px;
+      }
+
+      /* 多选覆盖层样式 - 确保高亮肉眼可见 */
+      .multi-overlay {
+        position: absolute;
+        left: -6px;
+        top: -6px;
+        right: -6px;
+        bottom: -6px;
+        border: 4px solid #4c9aff !important;
+        border-radius: 12px !important;
+        box-shadow:
+          0 0 0 3px rgba(255, 238, 3, 0.8) !important,
+          0 0 30px rgba(76, 154, 255, 0.9) !important,
+          inset 0 0 15px rgba(76, 154, 255, 0.3) !important;
+        pointer-events: none;
+        z-index: 10000 !important;
+        background: linear-gradient(135deg, rgba(76, 154, 255, 0.4) 0%, rgba(76, 154, 255, 0.6) 100%) !important;
+        animation: pulse 1.2s infinite ease-in-out !important;
+        backdrop-filter: blur(1px);
+      }
   </style>
 </head>
 
@@ -327,7 +370,7 @@
   <div class="toolbar">
     <!-- 批量操作工具栏 -->
     <div id="batchOperations"
-      style="display: none; margin-right: 20px; padding: 5px 10px; background: rgba(76, 154, 255, 0.1); border-radius: 4px; border: 1px solid #4c9aff;">
+      style="display: inline-block; margin-top: 200px; padding: 5px 10px; background: rgba(76, 154, 255, 0.1); border-radius: 4px; border: 1px solid #4c9aff;">
       <span style="color: #4c9aff; font-size: 12px; margin-right: 10px;">已选中 <span id="selectedCount">0</span>
         个节点</span>
       <button class="btn" onclick="batchDelete()" style="background: #dc3545; margin-right: 5px;"
@@ -336,11 +379,14 @@
         title="移动选中的节点">移动</button>
       <button class="btn" onclick="clearMultiSelection()" style="background: #6c757d; margin-right: 5px;"
         title="清除选择">清除</button>
-      <button class="btn" onclick="debugMultiSelect()" style="background: #17a2b8;" title="调试多选样式">🔍 调试</button>
+      <button class="btn" onclick="debugMultiSelect()" style="background: #17a2b8; margin-right: 5px;" title="调试多选样式">🔍
+        调试</button>
+      <button class="btn" onclick="forceMultiSelectStyle()" style="background: #fd7e14;" title="强制应用多选样式">⚡
+        强制样式</button>
     </div>
 
     <button class="btn" onclick="exportData()">查看JSON</button>
-    <button class="btn btn-success" onclick="downloadMindmap()">下载图片</button>
+    <button class="btn" onclick="downloadMindmap()">下载图片</button>
 
   </div>
 
@@ -366,10 +412,9 @@
       </div>
 
       <div style="margin-bottom: 15px; display: flex; gap: 10px;">
-        <button class="btn" onclick="expandWithAI()" style="flex: 1; background: #6f42c1;">
-          AI扩写
-        </button>
-        <button class="btn" onclick="AIExpander.showConfig()" style="flex: 0 0 40px; background: #6c757d;"
+        <button class="btn" onclick="expandWithAI()"
+          style="flex: 1; background: linear-gradient(135deg, #6da8e7, #6adbc8); color: white;">AI扩写</button>
+        <button class="btn" onclick="AIExpander.showConfig()" style="flex: 0 0 40px; background: #ffffff;"
           title="AI配置">⚙️</button>
       </div>
 
@@ -406,11 +451,6 @@
   </div>
   </div>
 
-  </div>
-  </div>
-
-
-
   <script src="https://jsd.onmicrosoft.cn/npm/jsmind@0.8.7/es6/jsmind.js"></script>
   <script src="https://jsd.onmicrosoft.cn/npm/jsmind@0.8.7/es6/jsmind.draggable-node.js"></script>
   <script src="https://unpkg.com/dom-to-image@2.6.0/dist/dom-to-image.min.js"></script>
@@ -440,39 +480,18 @@
           vmargin: 50,                        // 垂直边距
           line_width: 2,                      // 连接线宽度
           line_color: '#555',                 // 连接线颜色
-          expander_style: 'number',           // 展开器样式：number|circle|square
-          expander_color: '#000',             // 展开器颜色
-          expander_size: 12,                  // 展开器大小
-          node_overflow: 'wrap',            // 文字过长处理：hidden|wrap
-          zoom: {
-            min: 0.1, // 最小缩放比例
-            max: 5.0, // 最大缩放比例
-            step: 0.1, // 缩放步长
-            mask_key: 4096 // Ctrl Key 启用缩放操作的功能键
-          },
-          draggable: false,                    // 禁用内置画布拖拽；改为按住空格时自定义拖拽
-          hide_scrollbars_when_draggable: false, // 拖拽时是否隐藏滚动条
-          enable_mouse_wheel: false,          // 禁用jsmind的鼠标滚轮处理，让浏览器处理滚动
-          mouse_wheel_zoom: false             // 禁用鼠标滚轮缩放
+          expander_style: 'circle',           // 展开器样式：number|circle|square
+
+
+          node_overflow: 'wrap',              // 文字过长处理：hidden|wrap，改为wrap确保多选时内容不被隐藏
+
+
+
         },
         layout: {
           hspace: 30,                         // 节点水平间距
           vspace: 20,                         // 节点垂直间距
-          pspace: 13,                         // 节点与连接线的间距
-          cousin_space: 10,                   // 相邻节点子节点之间的额外垂直空间
-
-          // 布局算法相关
-          depth_space: 15,                    // 层级间距
-
-          // 节点尺寸相关
-          node_width: 100,                    // 节点默认宽度
-          node_height: 50,                    // 节点默认高度
-
-          // 连接线样式
-          line_type: 'curve',              // 连接线类型：straight|curve|polyline
-          line_radius: 5,                     // 连接线圆角半径
-          line_width: 2,                      // 连接线宽度
-          line_color: '#555'                  // 连接线颜色
+          pspace: 13                          // 节点与连接线的间距
         },
         shortcut: {
           enable: true,                         // 是否启用快捷键
@@ -492,142 +511,12 @@
             right: 39,                      // 
             down: 40,                       // 
 
-            // 下面的都是AI幻觉// 其他常用快捷键
-            // copy: 67,                       // Ctrl+C - 复制节点
-            // paste: 86,                      // Ctrl+V - 粘贴节点
-            // cut: 88,                        // Ctrl+X - 剪切节点
-            // undo: 90,                       // Ctrl+Z - 撤销
-            // redo: 89,                       // Ctrl+Y - 重做
-
-            // // 视图操作
-            // zoomin: 187,                    // Ctrl++ - 放大
-            // zoomout: 189,                   // Ctrl+- - 缩小
-            // zoomfit: 48,                    // Ctrl+0 - 适应窗口
-
           }
         },
 
-        // 节点默认样式
-        node: {
-          background_color: '#fff',           // 背景颜色
-          foreground_color: '#333',           // 文字颜色
-          border_color: '#ccc',               // 边框颜色
-          border_width: 1,                    // 边框宽度
-          font_size: 14,                      // 字体大小
-          font_family: 'Arial, sans-serif',   // 字体族
-          font_weight: 'normal',                // 字体粗细
-          text_align: 'center',               // 文字对齐方式
-          line_height: 1.5,                   // 行高
-          padding: 5,                         // 内边距
-          border_radius: 5,                   // 圆角半径
+        // 预设主题配置
+        // theme: 'info',  // 使用jsmind内置主题：primary, warning, danger, success, info, orange, etc.
 
-          // 节点阴影
-          shadow: true,                       // 是否显示阴影
-          shadow_color: '#000',               // 阴影颜色
-          shadow_blur: 3,                     // 阴影模糊度
-          shadow_offset_x: 1,                 // 阴影水平偏移
-          shadow_offset_y: 1                  // 阴影垂直偏移
-        },
-
-
-
-        // 事件监听
-        event_handles: {
-          // 节点事件
-          show: function (node) {
-            // 节点显示事件
-          },
-          edit: function (node) {
-            // 节点编辑事件
-          },
-          select: function (node) {
-            // 节点选择事件
-          },
-          unselect: function (node) {
-            // 节点取消选择事件
-          },
-          expand: function (node) {
-            // 节点展开事件
-          },
-          collapse: function (node) {
-            // 节点折叠事件
-          },
-          add: function (node) {
-            // 节点添加事件
-          },
-          remove: function (node) {
-            // 节点删除事件
-          },
-          move: function (node) {
-            // 节点移动事件
-          },
-          resize: function (node) {
-            // 节点大小改变事件
-          },
-
-          // 画布事件
-          mousedown: function (e) {
-            // 画布鼠标按下事件
-          },
-          mousemove: function (e) {
-            // 画布鼠标移动事件
-          },
-          mouseup: function (e) {
-            // 画布鼠标释放事件
-          },
-          click: function (e) {
-            // 画布点击事件
-          },
-          dblclick: function (e) {
-            // 画布双击事件
-          },
-          contextmenu: function (e) {
-            // 画布右键菜单事件
-          },
-
-          // 键盘事件
-          keydown: function (e) {
-            // 键盘按下事件
-          },
-          keyup: function (e) {
-            // 键盘释放事件
-          }
-        },
-
-        // 工具栏配置
-        toolbar: {
-          enable: true,                       // 是否启用工具栏
-          position: 'left',                    // 工具栏位置：top|bottom|left|right
-          buttons: [                          // 工具栏按钮
-            'addchild',                     // 添加子节点
-            'addbrother',                   // 添加兄弟节点
-            'editnode',                     // 编辑节点
-            'delnode',                      // 删除节点
-            'toggle',                       // 展开/折叠
-            'zoomin',                       // 放大
-            'zoomout',                      // 缩小
-            'zoomfit',                      // 适应窗口
-            'expandall',                    // 展开全部
-            'collapseall',                   // 折叠全部
-            'reset'                         // 重置视图
-          ]
-        },
-
-        // 菜单配置
-        contextmenu: {
-          enable: true,                       // 是否启用右键菜单
-          items: [                            // 菜单项
-            'addchild',                     // 添加子节点
-            'addbrother',                   // 添加兄弟节点
-            'editnode',                     // 编辑节点
-            'delnode',                      // 删除节点
-            'toggle',                       // 展开/折叠
-            'moveup',                       // 上移节点
-            'movedown',                     // 下移节点
-            'movetop',                      // 移动到顶部
-            'movebottom'                    // 移动到底部
-          ]
-        }
       };
 
       jm = new jsMind(options);
@@ -1177,98 +1066,140 @@
       });
       const multiSelected = new Set();
 
+      // 去重和节流控制变量
+      let lastMultiSelectedIds = [];
+      let isUpdatingHighlight = false;
+      let highlightUpdateScheduled = false;
+
       function updateHighlight() {
-        // 清理高亮
-        const allNodeElements = document.querySelectorAll('[nodeid]');
-        let clearCount = 0;
-        allNodeElements.forEach(el => {
-          if (el.classList.contains('multi-selected')) {
-            el.classList.remove('multi-selected');
-            clearCount++;
+        // 去重：检查多选集合是否真正发生变化
+        const currentIds = Array.from(multiSelected).sort();
+        const hasChanged = JSON.stringify(currentIds) !== JSON.stringify(lastMultiSelectedIds);
+
+        if (!hasChanged && !highlightUpdateScheduled) {
+          console.log('⏭️ 多选集合未变化，跳过更新');
+          return;
+        }
+
+        // 节流：如果正在更新，标记需要再次更新，但不立即执行
+        if (isUpdatingHighlight) {
+          console.log('⏳ 更新进行中，标记需要再次更新');
+          highlightUpdateScheduled = true;
+          return;
+        }
+
+        // 使用 requestAnimationFrame 进行节流
+        isUpdatingHighlight = true;
+        requestAnimationFrame(() => {
+          performHighlightUpdate();
+          lastMultiSelectedIds = currentIds.slice(); // 保存当前状态
+          isUpdatingHighlight = false;
+
+          // 如果有排队的更新，执行它
+          if (highlightUpdateScheduled) {
+            highlightUpdateScheduled = false;
+            console.log('🔄 执行排队的更新');
+            updateHighlight();
           }
         });
+      }
+
+      function performHighlightUpdate() {
+        console.log(`🎯 执行高亮更新，选中节点数: ${multiSelected.size}`);
+
+        // 清理高亮：仅移除节点矩形上的多选类，并移除覆盖层
+        const prevMulti = document.querySelectorAll('.jmnode.multi-selected');
+        let clearCount = 0;
+        prevMulti.forEach(el => {
+          el.classList.remove('multi-selected');
+          clearCount++;
+        });
+        // 额外：移除所有多选覆盖层，避免残留
+        document.querySelectorAll('.multi-overlay').forEach(ov => ov.remove());
+
+        console.log(`🧹 清理了 ${clearCount} 个节点的多选状态`);
 
         // 应用高亮
+        let appliedCount = 0;
         multiSelected.forEach(id => {
-          const el = document.querySelector(`[nodeid="${id}"]`);
+          // 定位节点矩形：优先 jmnode[nodeid=...]；若不是 jmnode 则向上找最近的 jmnode
+          let el = document.querySelector(`jmnode[nodeid="${id}"]`) || document.querySelector(`.jmnode[nodeid="${id}"]`) || document.querySelector(`[nodeid="${id}"]`);
+          if (el && el.tagName !== 'Jmnode' && !el.classList.contains('jmnode')) {
+            el = el.closest('jmnode') || el.closest('.jmnode') || el;
+          }
           if (el) {
             el.classList.add('multi-selected');
-            console.log(`✅ 添加 multi-selected 类到节点 ${id}:`, el.className);
+            appliedCount++;
+            console.log(`✅ 添加 multi-selected 类到节点 ${id}`);
 
-            // 检查计算样式
-            const computedStyle = window.getComputedStyle(el);
-            console.log(`🎨 背景色:`, computedStyle.backgroundColor);
-            console.log(`🎨 边框:`, computedStyle.border);
-            console.log(`🎨 变换:`, computedStyle.transform);
-            console.log(`🎨 阴影:`, computedStyle.boxShadow);
+            // 强制设置节点的多选样式，确保高亮效果明显
+            el.style.backgroundColor = 'rgba(255, 238, 3, 0.8) !important';
+            el.style.border = '2px solid #4c9aff !important';
+            el.style.boxShadow = '0 0 0 3px rgba(76, 154, 255, 0.8) !important';
+            // 不再强制设置 position: relative，避免节点位置偏移
 
-            // 检查是否有内联样式覆盖了我们的样式
-            console.log(`🔍 内联样式背景色:`, el.style.backgroundColor);
-            console.log(`🔍 内联样式边框:`, el.style.border);
-            console.log(`🔍 内联样式变换:`, el.style.transform);
-            console.log(`🔍 内联样式阴影:`, el.style.boxShadow);
-
-            // 检查jsMind是否通过其他方式设置了样式
-            console.log(`🔍 元素属性:`, {
-              style: el.getAttribute('style'),
-              class: el.getAttribute('class'),
-              'data-jmstyle': el.getAttribute('data-jmstyle'),
-              'data-theme': el.getAttribute('data-theme')
-            });
-
-            // 检查jsMind的内置选中状态
-            console.log(`🔍 jsMind选中状态:`, {
-              selected: el.classList.contains('selected'),
-              'jsMind主题': window.getComputedStyle(el).getPropertyValue('--jsmind-theme') || '未设置'
-            });
-
-            // 向测试页面发送反馈（如果存在）
-            if (window.opener && !window.opener.closed) {
-              try {
-                window.opener.postMessage({
-                  type: 'multiselect-test',
-                  message: '多选节点检查完成',
-                  nodeId: el.getAttribute('nodeid'),
-                  hasMultiSelected: el.classList.contains('multi-selected'),
-                  hasSelected: el.classList.contains('selected')
-                }, '*');
-              } catch (e) {
-                console.log('无法向测试页面发送消息:', e.message);
-              }
+            // 创建覆盖层 - 确保高亮不被内部子层遮挡
+            if (!el.querySelector(':scope > .multi-overlay')) {
+              const ov = document.createElement('div');
+              ov.className = 'multi-overlay';
+              // 强制设置内联样式以确保可见性
+              ov.style.cssText = `
+                position: absolute !important;
+                left: -6px !important;
+                top: -6px !important;
+                right: -6px !important;
+                bottom: -6px !important;
+                border: 4px solid #4c9aff !important;
+                border-radius: 12px !important;
+                background: linear-gradient(135deg, rgba(76, 154, 255, 0.4) 0%, rgba(76, 154, 255, 0.6) 100%) !important;
+                box-shadow: 0 0 0 3px rgba(76, 154, 255, 0.8) !important;
+                z-index: 10000 !important;
+                pointer-events: none !important;
+                display: block !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                /* 移除模糊效果以提高文字可读性 */
+                animation: pulse 1.2s infinite ease-in-out !important;
+              `;
+              el.appendChild(ov);
+              console.log(`🎨 创建覆盖层 for 节点 ${id}`);
+            } else {
+              // 如果覆盖层已存在，确保其样式正确
+              const existingOv = el.querySelector(':scope > .multi-overlay');
+              existingOv.style.cssText = `
+                position: absolute !important;
+                left: -6px !important;
+                top: -6px !important;
+                right: -6px !important;
+                bottom: -6px !important;
+                border: 4px solid #4c9aff !important;
+                border-radius: 12px !important;
+                background: linear-gradient(135deg, rgba(76, 154, 255, 0.4) 0%, rgba(76, 154, 255, 0.6) 100%) !important;
+                box-shadow: 0 0 0 3px rgba(76, 154, 255, 0.8) !important;
+                z-index: 10000 !important;
+                pointer-events: none !important;
+                display: block !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                /* 移除模糊效果以提高文字可读性 */
+                animation: pulse 1.2s infinite ease-in-out !important;
+              `;
             }
 
-            // 强制应用样式以确保生效 - 使用更激进的方法
-            setTimeout(() => {
-              // 首先清除可能冲突的内联样式
-              el.style.backgroundColor = '';
-              el.style.border = '';
-              el.style.transform = '';
-              el.style.boxShadow = '';
-
-              // 然后应用我们的样式
-              el.style.setProperty('background-color', 'rgba(76, 154, 255, 0.8)', 'important');
-              el.style.setProperty('border', '4px solid #4c9aff', 'important');
-              el.style.setProperty('transform', 'scale(1.1)', 'important');
-              el.style.setProperty('box-shadow', '0 0 0 4px #4c9aff, inset 0 0 0 3px #4c9aff, 0 6px 20px rgba(76, 154, 255, 0.6), 0 0 30px rgba(76, 154, 255, 0.4)', 'important');
-              el.style.setProperty('color', '#fff', 'important');
-              el.style.setProperty('font-weight', 'bold', 'important');
-              el.style.setProperty('z-index', '999', 'important');
-
-              console.log(`🔧 强制应用样式到节点 ${id}`);
-
-              // 再次检查样式是否生效
-              setTimeout(() => {
-                const newComputedStyle = window.getComputedStyle(el);
-                console.log(`✅ 强制样式后 - 背景色:`, newComputedStyle.backgroundColor);
-                console.log(`✅ 强制样式后 - 边框:`, newComputedStyle.border);
-                console.log(`✅ 强制样式后 - 变换:`, newComputedStyle.transform);
-                console.log(`✅ 强制样式后 - 阴影:`, newComputedStyle.boxShadow);
-              }, 200);
-            }, 100);
+            // **关键修复**：确保节点元素本身可见，即使其内部的jmexpander被隐藏
+            // 检查节点是否被隐藏，如果是则强制显示
+            const computedStyle = window.getComputedStyle(el);
+            if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
+              el.style.display = 'block !important';
+              el.style.visibility = 'visible !important';
+              console.log(`🔧 强制显示被隐藏的节点 ${id}`);
+            }
           } else {
             console.log(`❌ 未找到节点元素: ${id}`);
           }
         });
+
+        console.log(`🎨 应用了高亮到 ${appliedCount} 个节点`);
 
         // 更新批量操作工具栏
         const batchOps = document.getElementById('batchOperations');
@@ -1284,61 +1215,126 @@
 
         // 暴露便捷 API
         window.getMultiSelection = () => Array.from(multiSelected);
-        window.clearMultiSelection = () => { multiSelected.clear(); updateHighlight(); };
+        window.clearMultiSelection = () => {
+          multiSelected.clear();
+          if (window.jm && typeof jm.select_clear === 'function') { try { jm.select_clear(); } catch (err) { } }
+          updateHighlight();
+        };
         window.selectMultipleNodes = (ids) => {
           if (!Array.isArray(ids)) return;
           ids.forEach(id => id && multiSelected.add(id));
           updateHighlight();
         };
-
-        // 调试函数：检查多选样式应用情况
-        window.debugMultiSelect = function () {
-          console.log('=== 多选调试信息 ===');
-          console.log('多选集合大小:', multiSelected.size);
-          console.log('多选节点ID:', Array.from(multiSelected));
-
-          multiSelected.forEach(id => {
-            const el = document.querySelector(`[nodeid="${id}"]`);
-            if (el) {
-              console.log(`节点 ${id}:`);
-              console.log('  - 类名:', el.className);
-              console.log('  - 有multi-selected类:', el.classList.contains('multi-selected'));
-              console.log('  - 计算背景色:', window.getComputedStyle(el).backgroundColor);
-              console.log('  - 计算边框:', window.getComputedStyle(el).border);
-              console.log('  - 计算变换:', window.getComputedStyle(el).transform);
-              console.log('  - 计算阴影:', window.getComputedStyle(el).boxShadow);
-              console.log('  - 内联样式:', el.getAttribute('style'));
-              console.log('  - z-index:', window.getComputedStyle(el).zIndex);
-            } else {
-              console.log(`节点 ${id}: 未找到元素`);
-            }
-          });
-
-          // 检查CSS规则是否加载
-          const stylesheets = Array.from(document.styleSheets);
-          console.log('样式表数量:', stylesheets.length);
-
-          let foundMultiSelectRule = false;
-          stylesheets.forEach((sheet, index) => {
-            try {
-              const rules = Array.from(sheet.cssRules || sheet.rules || []);
-              rules.forEach((rule, ruleIndex) => {
-                if (rule.selectorText && rule.selectorText.includes('multi-selected')) {
-                  console.log(`在样式表 ${index} 规则 ${ruleIndex} 找到 multi-selected 规则:`, rule.selectorText);
-                  console.log('规则内容:', rule.cssText);
-                  foundMultiSelectRule = true;
-                }
-              });
-            } catch (e) {
-              console.log(`无法访问样式表 ${index}:`, e.message);
-            }
-          });
-
-          if (!foundMultiSelectRule) {
-            console.log('❌ 未找到任何 multi-selected CSS 规则！');
-          }
-        };
       }
+
+      // 简化的调试函数
+      window.debugMultiSelect = function () {
+        console.log('=== 多选调试信息 ===');
+        console.log('多选集合大小:', multiSelected.size);
+        console.log('多选节点ID:', Array.from(multiSelected));
+        console.log('最后更新状态:', lastMultiSelectedIds);
+        console.log('正在更新:', isUpdatingHighlight);
+        console.log('排队更新:', highlightUpdateScheduled);
+
+        multiSelected.forEach(id => {
+          const el = document.querySelector(`[nodeid="${id}"]`);
+          if (el) {
+            console.log(`节点 ${id}:`);
+            console.log('  - 类名:', el.className);
+            console.log('  - 有multi-selected类:', el.classList.contains('multi-selected'));
+            console.log('  - 有覆盖层:', !!el.querySelector('.multi-overlay'));
+            console.log('  - 计算背景色:', window.getComputedStyle(el).backgroundColor);
+
+            // 检查内联样式
+            console.log('  - 内联样式 background:', el.style.background);
+            console.log('  - 内联样式 backgroundColor:', el.style.backgroundColor);
+            console.log('  - 内联样式 backgroundImage:', el.style.backgroundImage);
+
+            // 检查所有应用的CSS规则
+            const rules = window.getMatchedCSSRules ? window.getMatchedCSSRules(el) : [];
+            console.log('  - CSS规则数量:', rules.length);
+
+            // 检查覆盖层
+            const overlay = el.querySelector('.multi-overlay');
+            if (overlay) {
+              console.log('  - 覆盖层样式:', {
+                display: window.getComputedStyle(overlay).display,
+                visibility: window.getComputedStyle(overlay).visibility,
+                opacity: window.getComputedStyle(overlay).opacity,
+                zIndex: window.getComputedStyle(overlay).zIndex,
+                backgroundColor: window.getComputedStyle(overlay).backgroundColor,
+                borderColor: window.getComputedStyle(overlay).borderColor
+              });
+            }
+          } else {
+            console.log(`节点 ${id}: 未找到元素`);
+          }
+        });
+      };
+
+      // 强制重置样式函数
+      window.forceMultiSelectStyle = function () {
+        multiSelected.forEach(id => {
+          // 定位节点矩形：优先 jmnode[nodeid=...]；若不是 jmnode 则向上找最近的 jmnode
+          let el = document.querySelector(`jmnode[nodeid="${id}"]`) || document.querySelector(`.jmnode[nodeid="${id}"]`) || document.querySelector(`[nodeid="${id}"]`);
+          if (el && el.tagName !== 'Jmnode' && !el.classList.contains('jmnode')) {
+            el = el.closest('jmnode') || el.closest('.jmnode') || el;
+          }
+          if (el) {
+            // 强制移除可能冲突的内联样式
+            el.style.background = '';
+            el.style.backgroundColor = '';
+            el.style.backgroundImage = '';
+
+            // 强制添加类
+            el.classList.add('multi-selected');
+
+            // 强制设置节点的多选样式，确保高亮效果明显
+            el.style.backgroundColor = 'rgba(76, 154, 255, 0.3) !important';
+            el.style.border = '2px solid #4c9aff !important';
+            el.style.boxShadow = '0 0 0 3px rgba(76, 154, 255, 0.8) !important';
+            el.style.position = 'relative';
+
+            // **关键修复**：确保节点元素本身可见，即使其内部的jmexpander被隐藏
+            // 检查节点是否被隐藏，如果是则强制显示
+            const computedStyle = window.getComputedStyle(el);
+            if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
+              el.style.display = 'block !important';
+              el.style.visibility = 'visible !important';
+              console.log(`🔧 强制显示被隐藏的节点 ${id}`);
+            }
+
+            // 创建或更新覆盖层
+            let overlay = el.querySelector('.multi-overlay');
+            if (!overlay) {
+              overlay = document.createElement('div');
+              overlay.className = 'multi-overlay';
+              el.appendChild(overlay);
+            }
+
+            // 强制设置覆盖层样式（移除模糊效果以提高文字可读性）
+            overlay.style.cssText = `
+              position: absolute !important;
+              left: -6px !important;
+              top: -6px !important;
+              right: -6px !important;
+              bottom: -6px !important;
+              border: 4px solid #4c9aff !important;
+              border-radius: 12px !important;
+              background: linear-gradient(135deg, rgba(76, 154, 255, 0.4) 0%, rgba(76, 154, 255, 0.6) 100%) !important;
+              box-shadow: 0 0 0 3px rgba(76, 154, 255, 0.8) !important;
+              z-index: 10000 !important;
+              pointer-events: none !important;
+              display: block !important;
+              visibility: visible !important;
+              opacity: 1 !important;
+              /* 移除模糊效果以提高文字可读性 */
+              animation: pulse 1.2s infinite ease-in-out !important;
+            `;
+          }
+        });
+        console.log('已强制应用多选样式');
+      };
 
       function rectsIntersect(a, b) {
         return a.left <= b.right && a.right >= b.left && a.top <= b.bottom && a.bottom >= b.top;
@@ -1395,6 +1391,7 @@
         // 如果点击在空白区域（非节点、非工具栏、非批量操作面板），清除选择
         if (!isDownOnNode && !e.target.closest('#toolbar') && !e.target.closest('#batchOperations')) {
           multiSelected.clear();
+          if (window.jm && typeof jm.select_clear === 'function') { try { jm.select_clear(); } catch (err) { } }
           updateHighlight();
         }
 
