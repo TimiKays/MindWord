@@ -195,11 +195,11 @@
       background-color: rgba(76, 154, 255, 0.5) !important;
       background: rgba(76, 154, 255, 0.5) !important;
       box-shadow:
-        0 0 0 4px #4c9aff !important,
+        0 0 0 4px #4c9aff ,
         /* 外描边 */
-        inset 0 0 0 3px #4c9aff !important,
+        inset 0 0 0 3px #4c9aff ,
         /* 内描边 */
-        0 6px 20px rgba(76, 154, 255, 0.6) !important,
+        0 6px 20px rgba(76, 154, 255, 0.6) ,
         /* 发光效果 */
         0 0 30px rgba(76, 154, 255, 0.4) !important;
       /* 额外光晕 */
@@ -207,7 +207,7 @@
       z-index: 999 !important;
       transform: scale(1.08) !important;
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-      animation: pulse 1.2s infinite ease-in-out !important;
+      animation: pulse-multi 1.2s infinite ease-in-out !important;
       border: 3px solid #4c9aff !important;
       color: #fff !important;
       font-weight: bold !important;
@@ -218,16 +218,16 @@
       background-color: rgba(76, 154, 255, 0.7) !important;
       background: rgba(76, 154, 255, 0.7) !important;
       box-shadow:
-        0 0 0 5px #4c9aff !important,
-        inset 0 0 0 4px #4c9aff !important,
-        0 8px 30px rgba(76, 154, 255, 0.8) !important,
+        0 0 0 5px #4c9aff ,
+        inset 0 0 0 4px #4c9aff ,
+        0 8px 30px rgba(76, 154, 255, 0.8),
         0 0 40px rgba(76, 154, 255, 0.5) !important;
       transform: scale(1.12) !important;
       border: 4px solid #4c9aff !important;
     }
 
     /* 选中节点的脉冲动画 - 更明显的呼吸效果 */
-    @keyframes pulse {
+    @keyframes pulse-multi {
       0% {
         box-shadow:
           0 0 0 4px #4c9aff,
@@ -355,13 +355,13 @@
       border: 4px solid #4c9aff !important;
       border-radius: 12px !important;
       box-shadow:
-        0 0 0 3px rgba(255, 238, 3, 0.8) !important,
-        0 0 30px rgba(76, 154, 255, 0.9) !important,
+        0 0 0 3px rgba(255, 238, 3, 0.8) ,
+        0 0 30px rgba(76, 154, 255, 0.9) ,
         inset 0 0 15px rgba(76, 154, 255, 0.3) !important;
       pointer-events: none;
       z-index: 10000 !important;
       background: linear-gradient(135deg, rgba(76, 154, 255, 0.4) 0%, rgba(76, 154, 255, 0.6) 100%) !important;
-      animation: pulse 1.2s infinite ease-in-out !important;
+      animation: pulse-multi 1.2s infinite ease-in-out !important;
       /* backdrop-filter: blur(1px); */
     }
   </style>
