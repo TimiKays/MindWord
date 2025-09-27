@@ -345,7 +345,8 @@
   <script src="https://jsd.onmicrosoft.cn/npm/jsmind@0.8.7/es6/jsmind.js"></script>
   <script src="https://jsd.onmicrosoft.cn/npm/jsmind@0.8.7/es6/jsmind.draggable-node.js"></script>
   <script src="https://unpkg.com/dom-to-image@2.6.0/dist/dom-to-image.min.js"></script>
-  <script src="https://unpkg.com/jsmind@0.8.7/es6/jsmind.screenshot.js"></script>
+  <!-- 使用修复版本的截图插件，避免HTTPS安全警告 -->
+  <script src="jsmind.screenshot.fixed.js"></script>
   <script type="module" src="../converter/sync.js"></script>
   <script type="module" src="../converter/load.js"></script>
   <script>
@@ -1035,10 +1036,10 @@
 
       // 获取节点元素的辅助函数
       function getNodeElement(nodeId) {
-        let el = document.querySelector(`jmnode[nodeid="${nodeId}"]`) || 
-                document.querySelector(`.jmnode[nodeid="${nodeId}"]`) || 
-                document.querySelector(`[nodeid="${nodeId}"]`);
-        
+        let el = document.querySelector(`jmnode[nodeid="${nodeId}"]`) ||
+          document.querySelector(`.jmnode[nodeid="${nodeId}"]`) ||
+          document.querySelector(`[nodeid="${nodeId}"]`);
+
         if (el && el.tagName !== 'Jmnode' && !el.classList.contains('jmnode')) {
           el = el.closest('jmnode') || el.closest('.jmnode') || el;
         }
@@ -1082,8 +1083,8 @@
         window.getMultiSelection = () => Array.from(multiSelected);
         window.clearMultiSelection = () => {
           multiSelected.clear();
-          if (window.jm && typeof jm.select_clear === 'function') { 
-            try { jm.select_clear(); } catch (err) { } 
+          if (window.jm && typeof jm.select_clear === 'function') {
+            try { jm.select_clear(); } catch (err) { }
           }
           updateHighlight();
         };
@@ -2257,7 +2258,11 @@
     function downloadMindmap() {
       if (!jm) return;
       try {
-        jm.shoot();
+        // 创建新的截图插件实例，使用白色背景
+        var screenshot_plugin = new JmScreenshot(jm, {
+          background: '#ffffff'  // 设置白色背景
+        });
+        screenshot_plugin.shoot();
       } catch (error) {
         // 静默处理下载错误
       }
