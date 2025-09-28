@@ -37,7 +37,7 @@ body {
     padding: 12px 24px;
     border-radius: 0;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 16px;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     white-space: nowrap;
     font-weight: 500;
@@ -56,8 +56,8 @@ body {
 
 .tab.active {
     background: transparent;
-    color: #3b82f6;
-    border-bottom: 2px solid #3b82f6;
+    color: #5382cf;
+    border-bottom: 2px solid #57bbda;
     box-shadow: none;
     transform: none;
     animation: tabActivate 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -839,7 +839,7 @@ iframe .btn:not([class*="btn-"]):hover {
         border-bottom: none;
         box-shadow: 0 2px 8px rgba(59,130,246,0.12);
         background: rgba(59,130,246,0.06);
-        color: #2563eb;
+        color:#0b82e4;
     }
 
     /* 隐藏右侧区域（包括专注按钮），移动端顶部只显示品牌 */

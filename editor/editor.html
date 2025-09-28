@@ -497,7 +497,7 @@
                         const newVal = e.newValue ?? '';
                         if (newVal !== this.getContent()) {
                             this.setContent(newVal);
-                            this.updateSaveStatus('已同步');
+                            window.showSuccess && window.showSuccess('已同步');
                         }
                         if (window.syncAll) {
                             try {
@@ -612,8 +612,8 @@
                 if (manual) {
                     this.showMessage('✅ 手动保存成功', 'success');
                 } else {
-                    // 自动保存时显示小绿钩提示
-                    this.showSaveNotification();
+                    // 自动保存时显示小绿钩提示（统一走全局通知）
+                    window.showSuccess && window.showSuccess('已自动保存');
                 }
             }
 
@@ -1057,18 +1057,7 @@
                 }
             }
 
-            // 显示保存成功提示（小绿钩）
-            showSaveNotification() {
-                const notificationEl = document.getElementById('save-notification');
-                if (!notificationEl) return;
-
-                notificationEl.textContent = '保存成功';
-                notificationEl.classList.add('show');
-
-                setTimeout(() => {
-                    notificationEl.classList.remove('show');
-                }, 3000);
-            }
+            
 
             // ===================================
             // 🔄 跨窗口通信

@@ -337,25 +337,195 @@
     <!-- 批量操作工具栏 -->
 
 
-    <button class="btn" onclick="exportData()">查看JSON</button>
+    <button id="export-json-btn" class="btn" onclick="exportData()">查看JSON</button>
     <button class="btn" onclick="downloadMindmap()">下载图片</button>
-    <label class="btn btn-toggle" style="display:inline-flex;align-items:center;gap:6px;margin-left:8px;cursor:pointer;">
-      <input id="toggleNodeDetailsCheckbox" type="checkbox" role="switch" aria-checked="true" style="width:16px;height:16px;margin:0;padding:0;">
-      <span aria-hidden="true" ">详情面板</span>
-      
-    </label>
+    <!-- 右侧三个简单复选框：详情面板 / 显示节点类型 / 显示列表节点 -->
+    <div id="toolbarToggles" style="margin-left:auto;display:flex;gap:12px;align-items:flex-end;justify-content:flex-end;">
+      <label class="mw-toggle-showdetails" style="display:flex;flex-direction:column;align-items:center;font-size:12px;margin:0 4px;">
+        <input id="toggleNodeDetailsCheckbox" type="checkbox" checked style="width:18px;height:18px;margin-bottom:6px;">
+        <span style="display:block;margin-top:0;">详情面板</span>
+      </label>
+      <label class="mw-toggle-showtype" style="display:flex;flex-direction:column;align-items:center;font-size:12px;margin:0 4px;">
+        <input id="toggleShowNodeTypeCheckbox" type="checkbox" style="width:18px;height:18px;margin-bottom:6px;">
+        <span style="display:block;margin-top:0;">显示类型</span>
+      </label>
+      <label class="mw-toggle-showtitleonly" style="display:flex;flex-direction:column;align-items:center;font-size:12px;margin:0 4px;">
+        <input id="toggleShowListNodesCheckbox" type="checkbox" style="width:18px;height:18px;margin-bottom:6px;">
+        <span style="display:block;margin-top:0;">只看标题</span>
+      </label>
+    </div>
 
+    <script>
+      (function(){
+        if (!document.getElementById('mw-node-type-badge-style')) {
+          var s = document.createElement('style');
+          s.id = 'mw-node-type-badge-style';
+          s.textContent = `
+            .jmnode { position: relative; }
+            .node-type-badge {
+              position: absolute;
+              right: 4px;
+              top: 2px;
+              background: rgba(0,0,0,0.6);
+              color: white;
+              font-size: 10px;
+              padding: 2px 4px;
+              border-radius: 8px;
+              line-height: 1;
+              pointer-events: none;
+              z-index: 30;
+            }
+            .mw-hidden-node { display: none !important; }
+          `;
+          document.head.appendChild(s);
+        }
+
+        function getNodeTypeSafe(id) {
+          try {
+            var node = (window.jm && typeof window.jm.get_node === 'function') ? window.jm.get_node(id) : null;
+            if (!node) return undefined;
+            if (typeof node.type !== 'undefined') return node.type;
+            if (node.data && typeof node.data.type !== 'undefined') return node.data.type;
+            return undefined;
+          } catch (e) { return undefined; }
+        }
+
+        function updateNodeTypeBadges() {
+          var show = !!document.getElementById('toggleShowNodeTypeCheckbox').checked;
+          var nodes = document.querySelectorAll('[nodeid]');
+          nodes.forEach(function(el){
+            var id = el.getAttribute('nodeid') || el.getAttribute('node-id') || el.getAttribute('data-nodeid');
+            if (!id) return;
+            var t = getNodeTypeSafe(id);
+            var badge = el.querySelector('.node-type-badge');
+            if (!show) {
+              if (badge) badge.remove();
+              return;
+            }
+            var label = (t === 'list') ? 'L' : (t === 'heading' ? 'H' : (t ? String(t).charAt(0).toUpperCase() : ''));
+            if (!label) { if (badge) badge.remove(); return; }
+            if (!badge) {
+              badge = document.createElement('span');
+              badge.className = 'node-type-badge';
+              el.appendChild(badge);
+            }
+            badge.textContent = label;
+          });
+        }
+
+        function applyNodeVisibilityFilter() {
+          var showLists = !!document.getElementById('toggleShowListNodesCheckbox').checked;
+          var nodes = document.querySelectorAll('[nodeid]');
+          nodes.forEach(function(el){
+            var id = el.getAttribute('nodeid') || el.getAttribute('node-id') || el.getAttribute('data-nodeid');
+            if (!id) return;
+            var t = getNodeTypeSafe(id);
+            if (t === 'list' && !showLists) {
+              el.classList.add('mw-hidden-node');
+            } else {
+              el.classList.remove('mw-hidden-node');
+            }
+          });
+        }
+
+        function handleDetailsToggle(checked) {
+          window.__nodeDetailsEnabled = !!checked;
+          if (!window.__nodeDetailsEnabled) {
+            if (typeof hideNodeDetails === 'function') {
+              try { hideNodeDetails(); } catch (e) {}
+            }
+          } else {
+            try {
+              var sel = null;
+              if (window.jm && typeof window.jm.get_selected_node === 'function') sel = window.jm.get_selected_node();
+              if (sel) { try { showNodeDetails(sel); } catch(e) {} }
+            } catch (e) {}
+          }
+        }
+
+        document.addEventListener('DOMContentLoaded', function(){
+          var cbDetails = document.getElementById('toggleNodeDetailsCheckbox');
+          var cbType = document.getElementById('toggleShowNodeTypeCheckbox');
+          var cbList = document.getElementById('toggleShowListNodesCheckbox');
+
+          // 移动端检测：隐藏不需要的控件并设置默认状态
+          var isMobile = (('ontouchstart' in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) || (window.matchMedia && window.matchMedia('(max-width: 768px)').matches));
+          if (isMobile) {
+            try {
+              var exportBtn = document.getElementById('export-json-btn');
+              if (exportBtn) exportBtn.style.display = 'none';
+              if (cbDetails && cbDetails.parentElement) cbDetails.parentElement.style.display = 'none';
+              // 默认移动端不开启显示类型/只看标题
+              if (cbType) cbType.checked = false;
+              if (cbList) cbList.checked = false;
+            } catch (e) { /* ignore */ }
+          }
+
+          if (cbDetails) {
+            cbDetails.checked = !!window.__nodeDetailsEnabled;
+            cbDetails.addEventListener('change', function(e){ handleDetailsToggle(!!e.target.checked); }, {passive:true});
+          }
+          if (cbType) {
+            // 默认关闭，用户可开启
+            cbType.checked = !!cbType.checked;
+            cbType.addEventListener('change', function(){ updateNodeTypeBadges(); }, {passive:true});
+          }
+          if (cbList) {
+            // 默认关闭，用户可开启
+            cbList.checked = !!cbList.checked;
+            cbList.addEventListener('change', function(){ applyNodeVisibilityFilter(); }, {passive:true});
+          }
+
+          setTimeout(function(){
+            updateNodeTypeBadges();
+            applyNodeVisibilityFilter();
+          }, 120);
+        });
+
+        window.MW_updateNodeTypeBadges = updateNodeTypeBadges;
+        window.MW_applyNodeVisibilityFilter = applyNodeVisibilityFilter;
+      })();
+    </script>
+
+    <!-- batchOperations 保留在 DOM 中但会被移动到画布左上（通过脚本在非移动端显示） -->
     <div id="batchOperations"
       style="display: inline-block; margin-top: 2px; padding: 5px 10px; background: rgba(76, 154, 255, 0.1); border-radius: 4px; border: 1px solid #4c9aff;">
       <span style="color: #4c9aff; font-size: 12px; margin-right: 10px;">已选中 <span id="selectedCount">0</span>
         个节点</span>
-
     </div>
 
   </div>
 
   <div class="main-container">
     <div id="fullScreenMindmap"></div>
+
+    <!-- batchOperations 将在页面加载时被移动（非移动端）到 #fullScreenMindmap 左上角 -->
+    <style id="mw-batchops-style">
+      #mw-batchops {
+        position: absolute;
+        top: 80px; /* 向下移动，避免遮挡左侧按钮 */
+        left: 8px;
+        z-index: 220;
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 10px;
+        background: rgba(255,255,255,0.92);
+        border: 1px solid rgba(76,154,255,0.15);
+        border-radius: 6px;
+        color: #0f172a;
+        font-size: 12px;
+        box-shadow: 0 6px 18px rgba(15,23,42,0.06);
+        backdrop-filter: blur(4px);
+      }
+      @media (max-width: 768px) {
+        /* 移动端不显示（避免遮挡） */
+        #mw-batchops { display: none !important; }
+      }
+    </style>
+
+    <div id="mw-batchops" aria-hidden="false" style="display:none;">
+      <span id="mw-batchops-text">已选中 <strong id="selectedCountDisplay">0</strong> 个节点</span>
+    </div>
 
     <!-- 浮动节点详情面板（可关闭），保留内部字段和功能 -->
     <div id="nodeDetails" role="dialog" aria-hidden="true" aria-label="节点详情">
@@ -847,6 +1017,58 @@
         }
       });
 
+      // --- 自动触发：在多种 jsMind 事件后防抖地重新应用节点类型徽章与可见性过滤 ---
+      (function attachBadgeHooks(){
+        const debouncedApply = (function(){
+          let t = null;
+          return function(){
+            clearTimeout(t);
+            t = setTimeout(function(){
+              try {
+                console.log('[MW] 应用徽章/过滤 - 开始');
+                if (typeof window.MW_updateNodeTypeBadges === 'function') {
+                  window.MW_updateNodeTypeBadges();
+                  console.log('[MW] 已调用 MW_updateNodeTypeBadges');
+                }
+              } catch(e) { console.warn('[MW] MW_updateNodeTypeBadges 执行失败', e); }
+              try {
+                if (typeof window.MW_applyNodeVisibilityFilter === 'function') {
+                  window.MW_applyNodeVisibilityFilter();
+                  console.log('[MW] 已调用 MW_applyNodeVisibilityFilter');
+                }
+              } catch(e) { console.warn('[MW] MW_applyNodeVisibilityFilter 执行失败', e); }
+              console.log('[MW] 应用徽章/过滤 - 完成');
+            }, 60);
+          };
+        })();
+
+        // 订阅常见会导致 DOM 变化或需要重新应用徽章/过滤的事件
+        jm.add_event_listener(function(type, data){
+          if (!type) return;
+          const interesting = [
+            jsMind.event_type.select,
+            jsMind.event_type.show,
+            jsMind.event_type.resize,
+            jsMind.event_type.refresh,
+            jsMind.event_type.expand,
+            jsMind.event_type.collapse,
+            jsMind.event_type.edit,
+            jsMind.event_type.add,
+            jsMind.event_type.move
+          ];
+          if (interesting.indexOf(type) !== -1) {
+            console.log('[MW] 捕获 jsMind 事件:', type);
+            debouncedApply();
+          }
+        });
+
+        // 作为保险：在全局包装点或其他地方也可直接调用 window.MW_debouncedApplyBadges()
+        window.MW_debouncedApplyBadges = debouncedApply;
+
+        // 立即执行一次，确保初始化时生效
+        try { debouncedApply(); } catch(e){/* ignore */ }
+      })();
+
     }
 
     // 配置思维导图容器的滚动行为
@@ -906,6 +1128,16 @@
         jm.show(nodeTreeData);
         currentNodeTree = nodeTreeData;
 
+        // 渲染完成后同步节点类型徽章与可见性过滤（确保开关生效）
+        try {
+          if (typeof window.MW_updateNodeTypeBadges === 'function') {
+            setTimeout(window.MW_updateNodeTypeBadges, 80);
+          }
+          if (typeof window.MW_applyNodeVisibilityFilter === 'function') {
+            setTimeout(window.MW_applyNodeVisibilityFilter, 80);
+          }
+        } catch (e) { /* ignore */ }
+
         // 延迟执行DOM操作，确保元素已加载
         setTimeout(() => {
 
@@ -916,6 +1148,11 @@
             jm.select_node(rootNode.id);
             showNodeDetails(rootNode);
           }
+          // 确保在自动选择后同步一次徽章/可见性（某些渲染延迟场景）
+          try {
+            if (typeof window.MW_updateNodeTypeBadges === 'function') window.MW_updateNodeTypeBadges();
+            if (typeof window.MW_applyNodeVisibilityFilter === 'function') window.MW_applyNodeVisibilityFilter();
+          } catch (e) {}
         }, 100);
       } catch (error) {
         // 如果加载失败，尝试加载默认数据
@@ -2765,6 +3002,93 @@
       }
     };
     var _tryWrapInterval = setInterval(_tryWrap, 200);
+  }
+})();
+</script>
+<script>
+(function mw_post_init_fix(){
+  try {
+    function isMobileNow() {
+      var isSmallScreen = (window.matchMedia && window.matchMedia('(max-width: 768px)').matches);
+      var hasTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
+      return isSmallScreen || (hasTouch && window.innerWidth <= 900);
+    }
+
+    function relocateBatchOpsIfNeeded() {
+      try {
+        var isMobile = isMobileNow();
+        var batch = document.getElementById('batchOperations');
+        var mw = document.getElementById('mw-batchops');
+        if (!batch || !mw) return;
+        if (!isMobile) {
+          // copy count
+          var sc = batch.querySelector('#selectedCount');
+          var scVal = sc ? sc.textContent : '0';
+          var targetStrong = mw.querySelector('#selectedCountDisplay');
+          if (targetStrong) targetStrong.textContent = scVal;
+          batch.style.display = 'none';
+          mw.style.display = 'inline-flex';
+          // keep references
+          window.__mw_batch_source = batch;
+          window.__mw_batch_target = mw;
+        } else {
+          batch.style.display = 'none';
+          if (mw) mw.style.display = 'none';
+        }
+      } catch (e) { console.warn('[MW] relocateBatchOpsIfNeeded failed', e); }
+    }
+
+    function ensureDetailsToggleVisibleOnDesktop() {
+      try {
+        var cbDetails = document.getElementById('toggleNodeDetailsCheckbox');
+        if (!cbDetails) return;
+        var label = cbDetails.parentElement;
+        if (!label) return;
+        if (!isMobileNow()) {
+          label.style.display = ''; // restore default
+        }
+      } catch (e) { /* ignore */ }
+    }
+
+    // sync selected count periodically (small cost, robust)
+    function startSelectedCountSync() {
+      try {
+        var source = document.getElementById('batchOperations');
+        var target = document.getElementById('mw-batchops');
+        if (!source || !target) return;
+        var sSrc = source.querySelector('#selectedCount');
+        var sTgt = target.querySelector('#selectedCountDisplay');
+        if (!sSrc || !sTgt) return;
+        var last = null;
+        setInterval(function(){
+          try {
+            var now = sSrc.textContent || sSrc.innerText || '0';
+            if (now !== last) {
+              last = now;
+              sTgt.textContent = now;
+            }
+          } catch (e) {}
+        }, 250);
+      } catch (e) { /* ignore */ }
+    }
+
+    // run on load and on resize/orientationchange
+    function boot() {
+      relocateBatchOpsIfNeeded();
+      ensureDetailsToggleVisibleOnDesktop();
+      startSelectedCountSync();
+    }
+
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      setTimeout(boot, 50);
+    } else {
+      document.addEventListener('DOMContentLoaded', function(){ setTimeout(boot, 50); });
+      window.addEventListener('load', function(){ setTimeout(boot, 50); });
+    }
+    window.addEventListener('resize', function(){ setTimeout(relocateBatchOpsIfNeeded, 60); });
+    window.addEventListener('orientationchange', function(){ setTimeout(relocateBatchOpsIfNeeded, 60); });
+  } catch (e) {
+    console.error('[MW] post init fix error', e);
   }
 })();
 </script>
