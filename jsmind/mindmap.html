@@ -261,7 +261,9 @@
   <div class="toolbar">
     <!-- 批量操作工具栏 -->
 
-
+    <button class="btn" onclick="undoMindmap()" title="撤销 (Ctrl+Z)">↶ 撤销</button>
+    <button class="btn" onclick="redoMindmap()" title="重做 (Ctrl+Y)">↷ 重做</button>
+    <button class="btn" onclick="testMoveNodeUndo()" title="测试移动节点撤销">🧪 测试</button>
     <button class="btn" onclick="exportData()">查看JSON</button>
     <button class="btn" onclick="downloadMindmap()">下载图片</button>
 
@@ -346,6 +348,312 @@
     let jm = null;
     let currentNodeTree = null;
 
+    // 历史记录管理器
+    const HistoryManager = {
+      undoStack: [],
+      redoStack: [],
+      maxSize: 10,
+      isUndoRedoOperation: false, // 防止循环触发
+
+      // 清除历史记录缓存（用于测试）
+      clearHistory() {
+        this.undoStack = [];
+        this.redoStack = [];
+        localStorage.removeItem('mindword_undo_stack');
+        localStorage.removeItem('mindword_redo_stack');
+        console.log('历史记录缓存已清除');
+      },
+
+      // 初始化历史记录
+      init() {
+        this.loadHistory();
+
+        // 如果没有历史记录数据，创建初始状态
+        if (this.undoStack.length === 0) {
+          if (jm) {
+            // 如果有jsMind实例，延迟保存初始状态以确保数据已加载
+            setTimeout(() => {
+              try {
+                this.saveState('initial');
+                console.log('历史记录管理器：延迟创建初始状态并保存');
+              } catch (error) {
+                console.warn('延迟保存初始状态失败:', error);
+                // 如果延迟保存失败，创建默认初始状态
+                this.createDefaultInitialState();
+              }
+            }, 100); // 延迟100ms确保思维导图完全初始化
+          } else {
+            // 如果没有jsMind实例，创建默认初始状态
+            this.createDefaultInitialState();
+          }
+        }
+      },
+
+      // 创建默认初始状态
+      createDefaultInitialState() {
+        this.undoStack = [{
+          data: {
+            meta: {
+              name: 'jsMind',
+              author: '',
+              version: '0.0.1',
+              format: 'node_tree',
+              data: null
+            },
+            format: 'node_tree',
+            data: {
+              id: 'root',
+              topic: '新建思维导图',
+              selected: true
+            }
+          },
+          timestamp: Date.now(),
+          action: 'initial',
+          extraData: null
+        }];
+        this.persistHistory();
+        console.log('历史记录管理器：创建默认初始状态');
+      },
+
+      // 保存当前状态到历史记录
+      saveState(action, extraData = null) {
+        if (this.isUndoRedoOperation) return;
+        if (!jm) return;
+
+        try {
+          // 检查jm实例是否已完全初始化
+          if (!jm.get_data || typeof jm.get_data !== 'function') {
+            console.warn('jsMind实例未完全初始化，跳过保存历史记录');
+            return;
+          }
+
+          // 尝试获取数据，如果失败则创建默认状态
+          let data;
+          try {
+            data = jm.get_data();
+          } catch (dataError) {
+            console.warn('获取思维导图数据失败，使用默认数据:', dataError);
+            data = {
+              meta: {
+                name: 'jsMind',
+                author: '',
+                version: '0.0.1',
+                format: 'node_tree',
+                data: null
+              },
+              format: 'node_tree',
+              data: {
+                id: 'root',
+                topic: '新建思维导图',
+                selected: true
+              }
+            };
+          }
+
+          const state = {
+            data: data,
+            timestamp: Date.now(),
+            action: action || 'edit',
+            extraData: extraData // 保存额外的数据用于更精确的恢复
+          };
+
+          this.undoStack.push(state);
+          if (this.undoStack.length > this.maxSize) {
+            this.undoStack.shift(); // 移除最旧的状态
+          }
+
+          this.redoStack = []; // 清空重做栈
+          this.persistHistory();
+
+          console.log(`历史记录已保存: ${action}, 栈大小: ${this.undoStack.length}`);
+        } catch (error) {
+          console.warn('保存历史记录失败:', error);
+        }
+      },
+
+      // 撤销
+      undo() {
+        if (this.undoStack.length <= 1) return false; // 至少保留初始状态
+
+        this.isUndoRedoOperation = true;
+
+        try {
+          // 保存当前状态到重做栈
+          const currentState = {
+            data: jm.get_data(),
+            timestamp: Date.now(),
+            action: 'undo'
+          };
+
+          // 取出上一个状态
+          this.undoStack.pop(); // 移除当前状态
+          const stateToRestore = this.undoStack[this.undoStack.length - 1];
+
+          // 将当前状态推入重做栈
+          this.redoStack.push(currentState);
+
+          // 恢复状态
+          this.restoreState(stateToRestore);
+
+          this.persistHistory();
+          console.log('撤销操作完成');
+
+          return true;
+        } catch (error) {
+          console.warn('撤销操作失败:', error);
+          return false;
+        } finally {
+          this.isUndoRedoOperation = false;
+        }
+      },
+
+      // 重做
+      redo() {
+        if (this.redoStack.length === 0) return false;
+
+        this.isUndoRedoOperation = true;
+
+        try {
+          // 保存当前状态
+          const currentState = {
+            data: jm.get_data(),
+            timestamp: Date.now(),
+            action: 'redo'
+          };
+
+          // 取出重做状态
+          const nextState = this.redoStack.pop();
+
+          // 将当前状态推入撤销栈
+          this.undoStack.push(currentState);
+
+          // 恢复状态
+          this.restoreState(nextState);
+
+          this.persistHistory();
+          console.log('重做操作完成');
+
+          return true;
+        } catch (error) {
+          console.warn('重做操作失败:', error);
+          return false;
+        } finally {
+          this.isUndoRedoOperation = false;
+        }
+      },
+
+      // 从localStorage恢复历史记录
+      loadHistory() {
+        try {
+          const undoData = localStorage.getItem('mindword_undo_stack');
+          const redoData = localStorage.getItem('mindword_redo_stack');
+
+          if (undoData) {
+            this.undoStack = JSON.parse(undoData);
+          }
+          if (redoData) {
+            this.redoStack = JSON.parse(redoData);
+          }
+
+          console.log(`历史记录已加载: 撤销栈${this.undoStack.length}, 重做栈${this.redoStack.length}`);
+        } catch (error) {
+          console.warn('恢复历史记录失败:', error);
+          this.undoStack = [];
+          this.redoStack = [];
+        }
+      },
+
+      // 持久化历史记录到localStorage
+      persistHistory() {
+        try {
+          localStorage.setItem('mindword_undo_stack', JSON.stringify(this.undoStack));
+          localStorage.setItem('mindword_redo_stack', JSON.stringify(this.redoStack));
+        } catch (error) {
+          console.warn('持久化历史记录失败:', error);
+        }
+      },
+
+      // 恢复状态
+      restoreState(state) {
+        if (!state || !state.data) {
+          console.warn('无效的状态数据');
+          return;
+        }
+
+        try {
+          // 调试：检查恢复的数据
+          if (state.action === 'move_node' || state.action === 'undo' || state.action === 'redo') {
+            console.log('恢复状态:', {
+              action: state.action,
+              data: state.data,
+              timestamp: state.timestamp,
+              selectedNodeBefore: jm.get_selected_node(),
+              extraData: state.extraData
+            });
+          }
+
+          // 如果是移动节点操作，使用保存的完整思维导图数据恢复
+          if (state.action === 'move_node' && state.extraData && state.extraData.mindData) {
+            console.log('使用保存的完整思维导图数据恢复移动节点:', state.extraData);
+
+            // 使用保存的完整思维导图数据
+            jm.show(state.extraData.mindData);
+            console.log('已使用保存的mindData恢复思维导图');
+
+          } else {
+            // 普通恢复
+            jm.show(state.data);
+          }
+
+          // 更新当前节点树引用
+          window.currentNodeTree = state.data;
+
+          // 同步到localStorage
+          saveToLocalStorage();
+
+          // 刷新右侧面板
+          if (jm.get_selected_node()) {
+            showNodeDetails(jm.get_selected_node());
+          }
+
+          // 显示操作提示
+          const message = state.action === 'undo' ? '已撤销' :
+            state.action === 'redo' ? '已重做' : '已恢复';
+          showWarning(message); // 使用showWarning作为简单的通知方式
+
+          // 调试：检查恢复后的状态
+          if (state.action === 'move_node' || state.action === 'undo' || state.action === 'redo') {
+            console.log('恢复完成后的状态:', {
+              selectedNodeAfter: jm.get_selected_node(),
+              currentData: jm.get_data()
+            });
+          }
+
+        } catch (error) {
+          console.warn('恢复状态失败:', error);
+          throw error;
+        }
+      },
+
+      // 清空历史记录
+      clear() {
+        this.undoStack = [];
+        this.redoStack = [];
+        this.persistHistory();
+        console.log('历史记录已清空');
+      },
+
+      // 获取状态信息
+      getStatus() {
+        return {
+          canUndo: this.undoStack.length > 1,
+          canRedo: this.redoStack.length > 0,
+          undoCount: this.undoStack.length,
+          redoCount: this.redoStack.length
+        };
+      }
+    };
+
     // 初始化思维导图
     function initMindmap() {
       if (jm) {
@@ -410,6 +718,11 @@
       window.jm = jm;
       const multiSelected = new Set();
 
+      // 初始化历史记录管理器
+      console.log('开始初始化历史记录管理器...');
+      HistoryManager.init();
+      console.log('历史记录管理器初始化完成');
+
       // 配置思维导图容器的滚动行为
       setupMindmapScrolling();
 
@@ -439,6 +752,10 @@
                 // 忽略归一列表处理错误
               }
               if (typeof debouncedSave === 'function') debouncedSave();
+              // 保存历史记录
+              if (typeof HistoryManager !== 'undefined') {
+                HistoryManager.saveState('add_node');
+              }
             } catch (e) {
               // 忽略后置处理错误
             }
@@ -542,6 +859,22 @@
                 // 忽略归一列表处理错误
               }
               if (typeof debouncedSave === 'function') debouncedSave();
+              // 保存历史记录
+              if (typeof HistoryManager !== 'undefined') {
+                // 保存完整的思维导图数据用于精确撤销
+                const mindData = jm.get_data();
+
+                console.log('保存移动节点历史记录:', {
+                  action: 'move_node',
+                  nodeId: nodeid,
+                  beforeId: beforeid,
+                  parentId: parentid,
+                  direction: direction,
+                  mindData: mindData  // 保存完整的思维导图状态
+                });
+
+                HistoryManager.saveState('move_node', { mindData: mindData });
+              }
             } catch (e) {
               // 忽略后置处理错误
             }
@@ -769,6 +1102,9 @@
       }, 2000);
     }
 
+    // 程序性更新标志，用于区分用户操作和程序更新
+    let isProgrammaticUpdate = false;
+
     // 更新节点备注
     function updateNodeNotes() {
       if (!jm) return;
@@ -790,7 +1126,9 @@
 
       // 更新节点主题（如果有变化）
       if (newTopic !== selected.topic) {
+        isProgrammaticUpdate = true;
         jm.update_node(selected.id, newTopic);
+        isProgrammaticUpdate = false;
         hasChanges = true;
       }
 
@@ -2239,8 +2577,103 @@
                 }
 
                 debouncedSave();
+                // 保存历史记录（新增节点和移动节点已经在对应的包装器中保存了历史记录，这里避免重复保存）
+                if (typeof HistoryManager !== 'undefined' && !HistoryManager.isUndoRedoOperation) {
+                  // 调试：详细输出事件类型信息
+                  console.log('事件监听器 - 开始判断事件类型:', {
+                    type: type,
+                    typeType: typeof type,
+                    stringType: String(type),
+                    add_node_check: String(type) === 'add_node',
+                    move_node_check: String(type) === 'move_node',
+                    move_check: String(type) === 'move',
+                    data: data,
+                    dataType: typeof data,
+                    isMoveNodeEvent: type === jsMind.event_type.move_node,
+                    isEditEvent: type === jsMind.event_type.edit,
+                    isProgrammaticUpdate: isProgrammaticUpdate,
+                    all_constants: {
+                      edit: jsMind.event_type.edit,
+                      add_node: jsMind.event_type.add_node,
+                      remove_node: jsMind.event_type.remove_node,
+                      move_node: jsMind.event_type.move_node,
+                      move: jsMind.event_type.move
+                    }
+                  });
+
+                  // 使用字符串比较，因为事件类型可能是字符串或数字
+                  const eventTypeStr = String(type);
+                  const shouldSkip = eventTypeStr === 'add_node' || eventTypeStr === 'move_node' || eventTypeStr === 'move' || isProgrammaticUpdate;
+
+                  console.log('事件监听器 - 判断结果:', {
+                    eventTypeStr: eventTypeStr,
+                    shouldSkip: shouldSkip,
+                    willSave: !shouldSkip,
+                    isProgrammaticUpdate: isProgrammaticUpdate
+                  });
+
+                  //   // 避免重复保存：新增节点和移动节点已经在对应的包装器中保存了历史记录
+                  // if (!shouldSkip) {
+                  //   // 只有在不是程序性更新时才保存edit历史记录
+                  //   if (!isProgrammaticUpdate) {
+                  //     HistoryManager.saveState('edit');
+                  //     console.log('事件监听器 - 保存edit历史记录');
+                  //   } else {
+                  //     console.log('事件监听器 - 跳过保存，因为是程序性更新');
+                  //   }
+                  // } else {
+                  //   console.log('事件监听器 - 跳过保存，因为是add_node/move_node/move事件或程序性更新');
+                  // }
+                }
               } catch (e3) {
                 console.warn('延后处理失败:', e3);
+              }
+            }, 0);
+          } else {
+            // 如果没有node，仍然需要检查事件类型并决定是否保存历史记录
+            setTimeout(() => {
+              try {
+                debouncedSave();
+                // 保存历史记录（新增节点和移动节点已经在对应的包装器中保存了历史记录，这里避免重复保存）
+                if (typeof HistoryManager !== 'undefined' && !HistoryManager.isUndoRedoOperation) {
+                  // 调试：详细输出事件类型信息
+                  console.log('事件监听器 - 开始判断事件类型 (无节点):', {
+                    type: type,
+                    typeType: typeof type,
+                    stringType: String(type),
+                    add_node_check: String(type) === 'add_node',
+                    move_node_check: String(type) === 'move_node',
+                    move_check: String(type) === 'move',
+                    all_constants: {
+                      edit: jsMind.event_type.edit,
+                      add_node: jsMind.event_type.add_node,
+                      remove_node: jsMind.event_type.remove_node,
+                      move_node: jsMind.event_type.move_node,
+                      move: jsMind.event_type.move
+                    }
+                  });
+
+                  // 使用字符串比较，因为事件类型可能是字符串或数字
+                  const eventTypeStr = String(type);
+                  const shouldSkip = eventTypeStr === 'add_node' || eventTypeStr === 'move_node' || eventTypeStr === 'move' || isProgrammaticUpdate;
+
+                  console.log('事件监听器 - 判断结果 (无节点):', {
+                    eventTypeStr: eventTypeStr,
+                    shouldSkip: shouldSkip,
+                    willSave: !shouldSkip,
+                    isProgrammaticUpdate: isProgrammaticUpdate
+                  });
+
+                  // 避免重复保存：新增节点和移动节点已经在对应的包装器中保存了历史记录
+                  if (!shouldSkip) {
+                    HistoryManager.saveState('edit');
+                    console.log('事件监听器 - 保存edit历史记录 (无节点)');
+                  } else {
+                    console.log('事件监听器 - 跳过保存，因为是add_node/move_node/move事件 (无节点)');
+                  }
+                }
+              } catch (e3) {
+                console.warn('延后处理失败 (无节点):', e3);
               }
             }, 0);
           }
@@ -2327,6 +2760,142 @@
       }
     }
 
+    // 撤销思维导图操作
+    function undoMindmap() {
+      if (typeof HistoryManager !== 'undefined') {
+        const status = HistoryManager.getStatus();
+        if (status.canUndo) {
+          const result = HistoryManager.undo();
+          if (result) {
+            if (typeof NotificationBridge !== 'undefined') {
+              NotificationBridge.showSuccess('已撤销操作');
+            } else {
+              showWarning('已撤销操作');
+            }
+          }
+        } else {
+          if (typeof NotificationBridge !== 'undefined') {
+            NotificationBridge.showInfo('没有可撤销的操作');
+          } else {
+            showWarning('没有可撤销的操作');
+          }
+        }
+      } else {
+        console.warn('HistoryManager 未定义');
+      }
+    }
+
+    // 重做思维导图操作
+    function redoMindmap() {
+      if (typeof HistoryManager !== 'undefined') {
+        const status = HistoryManager.getStatus();
+        if (status.canRedo) {
+          const result = HistoryManager.redo();
+          if (result) {
+            if (typeof NotificationBridge !== 'undefined') {
+              NotificationBridge.showSuccess('已重做操作');
+            } else {
+              showWarning('已重做操作');
+            }
+          }
+        } else {
+          if (typeof NotificationBridge !== 'undefined') {
+            NotificationBridge.showInfo('没有可重做的操作');
+          } else {
+            showWarning('没有可重做的操作');
+          }
+        }
+      } else {
+        console.warn('HistoryManager 未定义');
+      }
+    }
+
+    // 测试移动节点撤销功能
+    function testMoveNodeUndo() {
+      if (!jm) {
+        console.warn('思维导图未初始化');
+        return;
+      }
+
+      try {
+        const selectedNode = jm.get_selected_node();
+        if (!selectedNode) {
+          console.warn('请先选择一个节点进行测试');
+          return;
+        }
+
+        const rootNode = jm.get_root();
+        if (!rootNode) {
+          console.warn('无法获取根节点');
+          return;
+        }
+
+        console.log('开始测试移动节点撤销功能:', {
+          selectedNode: selectedNode.id,
+          selectedTopic: selectedNode.topic,
+          rootNode: rootNode.id,
+          rootTopic: rootNode.topic
+        });
+
+        // 获取当前状态用于恢复
+        const originalData = jm.get_data();
+
+        // 执行移动操作（将选中节点移动到根节点下）
+        const result = jm.move_node(selectedNode.id, rootNode.id, '_last', 'right');
+
+        console.log('移动节点结果:', result);
+
+        if (result) {
+          console.log('节点移动成功，等待2秒后自动撤销...');
+
+          // 2秒后自动撤销
+          setTimeout(() => {
+            console.log('执行撤销操作...');
+            const undoResult = HistoryManager.undo();
+            console.log('撤销结果:', undoResult);
+
+            if (undoResult) {
+              console.log('撤销成功！节点位置已恢复');
+            } else {
+              console.warn('撤销失败');
+            }
+          }, 2000);
+        } else {
+          console.warn('节点移动失败');
+        }
+
+      } catch (error) {
+        console.error('测试移动节点撤销功能时出错:', error);
+      }
+    }
+
+    // 测试HistoryManager初始化功能
+    function testHistoryManagerInit() {
+      console.log('=== 测试HistoryManager初始化功能 ===');
+
+      // 显示当前状态
+      const status = HistoryManager.getStatus();
+      console.log('当前历史记录状态:', status);
+      console.log('撤销栈内容:', HistoryManager.undoStack);
+      console.log('重做栈内容:', HistoryManager.redoStack);
+
+      // 清除历史记录缓存
+      console.log('清除历史记录缓存...');
+      HistoryManager.clearHistory();
+
+      // 重新初始化
+      console.log('重新初始化HistoryManager...');
+      HistoryManager.init();
+
+      // 显示新状态
+      const newStatus = HistoryManager.getStatus();
+      console.log('重新初始化后的状态:', newStatus);
+      console.log('新的撤销栈内容:', HistoryManager.undoStack);
+      console.log('新的重做栈内容:', HistoryManager.redoStack);
+
+      console.log('=== 测试完成 ===');
+    }
+
 
 
     // 页面加载完成后初始化
@@ -2354,6 +2923,72 @@
         window.aiExpander = new window.AIExpander();
         window.aiExpander.init(jm);
       }
+
+      // 添加键盘事件监听器（撤销重做）
+      document.addEventListener('keydown', function (e) {
+        // 检查是否按下了Ctrl+Z（撤销）
+        if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
+          e.preventDefault();
+          console.log('Ctrl+Z 撤销快捷键被触发');
+          if (typeof HistoryManager !== 'undefined') {
+            const status = HistoryManager.getStatus();
+            console.log('当前历史记录状态:', status);
+            if (status.canUndo) {
+              const result = HistoryManager.undo();
+              console.log('撤销操作结果:', result);
+              if (result) {
+                // 使用通知桥接器显示成功消息
+                if (typeof NotificationBridge !== 'undefined') {
+                  NotificationBridge.showSuccess('已撤销操作');
+                } else {
+                  showWarning('已撤销操作');
+                }
+              }
+            } else {
+              console.log('无法撤销：没有可撤销的操作');
+              // 使用通知桥接器显示信息消息
+              if (typeof NotificationBridge !== 'undefined') {
+                NotificationBridge.showInfo('没有可撤销的操作');
+              } else {
+                showWarning('没有可撤销的操作');
+              }
+            }
+          } else {
+            console.warn('HistoryManager 未定义');
+          }
+        }
+        // 检查是否按下了Ctrl+Y（重做）或Ctrl+Shift+Z
+        else if ((e.ctrlKey && e.key === 'y') || (e.ctrlKey && e.shiftKey && e.key === 'z')) {
+          e.preventDefault();
+          console.log('Ctrl+Y/Ctrl+Shift+Z 重做快捷键被触发');
+          if (typeof HistoryManager !== 'undefined') {
+            const status = HistoryManager.getStatus();
+            console.log('当前历史记录状态:', status);
+            if (status.canRedo) {
+              const result = HistoryManager.redo();
+              console.log('重做操作结果:', result);
+              if (result) {
+                // 使用通知桥接器显示成功消息
+                if (typeof NotificationBridge !== 'undefined') {
+                  NotificationBridge.showSuccess('已重做操作');
+                } else {
+                  showWarning('已重做操作');
+                }
+              }
+            } else {
+              console.log('无法重做：没有可重做的操作');
+              // 使用通知桥接器显示信息消息
+              if (typeof NotificationBridge !== 'undefined') {
+                NotificationBridge.showInfo('没有可重做的操作');
+              } else {
+                showWarning('没有可重做的操作');
+              }
+            }
+          } else {
+            console.warn('HistoryManager 未定义');
+          }
+        }
+      });
     });
 
 
