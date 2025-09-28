@@ -273,9 +273,54 @@
             查看JSON
         </button>
 
-        <button class="btn help-btn" id="help-btn" title="帮助文档">
-            ?
+        <button class="btn help-btn" id="help-btn" title="帮助文档" aria-label="帮助">
+            <!-- 圆形 SVG 图标，防止在移动端变形；将按钮背景去掉，仅靠 svg 圆形作为视觉 -->
+            <svg class="help-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+                <circle cx="12" cy="12" r="10" fill="#6366f1"></circle>
+                <path d="M12 8a2 2 0 1 1 0 4" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                <circle cx="12" cy="17" r="1" fill="#fff"></circle>
+            </svg>
         </button>
+
+        <style>
+        /* ==== Editor: help button 调整，移除按钮背景避免 svg 与按钮背景叠层 ==== */
+        .toolbar .help-btn {
+          background: transparent !important;
+          border: none !important;
+          padding: 0 !important;
+          width: 40px;
+          height: 40px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          box-shadow: none !important;
+        }
+        .toolbar .help-btn .help-svg {
+          width: 28px;
+          height: 28px;
+          display: block;
+          pointer-events: none; /* 避免 svg 本身接管 hover 导致额外效果 */
+        }
+        /* 移除所有交互状态下可能的背景/边框/阴影，确保单层视觉 */
+        .toolbar .help-btn:hover,
+        .toolbar .help-btn:focus,
+        .toolbar .help-btn:active {
+          background: transparent !important;
+          box-shadow: none !important;
+          outline: none !important;
+        }
+        /* 防止父级样式通过 outline/shadow 造成二次视觉（更高优先级） */
+        .toolbar .help-btn::before,
+        .toolbar .help-btn::after {
+          content: none !important;
+        }
+        /* 小屏确保同样圆形且不被扩展 */
+        @media (max-width: 768px) {
+          .toolbar .help-btn { width: 36px; height: 36px; }
+          .toolbar .help-btn .help-svg { width: 20px; height: 20px; }
+        }
+        </style>
 
         <input type="file" class="file-input" id="file-input" accept=".md,.zip" />
     </div>
@@ -452,7 +497,7 @@
                         const newVal = e.newValue ?? '';
                         if (newVal !== this.getContent()) {
                             this.setContent(newVal);
-                            this.updateSaveStatus('已同步');
+                            window.showSuccess && window.showSuccess('已同步');
                         }
                         if (window.syncAll) {
                             try {
@@ -567,8 +612,8 @@
                 if (manual) {
                     this.showMessage('✅ 手动保存成功', 'success');
                 } else {
-                    // 自动保存时显示小绿钩提示
-                    this.showSaveNotification();
+                    // 自动保存时显示小绿钩提示（统一走全局通知）
+                    window.showSuccess && window.showSuccess('已自动保存');
                 }
             }
 
@@ -1012,18 +1057,7 @@
                 }
             }
 
-            // 显示保存成功提示（小绿钩）
-            showSaveNotification() {
-                const notificationEl = document.getElementById('save-notification');
-                if (!notificationEl) return;
-
-                notificationEl.textContent = '保存成功';
-                notificationEl.classList.add('show');
-
-                setTimeout(() => {
-                    notificationEl.classList.remove('show');
-                }, 3000);
-            }
+            
 
             // ===================================
             // 🔄 跨窗口通信

@@ -37,7 +37,7 @@ body {
     padding: 12px 24px;
     border-radius: 0;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 16px;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     white-space: nowrap;
     font-weight: 500;
@@ -56,8 +56,8 @@ body {
 
 .tab.active {
     background: transparent;
-    color: #3b82f6;
-    border-bottom: 2px solid #3b82f6;
+    color: #5382cf;
+    border-bottom: 2px solid #57bbda;
     box-shadow: none;
     transform: none;
     animation: tabActivate 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -755,41 +755,109 @@ iframe .btn:not([class*="btn-"]):hover {
    =================================== */
 @media (max-width: 768px) {
     .header {
-        padding: 0 20px;
-        height: 60px;
+        padding: 0 12px;
+        height: 56px;
+        align-items: center;
+        display: flex;
+        justify-content: space-between;
+        z-index: 1200;
+        background: #ffffff;
     }
 
     .brand {
-        font-size: 22px;
+        font-size: 18px;
+        margin-right: 8px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex: 1 1 auto;
     }
 
+    /* 顶部只保留品牌，tabs 在底部作为菜单栏（移动端） */
     .tabs {
-        gap: 0;
+        gap: 4px;
         padding: 0;
         border-radius: 0;
-        border-bottom: 1px solid #e2e8f0;
+        border-bottom: none;
+        justify-content: center;
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        display: flex;
+        background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+        border-top: 1px solid #e2e8f0;
+        z-index: 1100;
+        padding: 8px 6px;
+    }
+
+    /* 顶部 header 的高度压缩，content 底部预留菜单栏高度 */
+    .header {
+        height: 56px;
+    }
+    .main-content {
+        margin: 0;
+        border-radius: 0;
+        padding-bottom: 64px; /* 给底部 tab 留空间 */
+    }
+
+    /* 移动端去除面板外边距与圆角，iframe 占满 */
+    .panel {
+        margin: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+    }
+    .panel .panel-content,
+    .panel iframe {
+        width: 100% !important;
+        height: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+    }
+    /* iframe 外层若有额外容器，尽量清除内边距 */
+    .iframe-wrapper, .iframe-container {
+        margin: 0 !important;
+        padding: 0 !important;
+        border-radius: 0 !important;
     }
 
     .tab {
-        padding: 10px 16px;
-        font-size: 13px;
-        border-radius: 0;
-        margin-bottom: -1px;
+        padding: 8px 10px;
+        font-size: 14px;
+        border-radius: 8px;
+        margin: 0 6px;
+        white-space: nowrap; /* 不换行，避免换行导致布局错乱 */
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
     }
 
     .tab.active {
-        border-bottom: 2px solid #3b82f6;
+        border-bottom: none;
+        box-shadow: 0 2px 8px rgba(59,130,246,0.12);
+        background: rgba(59,130,246,0.06);
+        color:#0b82e4;
+    }
+
+    /* 隐藏右侧区域（包括专注按钮），移动端顶部只显示品牌 */
+    .header-right {
+        display: none !important;
     }
 
     .btn {
-        padding: 8px 16px;
-        font-size: 12px;
+        padding: 8px 12px;
+        font-size: 13px;
         border-radius: 10px;
+        white-space: nowrap;
     }
 
     .btn-small {
-        padding: 6px 12px;
+        padding: 6px 10px;
         font-size: 12px;
+        white-space: nowrap;
     }
 
     .focus-icon {
@@ -810,13 +878,101 @@ iframe .btn:not([class*="btn-"]):hover {
         height: 14px;
     }
 
-    .main-content {
-        margin: 12px;
-        border-radius: 12px;
+    .panel {
+        margin: 6px 4px;
+        border-radius: 8px;
     }
 
-    .panel {
-        margin: 6px;
-        border-radius: 10px;
+    /* 专注模式界面优化：去除间距并让面板占满 */
+    .focus-mode .panel {
+        margin: 0;
+        padding: 8px;
+        border-radius: 0;
+    }
+
+    /* 调整专注提示在小屏的位置 */
+    .focus-indicator {
+        top: 8px;
+        left: 12px;
+        right: auto;
+        font-size: 12px;
+        padding: 4px 8px;
+    }
+
+    /* 通用防止按钮文本换行 */
+    .btn span, .btn-small span, #focus-toggle span {
+        white-space: nowrap;
+    }
+
+    /* editor 的帮助问号保持圆形并且适当放大，避免变成椭圆 */
+    .toolbar .help-btn {
+        width: 36px !important;
+        height: 36px !important;
+        padding: 0 !important;
+        border-radius: 50% !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 18px !important;
+    }
+
+    /* 隐藏批量操作计数（移动端不显示“已选中X个节点”） */
+    #batchOperations {
+        display: none !important;
+    }
+
+    /* 如果有 iframe 内按钮，确保不换行 */
+    iframe .btn, iframe button {
+        white-space: nowrap !important;
+    }
+
+    /* 移动底部 tabs（mobile-tabs）样式 */
+    .mobile-tabs {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: 100%;
+      display: none; /* 仅移动端显示时通过 media 打开 */
+      background: linear-gradient(180deg,#ffffff,#fbfdff);
+      border-top: 1px solid #e6eef6;
+      z-index: 1300;
+      padding: 6px 8px;
+      justify-content: space-around;
+      align-items: center;
+      gap: 6px;
+    }
+    .mobile-tabs .tab {
+      flex: 1 1 auto;
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 14px;
+      white-space: nowrap;
+      background: transparent;
+      border: none;
+    }
+    .mobile-tabs .tab.active {
+      background: rgba(59,130,246,0.08);
+      color: #2563eb;
+      box-shadow: 0 2px 8px rgba(59,130,246,0.08);
+    }
+
+    /* 小屏时隐藏 header 内的 .tabs，显示底部 mobile-tabs */
+    @media (max-width: 768px) {
+      .header .tabs { display: none !important; }
+      .mobile-tabs { display: flex; }
+      /* main-content 底部预留 mobile-tabs 的高度 */
+      .main-content { padding-bottom: 72px; }
+      /* 隐藏思维导图右侧详情面板 */
+      #nodeDetails { display: none !important; width: 0 !important; padding: 0 !important; }
+      /* 隐藏批量操作计数（保险） */
+      #batchOperations { display: none !important; }
+
+      /* 统一在移动端隐藏所有面板头部（panel-header） */
+      .panel-header { display: none !important; }
     }
 }

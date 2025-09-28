@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>思维导图编辑器</title>
   <link rel="stylesheet" href="../styles.css">
-  <link type="text/css" rel="stylesheet" href="https://jsd.onmicrosoft.cn/npm/jsmind@0.8.7/style/jsmind.css" />
+  <link type="text/css" rel="stylesheet" href="../jsmind-local/jsmind.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.4/dist/jquery.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -34,12 +34,13 @@
     }
 
     #fullScreenMindmap {
-      width: 70%;
+      width: 100%;
+      flex: 1;
       height: 100%;
       position: relative;
       background: white;
       overflow: auto;
-      /* 添加滚动条支持 */
+      /* 添加滚动条支持：现在占满父容器，不再保留侧栏空间 */
     }
 
     /* jsmind 节点容器滚动支持 */
@@ -72,13 +73,86 @@
       background: #a8a8a8;
     }
 
+    /* 将侧栏转换为浮动可关闭面板，默认隐藏（通过 JS showNodeDetails 控制显示） */
     #nodeDetails {
-      width: 30%;
-      height: 100%;
-      padding: 20px;
-      border-left: 1px solid #ddd;
+      position: fixed;
+      right: 12px;
+      top: 80px;
+      width: 300px;
+      max-width: calc(100% - 32px);
+      max-height: 80vh; /* 高度较小 */
+      padding: 10px;
+      border-left: none;
+      border-radius: 8px;
       overflow-y: auto;
       background: #f8f9fa;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+      z-index: 1200;
+      display: none; /* 默认由 showNodeDetails 显示 */
+      touch-action: none; /* 避免触摸滚动与拖拽冲突 */
+      cursor: move;
+      font-size: 14px; /* 统一面板内字体为 14px */
+    }
+
+    /* 确保面板内部常见控件字体一致 */
+    #nodeDetails input,
+    #nodeDetails textarea,
+    #nodeDetails .node-info,
+    #nodeDetails label,
+    #nodeDetails button {
+      font-size: 14px;
+    }
+
+    /* 拖拽用的把手区域（如果存在 panel-header 则使用它） */
+    #nodeDetails .panel-header {
+      cursor: grab;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    /* 小屏适配：面板占更宽但仍隐藏 header（按要求） */
+    @media (max-width: 768px) {
+      #nodeDetails {
+        top: 56px;
+        right: 8px;
+        left: 8px;
+        width: auto;
+        height: calc(100% - 64px);
+        max-height: none;
+        padding: 12px;
+        border-radius: 6px;
+      }
+      #nodeDetails .panel-header { display: none; }
+    }
+
+    /* panel header for floating panel */
+    #nodeDetails .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    #nodeDetails .panel-close-btn {
+      background: transparent;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 4px 6px;
+    }
+
+    /* 在移动端隐藏 panel-header（用户要求）并使面板占据较大高度 */
+    @media (max-width: 768px) {
+      #nodeDetails {
+        top: 56px;
+        right: 8px;
+        left: 8px;
+        width: auto;
+        height: calc(100% - 64px);
+        padding: 12px;
+        border-radius: 6px;
+      }
+      #nodeDetails .panel-header { display: none; }
     }
 
 
@@ -255,23 +329,169 @@
     /* 内联样式类 - 已移除，不再使用 */
     /* .jmnode.multi-selected-inline { background-color: rgba(76, 154, 255, 0.3); border: 2px solid #4c9aff; box-shadow: 0 0 0 3px rgba(76, 154, 255, 0.8); position: relative; } */
   </style>
+
 </head>
 
 <body>
   <div class="toolbar">
     <!-- 批量操作工具栏 -->
 
-    <button class="btn" onclick="undoMindmap()" title="撤销 (Ctrl+Z)">↶ 撤销</button>
-    <button class="btn" onclick="redoMindmap()" title="重做 (Ctrl+Y)">↷ 重做</button>
-    <button class="btn" onclick="testMoveNodeUndo()" title="测试移动节点撤销">🧪 测试</button>
-    <button class="btn" onclick="exportData()">查看JSON</button>
-    <button class="btn" onclick="downloadMindmap()">下载图片</button>
 
+    <button id="export-json-btn" class="btn" onclick="exportData()">查看JSON</button>
+    <button class="btn" onclick="downloadMindmap()">下载图片</button>
+    <!-- 右侧三个简单复选框：详情面板 / 显示节点类型 / 显示列表节点 -->
+    <div id="toolbarToggles" style="margin-left:auto;display:flex;gap:12px;align-items:flex-end;justify-content:flex-end;">
+      <label class="mw-toggle-showdetails" style="display:flex;flex-direction:column;align-items:center;font-size:12px;margin:0 4px;">
+        <input id="toggleNodeDetailsCheckbox" type="checkbox" checked style="width:18px;height:18px;margin-bottom:6px;">
+        <span style="display:block;margin-top:0;">详情面板</span>
+      </label>
+      <label class="mw-toggle-showtype" style="display:flex;flex-direction:column;align-items:center;font-size:12px;margin:0 4px;">
+        <input id="toggleShowNodeTypeCheckbox" type="checkbox" style="width:18px;height:18px;margin-bottom:6px;">
+        <span style="display:block;margin-top:0;">显示类型</span>
+      </label>
+      <label class="mw-toggle-showtitleonly" style="display:flex;flex-direction:column;align-items:center;font-size:12px;margin:0 4px;">
+        <input id="toggleShowListNodesCheckbox" type="checkbox" style="width:18px;height:18px;margin-bottom:6px;">
+        <span style="display:block;margin-top:0;">只看标题</span>
+      </label>
+    </div>
+
+    <script>
+      (function(){
+        if (!document.getElementById('mw-node-type-badge-style')) {
+          var s = document.createElement('style');
+          s.id = 'mw-node-type-badge-style';
+          s.textContent = `
+            .jmnode { position: relative; }
+            .node-type-badge {
+              position: absolute;
+              right: 4px;
+              top: 2px;
+              background: rgba(0,0,0,0.6);
+              color: white;
+              font-size: 10px;
+              padding: 2px 4px;
+              border-radius: 8px;
+              line-height: 1;
+              pointer-events: none;
+              z-index: 30;
+            }
+            .mw-hidden-node { display: none !important; }
+          `;
+          document.head.appendChild(s);
+        }
+
+        function getNodeTypeSafe(id) {
+          try {
+            var node = (window.jm && typeof window.jm.get_node === 'function') ? window.jm.get_node(id) : null;
+            if (!node) return undefined;
+            if (typeof node.type !== 'undefined') return node.type;
+            if (node.data && typeof node.data.type !== 'undefined') return node.data.type;
+            return undefined;
+          } catch (e) { return undefined; }
+        }
+
+        function updateNodeTypeBadges() {
+          var show = !!document.getElementById('toggleShowNodeTypeCheckbox').checked;
+          var nodes = document.querySelectorAll('[nodeid]');
+          nodes.forEach(function(el){
+            var id = el.getAttribute('nodeid') || el.getAttribute('node-id') || el.getAttribute('data-nodeid');
+            if (!id) return;
+            var t = getNodeTypeSafe(id);
+            var badge = el.querySelector('.node-type-badge');
+            if (!show) {
+              if (badge) badge.remove();
+              return;
+            }
+            var label = (t === 'list') ? 'L' : (t === 'heading' ? 'H' : (t ? String(t).charAt(0).toUpperCase() : ''));
+            if (!label) { if (badge) badge.remove(); return; }
+            if (!badge) {
+              badge = document.createElement('span');
+              badge.className = 'node-type-badge';
+              el.appendChild(badge);
+            }
+            badge.textContent = label;
+          });
+        }
+
+        function applyNodeVisibilityFilter() {
+          var showLists = !!document.getElementById('toggleShowListNodesCheckbox').checked;
+          var nodes = document.querySelectorAll('[nodeid]');
+          nodes.forEach(function(el){
+            var id = el.getAttribute('nodeid') || el.getAttribute('node-id') || el.getAttribute('data-nodeid');
+            if (!id) return;
+            var t = getNodeTypeSafe(id);
+            if (t === 'list' && !showLists) {
+              el.classList.add('mw-hidden-node');
+            } else {
+              el.classList.remove('mw-hidden-node');
+            }
+          });
+        }
+
+        function handleDetailsToggle(checked) {
+          window.__nodeDetailsEnabled = !!checked;
+          if (!window.__nodeDetailsEnabled) {
+            if (typeof hideNodeDetails === 'function') {
+              try { hideNodeDetails(); } catch (e) {}
+            }
+          } else {
+            try {
+              var sel = null;
+              if (window.jm && typeof window.jm.get_selected_node === 'function') sel = window.jm.get_selected_node();
+              if (sel) { try { showNodeDetails(sel); } catch(e) {} }
+            } catch (e) {}
+          }
+        }
+
+        document.addEventListener('DOMContentLoaded', function(){
+          var cbDetails = document.getElementById('toggleNodeDetailsCheckbox');
+          var cbType = document.getElementById('toggleShowNodeTypeCheckbox');
+          var cbList = document.getElementById('toggleShowListNodesCheckbox');
+
+          // 移动端检测：隐藏不需要的控件并设置默认状态
+          var isMobile = (('ontouchstart' in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) || (window.matchMedia && window.matchMedia('(max-width: 768px)').matches));
+          if (isMobile) {
+            try {
+              var exportBtn = document.getElementById('export-json-btn');
+              if (exportBtn) exportBtn.style.display = 'none';
+              if (cbDetails && cbDetails.parentElement) cbDetails.parentElement.style.display = 'none';
+              // 默认移动端不开启显示类型/只看标题
+              if (cbType) cbType.checked = false;
+              if (cbList) cbList.checked = false;
+            } catch (e) { /* ignore */ }
+          }
+
+          if (cbDetails) {
+            cbDetails.checked = !!window.__nodeDetailsEnabled;
+            cbDetails.addEventListener('change', function(e){ handleDetailsToggle(!!e.target.checked); }, {passive:true});
+          }
+          if (cbType) {
+            // 默认关闭，用户可开启
+            cbType.checked = !!cbType.checked;
+            cbType.addEventListener('change', function(){ updateNodeTypeBadges(); }, {passive:true});
+          }
+          if (cbList) {
+            // 默认关闭，用户可开启
+            cbList.checked = !!cbList.checked;
+            cbList.addEventListener('change', function(){ applyNodeVisibilityFilter(); }, {passive:true});
+          }
+
+          setTimeout(function(){
+            updateNodeTypeBadges();
+            applyNodeVisibilityFilter();
+          }, 120);
+        });
+
+        window.MW_updateNodeTypeBadges = updateNodeTypeBadges;
+        window.MW_applyNodeVisibilityFilter = applyNodeVisibilityFilter;
+      })();
+    </script>
+
+    <!-- batchOperations 保留在 DOM 中但会被移动到画布左上（通过脚本在非移动端显示） -->
     <div id="batchOperations"
       style="display: inline-block; margin-top: 2px; padding: 5px 10px; background: rgba(76, 154, 255, 0.1); border-radius: 4px; border: 1px solid #4c9aff;">
       <span style="color: #4c9aff; font-size: 12px; margin-right: 10px;">已选中 <span id="selectedCount">0</span>
         个节点</span>
-
     </div>
 
   </div>
@@ -279,13 +499,42 @@
   <div class="main-container">
     <div id="fullScreenMindmap"></div>
 
-    <div id="nodeDetails">
+    <!-- batchOperations 将在页面加载时被移动（非移动端）到 #fullScreenMindmap 左上角 -->
+    <style id="mw-batchops-style">
+      #mw-batchops {
+        position: absolute;
+        top: 80px; /* 向下移动，避免遮挡左侧按钮 */
+        left: 8px;
+        z-index: 220;
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 10px;
+        background: rgba(255,255,255,0.92);
+        border: 1px solid rgba(76,154,255,0.15);
+        border-radius: 6px;
+        color: #0f172a;
+        font-size: 12px;
+        box-shadow: 0 6px 18px rgba(15,23,42,0.06);
+        backdrop-filter: blur(4px);
+      }
+      @media (max-width: 768px) {
+        /* 移动端不显示（避免遮挡） */
+        #mw-batchops { display: none !important; }
+      }
+    </style>
 
+    <div id="mw-batchops" aria-hidden="false" style="display:none;">
+      <span id="mw-batchops-text">已选中 <strong id="selectedCountDisplay">0</strong> 个节点</span>
+    </div>
 
-      <div id="nodeInfo">
-
+    <!-- 浮动节点详情面板（可关闭），保留内部字段和功能 -->
+    <div id="nodeDetails" role="dialog" aria-hidden="true" aria-label="节点详情">
+      <div class="panel-header">
+        <strong>节点详情</strong>
+        <button class="panel-close-btn" aria-label="关闭节点详情" onclick="hideNodeDetails()">✕</button>
       </div>
 
+      <div id="nodeInfo"></div>
 
       <div class="form-group">
         <label for="nodeTopic">节点主题:</label>
@@ -313,7 +562,7 @@
       <!-- 通知桥接器 -->
       <script src="../notification-bridge.js"></script>
       <script>
-        // AI扩写函数
+        // AI扩写函数（保留原逻辑）
         function expandWithAI() {
           try {
             const selectedNode = jm.get_selected_node();
@@ -332,327 +581,223 @@
             showError('AI扩写出错: ' + e.message);
           }
         }
+
+        // 隐藏/显示浮动面板的 API（供 showNodeDetails 调用）
+        function hideNodeDetails() {
+          const p = document.getElementById('nodeDetails');
+          if (p) {
+            p.style.display = 'none';
+            p.setAttribute('aria-hidden', 'true');
+            // 安全移除拖拽监听（若在闭包中定义则不会抛错）
+            if (typeof removeNodeDetailsDragHandlers === 'function') {
+              try { removeNodeDetailsDragHandlers(); } catch (e) { /* ignore */ }
+            } else if (typeof window.removeNodeDetailsDragHandlers === 'function') {
+              try { window.removeNodeDetailsDragHandlers(); } catch (e) { /* ignore */ }
+            }
+          }
+        }
+        function showNodeDetailsPanel() {
+          const p = document.getElementById('nodeDetails');
+          if (p) {
+            p.style.display = 'block';
+            p.setAttribute('aria-hidden', 'false');
+            // 仅当面板未被用户移动过时，才重置为默认靠右位置
+            if (p.dataset.moved !== 'true') {
+              p.style.right = '12px';
+              p.style.left = 'auto';
+              p.style.top = '80px';
+            }
+            // 初始化拖拽监听（幂等）
+            initNodeDetailsDragHandlers();
+          }
+        }
+        
+        // 缩放中心修正：在鼠标/触摸位置设置 transform-origin，配合现有库缩放以该点为中心
+        (function setupZoomOrigin() {
+          const container = document.getElementById('fullScreenMindmap');
+          if (!container) return;
+          function setOrigin(clientX, clientY) {
+            const rect = container.getBoundingClientRect();
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+            container.style.transformOrigin = `${x}px ${y}px`;
+          }
+          // 鼠标滚轮：在缩放前设置 origin
+          container.addEventListener('wheel', function (e) {
+            if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) {
+              // 若用户同时按键，仍支持，但优先设置 origin
+            }
+            setOrigin(e.clientX, e.clientY);
+            // 不阻止原生滚动/缩放逻辑，让现有库处理实际缩放
+          }, { passive: true });
+          // 触摸：记录触摸点以设置 origin（用于双指缩放前）
+          container.addEventListener('touchstart', function (e) {
+            if (!e.touches || e.touches.length === 0) return;
+            const t = e.touches[0];
+            setOrigin(t.clientX, t.clientY);
+          }, { passive: true });
+        })();
+      
+
+        /* 拖拽支持：鼠标与触摸 */
+        (function () {
+          let dragging = false;
+          let startX = 0, startY = 0;
+          let origLeft = 0, origTop = 0;
+          let handlersAdded = false;
+
+          function clampPosition(x, y, el) {
+            const pad = 8;
+            const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+            const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+            const rect = el.getBoundingClientRect();
+            const w = rect.width;
+            const h = rect.height;
+            const nx = Math.min(Math.max(x, pad - rect.left + rect.left - rect.left), vw - w - pad);
+            const ny = Math.min(Math.max(y, pad), vh - h - pad);
+            return { x: nx, y: ny };
+          }
+
+          function onPointerDown(e) {
+            const p = document.getElementById('nodeDetails');
+            if (!p) return;
+            dragging = true;
+            p.style.transition = 'none';
+            const rect = p.getBoundingClientRect();
+            origLeft = rect.left;
+            origTop = rect.top;
+            if (e.type === 'touchstart') {
+              startX = e.touches[0].clientX;
+              startY = e.touches[0].clientY;
+            } else {
+              startX = e.clientX;
+              startY = e.clientY;
+            }
+            // prevent iframe text selection during drag
+            document.body.style.userSelect = 'none';
+          }
+
+          function onPointerMove(e) {
+            if (!dragging) return;
+            const p = document.getElementById('nodeDetails');
+            if (!p) return;
+            let cx = (e.type === 'touchmove') ? e.touches[0].clientX : e.clientX;
+            let cy = (e.type === 'touchmove') ? e.touches[0].clientY : e.clientY;
+            const dx = cx - startX;
+            const dy = cy - startY;
+            const left = origLeft + dx;
+            const top = origTop + dy;
+            // 限制到视口内
+            const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+            const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+            const rect = p.getBoundingClientRect();
+            const w = rect.width, h = rect.height;
+            const minLeft = 8;
+            const maxLeft = vw - w - 8;
+            const minTop = 8;
+            const maxTop = vh - h - 8;
+            const nx = Math.min(Math.max(left, minLeft), Math.max(minLeft, maxLeft));
+            const ny = Math.min(Math.max(top, minTop), Math.max(minTop, maxTop));
+            // 记录临时位移量，onPointerUp 会基于此判断是否标记为已移动
+            try {
+              p.dataset._dragMovedX = String(dx);
+              p.dataset._dragMovedY = String(dy);
+            } catch (e) { /* ignore */ }
+            p.style.right = 'auto';
+            p.style.left = nx + 'px';
+            p.style.top = ny + 'px';
+          }
+
+          function onPointerUp() {
+            if (!dragging) return;
+            dragging = false;
+            document.body.style.userSelect = '';
+            const p = document.getElementById('nodeDetails');
+            if (p) p.style.transition = '';
+            // 标记是否发生过显著位移，页面未刷新前保持位置
+            try {
+              if (p) {
+                const movedX = parseFloat(p.dataset._dragMovedX || '0');
+                const movedY = parseFloat(p.dataset._dragMovedY || '0');
+                if (Math.abs(movedX) > 2 || Math.abs(movedY) > 2) {
+                  p.dataset.moved = 'true';
+                }
+                delete p.dataset._dragMovedX;
+                delete p.dataset._dragMovedY;
+              }
+            } catch (e) { /* ignore */ }
+          }
+
+          function initNodeDetailsDragHandlers() {
+            if (handlersAdded) return;
+            const p = document.getElementById('nodeDetails');
+            if (!p) return;
+            // 使用 panel-header 作为抓手，如无则全面板可拖
+            const handle = p.querySelector('.panel-header') || p;
+            handle.addEventListener('mousedown', onPointerDown, { passive: true });
+            window.addEventListener('mousemove', onPointerMove, { passive: true });
+            window.addEventListener('mouseup', onPointerUp, { passive: true });
+            handle.addEventListener('touchstart', onPointerDown, { passive: true });
+            window.addEventListener('touchmove', onPointerMove, { passive: true });
+            window.addEventListener('touchend', onPointerUp, { passive: true });
+            handlersAdded = true;
+          }
+
+          function removeNodeDetailsDragHandlers() {
+            if (!handlersAdded) return;
+            const p = document.getElementById('nodeDetails');
+            if (!p) return;
+            const handle = p.querySelector('.panel-header') || p;
+            try {
+              handle.removeEventListener('mousedown', onPointerDown);
+              window.removeEventListener('mousemove', onPointerMove);
+              window.removeEventListener('mouseup', onPointerUp);
+              handle.removeEventListener('touchstart', onPointerDown);
+              window.removeEventListener('touchmove', onPointerMove);
+              window.removeEventListener('touchend', onPointerUp);
+            } catch (e) { /* ignore */ }
+            handlersAdded = false;
+          }
+
+          // 如果面板已显示，初始化一次
+          document.addEventListener('DOMContentLoaded', function () {
+            const p = document.getElementById('nodeDetails');
+            if (p && p.style.display !== 'none') initNodeDetailsDragHandlers();
+          });
+          // 在窗口大小变化时微调位置，避免超出
+          window.addEventListener('resize', function () {
+            const p = document.getElementById('nodeDetails');
+            if (!p || p.style.display === 'none') return;
+            const rect = p.getBoundingClientRect();
+            const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+            const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+            const maxLeft = Math.max(8, vw - rect.width - 8);
+            const maxTop = Math.max(8, vh - rect.height - 8);
+            let left = rect.left;
+            let top = rect.top;
+            if (left > maxLeft) left = maxLeft;
+            if (top > maxTop) top = maxTop;
+            p.style.left = left + 'px';
+            p.style.top = top + 'px';
+          });
+
+        })();
       </script>
     </div>
   </div>
   </div>
 
-  <script src="https://jsd.onmicrosoft.cn/npm/jsmind@0.8.7/es6/jsmind.js"></script>
-  <script src="https://jsd.onmicrosoft.cn/npm/jsmind@0.8.7/es6/jsmind.draggable-node.js"></script>
+  <script src="../jsmind-local/jsmind.js"></script>
+  <script src="../jsmind-local/jsmind.draggable-node.js"></script>
   <script src="https://unpkg.com/dom-to-image@2.6.0/dist/dom-to-image.min.js"></script>
   <!-- 使用修复版本的截图插件，避免HTTPS安全警告 -->
   <script src="jsmind.screenshot.fixed.js"></script>
   <script type="module" src="../converter/sync.js"></script>
   <script type="module" src="../converter/load.js"></script>
+  <script src="plugins/undo_manager.js"></script>
   <script>
     let jm = null;
     let currentNodeTree = null;
-
-    // 历史记录管理器
-    const HistoryManager = {
-      undoStack: [],
-      redoStack: [],
-      maxSize: 10,
-      isUndoRedoOperation: false, // 防止循环触发
-
-      // 清除历史记录缓存（用于测试）
-      clearHistory() {
-        this.undoStack = [];
-        this.redoStack = [];
-        localStorage.removeItem('mindword_undo_stack');
-        localStorage.removeItem('mindword_redo_stack');
-        console.log('历史记录缓存已清除');
-      },
-
-      // 初始化历史记录
-      init() {
-        this.loadHistory();
-
-        // 如果没有历史记录数据，创建初始状态
-        if (this.undoStack.length === 0) {
-          if (jm) {
-            // 如果有jsMind实例，延迟保存初始状态以确保数据已加载
-            setTimeout(() => {
-              try {
-                this.saveState('initial');
-                console.log('历史记录管理器：延迟创建初始状态并保存');
-              } catch (error) {
-                console.warn('延迟保存初始状态失败:', error);
-                // 如果延迟保存失败，创建默认初始状态
-                this.createDefaultInitialState();
-              }
-            }, 100); // 延迟100ms确保思维导图完全初始化
-          } else {
-            // 如果没有jsMind实例，创建默认初始状态
-            this.createDefaultInitialState();
-          }
-        }
-      },
-
-      // 创建默认初始状态
-      createDefaultInitialState() {
-        this.undoStack = [{
-          data: {
-            meta: {
-              name: 'jsMind',
-              author: '',
-              version: '0.0.1',
-              format: 'node_tree',
-              data: null
-            },
-            format: 'node_tree',
-            data: {
-              id: 'root',
-              topic: '新建思维导图',
-              selected: true
-            }
-          },
-          timestamp: Date.now(),
-          action: 'initial',
-          extraData: null
-        }];
-        this.persistHistory();
-        console.log('历史记录管理器：创建默认初始状态');
-      },
-
-      // 保存当前状态到历史记录
-      saveState(action, extraData = null) {
-        if (this.isUndoRedoOperation) return;
-        if (!jm) return;
-
-        try {
-          // 检查jm实例是否已完全初始化
-          if (!jm.get_data || typeof jm.get_data !== 'function') {
-            console.warn('jsMind实例未完全初始化，跳过保存历史记录');
-            return;
-          }
-
-          // 尝试获取数据，如果失败则创建默认状态
-          let data;
-          try {
-            data = jm.get_data();
-          } catch (dataError) {
-            console.warn('获取思维导图数据失败，使用默认数据:', dataError);
-            data = {
-              meta: {
-                name: 'jsMind',
-                author: '',
-                version: '0.0.1',
-                format: 'node_tree',
-                data: null
-              },
-              format: 'node_tree',
-              data: {
-                id: 'root',
-                topic: '新建思维导图',
-                selected: true
-              }
-            };
-          }
-
-          const state = {
-            data: data,
-            timestamp: Date.now(),
-            action: action || 'edit',
-            extraData: extraData // 保存额外的数据用于更精确的恢复
-          };
-
-          this.undoStack.push(state);
-          if (this.undoStack.length > this.maxSize) {
-            this.undoStack.shift(); // 移除最旧的状态
-          }
-
-          this.redoStack = []; // 清空重做栈
-          this.persistHistory();
-
-          console.log(`历史记录已保存: ${action}, 栈大小: ${this.undoStack.length}`);
-        } catch (error) {
-          console.warn('保存历史记录失败:', error);
-        }
-      },
-
-      // 撤销
-      undo() {
-        if (this.undoStack.length <= 1) return false; // 至少保留初始状态
-
-        this.isUndoRedoOperation = true;
-
-        try {
-          // 保存当前状态到重做栈
-          const currentState = {
-            data: jm.get_data(),
-            timestamp: Date.now(),
-            action: 'undo'
-          };
-
-          // 取出上一个状态
-          this.undoStack.pop(); // 移除当前状态
-          const stateToRestore = this.undoStack[this.undoStack.length - 1];
-
-          // 将当前状态推入重做栈
-          this.redoStack.push(currentState);
-
-          // 恢复状态
-          this.restoreState(stateToRestore);
-
-          this.persistHistory();
-          console.log('撤销操作完成');
-
-          return true;
-        } catch (error) {
-          console.warn('撤销操作失败:', error);
-          return false;
-        } finally {
-          this.isUndoRedoOperation = false;
-        }
-      },
-
-      // 重做
-      redo() {
-        if (this.redoStack.length === 0) return false;
-
-        this.isUndoRedoOperation = true;
-
-        try {
-          // 保存当前状态
-          const currentState = {
-            data: jm.get_data(),
-            timestamp: Date.now(),
-            action: 'redo'
-          };
-
-          // 取出重做状态
-          const nextState = this.redoStack.pop();
-
-          // 将当前状态推入撤销栈
-          this.undoStack.push(currentState);
-
-          // 恢复状态
-          this.restoreState(nextState);
-
-          this.persistHistory();
-          console.log('重做操作完成');
-
-          return true;
-        } catch (error) {
-          console.warn('重做操作失败:', error);
-          return false;
-        } finally {
-          this.isUndoRedoOperation = false;
-        }
-      },
-
-      // 从localStorage恢复历史记录
-      loadHistory() {
-        try {
-          const undoData = localStorage.getItem('mindword_undo_stack');
-          const redoData = localStorage.getItem('mindword_redo_stack');
-
-          if (undoData) {
-            this.undoStack = JSON.parse(undoData);
-          }
-          if (redoData) {
-            this.redoStack = JSON.parse(redoData);
-          }
-
-          console.log(`历史记录已加载: 撤销栈${this.undoStack.length}, 重做栈${this.redoStack.length}`);
-        } catch (error) {
-          console.warn('恢复历史记录失败:', error);
-          this.undoStack = [];
-          this.redoStack = [];
-        }
-      },
-
-      // 持久化历史记录到localStorage
-      persistHistory() {
-        try {
-          localStorage.setItem('mindword_undo_stack', JSON.stringify(this.undoStack));
-          localStorage.setItem('mindword_redo_stack', JSON.stringify(this.redoStack));
-        } catch (error) {
-          console.warn('持久化历史记录失败:', error);
-        }
-      },
-
-      // 恢复状态
-      restoreState(state) {
-        if (!state || !state.data) {
-          console.warn('无效的状态数据');
-          return;
-        }
-
-        try {
-          // 调试：检查恢复的数据
-          if (state.action === 'move_node' || state.action === 'undo' || state.action === 'redo') {
-            console.log('恢复状态:', {
-              action: state.action,
-              data: state.data,
-              timestamp: state.timestamp,
-              selectedNodeBefore: jm.get_selected_node(),
-              extraData: state.extraData
-            });
-          }
-
-          // 如果是移动节点操作，使用保存的完整思维导图数据恢复
-          if (state.action === 'move_node' && state.extraData && state.extraData.mindData) {
-            console.log('使用保存的完整思维导图数据恢复移动节点:', state.extraData);
-
-            // 使用保存的完整思维导图数据
-            jm.show(state.extraData.mindData);
-            console.log('已使用保存的mindData恢复思维导图');
-
-          } else {
-            // 普通恢复
-            jm.show(state.data);
-          }
-
-          // 更新当前节点树引用
-          window.currentNodeTree = state.data;
-
-          // 同步到localStorage
-          saveToLocalStorage();
-
-          // 刷新右侧面板
-          if (jm.get_selected_node()) {
-            showNodeDetails(jm.get_selected_node());
-          }
-
-          // 显示操作提示
-          const message = state.action === 'undo' ? '已撤销' :
-            state.action === 'redo' ? '已重做' : '已恢复';
-          showWarning(message); // 使用showWarning作为简单的通知方式
-
-          // 调试：检查恢复后的状态
-          if (state.action === 'move_node' || state.action === 'undo' || state.action === 'redo') {
-            console.log('恢复完成后的状态:', {
-              selectedNodeAfter: jm.get_selected_node(),
-              currentData: jm.get_data()
-            });
-          }
-
-        } catch (error) {
-          console.warn('恢复状态失败:', error);
-          throw error;
-        }
-      },
-
-      // 清空历史记录
-      clear() {
-        this.undoStack = [];
-        this.redoStack = [];
-        this.persistHistory();
-        console.log('历史记录已清空');
-      },
-
-      // 获取状态信息
-      getStatus() {
-        return {
-          canUndo: this.undoStack.length > 1,
-          canRedo: this.redoStack.length > 0,
-          undoCount: this.undoStack.length,
-          redoCount: this.redoStack.length
-        };
-      }
-    };
 
     // 初始化思维导图
     function initMindmap() {
@@ -671,8 +816,8 @@
           engine: 'svg',                   // 思维导图各节点之间线条的绘制引擎，canvas|svg
           hmargin: 100,                       // 水平边距
           vmargin: 50,                        // 垂直边距
-          line_width: 2,                      // 连接线宽度
-          line_color: '#555',                 // 连接线颜色
+          line_width: 1,                      // 连接线宽度
+          line_color: '#999',                 // 连接线颜色
           expander_style: 'circle',           // 展开器样式：number|circle|square
 
 
@@ -718,11 +863,6 @@
       window.jm = jm;
       const multiSelected = new Set();
 
-      // 初始化历史记录管理器
-      console.log('开始初始化历史记录管理器...');
-      HistoryManager.init();
-      console.log('历史记录管理器初始化完成');
-
       // 配置思维导图容器的滚动行为
       setupMindmapScrolling();
 
@@ -752,10 +892,6 @@
                 // 忽略归一列表处理错误
               }
               if (typeof debouncedSave === 'function') debouncedSave();
-              // 保存历史记录
-              if (typeof HistoryManager !== 'undefined') {
-                HistoryManager.saveState('add_node');
-              }
             } catch (e) {
               // 忽略后置处理错误
             }
@@ -859,22 +995,6 @@
                 // 忽略归一列表处理错误
               }
               if (typeof debouncedSave === 'function') debouncedSave();
-              // 保存历史记录
-              if (typeof HistoryManager !== 'undefined') {
-                // 保存完整的思维导图数据用于精确撤销
-                const mindData = jm.get_data();
-
-                console.log('保存移动节点历史记录:', {
-                  action: 'move_node',
-                  nodeId: nodeid,
-                  beforeId: beforeid,
-                  parentId: parentid,
-                  direction: direction,
-                  mindData: mindData  // 保存完整的思维导图状态
-                });
-
-                HistoryManager.saveState('move_node', { mindData: mindData });
-              }
             } catch (e) {
               // 忽略后置处理错误
             }
@@ -896,6 +1016,58 @@
           }
         }
       });
+
+      // --- 自动触发：在多种 jsMind 事件后防抖地重新应用节点类型徽章与可见性过滤 ---
+      (function attachBadgeHooks(){
+        const debouncedApply = (function(){
+          let t = null;
+          return function(){
+            clearTimeout(t);
+            t = setTimeout(function(){
+              try {
+                console.log('[MW] 应用徽章/过滤 - 开始');
+                if (typeof window.MW_updateNodeTypeBadges === 'function') {
+                  window.MW_updateNodeTypeBadges();
+                  console.log('[MW] 已调用 MW_updateNodeTypeBadges');
+                }
+              } catch(e) { console.warn('[MW] MW_updateNodeTypeBadges 执行失败', e); }
+              try {
+                if (typeof window.MW_applyNodeVisibilityFilter === 'function') {
+                  window.MW_applyNodeVisibilityFilter();
+                  console.log('[MW] 已调用 MW_applyNodeVisibilityFilter');
+                }
+              } catch(e) { console.warn('[MW] MW_applyNodeVisibilityFilter 执行失败', e); }
+              console.log('[MW] 应用徽章/过滤 - 完成');
+            }, 60);
+          };
+        })();
+
+        // 订阅常见会导致 DOM 变化或需要重新应用徽章/过滤的事件
+        jm.add_event_listener(function(type, data){
+          if (!type) return;
+          const interesting = [
+            jsMind.event_type.select,
+            jsMind.event_type.show,
+            jsMind.event_type.resize,
+            jsMind.event_type.refresh,
+            jsMind.event_type.expand,
+            jsMind.event_type.collapse,
+            jsMind.event_type.edit,
+            jsMind.event_type.add,
+            jsMind.event_type.move
+          ];
+          if (interesting.indexOf(type) !== -1) {
+            console.log('[MW] 捕获 jsMind 事件:', type);
+            debouncedApply();
+          }
+        });
+
+        // 作为保险：在全局包装点或其他地方也可直接调用 window.MW_debouncedApplyBadges()
+        window.MW_debouncedApplyBadges = debouncedApply;
+
+        // 立即执行一次，确保初始化时生效
+        try { debouncedApply(); } catch(e){/* ignore */ }
+      })();
 
     }
 
@@ -956,6 +1128,16 @@
         jm.show(nodeTreeData);
         currentNodeTree = nodeTreeData;
 
+        // 渲染完成后同步节点类型徽章与可见性过滤（确保开关生效）
+        try {
+          if (typeof window.MW_updateNodeTypeBadges === 'function') {
+            setTimeout(window.MW_updateNodeTypeBadges, 80);
+          }
+          if (typeof window.MW_applyNodeVisibilityFilter === 'function') {
+            setTimeout(window.MW_applyNodeVisibilityFilter, 80);
+          }
+        } catch (e) { /* ignore */ }
+
         // 延迟执行DOM操作，确保元素已加载
         setTimeout(() => {
 
@@ -966,6 +1148,11 @@
             jm.select_node(rootNode.id);
             showNodeDetails(rootNode);
           }
+          // 确保在自动选择后同步一次徽章/可见性（某些渲染延迟场景）
+          try {
+            if (typeof window.MW_updateNodeTypeBadges === 'function') window.MW_updateNodeTypeBadges();
+            if (typeof window.MW_applyNodeVisibilityFilter === 'function') window.MW_applyNodeVisibilityFilter();
+          } catch (e) {}
         }, 100);
       } catch (error) {
         // 如果加载失败，尝试加载默认数据
@@ -989,6 +1176,11 @@
         node = jm && jm.get_node ? jm.get_node(node) : node;
       }
       if (!node) return;
+
+      // 确保浮动面板显示（向后兼容现有逻辑）
+      if (typeof showNodeDetailsPanel === 'function') {
+        try { showNodeDetailsPanel(); } catch (e) { /* ignore */ }
+      }
 
       const nodeInfo = document.getElementById('nodeInfo');
       const nodeTopic = document.getElementById('nodeTopic');
@@ -1102,9 +1294,6 @@
       }, 2000);
     }
 
-    // 程序性更新标志，用于区分用户操作和程序更新
-    let isProgrammaticUpdate = false;
-
     // 更新节点备注
     function updateNodeNotes() {
       if (!jm) return;
@@ -1126,9 +1315,7 @@
 
       // 更新节点主题（如果有变化）
       if (newTopic !== selected.topic) {
-        isProgrammaticUpdate = true;
         jm.update_node(selected.id, newTopic);
-        isProgrammaticUpdate = false;
         hasChanges = true;
       }
 
@@ -1277,6 +1464,17 @@
 
     /* 画布框选多选功能 */
     function setupBoxSelection() {
+      // 移动端保护：触摸设备或小屏不启用画布框选/多选功能，避免误触发和不友好交互
+      if (('ontouchstart' in window && navigator.maxTouchPoints > 0) || (window.matchMedia && window.matchMedia('(max-width: 768px)').matches)) {
+          // 确保隐藏选择矩形（若存在）
+          const existing = document.querySelector('#selectionRect');
+          if (existing) existing.style.display = 'none';
+          // 隐藏批量工具栏
+          const batchOps = document.getElementById('batchOperations');
+          if (batchOps) batchOps.style.display = 'none';
+          return;
+      }
+
       const container = document.getElementById('fullScreenMindmap');
       if (!container) return;
 
@@ -2208,7 +2406,16 @@
     let saveTimer = null;
     function debouncedSave() {
       clearTimeout(saveTimer);
-      saveTimer = setTimeout(() => saveToLocalStorage(), 300);
+      saveTimer = setTimeout(function () {
+        saveToLocalStorage();
+        try {
+          if (window.undoManager && typeof window.undoManager.recordIfChanged === 'function') {
+            window.undoManager.recordIfChanged();
+          }
+        } catch (e) {
+          // 忽略记录错误
+        }
+      }, 300);
     }
 
     // 类型对齐辅助函数：读取/写入节点类型（优先根级别，兼容 data.type）
@@ -2577,103 +2784,8 @@
                 }
 
                 debouncedSave();
-                // 保存历史记录（新增节点和移动节点已经在对应的包装器中保存了历史记录，这里避免重复保存）
-                if (typeof HistoryManager !== 'undefined' && !HistoryManager.isUndoRedoOperation) {
-                  // 调试：详细输出事件类型信息
-                  console.log('事件监听器 - 开始判断事件类型:', {
-                    type: type,
-                    typeType: typeof type,
-                    stringType: String(type),
-                    add_node_check: String(type) === 'add_node',
-                    move_node_check: String(type) === 'move_node',
-                    move_check: String(type) === 'move',
-                    data: data,
-                    dataType: typeof data,
-                    isMoveNodeEvent: type === jsMind.event_type.move_node,
-                    isEditEvent: type === jsMind.event_type.edit,
-                    isProgrammaticUpdate: isProgrammaticUpdate,
-                    all_constants: {
-                      edit: jsMind.event_type.edit,
-                      add_node: jsMind.event_type.add_node,
-                      remove_node: jsMind.event_type.remove_node,
-                      move_node: jsMind.event_type.move_node,
-                      move: jsMind.event_type.move
-                    }
-                  });
-
-                  // 使用字符串比较，因为事件类型可能是字符串或数字
-                  const eventTypeStr = String(type);
-                  const shouldSkip = eventTypeStr === 'add_node' || eventTypeStr === 'move_node' || eventTypeStr === 'move' || isProgrammaticUpdate;
-
-                  console.log('事件监听器 - 判断结果:', {
-                    eventTypeStr: eventTypeStr,
-                    shouldSkip: shouldSkip,
-                    willSave: !shouldSkip,
-                    isProgrammaticUpdate: isProgrammaticUpdate
-                  });
-
-                  //   // 避免重复保存：新增节点和移动节点已经在对应的包装器中保存了历史记录
-                  // if (!shouldSkip) {
-                  //   // 只有在不是程序性更新时才保存edit历史记录
-                  //   if (!isProgrammaticUpdate) {
-                  //     HistoryManager.saveState('edit');
-                  //     console.log('事件监听器 - 保存edit历史记录');
-                  //   } else {
-                  //     console.log('事件监听器 - 跳过保存，因为是程序性更新');
-                  //   }
-                  // } else {
-                  //   console.log('事件监听器 - 跳过保存，因为是add_node/move_node/move事件或程序性更新');
-                  // }
-                }
               } catch (e3) {
                 console.warn('延后处理失败:', e3);
-              }
-            }, 0);
-          } else {
-            // 如果没有node，仍然需要检查事件类型并决定是否保存历史记录
-            setTimeout(() => {
-              try {
-                debouncedSave();
-                // 保存历史记录（新增节点和移动节点已经在对应的包装器中保存了历史记录，这里避免重复保存）
-                if (typeof HistoryManager !== 'undefined' && !HistoryManager.isUndoRedoOperation) {
-                  // 调试：详细输出事件类型信息
-                  console.log('事件监听器 - 开始判断事件类型 (无节点):', {
-                    type: type,
-                    typeType: typeof type,
-                    stringType: String(type),
-                    add_node_check: String(type) === 'add_node',
-                    move_node_check: String(type) === 'move_node',
-                    move_check: String(type) === 'move',
-                    all_constants: {
-                      edit: jsMind.event_type.edit,
-                      add_node: jsMind.event_type.add_node,
-                      remove_node: jsMind.event_type.remove_node,
-                      move_node: jsMind.event_type.move_node,
-                      move: jsMind.event_type.move
-                    }
-                  });
-
-                  // 使用字符串比较，因为事件类型可能是字符串或数字
-                  const eventTypeStr = String(type);
-                  const shouldSkip = eventTypeStr === 'add_node' || eventTypeStr === 'move_node' || eventTypeStr === 'move' || isProgrammaticUpdate;
-
-                  console.log('事件监听器 - 判断结果 (无节点):', {
-                    eventTypeStr: eventTypeStr,
-                    shouldSkip: shouldSkip,
-                    willSave: !shouldSkip,
-                    isProgrammaticUpdate: isProgrammaticUpdate
-                  });
-
-                  // 避免重复保存：新增节点和移动节点已经在对应的包装器中保存了历史记录
-                  if (!shouldSkip) {
-                    HistoryManager.saveState('edit');
-                    console.log('事件监听器 - 保存edit历史记录 (无节点)');
-                  } else {
-                    console.log('事件监听器 - 跳过保存，因为是add_node/move_node/move事件 (无节点)');
-                  }
-                }
-              } catch (e3) {
-                console.warn('延后处理失败 (无节点):', e3);
               }
             }, 0);
           }
@@ -2760,142 +2872,6 @@
       }
     }
 
-    // 撤销思维导图操作
-    function undoMindmap() {
-      if (typeof HistoryManager !== 'undefined') {
-        const status = HistoryManager.getStatus();
-        if (status.canUndo) {
-          const result = HistoryManager.undo();
-          if (result) {
-            if (typeof NotificationBridge !== 'undefined') {
-              NotificationBridge.showSuccess('已撤销操作');
-            } else {
-              showWarning('已撤销操作');
-            }
-          }
-        } else {
-          if (typeof NotificationBridge !== 'undefined') {
-            NotificationBridge.showInfo('没有可撤销的操作');
-          } else {
-            showWarning('没有可撤销的操作');
-          }
-        }
-      } else {
-        console.warn('HistoryManager 未定义');
-      }
-    }
-
-    // 重做思维导图操作
-    function redoMindmap() {
-      if (typeof HistoryManager !== 'undefined') {
-        const status = HistoryManager.getStatus();
-        if (status.canRedo) {
-          const result = HistoryManager.redo();
-          if (result) {
-            if (typeof NotificationBridge !== 'undefined') {
-              NotificationBridge.showSuccess('已重做操作');
-            } else {
-              showWarning('已重做操作');
-            }
-          }
-        } else {
-          if (typeof NotificationBridge !== 'undefined') {
-            NotificationBridge.showInfo('没有可重做的操作');
-          } else {
-            showWarning('没有可重做的操作');
-          }
-        }
-      } else {
-        console.warn('HistoryManager 未定义');
-      }
-    }
-
-    // 测试移动节点撤销功能
-    function testMoveNodeUndo() {
-      if (!jm) {
-        console.warn('思维导图未初始化');
-        return;
-      }
-
-      try {
-        const selectedNode = jm.get_selected_node();
-        if (!selectedNode) {
-          console.warn('请先选择一个节点进行测试');
-          return;
-        }
-
-        const rootNode = jm.get_root();
-        if (!rootNode) {
-          console.warn('无法获取根节点');
-          return;
-        }
-
-        console.log('开始测试移动节点撤销功能:', {
-          selectedNode: selectedNode.id,
-          selectedTopic: selectedNode.topic,
-          rootNode: rootNode.id,
-          rootTopic: rootNode.topic
-        });
-
-        // 获取当前状态用于恢复
-        const originalData = jm.get_data();
-
-        // 执行移动操作（将选中节点移动到根节点下）
-        const result = jm.move_node(selectedNode.id, rootNode.id, '_last', 'right');
-
-        console.log('移动节点结果:', result);
-
-        if (result) {
-          console.log('节点移动成功，等待2秒后自动撤销...');
-
-          // 2秒后自动撤销
-          setTimeout(() => {
-            console.log('执行撤销操作...');
-            const undoResult = HistoryManager.undo();
-            console.log('撤销结果:', undoResult);
-
-            if (undoResult) {
-              console.log('撤销成功！节点位置已恢复');
-            } else {
-              console.warn('撤销失败');
-            }
-          }, 2000);
-        } else {
-          console.warn('节点移动失败');
-        }
-
-      } catch (error) {
-        console.error('测试移动节点撤销功能时出错:', error);
-      }
-    }
-
-    // 测试HistoryManager初始化功能
-    function testHistoryManagerInit() {
-      console.log('=== 测试HistoryManager初始化功能 ===');
-
-      // 显示当前状态
-      const status = HistoryManager.getStatus();
-      console.log('当前历史记录状态:', status);
-      console.log('撤销栈内容:', HistoryManager.undoStack);
-      console.log('重做栈内容:', HistoryManager.redoStack);
-
-      // 清除历史记录缓存
-      console.log('清除历史记录缓存...');
-      HistoryManager.clearHistory();
-
-      // 重新初始化
-      console.log('重新初始化HistoryManager...');
-      HistoryManager.init();
-
-      // 显示新状态
-      const newStatus = HistoryManager.getStatus();
-      console.log('重新初始化后的状态:', newStatus);
-      console.log('新的撤销栈内容:', HistoryManager.undoStack);
-      console.log('新的重做栈内容:', HistoryManager.redoStack);
-
-      console.log('=== 测试完成 ===');
-    }
-
 
 
     // 页面加载完成后初始化
@@ -2918,96 +2894,204 @@
       // 启用框选多选
       setupBoxSelection();
 
+      // 初始化 UndoManager（如果已注入）
+      try {
+        if (window.UndoManager && jm) {
+          window.undoManager = new UndoManager({
+            maxCapacity: 10,
+            getSnapshot: function () {
+              try { return JSON.stringify(jm.get_data()); } catch (e) { return null; }
+            },
+            restoreSnapshot: function (s) {
+              try {
+                jm.show(JSON.parse(s));
+                return true;
+              } catch (err) {
+                console.error('UndoManager restore failed:', err);
+                return false;
+              }
+            }
+          });
+          try { window.undoManager.recordIfChanged(); } catch (e) { }
+          try { window.undoManager.bindKeyboard({ element: document }); } catch (e) { }
+        }
+      } catch (e) {
+        console.warn('初始化 UndoManager 失败:', e);
+      }
+
       // 初始化AI扩写功能
       if (window.AIExpander) {
         window.aiExpander = new window.AIExpander();
         window.aiExpander.init(jm);
       }
-
-      // 添加键盘事件监听器（撤销重做）- 使用捕获阶段确保优先处理
-      document.addEventListener('keydown', function (e) {
-        // 只处理Ctrl相关的快捷键
-        if (!e.ctrlKey) return;
-
-        const key = e.key.toLowerCase();
-
-        // 检查是否按下了Ctrl+Z（撤销）
-        if (key === 'y' || (key === 'z' && e.shiftKey)) {
-          e.preventDefault();
-          e.stopPropagation(); // 阻止事件继续传播
-          console.log('Ctrl+Y/Ctrl+Shift+Z 重做快捷键被触发');
-          console.log('按键详情:', {
-            key: e.key,
-            code: e.code,
-            ctrlKey: e.ctrlKey,
-            shiftKey: e.shiftKey,
-            altKey: e.altKey,
-            metaKey: e.metaKey
-          });
-          if (typeof HistoryManager !== 'undefined') {
-            const status = HistoryManager.getStatus();
-            console.log('当前历史记录状态:', status);
-            if (status.canRedo) {
-              const result = HistoryManager.redo();
-              console.log('重做操作结果:', result);
-              if (result) {
-                // 使用通知桥接器显示成功消息
-                if (typeof NotificationBridge !== 'undefined') {
-                  NotificationBridge.showSuccess('已重做操作');
-                } else {
-                  showWarning('已重做操作');
-                }
-              }
-            } else {
-              console.log('无法重做：没有可重做的操作');
-              // 使用通知桥接器显示信息消息
-              if (typeof NotificationBridge !== 'undefined') {
-                NotificationBridge.showInfo('没有可重做的操作');
-              } else {
-                showWarning('没有可重做的操作');
-              }
-            }
-          } else {
-            console.warn('HistoryManager 未定义');
-          }
-        } else if (key === 'z') {
-          e.preventDefault();
-          e.stopPropagation(); // 阻止事件继续传播
-          console.log('Ctrl+Z 撤销快捷键被触发');
-          if (typeof HistoryManager !== 'undefined') {
-            const status = HistoryManager.getStatus();
-            console.log('当前历史记录状态:', status);
-            if (status.canUndo) {
-              const result = HistoryManager.undo();
-              console.log('撤销操作结果:', result);
-              if (result) {
-                // 使用通知桥接器显示成功消息
-                if (typeof NotificationBridge !== 'undefined') {
-                  NotificationBridge.showSuccess('已撤销操作');
-                } else {
-                  showWarning('已撤销操作');
-                }
-              }
-            } else {
-              console.log('无法撤销：没有可撤销的操作');
-              // 使用通知桥接器显示信息消息
-              if (typeof NotificationBridge !== 'undefined') {
-                NotificationBridge.showInfo('没有可撤销的操作');
-              } else {
-                showWarning('没有可撤销的操作');
-              }
-            }
-          } else {
-            console.warn('HistoryManager 未定义');
-          }
-        }
-
-      }, true); // 使用捕获阶段
     });
 
 
 
   </script>
+<script>
+(function(){
+  // 节点详情开关（默认开启）
+  window.__nodeDetailsEnabled = (window.__nodeDetailsEnabled === undefined) ? true : !!window.__nodeDetailsEnabled;
+
+  function updateToggleUI() {
+    var cb = document.getElementById('toggleNodeDetailsCheckbox');
+    if(!cb) return;
+    cb.checked = !!window.__nodeDetailsEnabled;
+    cb.setAttribute('aria-checked', cb.checked ? 'true' : 'false');
+  }
+
+  // 切换处理：启用时若存在选中节点立即显示详情；禁用时隐藏面板并阻止后续弹出
+  function handleToggleChange(checked) {
+    window.__nodeDetailsEnabled = !!checked;
+    if (!window.__nodeDetailsEnabled) {
+      if (typeof hideNodeDetails === 'function') {
+        try { hideNodeDetails(); } catch (e) { /* ignore */ }
+      }
+    } else {
+      // 启用时：若有选中节点，立即显示其详情
+      try {
+        var sel = null;
+        if (window.jm && typeof window.jm.get_selected_node === 'function') {
+          sel = window.jm.get_selected_node();
+        }
+        if (sel) {
+          try { showNodeDetails(sel); } catch(e) { /* ignore */ }
+        }
+      } catch (e) { /* ignore */ }
+    }
+    updateToggleUI();
+  }
+
+  // 挂载事件
+  document.addEventListener('DOMContentLoaded', function(){
+    var cb = document.getElementById('toggleNodeDetailsCheckbox');
+    if(!cb) return;
+    // 初始化 UI 状态
+    updateToggleUI();
+    // 监听 change 事件
+    cb.addEventListener('change', function(e){
+      handleToggleChange(!!e.target.checked);
+    }, {passive:true});
+    // 支持键盘空格/回车切换（aria 无障碍）
+    cb.addEventListener('keydown', function(e){
+      if (e.key === ' ' || e.key === 'Enter') {
+        // 浏览器会自动切换 checked，延迟触发 change 即可
+        setTimeout(function(){ handleToggleChange(!!cb.checked); }, 0);
+      }
+    });
+  });
+
+  // 包装 showNodeDetails：若开关关闭则静默返回
+  if (typeof window.showNodeDetails === 'function') {
+    var _origShowNodeDetails = window.showNodeDetails;
+    window.showNodeDetails = function(node){
+      if(window.__nodeDetailsEnabled === false) return;
+      return _origShowNodeDetails.apply(this, arguments);
+    };
+  } else {
+    // 若函数尚未定义，延迟包装（在后续定义时检测）
+    var _tryWrap = function(){
+      if (typeof window.showNodeDetails === 'function') {
+        var _orig = window.showNodeDetails;
+        window.showNodeDetails = function(node){
+          if(window.__nodeDetailsEnabled === false) return;
+          return _orig.apply(this, arguments);
+        };
+        clearInterval(_tryWrapInterval);
+      }
+    };
+    var _tryWrapInterval = setInterval(_tryWrap, 200);
+  }
+})();
+</script>
+<script>
+(function mw_post_init_fix(){
+  try {
+    function isMobileNow() {
+      var isSmallScreen = (window.matchMedia && window.matchMedia('(max-width: 768px)').matches);
+      var hasTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
+      return isSmallScreen || (hasTouch && window.innerWidth <= 900);
+    }
+
+    function relocateBatchOpsIfNeeded() {
+      try {
+        var isMobile = isMobileNow();
+        var batch = document.getElementById('batchOperations');
+        var mw = document.getElementById('mw-batchops');
+        if (!batch || !mw) return;
+        if (!isMobile) {
+          // copy count
+          var sc = batch.querySelector('#selectedCount');
+          var scVal = sc ? sc.textContent : '0';
+          var targetStrong = mw.querySelector('#selectedCountDisplay');
+          if (targetStrong) targetStrong.textContent = scVal;
+          batch.style.display = 'none';
+          mw.style.display = 'inline-flex';
+          // keep references
+          window.__mw_batch_source = batch;
+          window.__mw_batch_target = mw;
+        } else {
+          batch.style.display = 'none';
+          if (mw) mw.style.display = 'none';
+        }
+      } catch (e) { console.warn('[MW] relocateBatchOpsIfNeeded failed', e); }
+    }
+
+    function ensureDetailsToggleVisibleOnDesktop() {
+      try {
+        var cbDetails = document.getElementById('toggleNodeDetailsCheckbox');
+        if (!cbDetails) return;
+        var label = cbDetails.parentElement;
+        if (!label) return;
+        if (!isMobileNow()) {
+          label.style.display = ''; // restore default
+        }
+      } catch (e) { /* ignore */ }
+    }
+
+    // sync selected count periodically (small cost, robust)
+    function startSelectedCountSync() {
+      try {
+        var source = document.getElementById('batchOperations');
+        var target = document.getElementById('mw-batchops');
+        if (!source || !target) return;
+        var sSrc = source.querySelector('#selectedCount');
+        var sTgt = target.querySelector('#selectedCountDisplay');
+        if (!sSrc || !sTgt) return;
+        var last = null;
+        setInterval(function(){
+          try {
+            var now = sSrc.textContent || sSrc.innerText || '0';
+            if (now !== last) {
+              last = now;
+              sTgt.textContent = now;
+            }
+          } catch (e) {}
+        }, 250);
+      } catch (e) { /* ignore */ }
+    }
+
+    // run on load and on resize/orientationchange
+    function boot() {
+      relocateBatchOpsIfNeeded();
+      ensureDetailsToggleVisibleOnDesktop();
+      startSelectedCountSync();
+    }
+
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      setTimeout(boot, 50);
+    } else {
+      document.addEventListener('DOMContentLoaded', function(){ setTimeout(boot, 50); });
+      window.addEventListener('load', function(){ setTimeout(boot, 50); });
+    }
+    window.addEventListener('resize', function(){ setTimeout(relocateBatchOpsIfNeeded, 60); });
+    window.addEventListener('orientationchange', function(){ setTimeout(relocateBatchOpsIfNeeded, 60); });
+  } catch (e) {
+    console.error('[MW] post init fix error', e);
+  }
+})();
+</script>
 </body>
 
 </html>

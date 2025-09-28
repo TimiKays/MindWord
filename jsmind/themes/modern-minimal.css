@@ -1,0 +1,64 @@
+/* modern-minimal theme - base node styles (white background, bottom border only)
+   This file intentionally does NOT modify .jmnode.multi-selected,
+   so multi-select visuals remain as currently implemented.
+*/
+
+.jmnode {
+  background: #ffffff !important;
+  border: none !important;
+  border-bottom: 1px solid #e6e6e6 !important;
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  margin: 0;
+  padding: 0;
+}
+
+.jmnode .topic {
+  display: inline-block;
+  padding: 6px 12px !important;
+  color: #202124 !important;
+  font-size: 14px !important;
+  line-height: 1.3 !important;
+  background: transparent !important;
+}
+
+/* keep node inline block for compact look, but allow wrapping if needed */
+.jmnode .topic .jmnode-content {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* ensure expander matches the node visual when not multi-selected */
+.jmnode .jmexpander {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid transparent !important;
+  box-shadow: none !important;
+  padding: 4px !important;
+}
+
+/* when node is selected (single-select), show slightly stronger bottom border,
+   but do not override multi-select specific styles */
+.jmnode.selected:not(.multi-selected) {
+  background: #ffffff !important;
+  border-bottom: 2px solid #cfcfcf !important;
+  box-shadow: none !important;
+}
+
+/* make sure internal containers inherit transparent background */
+.jmnode > * {
+  background: transparent !important;
+}
+
+/* small responsive tweaks */
+.jmnode .topic a, .jmnode .topic span {
+  color: inherit !important;
+  text-decoration: none !important;
+}
+
+/* keep connectors and other UI elements intact */
+.jm-theme-modern-minimal-ignore {
+  /* placeholder if you need to add exceptions later */
+}
+
+/* End of modern-minimal theme */
