@@ -79,7 +79,7 @@ jmnode {
     background-color: #fff;
     color: #333;
     border-radius: 5px;
-    box-shadow: 1px 1px 3px #999;
+    box-shadow: 1px 1px 1px #666;
     font: 16px/1.125 Verdana, Arial, Helvetica, sans-serif;
 }
 jmnode:hover {
@@ -88,7 +88,7 @@ jmnode:hover {
     color: #333;
 }
 jmnode.selected {
-    background-color: rgb(255, 199, 17);
+    background-color: #11f;
     color: #fff;
     box-shadow: 2px 2px 8px #000;
 }
@@ -114,13 +114,13 @@ jmexpander:hover {
 }
 /* primary theme */
 jmnodes.theme-primary jmnode {
-    background-color: #ffffff;
-    color: #383838;
+    background-color: #428bca;
+    color: #fff;
     border-color: #357ebd;
 }
 jmnodes.theme-primary jmnode:hover {
-    background-color: #dddddd;
-    border-color: #e4f4f7;
+    background-color: #3276b1;
+    border-color: #285e8e;
 }
 jmnodes.theme-primary jmnode.selected {
     background-color: #f1c40f;

@@ -25,7 +25,7 @@
     var options = {
         line_width: 5,
         line_color: 'rgba(0,0,0,0.3)',
-        lookup_delay: 500,
+        lookup_delay: 100,
         lookup_interval: 80,
         scrolling_trigger_width: 20,
         scrolling_step_length: 10
@@ -285,17 +285,17 @@
                 if (
                     e.clientY - this.view_panel_rect.top < options.scrolling_trigger_width &&
                     this.view_panel.scrollTop > options.scrolling_step_length
-                  ) {
+                ) {
                     this.view_panel.scrollBy(0, -options.scrolling_step_length);
                     this.offset_y += options.scrolling_step_length / jview.actualZoom;
-                  } else if (
+                } else if (
                     this.view_panel_rect.bottom - e.clientY < options.scrolling_trigger_width &&
                     this.view_panel.scrollTop <
                     this.view_panel.scrollHeight - this.view_panel_rect.height - options.scrolling_step_length
-                  ) {
+                ) {
                     this.view_panel.scrollBy(0, options.scrolling_step_length);
                     this.offset_y -= options.scrolling_step_length / jview.actualZoom;
-                  }
+                }
                 // scrolling container axisX if drag nodes exceeding container
                 if (e.clientX - this.view_panel_rect.left < options.scrolling_trigger_width && this.view_panel.scrollLeft > options.scrolling_step_length) {
                     this.view_panel.scrollBy(-options.scrolling_step_length, 0);
@@ -303,7 +303,7 @@
                 } else if (
                     this.view_panel_rect.right - e.clientX < options.scrolling_trigger_width &&
                     this.view_panel.scrollLeft < this.view_panel.scrollWidth - this.view_panel_rect.width - options.scrolling_step_length
-                    ) {
+                ) {
                     this.view_panel.scrollBy(options.scrolling_step_length, 0);
                     this.offset_x -= options.scrolling_step_length / jview.actualZoom;
                 }
