@@ -27,6 +27,9 @@
         </div>
     </header>
 
+    <!-- 移动端底部 Tabs 容器（JS 会在移动端将顶部 tabs 克隆到这里） -->
+    <div id="mobile-tabs" class="mobile-tabs" aria-hidden="true"></div>
+
     <!-- 主内容区域 -->
     <main class="main-content" id="main-content">
         <!-- 专注模式提示 -->
@@ -534,6 +537,29 @@
         // 事件监听器
         // ===================================
 
+        // 移动端自动进入专注模式（隐藏专注切换按钮并进入专注）
+        (function initMobileFocus() {
+            const isMobile = (window.matchMedia && window.matchMedia('(max-width: 768px)').matches)
+                || ('ontouchstart' in window && navigator.maxTouchPoints > 0);
+            const focusToggle = document.getElementById('focus-toggle');
+            if (isMobile) {
+                // 隐藏专注切换按钮（样式已在 mobile CSS 中隐藏 header-right）
+                if (focusToggle) focusToggle.style.display = 'none';
+
+                // 设置专注状态并激活默认面板
+                focusMode = true;
+                activeFocusPanel = activeFocusPanel || 'editor';
+
+                const mainContent = document.getElementById('main-content');
+                if (mainContent) mainContent.classList.add('focus-mode');
+
+                // 调用现有的专注初始化逻辑（如果存在）
+                if (typeof enterFocusMode === 'function') enterFocusMode();
+                if (typeof updateTabs === 'function') updateTabs();
+                if (typeof updateLayout === 'function') updateLayout();
+            }
+        })();
+
         // 专注模式切换按钮事件
         document.getElementById('focus-toggle').addEventListener('click', toggleFocusMode);
 
@@ -721,7 +747,61 @@
 
         // 页面加载完成后初始化
         document.addEventListener('DOMContentLoaded', initApp);
+
+        // 在移动端创建底部 tabs：克隆 header .tabs 到 mobile-tabs（保持事件绑定）
+        function createMobileTabs() {
+            try {
+                const isMobile = (window.matchMedia && window.matchMedia('(max-width: 768px)').matches)
+                    || ('ontouchstart' in window && navigator.maxTouchPoints > 0);
+                const headerTabs = document.querySelector('.header .tabs');
+                const mobileContainer = document.getElementById('mobile-tabs');
+                if (!headerTabs || !mobileContainer) return;
+
+                // 清空并克隆
+                mobileContainer.innerHTML = '';
+                headerTabs.querySelectorAll('.tab[data-panel]').forEach(tab => {
+                    const panel = tab.dataset.panel;
+                    const clone = tab.cloneNode(true);
+                    clone.classList.remove('active');
+                    clone.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        handleTabClick(panel);
+                        // 视觉反馈
+                        document.querySelectorAll('.mobile-tabs .tab').forEach(t => t.classList.remove('active'));
+                        clone.classList.add('active');
+                    });
+                    mobileContainer.appendChild(clone);
+                });
+
+                // 显示/隐藏与 focusMode 状态同步
+                if (isMobile) {
+                    mobileContainer.setAttribute('aria-hidden', 'false');
+                    mobileContainer.style.display = 'flex';
+                } else {
+                    mobileContainer.setAttribute('aria-hidden', 'true');
+                    mobileContainer.style.display = 'none';
+                }
+
+                // 同步激活状态
+                updateTabs();
+            } catch (e) {
+                console.warn('createMobileTabs error', e);
+            }
+        }
+
+        // 当窗口尺寸变化时同步 mobile tabs
+        window.addEventListener('resize', () => {
+            // debounce 简单实现
+            clearTimeout(window._mobileTabsResizeTimer);
+            window._mobileTabsResizeTimer = setTimeout(() => createMobileTabs(), 120);
+        });
+
+        // 在 initApp 中也调用一次（在 DOMContentLoaded 之后）
+        document.addEventListener('DOMContentLoaded', () => {
+            createMobileTabs();
+        });
     </script>
 </body>
+</html>
 
 </html>

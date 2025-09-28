@@ -34,12 +34,13 @@
     }
 
     #fullScreenMindmap {
-      width: 70%;
+      width: 100%;
+      flex: 1;
       height: 100%;
       position: relative;
       background: white;
       overflow: auto;
-      /* 添加滚动条支持 */
+      /* 添加滚动条支持：现在占满父容器，不再保留侧栏空间 */
     }
 
     /* jsmind 节点容器滚动支持 */
@@ -72,13 +73,86 @@
       background: #a8a8a8;
     }
 
+    /* 将侧栏转换为浮动可关闭面板，默认隐藏（通过 JS showNodeDetails 控制显示） */
     #nodeDetails {
-      width: 30%;
-      height: 100%;
-      padding: 20px;
-      border-left: 1px solid #ddd;
+      position: fixed;
+      right: 12px;
+      top: 80px;
+      width: 300px;
+      max-width: calc(100% - 32px);
+      max-height: 80vh; /* 高度较小 */
+      padding: 10px;
+      border-left: none;
+      border-radius: 8px;
       overflow-y: auto;
       background: #f8f9fa;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+      z-index: 1200;
+      display: none; /* 默认由 showNodeDetails 显示 */
+      touch-action: none; /* 避免触摸滚动与拖拽冲突 */
+      cursor: move;
+      font-size: 14px; /* 统一面板内字体为 14px */
+    }
+
+    /* 确保面板内部常见控件字体一致 */
+    #nodeDetails input,
+    #nodeDetails textarea,
+    #nodeDetails .node-info,
+    #nodeDetails label,
+    #nodeDetails button {
+      font-size: 14px;
+    }
+
+    /* 拖拽用的把手区域（如果存在 panel-header 则使用它） */
+    #nodeDetails .panel-header {
+      cursor: grab;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    /* 小屏适配：面板占更宽但仍隐藏 header（按要求） */
+    @media (max-width: 768px) {
+      #nodeDetails {
+        top: 56px;
+        right: 8px;
+        left: 8px;
+        width: auto;
+        height: calc(100% - 64px);
+        max-height: none;
+        padding: 12px;
+        border-radius: 6px;
+      }
+      #nodeDetails .panel-header { display: none; }
+    }
+
+    /* panel header for floating panel */
+    #nodeDetails .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    #nodeDetails .panel-close-btn {
+      background: transparent;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 4px 6px;
+    }
+
+    /* 在移动端隐藏 panel-header（用户要求）并使面板占据较大高度 */
+    @media (max-width: 768px) {
+      #nodeDetails {
+        top: 56px;
+        right: 8px;
+        left: 8px;
+        width: auto;
+        height: calc(100% - 64px);
+        padding: 12px;
+        border-radius: 6px;
+      }
+      #nodeDetails .panel-header { display: none; }
     }
 
 
@@ -255,7 +329,7 @@
     /* 内联样式类 - 已移除，不再使用 */
     /* .jmnode.multi-selected-inline { background-color: rgba(76, 154, 255, 0.3); border: 2px solid #4c9aff; box-shadow: 0 0 0 3px rgba(76, 154, 255, 0.8); position: relative; } */
   </style>
-  <link rel="stylesheet" href="jsmind/themes/modern-minimal.css">
+
 </head>
 
 <body>
@@ -265,6 +339,11 @@
 
     <button class="btn" onclick="exportData()">查看JSON</button>
     <button class="btn" onclick="downloadMindmap()">下载图片</button>
+    <label class="btn btn-toggle" style="display:inline-flex;align-items:center;gap:6px;margin-left:8px;cursor:pointer;">
+      <input id="toggleNodeDetailsCheckbox" type="checkbox" role="switch" aria-checked="true" style="width:16px;height:16px;margin:0;padding:0;">
+      <span aria-hidden="true" ">详情面板</span>
+      
+    </label>
 
     <div id="batchOperations"
       style="display: inline-block; margin-top: 2px; padding: 5px 10px; background: rgba(76, 154, 255, 0.1); border-radius: 4px; border: 1px solid #4c9aff;">
@@ -278,13 +357,14 @@
   <div class="main-container">
     <div id="fullScreenMindmap"></div>
 
-    <div id="nodeDetails">
-
-
-      <div id="nodeInfo">
-
+    <!-- 浮动节点详情面板（可关闭），保留内部字段和功能 -->
+    <div id="nodeDetails" role="dialog" aria-hidden="true" aria-label="节点详情">
+      <div class="panel-header">
+        <strong>节点详情</strong>
+        <button class="panel-close-btn" aria-label="关闭节点详情" onclick="hideNodeDetails()">✕</button>
       </div>
 
+      <div id="nodeInfo"></div>
 
       <div class="form-group">
         <label for="nodeTopic">节点主题:</label>
@@ -312,7 +392,7 @@
       <!-- 通知桥接器 -->
       <script src="../notification-bridge.js"></script>
       <script>
-        // AI扩写函数
+        // AI扩写函数（保留原逻辑）
         function expandWithAI() {
           try {
             const selectedNode = jm.get_selected_node();
@@ -331,6 +411,207 @@
             showError('AI扩写出错: ' + e.message);
           }
         }
+
+        // 隐藏/显示浮动面板的 API（供 showNodeDetails 调用）
+        function hideNodeDetails() {
+          const p = document.getElementById('nodeDetails');
+          if (p) {
+            p.style.display = 'none';
+            p.setAttribute('aria-hidden', 'true');
+            // 安全移除拖拽监听（若在闭包中定义则不会抛错）
+            if (typeof removeNodeDetailsDragHandlers === 'function') {
+              try { removeNodeDetailsDragHandlers(); } catch (e) { /* ignore */ }
+            } else if (typeof window.removeNodeDetailsDragHandlers === 'function') {
+              try { window.removeNodeDetailsDragHandlers(); } catch (e) { /* ignore */ }
+            }
+          }
+        }
+        function showNodeDetailsPanel() {
+          const p = document.getElementById('nodeDetails');
+          if (p) {
+            p.style.display = 'block';
+            p.setAttribute('aria-hidden', 'false');
+            // 仅当面板未被用户移动过时，才重置为默认靠右位置
+            if (p.dataset.moved !== 'true') {
+              p.style.right = '12px';
+              p.style.left = 'auto';
+              p.style.top = '80px';
+            }
+            // 初始化拖拽监听（幂等）
+            initNodeDetailsDragHandlers();
+          }
+        }
+        
+        // 缩放中心修正：在鼠标/触摸位置设置 transform-origin，配合现有库缩放以该点为中心
+        (function setupZoomOrigin() {
+          const container = document.getElementById('fullScreenMindmap');
+          if (!container) return;
+          function setOrigin(clientX, clientY) {
+            const rect = container.getBoundingClientRect();
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+            container.style.transformOrigin = `${x}px ${y}px`;
+          }
+          // 鼠标滚轮：在缩放前设置 origin
+          container.addEventListener('wheel', function (e) {
+            if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) {
+              // 若用户同时按键，仍支持，但优先设置 origin
+            }
+            setOrigin(e.clientX, e.clientY);
+            // 不阻止原生滚动/缩放逻辑，让现有库处理实际缩放
+          }, { passive: true });
+          // 触摸：记录触摸点以设置 origin（用于双指缩放前）
+          container.addEventListener('touchstart', function (e) {
+            if (!e.touches || e.touches.length === 0) return;
+            const t = e.touches[0];
+            setOrigin(t.clientX, t.clientY);
+          }, { passive: true });
+        })();
+      
+
+        /* 拖拽支持：鼠标与触摸 */
+        (function () {
+          let dragging = false;
+          let startX = 0, startY = 0;
+          let origLeft = 0, origTop = 0;
+          let handlersAdded = false;
+
+          function clampPosition(x, y, el) {
+            const pad = 8;
+            const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+            const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+            const rect = el.getBoundingClientRect();
+            const w = rect.width;
+            const h = rect.height;
+            const nx = Math.min(Math.max(x, pad - rect.left + rect.left - rect.left), vw - w - pad);
+            const ny = Math.min(Math.max(y, pad), vh - h - pad);
+            return { x: nx, y: ny };
+          }
+
+          function onPointerDown(e) {
+            const p = document.getElementById('nodeDetails');
+            if (!p) return;
+            dragging = true;
+            p.style.transition = 'none';
+            const rect = p.getBoundingClientRect();
+            origLeft = rect.left;
+            origTop = rect.top;
+            if (e.type === 'touchstart') {
+              startX = e.touches[0].clientX;
+              startY = e.touches[0].clientY;
+            } else {
+              startX = e.clientX;
+              startY = e.clientY;
+            }
+            // prevent iframe text selection during drag
+            document.body.style.userSelect = 'none';
+          }
+
+          function onPointerMove(e) {
+            if (!dragging) return;
+            const p = document.getElementById('nodeDetails');
+            if (!p) return;
+            let cx = (e.type === 'touchmove') ? e.touches[0].clientX : e.clientX;
+            let cy = (e.type === 'touchmove') ? e.touches[0].clientY : e.clientY;
+            const dx = cx - startX;
+            const dy = cy - startY;
+            const left = origLeft + dx;
+            const top = origTop + dy;
+            // 限制到视口内
+            const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+            const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+            const rect = p.getBoundingClientRect();
+            const w = rect.width, h = rect.height;
+            const minLeft = 8;
+            const maxLeft = vw - w - 8;
+            const minTop = 8;
+            const maxTop = vh - h - 8;
+            const nx = Math.min(Math.max(left, minLeft), Math.max(minLeft, maxLeft));
+            const ny = Math.min(Math.max(top, minTop), Math.max(minTop, maxTop));
+            // 记录临时位移量，onPointerUp 会基于此判断是否标记为已移动
+            try {
+              p.dataset._dragMovedX = String(dx);
+              p.dataset._dragMovedY = String(dy);
+            } catch (e) { /* ignore */ }
+            p.style.right = 'auto';
+            p.style.left = nx + 'px';
+            p.style.top = ny + 'px';
+          }
+
+          function onPointerUp() {
+            if (!dragging) return;
+            dragging = false;
+            document.body.style.userSelect = '';
+            const p = document.getElementById('nodeDetails');
+            if (p) p.style.transition = '';
+            // 标记是否发生过显著位移，页面未刷新前保持位置
+            try {
+              if (p) {
+                const movedX = parseFloat(p.dataset._dragMovedX || '0');
+                const movedY = parseFloat(p.dataset._dragMovedY || '0');
+                if (Math.abs(movedX) > 2 || Math.abs(movedY) > 2) {
+                  p.dataset.moved = 'true';
+                }
+                delete p.dataset._dragMovedX;
+                delete p.dataset._dragMovedY;
+              }
+            } catch (e) { /* ignore */ }
+          }
+
+          function initNodeDetailsDragHandlers() {
+            if (handlersAdded) return;
+            const p = document.getElementById('nodeDetails');
+            if (!p) return;
+            // 使用 panel-header 作为抓手，如无则全面板可拖
+            const handle = p.querySelector('.panel-header') || p;
+            handle.addEventListener('mousedown', onPointerDown, { passive: true });
+            window.addEventListener('mousemove', onPointerMove, { passive: true });
+            window.addEventListener('mouseup', onPointerUp, { passive: true });
+            handle.addEventListener('touchstart', onPointerDown, { passive: true });
+            window.addEventListener('touchmove', onPointerMove, { passive: true });
+            window.addEventListener('touchend', onPointerUp, { passive: true });
+            handlersAdded = true;
+          }
+
+          function removeNodeDetailsDragHandlers() {
+            if (!handlersAdded) return;
+            const p = document.getElementById('nodeDetails');
+            if (!p) return;
+            const handle = p.querySelector('.panel-header') || p;
+            try {
+              handle.removeEventListener('mousedown', onPointerDown);
+              window.removeEventListener('mousemove', onPointerMove);
+              window.removeEventListener('mouseup', onPointerUp);
+              handle.removeEventListener('touchstart', onPointerDown);
+              window.removeEventListener('touchmove', onPointerMove);
+              window.removeEventListener('touchend', onPointerUp);
+            } catch (e) { /* ignore */ }
+            handlersAdded = false;
+          }
+
+          // 如果面板已显示，初始化一次
+          document.addEventListener('DOMContentLoaded', function () {
+            const p = document.getElementById('nodeDetails');
+            if (p && p.style.display !== 'none') initNodeDetailsDragHandlers();
+          });
+          // 在窗口大小变化时微调位置，避免超出
+          window.addEventListener('resize', function () {
+            const p = document.getElementById('nodeDetails');
+            if (!p || p.style.display === 'none') return;
+            const rect = p.getBoundingClientRect();
+            const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+            const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+            const maxLeft = Math.max(8, vw - rect.width - 8);
+            const maxTop = Math.max(8, vh - rect.height - 8);
+            let left = rect.left;
+            let top = rect.top;
+            if (left > maxLeft) left = maxLeft;
+            if (top > maxTop) top = maxTop;
+            p.style.left = left + 'px';
+            p.style.top = top + 'px';
+          });
+
+        })();
       </script>
     </div>
   </div>
@@ -659,6 +940,11 @@
       }
       if (!node) return;
 
+      // 确保浮动面板显示（向后兼容现有逻辑）
+      if (typeof showNodeDetailsPanel === 'function') {
+        try { showNodeDetailsPanel(); } catch (e) { /* ignore */ }
+      }
+
       const nodeInfo = document.getElementById('nodeInfo');
       const nodeTopic = document.getElementById('nodeTopic');
       const nodeNotes = document.getElementById('nodeNotes');
@@ -941,6 +1227,17 @@
 
     /* 画布框选多选功能 */
     function setupBoxSelection() {
+      // 移动端保护：触摸设备或小屏不启用画布框选/多选功能，避免误触发和不友好交互
+      if (('ontouchstart' in window && navigator.maxTouchPoints > 0) || (window.matchMedia && window.matchMedia('(max-width: 768px)').matches)) {
+          // 确保隐藏选择矩形（若存在）
+          const existing = document.querySelector('#selectionRect');
+          if (existing) existing.style.display = 'none';
+          // 隐藏批量工具栏
+          const batchOps = document.getElementById('batchOperations');
+          if (batchOps) batchOps.style.display = 'none';
+          return;
+      }
+
       const container = document.getElementById('fullScreenMindmap');
       if (!container) return;
 
@@ -2395,6 +2692,82 @@
 
 
   </script>
+<script>
+(function(){
+  // 节点详情开关（默认开启）
+  window.__nodeDetailsEnabled = (window.__nodeDetailsEnabled === undefined) ? true : !!window.__nodeDetailsEnabled;
+
+  function updateToggleUI() {
+    var cb = document.getElementById('toggleNodeDetailsCheckbox');
+    if(!cb) return;
+    cb.checked = !!window.__nodeDetailsEnabled;
+    cb.setAttribute('aria-checked', cb.checked ? 'true' : 'false');
+  }
+
+  // 切换处理：启用时若存在选中节点立即显示详情；禁用时隐藏面板并阻止后续弹出
+  function handleToggleChange(checked) {
+    window.__nodeDetailsEnabled = !!checked;
+    if (!window.__nodeDetailsEnabled) {
+      if (typeof hideNodeDetails === 'function') {
+        try { hideNodeDetails(); } catch (e) { /* ignore */ }
+      }
+    } else {
+      // 启用时：若有选中节点，立即显示其详情
+      try {
+        var sel = null;
+        if (window.jm && typeof window.jm.get_selected_node === 'function') {
+          sel = window.jm.get_selected_node();
+        }
+        if (sel) {
+          try { showNodeDetails(sel); } catch(e) { /* ignore */ }
+        }
+      } catch (e) { /* ignore */ }
+    }
+    updateToggleUI();
+  }
+
+  // 挂载事件
+  document.addEventListener('DOMContentLoaded', function(){
+    var cb = document.getElementById('toggleNodeDetailsCheckbox');
+    if(!cb) return;
+    // 初始化 UI 状态
+    updateToggleUI();
+    // 监听 change 事件
+    cb.addEventListener('change', function(e){
+      handleToggleChange(!!e.target.checked);
+    }, {passive:true});
+    // 支持键盘空格/回车切换（aria 无障碍）
+    cb.addEventListener('keydown', function(e){
+      if (e.key === ' ' || e.key === 'Enter') {
+        // 浏览器会自动切换 checked，延迟触发 change 即可
+        setTimeout(function(){ handleToggleChange(!!cb.checked); }, 0);
+      }
+    });
+  });
+
+  // 包装 showNodeDetails：若开关关闭则静默返回
+  if (typeof window.showNodeDetails === 'function') {
+    var _origShowNodeDetails = window.showNodeDetails;
+    window.showNodeDetails = function(node){
+      if(window.__nodeDetailsEnabled === false) return;
+      return _origShowNodeDetails.apply(this, arguments);
+    };
+  } else {
+    // 若函数尚未定义，延迟包装（在后续定义时检测）
+    var _tryWrap = function(){
+      if (typeof window.showNodeDetails === 'function') {
+        var _orig = window.showNodeDetails;
+        window.showNodeDetails = function(node){
+          if(window.__nodeDetailsEnabled === false) return;
+          return _orig.apply(this, arguments);
+        };
+        clearInterval(_tryWrapInterval);
+      }
+    };
+    var _tryWrapInterval = setInterval(_tryWrap, 200);
+  }
+})();
+</script>
 </body>
 
 </html>

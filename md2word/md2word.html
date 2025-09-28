@@ -154,19 +154,64 @@
       text-align: center;
       padding: 40px;
     }
+
+    /* 移动端 toolbar 响应式：保持与全局 .btn 一致，仅允许换行/折叠次要控件 */
+    @media (max-width: 768px) {
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 8px;
+        align-items: center; /* 垂直居中，使用全局 .btn 的内边距 */
+      }
+      /* 不覆盖 .btn 的 padding/边框，只调整伸缩行为和最小宽度 */
+      .toolbar .btn {
+        flex: 0 0 auto;
+        min-width: 72px;
+        margin: 6px 4px;
+      }
+      .toolbar .toolbar-select, .toolbar select {
+        flex: 1 1 100%;
+        min-width: 0;
+        margin: 6px 4px;
+        max-width: 100%;
+      }
+      .toolbar input[type="file"] {
+        margin: 6px 4px;
+        flex: 1 1 auto;
+      }
+      /* 防止按钮文字换行导致高度异常，但不改变按钮内边距 */
+      .toolbar .btn span {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
   </style>
 </head>
 
 <body>
-  <!-- 控制按钮区域 -->
+  <!-- 控制按钮区域（已改为：主操作 + 次要收纳） -->
   <div class="toolbar">
-    <button class="btn" id="downloadBtn">生成 Word</button>
-    <button class="btn" id="uploadTplBtn">上传模板</button>
-    <button class="btn" id="downloadDefaultTplBtn">下载模板</button>
-    <select id="templateSelect" class="toolbar-select">
-      <option value="default">默认模板</option>
-    </select>
-    <input type="file" id="uploadTplInput" accept=".docx" />
+    <div class="toolbar-primary" style="display:flex;align-items:center;gap:8px;">
+      <button class="btn" id="downloadBtn">生成 Word</button>
+      <button class="btn" id="uploadTplBtn">上传模板</button>
+      <button class="btn" id="downloadDefaultTplBtn">下载模板</button>
+      <select id="templateSelect" class="toolbar-select" style="display:inline-block; width:auto; margin-left:6px;">
+        <option value="default">默认模板</option>
+      </select>
+    </div>
+
+    <!-- 次要控件，移动端默认折叠 -->
+    <div class="toolbar-secondary" style="display:inline-flex;align-items:center;gap:8px;margin-left:8px;">
+      <input type="file" id="uploadTplInput" accept=".docx" />
+      <!-- 备用占位，可由更多按钮展开 -->
+      <div class="toolbar-more-placeholder" style="display:none;"></div>
+    </div>
+
+    <!-- 移动端/窄屏显示的“更多”按钮，用于展开次要控件
+    <button class="btn" id="toolbarMore" aria-expanded="false" style="margin-left:8px;">更多 ▾</button> -->
+
     <!-- <div id="status">状态：等待操作</div>-->
   </div>
 
