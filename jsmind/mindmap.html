@@ -2924,11 +2924,55 @@
         window.aiExpander.init(jm);
       }
 
-      // 添加键盘事件监听器（撤销重做）
+      // 添加键盘事件监听器（撤销重做）- 使用捕获阶段确保优先处理
       document.addEventListener('keydown', function (e) {
+        // 只处理Ctrl相关的快捷键
+        if (!e.ctrlKey) return;
+
+        const key = e.key.toLowerCase();
+
         // 检查是否按下了Ctrl+Z（撤销）
-        if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
+        if (key === 'y' || (key === 'z' && e.shiftKey)) {
           e.preventDefault();
+          e.stopPropagation(); // 阻止事件继续传播
+          console.log('Ctrl+Y/Ctrl+Shift+Z 重做快捷键被触发');
+          console.log('按键详情:', {
+            key: e.key,
+            code: e.code,
+            ctrlKey: e.ctrlKey,
+            shiftKey: e.shiftKey,
+            altKey: e.altKey,
+            metaKey: e.metaKey
+          });
+          if (typeof HistoryManager !== 'undefined') {
+            const status = HistoryManager.getStatus();
+            console.log('当前历史记录状态:', status);
+            if (status.canRedo) {
+              const result = HistoryManager.redo();
+              console.log('重做操作结果:', result);
+              if (result) {
+                // 使用通知桥接器显示成功消息
+                if (typeof NotificationBridge !== 'undefined') {
+                  NotificationBridge.showSuccess('已重做操作');
+                } else {
+                  showWarning('已重做操作');
+                }
+              }
+            } else {
+              console.log('无法重做：没有可重做的操作');
+              // 使用通知桥接器显示信息消息
+              if (typeof NotificationBridge !== 'undefined') {
+                NotificationBridge.showInfo('没有可重做的操作');
+              } else {
+                showWarning('没有可重做的操作');
+              }
+            }
+          } else {
+            console.warn('HistoryManager 未定义');
+          }
+        } else if (key === 'z') {
+          e.preventDefault();
+          e.stopPropagation(); // 阻止事件继续传播
           console.log('Ctrl+Z 撤销快捷键被触发');
           if (typeof HistoryManager !== 'undefined') {
             const status = HistoryManager.getStatus();
@@ -2957,38 +3001,8 @@
             console.warn('HistoryManager 未定义');
           }
         }
-        // 检查是否按下了Ctrl+Y（重做）或Ctrl+Shift+Z
-        else if ((e.ctrlKey && e.key === 'y') || (e.ctrlKey && e.shiftKey && e.key === 'z')) {
-          e.preventDefault();
-          console.log('Ctrl+Y/Ctrl+Shift+Z 重做快捷键被触发');
-          if (typeof HistoryManager !== 'undefined') {
-            const status = HistoryManager.getStatus();
-            console.log('当前历史记录状态:', status);
-            if (status.canRedo) {
-              const result = HistoryManager.redo();
-              console.log('重做操作结果:', result);
-              if (result) {
-                // 使用通知桥接器显示成功消息
-                if (typeof NotificationBridge !== 'undefined') {
-                  NotificationBridge.showSuccess('已重做操作');
-                } else {
-                  showWarning('已重做操作');
-                }
-              }
-            } else {
-              console.log('无法重做：没有可重做的操作');
-              // 使用通知桥接器显示信息消息
-              if (typeof NotificationBridge !== 'undefined') {
-                NotificationBridge.showInfo('没有可重做的操作');
-              } else {
-                showWarning('没有可重做的操作');
-              }
-            }
-          } else {
-            console.warn('HistoryManager 未定义');
-          }
-        }
-      });
+
+      }, true); // 使用捕获阶段
     });
 
 
