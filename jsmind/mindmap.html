@@ -110,50 +110,7 @@
       user-select: none;
     }
 
-    /* 小屏适配：面板占更宽但仍隐藏 header（按要求） */
-    @media (max-width: 768px) {
-      #nodeDetails {
-        top: 56px;
-        right: 8px;
-        left: 8px;
-        width: auto;
-        height: calc(100% - 64px);
-        max-height: none;
-        padding: 12px;
-        border-radius: 6px;
-      }
-      #nodeDetails .panel-header { display: none; }
-    }
 
-    /* panel header for floating panel */
-    #nodeDetails .panel-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-    #nodeDetails .panel-close-btn {
-      background: transparent;
-      border: none;
-      font-size: 18px;
-      cursor: pointer;
-      padding: 4px 6px;
-    }
-
-    /* 在移动端隐藏 panel-header（用户要求）并使面板占据较大高度 */
-    @media (max-width: 768px) {
-      #nodeDetails {
-        top: 56px;
-        right: 8px;
-        left: 8px;
-        width: auto;
-        height: calc(100% - 64px);
-        padding: 12px;
-        border-radius: 6px;
-      }
-      #nodeDetails .panel-header { display: none; }
-    }
 
 
 
@@ -329,6 +286,37 @@
     /* 内联样式类 - 已移除，不再使用 */
     /* .jmnode.multi-selected-inline { background-color: rgba(76, 154, 255, 0.3); border: 2px solid #4c9aff; box-shadow: 0 0 0 3px rgba(76, 154, 255, 0.8); position: relative; } */
   </style>
+
+  <script>
+    // 防重复绑定补丁（非侵入）：对一组常见事件的等价回调去重（DOMContentLoaded, load, resize, storage）
+    // 只在 addEventListener 注册时做检测并忽略等价 listener 的重复注册（使用 listener.toString() 作为轻量指纹）
+    (function(){
+      try {
+        if (!document.__mw_event_dedupe_installed) {
+          var __orig_add = document.addEventListener.bind(document);
+          var __seen = Object.create(null); // map: eventType -> Set of fingerprints
+          document.addEventListener = function(type, listener, options) {
+            try {
+              if (typeof listener === 'function' && (type === 'DOMContentLoaded' || type === 'load' || type === 'resize' || type === 'storage')) {
+                __seen[type] = __seen[type] || new Set();
+                var fp = listener.toString();
+                if (__seen[type].has(fp)) {
+                  // 等价回调已注册，忽略重复绑定
+                  return;
+                }
+                __seen[type].add(fp);
+              }
+            } catch (e) { /* 忽略指纹计算错误，回退到默认行为 */ }
+            return __orig_add(type, listener, options);
+          };
+          document.__mw_event_dedupe_installed = true;
+        }
+      } catch (e) {
+        console.warn('[MW] event dedupe install failed', e);
+      }
+    })();
+  </script>
+</head>
 
 </head>
 
@@ -572,9 +560,9 @@
             cbList.addEventListener('change', function(){ applyNodeVisibilityFilter(); }, {passive:true});
           }
 
-          setTimeout(function(){
-            updateNodeTypeBadges();
-            applyNodeVisibilityFilter();
+          window.MW_scheduleOnce('applyBadges', function(){
+            try { updateNodeTypeBadges(); } catch(e){}
+            try { applyNodeVisibilityFilter(); } catch(e){}
           }, 120);
         });
 
@@ -891,10 +879,39 @@
   <script type="module" src="../converter/sync.js"></script>
   <script type="module" src="../converter/load.js"></script>
   <script src="plugins/undo_manager.js"></script>
-  <script>
+   <script>
     let jm = null;
     let currentNodeTree = null;
 
+    // 全局 MW 状态容器（集中多选集合等共享状态，避免在多个作用域重复创建）
+    window.MW = window.MW || {};
+    window.MW.multiSelected = window.MW.multiSelected || new Set();
+    
+    // 全局轻量调度器：按 name 去重、防抖调度回调（幂等注入，便于替换散落的 setTimeout）
+    (function(){
+      if (!window.MW_scheduleOnce) {
+        window.MW.__scheduleMap = window.MW.__scheduleMap || new Map();
+        window.MW_scheduleOnce = function(name, fn, delay) {
+          try {
+            if (!name || typeof fn !== 'function') {
+              return;
+            }
+            // clear prior timer if exists
+            const existing = window.MW.__scheduleMap.get(name);
+            if (existing && existing.timer) {
+              clearTimeout(existing.timer);
+            }
+            const timer = setTimeout(function(){
+              try {
+                fn();
+              } catch (e) {}
+              window.MW.__scheduleMap.delete(name);
+            }, typeof delay === 'number' ? delay : 60);
+            window.MW.__scheduleMap.set(name, { timer: timer, ts: Date.now() });
+          } catch (e) {}
+        };
+      }
+    })();
     // 初始化思维导图
     function initMindmap() {
       if (jm) {
@@ -957,7 +974,7 @@
 
       // 将jsMind实例赋值给window，供其他模块访问
       window.jm = jm;
-      const multiSelected = new Set();
+      const multiSelected = window.MW.multiSelected;
 
       // 配置思维导图容器的滚动行为
       setupMindmapScrolling();
@@ -1329,7 +1346,7 @@
         jm.show(nodeTreeData);
         currentNodeTree = nodeTreeData;
         // 渲染完成后尝试恢复视口（延迟以保证DOM已就绪）
-        setTimeout(function(){ try { restoreViewport(); } catch(e){} }, 120);
+        window.MW_scheduleOnce('restoreViewportAfterShow', function(){ try { restoreViewport(); } catch(e){} }, 120);
 
         // 渲染完成后同步节点类型徽章与可见性过滤（确保开关生效）
         try {
@@ -2060,23 +2077,7 @@
             return;
           }
 
-          // 如果按住Ctrl键点击节点，切换选择状态（与框选多选功能一致）
-          if (e.ctrlKey || e.metaKey) {
-            const clickedNode = e.target.closest('.jmnode');
-            if (clickedNode) {
-              const nodeId = clickedNode.getAttribute('nodeid');
-              if (nodeId) {
-                if (multiSelected.has(nodeId)) {
-                  multiSelected.delete(nodeId);
-                } else {
-                  multiSelected.add(nodeId);
-                }
-                updateHighlight();
-                e.preventDefault();
-                return;
-              }
-            }
-          }
+          // Ctrl/Command 点击切换多选已移除（由设计调整），继续按常规交互处理
 
           // 批量拖拽模式（兜底）：有框选节点时启动
           if (multiSelected.size > 0) {
@@ -2122,7 +2123,7 @@
         // 普通拖拽 => 待判定框选（仅当移动超阈值才真正开始）
         isSelecting = false;
         isSelectingPrimed = true;
-        addMode = !!(e.ctrlKey || e.metaKey);
+        addMode = false;
 
         // 记录起点的视口(client)坐标，后续全部以 client 坐标系绘制，避免缩放/滚动换算误差
         startClientX = e.clientX;

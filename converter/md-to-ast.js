@@ -134,7 +134,8 @@ export class MdToAstConverter {
       }
 
       // 列表仍按原规则处理（列表中的缩进与父子关系）
-      if (listMatch) {
+      // 但如果该列表行处于引用（>）内或整行为行内代码（`...`），则视为备注，不作为节点
+      if (listMatch && !isBlockQuote && !isWholeLineInlineCode) {
         // 处理前一个节点的备注
         if (lastNode) {
           lastNode.notes = currentNotes.join('\n').trim();
