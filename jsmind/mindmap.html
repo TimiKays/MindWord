@@ -1075,6 +1075,79 @@
     function setupMindmapScrolling() {
       if (!jm) return;
 
+    // 视口保存/恢复工具（用于在删除/撤销/重载时保持画布位置）
+    let __mw_savedViewport = null;
+    function saveViewport() {
+      try {
+        const container = document.getElementById('fullScreenMindmap');
+        if (!container) return;
+        const inner = container.querySelector('.jsmind-inner') || container;
+        // 优先保存当前选中节点 id（若有）
+        let selectedId = null;
+        try {
+          selectedId = (window.jm && typeof jm.get_selected_node === 'function' && jm.get_selected_node()) ? jm.get_selected_node().id : null;
+        } catch (e) { selectedId = null; }
+        // 优先使用 jm.view（若存在）读取缩放与平移
+        let zoom = null, pan = null;
+        try {
+          if (window.jm && jm.view && typeof jm.view.get_scale === 'function') {
+            zoom = jm.view.get_scale && jm.view.get_scale();
+          }
+          if (window.jm && jm.view && typeof jm.view.get_translate === 'function') {
+            pan = jm.view.get_translate && jm.view.get_translate();
+          }
+        } catch (e) { /* ignore */ }
+        __mw_savedViewport = {
+          scrollTop: inner.scrollTop,
+          scrollLeft: inner.scrollLeft,
+          zoom: zoom,
+          pan: pan,
+          selectedId: selectedId,
+          // also save container transform style as fallback
+          transform: container.style.transform || ''
+        };
+        try { console.log('[MMAP] saveViewport', __mw_savedViewport); } catch(e){}
+      } catch (e) { /* ignore */ }
+    }
+    function restoreViewport() {
+      try {
+        if (!__mw_savedViewport) return;
+        const container = document.getElementById('fullScreenMindmap');
+        if (!container) return;
+        const inner = container.querySelector('.jsmind-inner') || container;
+        // 优先使用 jm.view API 恢复缩放与平移
+        try {
+          if (window.jm && jm.view && typeof jm.view.set_scale === 'function' && __mw_savedViewport.zoom != null) {
+            jm.view.set_scale && jm.view.set_scale(__mw_savedViewport.zoom);
+          }
+          if (window.jm && jm.view && typeof jm.view.set_translate === 'function' && __mw_savedViewport.pan != null) {
+            jm.view.set_translate && jm.view.set_translate(__mw_savedViewport.pan);
+          }
+        } catch (e) { /* ignore */ }
+        // 恢复 scroll
+        try { inner.scrollTop = __mw_savedViewport.scrollTop || 0; } catch(e){}
+        try { inner.scrollLeft = __mw_savedViewport.scrollLeft || 0; } catch(e){}
+        // 恢复 transform 样式作为最后手段
+        if (container.style && __mw_savedViewport.transform) {
+          container.style.transform = __mw_savedViewport.transform;
+        }
+        // 优先恢复之前的选中节点（仅当节点仍然存在且不是 root 被强制选中时）
+        try {
+          const wanted = __mw_savedViewport.selectedId;
+          if (wanted && window.jm && typeof jm.get_node === 'function' && jm.get_node(wanted)) {
+            const cur = (jm.get_selected_node && jm.get_selected_node()) ? jm.get_selected_node().id : null;
+            if (cur !== wanted) {
+              // 仅在必要时恢复选中，避免触发不必要的焦点变换
+              try { jm.select_node && jm.select_node(wanted); } catch (e) { /* ignore */ }
+              try { console.log('[MMAP] restoreSelection ->', wanted); } catch(e){}
+            }
+          }
+        } catch (e) { /* ignore */ }
+        try { console.log('[MMAP] restoreViewport', __mw_savedViewport); } catch(e){}
+        __mw_savedViewport = null;
+      } catch (e) { /* ignore */ }
+    }
+
       const container = document.getElementById('fullScreenMindmap');
       if (!container) return;
 
@@ -1125,8 +1198,12 @@
           nodeTreeData = JSON.parse(nodeTreeData);
         }
 
+        // 在显示前保存视口（以便在重新渲染后恢复）
+        try { saveViewport(); } catch(e){}
         jm.show(nodeTreeData);
         currentNodeTree = nodeTreeData;
+        // 渲染完成后尝试恢复视口（延迟以保证DOM已就绪）
+        setTimeout(function(){ try { restoreViewport(); } catch(e){} }, 120);
 
         // 渲染完成后同步节点类型徽章与可见性过滤（确保开关生效）
         try {
@@ -1142,14 +1219,16 @@
         setTimeout(() => {
 
 
-          // 自动选择根节点并显示详情
-          const rootNode = jm.get_root();
-          if (rootNode) {
-            jm.select_node(rootNode.id);
-            showNodeDetails(rootNode);
-          }
-          // 确保在自动选择后同步一次徽章/可见性（某些渲染延迟场景）
+          // 在渲染完成后保持当前选中（不强制切换到 root），仅在没有任何选中且用户希望看到详情时才显示根节点详情
           try {
+            // 若当前没有选中并且用户开启了详情面板，则显示根节点详情（但不强制选中 root）
+            const curSel = (jm.get_selected_node && jm.get_selected_node()) ? jm.get_selected_node() : null;
+            if (!curSel && window.__nodeDetailsEnabled) {
+              const rootNode = jm.get_root();
+              if (rootNode) {
+                try { showNodeDetails(rootNode); } catch(e) { /* ignore */ }
+              }
+            }
             if (typeof window.MW_updateNodeTypeBadges === 'function') window.MW_updateNodeTypeBadges();
             if (typeof window.MW_applyNodeVisibilityFilter === 'function') window.MW_applyNodeVisibilityFilter();
           } catch (e) {}
@@ -2364,11 +2443,15 @@
           if (Array.isArray(ids) && ids.length > 0) {
             e.preventDefault();
             e.stopPropagation();
+            // 保存视口以便删除后恢复位置
+            try { saveViewport(); } catch(e){}
             ids.filter(id => id && id !== 'root').forEach(id => {
               try { jm.remove_node(id); } catch (err) { }
             });
             if (typeof window.clearMultiSelection === 'function') window.clearMultiSelection();
             if (typeof debouncedSave === 'function') debouncedSave();
+            // 延迟恢复视口，等DOM与jsMind重建完成
+            setTimeout(function(){ try { restoreViewport(); } catch(e){} }, 160);
           }
         }
       }, true);
@@ -3080,13 +3163,34 @@
                     }catch(e){ return nodeObj.parentid || ''; }
                   })();
                   try { console.log('[MW] 发送 mindmap-node-selected -> parent', { nodeid: nodeObj.id, raw: sendRaw, parentPath: sendParentPath }); }catch(e){}
-                  window.parent.postMessage({
-                    type: 'mindmap-node-selected',
-                    nodeid: nodeObj.id,
-                    raw: sendRaw,
-                    parentPath: sendParentPath
-                  }, '*');
-                  try { console.log('[MW] 发送完成'); }catch(e){}
+                  // 去重防抖：避免 jsMind 在短时间内触发两次 select 导致重复广播
+                  try {
+                    window.__mw_lastSent = window.__mw_lastSent || { id: null, ts: 0 };
+                    const nowts = Date.now();
+                    const same = (window.__mw_lastSent.id === nodeObj.id) && (nowts - window.__mw_lastSent.ts < 300);
+                    if (!same) {
+                      window.parent.postMessage({
+                        type: 'mindmap-node-selected',
+                        nodeid: nodeObj.id,
+                        raw: sendRaw,
+                        parentPath: sendParentPath
+                      }, '*');
+                      window.__mw_lastSent.id = nodeObj.id;
+                      window.__mw_lastSent.ts = nowts;
+                      try { console.log('[MW] 发送完成'); }catch(e){}
+                    } else {
+                      try { console.log('[MW] 跳过短时间重复发送 ->', nodeObj.id); } catch(e){}
+                    }
+                  } catch (e) {
+                    // 降级：若防抖逻辑失败，仍进行发送以保证功能
+                    try { window.parent.postMessage({
+                      type: 'mindmap-node-selected',
+                      nodeid: nodeObj.id,
+                      raw: sendRaw,
+                      parentPath: sendParentPath
+                    }, '*'); } catch(e2){}
+                    try { console.log('[MW] 发送完成（降级路径）'); } catch(e){}
+                  }
                 }
               }
             } catch (e) { /* ignore */ }

@@ -1278,8 +1278,82 @@
                         // 使用 textarea API 滚动并选中
                         const textarea = document.getElementById('editor');
                         if (!textarea) return;
-                        textarea.focus();
-                        textarea.setSelectionRange(charStart, charEnd);
+                        // 不聚焦编辑器（避免把键盘焦点切走）
+                        // 使用非聚焦的黄色 overlay 高亮（实现）
+                        (function applyEditorOverlayFull() {
+                            try {
+                                const textarea = document.getElementById('editor');
+                                if (!textarea) return;
+
+                                // 计算行高与测量 top（以字符偏移测量像素高度）
+                                const style = window.getComputedStyle(textarea);
+                                const lineHeight = parseFloat(style.lineHeight) || (parseFloat(style.fontSize) * 1.6) || 18;
+                                const charStartForMeasure = charStart;
+                                const textBeforeCursor = content.substring(0, charStartForMeasure);
+                                const measuredTop = measureTextHeight(textBeforeCursor, textarea);
+
+                                // 滚动到目标位置（不聚焦）
+                                const targetScrollTop = Math.max(0, measuredTop - textarea.clientHeight / 2);
+                                textarea.scrollTop = targetScrollTop;
+                                try { console.log('[EDITOR] measuredTop/targetScrollTop (overlay)', { measuredTop: measuredTop, targetScrollTop: targetScrollTop, lineHeight: lineHeight, charStart: charStartForMeasure }); } catch (e) {}
+
+                                // 创建或复用 overlay 容器（挂到 document.body）
+                                let overlay = document.getElementById('mw-editor-overlay');
+                                if (!overlay) {
+                                    overlay = document.createElement('div');
+                                    overlay.id = 'mw-editor-overlay';
+                                    overlay.style.position = 'absolute';
+                                    overlay.style.background = 'linear-gradient(180deg, rgba(255,230,100,0.65), rgba(255,210,60,0.5))';
+                                    overlay.style.borderRadius = '6px';
+                                    overlay.style.pointerEvents = 'none';
+                                    overlay.style.zIndex = 9999;
+                                    overlay.style.boxShadow = '0 6px 18px rgba(0,0,0,0.12)';
+                                    overlay.style.transition = 'opacity 0.24s ease, transform 0.18s ease';
+                                    document.body.appendChild(overlay);
+                                }
+
+                                // 计算 overlay 在视口中的位置
+                                const taRect = textarea.getBoundingClientRect();
+                                // measuredTop 是相对于 textarea 内容顶部的像素高度（包含 padding）
+                                // 微调 overlayTop，向上补偿一个行高的偏差因子，避免覆盖到下一行
+                                const rawTop = taRect.top + (measuredTop - textarea.scrollTop);
+                                const adjust = Math.round((lineHeight || 18) * 0.9); // 可调：0.9 行高补偿
+                                const overlayTop = Math.round(rawTop - adjust);
+                                const overlayLeft = Math.round(taRect.left + 6);
+                                const overlayWidth = Math.max(40, taRect.width - 12);
+                                const overlayHeight = Math.max(lineHeight, 18);
+
+                                overlay.style.left = overlayLeft + 'px';
+                                overlay.style.top = overlayTop + 'px';
+                                overlay.style.width = overlayWidth + 'px';
+                                overlay.style.height = overlayHeight + 'px';
+                                overlay.style.opacity = '1';
+                                overlay.style.transform = 'translateY(0px)';
+
+                                // 若已有超时句柄，清除并重设
+                                if (window.__mw_editorOverlayTimeout) {
+                                    clearTimeout(window.__mw_editorOverlayTimeout);
+                                }
+
+                                // 在叠加高亮时短暂放大并回归，提升可见性
+                                overlay.style.transform = 'translateY(-4px) scale(1.02)';
+                                setTimeout(() => {
+                                    try { overlay.style.transform = 'translateY(0px) scale(1)'; } catch(e){}
+                                }, 60);
+
+                                // 自动淡出并移除 overlay
+                                window.__mw_editorOverlayTimeout = setTimeout(function () {
+                                    try {
+                                        overlay.style.opacity = '0';
+                                        overlay.style.transform = 'translateY(-6px) scale(0.98)';
+                                        setTimeout(function(){ try { overlay.remove(); } catch(e){} }, 260);
+                                        window.__mw_editorOverlayTimeout = null;
+                                    } catch (e) {}
+                                }, 1600);
+
+                                try { console.log('[EDITOR] Applied non-focus overlay highlight for node', { nodeid: nodeid, targetLine: targetLine }); } catch(e){}
+                            } catch (e) { console.warn('[EDITOR] overlay apply failed', e); }
+                        })();
 
                         // 调试日志：选区与位置
                         try { console.log('[EDITOR] setSelectionRange', { charStart, charEnd, targetLine }); } catch (e) {}
