@@ -703,6 +703,30 @@
             // 验证消息来源
             if (!event.data || !event.data.type) return;
 
+            // 转发来自思维导图的节点选中消息到 editor iframe（用于滚动/高亮）
+            try {
+                if (event.data.type === 'mindmap-node-selected') {
+                    // 找到 editor 面板 iframe（基于 PAGE_CONFIG 或常见选择器）
+                    var editorIframe = document.querySelector('iframe[data-panel="editor"], iframe#panel-editor, iframe[src*="editor/editor.html"]');
+                    var payload = event.data;
+                    var forward = {
+                        type: 'editor-scroll-to',
+                        nodeid: payload.nodeid,
+                        raw: payload.raw,
+                        parentPath: payload.parentPath
+                    };
+                    if (editorIframe && editorIframe.contentWindow) {
+                        editorIframe.contentWindow.postMessage(forward, '*');
+                    } else {
+                        // 如果 editor iframe 尚未就绪，缓存最后一条消息，init 时可重发
+                        window.__mw__pendingEditorMessage = forward;
+                    }
+                    return;
+                }
+            } catch (e) {
+                console.warn('forwarding mindmap message failed', e);
+            }
+
             // 只处理通知相关的消息
             if (event.data.type === 'notification') {
                 const { message, notificationType, duration } = event.data;
@@ -742,6 +766,10 @@
 
             // 监听来自子页面的消息
             window.addEventListener('message', handleNotificationMessage);
+            // 调试：打印所有收到的原始 message，便于排查 mindmap -> index -> editor 的消息流
+            window.addEventListener('message', function (e) {
+                try { console.log('[INDEX RAW MESSAGE]', e && e.data); } catch (err) {}
+            }, { passive: true });
 
             console.log('📌 Markdown Studio 已初始化');
             console.log('配置信息:', PAGE_CONFIG);

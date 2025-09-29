@@ -1143,10 +1143,174 @@
         // 🚀 应用初始化
         // ===================================
 
+        // 工具：测量文本在 textarea 中渲染高度（复用隐藏 mirror）
+        function measureTextHeight(text, textarea) {
+            try {
+                let mirror = document.getElementById('mw-text-mirror');
+                if (!mirror) {
+                    mirror = document.createElement('div');
+                    mirror.id = 'mw-text-mirror';
+                    mirror.style.position = 'absolute';
+                    mirror.style.visibility = 'hidden';
+                    mirror.style.whiteSpace = 'pre-wrap';
+                    mirror.style.wordWrap = 'break-word';
+                    mirror.style.top = '0';
+                    mirror.style.left = '-99999px';
+                    document.body.appendChild(mirror);
+                }
+                const style = window.getComputedStyle(textarea);
+                const props = [
+                    'width', 'fontSize', 'fontFamily', 'fontWeight', 'lineHeight',
+                    'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+                    'borderLeftWidth', 'borderRightWidth', 'boxSizing', 'letterSpacing',
+                    'whiteSpace'
+                ];
+                props.forEach(p => {
+                    try { mirror.style[p] = style[p]; } catch(e){}
+                });
+                // Ensure same width for wrapping
+                mirror.style.width = textarea.clientWidth + 'px';
+                // Set text content (use textContent to preserve whitespace)
+                mirror.textContent = text || '';
+                // Return the height of rendered content
+                return mirror.scrollHeight || mirror.clientHeight || 0;
+            } catch (e) {
+                return 0;
+            }
+        }
+
         // 页面加载完成后初始化编辑器
         document.addEventListener('DOMContentLoaded', () => {
             window.markdownEditor = new MarkdownEditor();
             console.log('📝 Markdown Editor 已初始化');
+
+            // 接收来自思维导图/父页面的选中跳转请求
+            window.addEventListener('message', function (e) {
+                try {
+                    // 调试日志：打印 editor 收到的原始 message
+                    try { console.log('[EDITOR RAW MESSAGE]', e && e.data); } catch (err) {}
+                    if (!e.data || !e.data.type) return;
+                    // 支持 mindmap 直接消息或 index 转发的 editor-scroll-to
+                    if (e.data.type === 'mindmap-node-selected' || e.data.type === 'editor-scroll-to') {
+                        const payload = e.data;
+                        const nodeid = payload.nodeid || '';
+                        const raw = (payload.raw || '').toString().trim();
+                        const parentPath = payload.parentPath || '';
+
+                        if (!raw) return;
+
+                        // 获取全文与按行索引
+                        const content = window.markdownEditor.getContent() || '';
+                        // 按真实换行拆分为行数组（修复因错误分隔导致每行变成单字符的 bug）
+                        const lines = content.split('\n');
+
+
+                        // 找到所有包含 raw 的行索引（如需更严格匹配可改为正则）
+                        const matches = [];
+                        // 严格匹配：先剥离行首 Markdown 标记（#、-、数字.、> 等及其后空格），再与 raw（同样剥离前导#）做完全相等比较
+                        const normalize = (s) => (s || '').toString().replace(/^\s*(#{1,6}\s+|[-*]\s+|\d+\.\s+|>\s+)/, '').trim();
+                        const rawNormalized = normalize(raw.replace(/^\s*#{1,6}\s*/, ''));
+                        for (let i = 0; i < lines.length; i++) {
+                            const line = lines[i] || '';
+                            const lineNormalized = normalize(line);
+                            if (lineNormalized === rawNormalized) {
+                                if (parentPath) {
+                                    const parentLast = (parentPath || '').toString().split('/').pop().trim();
+                                    let foundParent = false;
+                                    for (let k = Math.max(0, i - 8); k <= i; k++) {
+                                        if (parentLast && lines[k] && lines[k].includes(parentLast)) { foundParent = true; break; }
+                                    }
+                                    if (!foundParent) continue;
+                                }
+                                matches.push(i);
+                            }
+                        }
+
+                        if (matches.length === 0) {
+                            try { console.log('[EDITOR] 未找到直接包含 raw 的行，尝试回退匹配', { raw, parentPath, linesLength: lines.length }); } catch(e){}
+                            // 回退1：如果 raw 有 Markdown header (#)，去掉前导的 # 和空格再搜索
+                            var rawFallback = raw.replace(/^\s*#{1,6}\s*/, '').trim();
+                            if (rawFallback && rawFallback !== raw) {
+                                for (let i = 0; i < lines.length; i++) {
+                                    if ((lines[i] || '').includes(rawFallback)) {
+                                        matches.push(i);
+                                    }
+                                }
+                            }
+                            // 回退2：弱匹配 - 每个空格分词，所有词均在同一行
+                            if (matches.length === 0 && rawFallback) {
+                                const tokens = rawFallback.split(/\s+/).filter(Boolean);
+                                if (tokens.length > 0) {
+                                    for (let i = 0; i < lines.length; i++) {
+                                        const line = lines[i] || '';
+                                        let ok = true;
+                                        for (const t of tokens) {
+                                            if (!line.includes(t)) { ok = false; break; }
+                                        }
+                                        if (ok) matches.push(i);
+                                    }
+                                }
+                            }
+                            // 调试：若仍未命中，打印附近内容供排查（前后5行）
+                            if (matches.length === 0) {
+                                try {
+                                    const snippetIndex = Math.max(0, Math.floor(lines.length/2) - 3);
+                                    const snippet = lines.slice(snippetIndex, Math.min(lines.length, snippetIndex + 12));
+                                    console.warn('[EDITOR] fallback 仍未命中 raw，给出文本片段供排查', { raw, rawFallback, linesLength: lines.length, snippetIndex, snippet });
+                                } catch(e){}
+                                return;
+                            }
+                        }
+
+                        // 循环跳转逻辑（nodeid 优先，否则使用 raw 作为 key）
+                        window.__mw_nodeMatchIndex = window.__mw_nodeMatchIndex || {};
+                        const key = nodeid || raw;
+                        let last = window.__mw_nodeMatchIndex[key] || -1;
+                        last = (last + 1) % matches.length;
+                        window.__mw_nodeMatchIndex[key] = last;
+                        const targetLine = matches[last];
+
+                        // 计算字符范围以便 setSelectionRange
+                        let charStart = 0;
+                        for (let i = 0; i < targetLine; i++) charStart += (lines[i] ? lines[i].length : 0) + 1;
+                        const charEnd = charStart + (lines[targetLine] ? lines[targetLine].length : 0);
+
+                        // 使用 textarea API 滚动并选中
+                        const textarea = document.getElementById('editor');
+                        if (!textarea) return;
+                        textarea.focus();
+                        textarea.setSelectionRange(charStart, charEnd);
+
+                        // 调试日志：选区与位置
+                        try { console.log('[EDITOR] setSelectionRange', { charStart, charEnd, targetLine }); } catch (e) {}
+
+                        // 使用精确测量来计算要滚动到的位置，避免基于行高的误差
+                        const style = window.getComputedStyle(textarea);
+                        const lineHeight = parseFloat(style.lineHeight) || (parseFloat(style.fontSize) * 1.6) || 18;
+
+                        // 计算选中文本前的字符数位置并测量其渲染高度
+                        const contentBefore = (lines.slice(0, targetLine).join('\\n') + (lines[targetLine] ? lines[targetLine].slice(0, 0) : '') ) || '';
+                        const charStartForMeasure = charStart;
+                        const textBeforeCursor = content.substring(0, charStartForMeasure);
+                        const measuredTop = measureTextHeight(textBeforeCursor, textarea);
+
+                        // 目标 scrollTop：以选中起始位置为中心
+                        const targetScrollTop = Math.max(0, measuredTop - textarea.clientHeight / 2);
+                        textarea.scrollTop = targetScrollTop;
+                        try { console.log('[EDITOR] measuredTop/targetScrollTop', { measuredTop: measuredTop, targetScrollTop: targetScrollTop, lineHeight: lineHeight, charStart: charStartForMeasure }); } catch (e) {}
+
+                        // 临时高亮（通过添加类，配合 CSS 可见效果）
+                        textarea.classList.add('mw-editor-highlight');
+                        if (window.__mw_editorHighlightTimeout) clearTimeout(window.__mw_editorHighlightTimeout);
+                        window.__mw_editorHighlightTimeout = setTimeout(() => {
+                            textarea.classList.remove('mw-editor-highlight');
+                        }, 1600);
+
+                    }
+                } catch (err) {
+                    // 忽略处理错误
+                }
+            }, { passive: true });
         });
 
         // 页面卸载前保存

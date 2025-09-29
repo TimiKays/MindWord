@@ -3050,6 +3050,50 @@
       // 启用框选多选
       setupBoxSelection();
 
+      // 当节点被选中时，向父窗口发送选中信息（用于编辑器跳转高亮）
+      try {
+        if (typeof jm !== 'undefined' && jm && typeof jm.add_event_listener === 'function') {
+          jm.add_event_listener(function (type, data) {
+            try {
+              if (type === jsMind.event_type.select || type === jsMind.event_type.select_node) {
+                var sel = jm.get_selected_node();
+                if (!sel) return;
+                var nodeObj = (typeof sel === 'string') ? jm.get_node(sel) : sel;
+                if (!nodeObj) return;
+                // 从 node.data 中取 raw 和 parentPath（兼容多种字段名）
+                var raw = (nodeObj.data && (nodeObj.data.raw || nodeObj.data.rawText)) || nodeObj.raw || nodeObj.topic || '';
+                var parentPath = (nodeObj.data && nodeObj.data.parentPath) || (nodeObj.parent && nodeObj.parent.id) || '';
+                if (window.parent && window.parent !== window) {
+                  // 构造要发送的 raw 与 parentPath：优先使用 nodeObj.data 中的字段，若无则回退到 topic / 构建路径
+                  var sendRaw = (nodeObj.data && nodeObj.data.raw) ? nodeObj.data.raw : (nodeObj.topic || '');
+                  var sendParentPath = (nodeObj.data && nodeObj.data.fullPath) ? nodeObj.data.fullPath : (function(){
+                    // 回退：从根逐级拼接 topic 形成路径
+                    try {
+                      var parts = [];
+                      var p = nodeObj;
+                      while(p){
+                        parts.unshift(p.topic || '');
+                        if(!p.parent || p.isroot) break;
+                        p = p.parent;
+                      }
+                      return parts.join('/');
+                    }catch(e){ return nodeObj.parentid || ''; }
+                  })();
+                  try { console.log('[MW] 发送 mindmap-node-selected -> parent', { nodeid: nodeObj.id, raw: sendRaw, parentPath: sendParentPath }); }catch(e){}
+                  window.parent.postMessage({
+                    type: 'mindmap-node-selected',
+                    nodeid: nodeObj.id,
+                    raw: sendRaw,
+                    parentPath: sendParentPath
+                  }, '*');
+                  try { console.log('[MW] 发送完成'); }catch(e){}
+                }
+              }
+            } catch (e) { /* ignore */ }
+          });
+        }
+      } catch (e) { /* ignore */ }
+
       // 初始化 UndoManager（如果已注入）
       try {
         if (window.UndoManager && jm) {
