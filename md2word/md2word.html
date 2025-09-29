@@ -322,6 +322,73 @@
         return doc.body.innerHTML;
       }
 
+      // 为渲染后的标题生成可跳转的 id（兼容中文与特殊字符）
+      function addHeadingIds(container) {
+        if (!container) return;
+        const headings = container.querySelectorAll('h1,h2,h3,h4,h5,h6');
+        headings.forEach((h) => {
+          try {
+            if (h.id && String(h.id).trim()) return;
+            const text = (h.innerText || h.textContent || '').toString().trim();
+            let slug = text.replace(/^\s*#+\s*/, '').trim();
+            slug = slug.replace(/[：:，,。\.\/\\#\?\!\[\]\(\)“”"']/g, '');
+            slug = slug.replace(/\s+/g, '-');
+            slug = slug.toLowerCase();
+            if (!slug) return;
+            let base = slug;
+            let idx = 1;
+            while (container.querySelector('#' + CSS.escape(slug))) {
+              idx++;
+              slug = base + '-' + idx;
+            }
+            h.id = slug;
+          } catch (e) { /* ignore */ }
+        });
+      }
+
+      // 点击目录锚点时的处理：优先通过 id 跳转，找不到再按文本匹配，最后高亮目标
+      function handleTocClicks(container) {
+        if (!container) return;
+        container.addEventListener('click', function (ev) {
+          const a = ev.target.closest && ev.target.closest('a[href^="#"]');
+          if (!a) return;
+          try {
+            ev.preventDefault();
+            const href = a.getAttribute('href') || '';
+            const rawHash = href.replace(/^#/, '');
+            // 支持编码的 hash（例如 #%E8...）—先尝试解码
+            let rawHashDecoded = rawHash;
+            try { rawHashDecoded = decodeURIComponent(rawHash); } catch(e){}
+            // 先尝试用原始与解码后的 id 查找
+            const targetById = rawHash ? (container.querySelector('#' + CSS.escape(rawHash)) || container.querySelector('#' + CSS.escape(rawHashDecoded))) : null;
+            let target = targetById;
+            if (!target) {
+              const normalize = s => (s || '').toString().replace(/^\s*(#{1,6}\s+|[*\-\d\.\s>]+)\s*/, '').trim().toLowerCase();
+              const want = rawHash.toString().trim().toLowerCase();
+              const headings = Array.from(container.querySelectorAll('h1,h2,h3,h4,h5,h6'));
+              for (const h of headings) {
+                if (normalize(h.innerText || h.textContent || '') === want) { target = h; break; }
+              }
+            }
+            if (!target) {
+              const candidates = Array.from(container.querySelectorAll('h1,h2,h3,h4,h5,h6,p,li'));
+              for (const c of candidates) {
+                if ((c.innerText || c.textContent || '').toString().trim().toLowerCase().includes(rawHash.toString().trim().toLowerCase())) {
+                  target = c; break;
+                }
+              }
+            }
+            if (target) {
+              try { target.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(e){ target.scrollIntoView(); }
+              try {
+                target.classList.add('mw-preview-highlight');
+                setTimeout(() => { try { target.classList.remove('mw-preview-highlight'); } catch(e){} }, 1600);
+              } catch(e){}
+            }
+          } catch (e) { /* ignore */ }
+        }, { passive: false });
+      }
+
 
       // 缓存上次的数据，避免不必要的重新渲染
       let lastMarkdownData = null;
@@ -347,6 +414,8 @@
             // 替换图片路径为localStorage中的base64数据
             htmlContent = replaceImagesInHtml(htmlContent);
             previewEl.innerHTML = htmlContent;
+            try { addHeadingIds(previewEl); } catch(e){}
+            try { handleTocClicks(previewEl); } catch(e){}
             status('已加载 Markdown 数据');
           } else {
             previewEl.innerHTML = '<div class="empty-preview">未找到 mindword_markdown_data 数据</div>';
