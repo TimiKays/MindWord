@@ -9,20 +9,67 @@
  * @param {string} type - 通知类型：success, danger, warning, info
  * @param {number} duration - 显示时长（毫秒）
  */
+/**
+ * sendNotification - 发送通知，尊重全局抑制标志 window.__mw_global_suppress_toasts
+ * 当 window.__mw_global_suppress_toasts 为 true 时，仅在控制台记录，不展示可见 toast（用于编辑模式下抑制打断）。
+ */
 function sendNotification(message, type = 'info', duration = 1500) {
-    if (window.parent && window.parent !== window) {
-        // 如果在iframe中，向父框架发送消息
-        window.parent.postMessage({
-            type: 'notification',
-            message: message,
-            notificationType: type,
-            duration: duration
-        }, '*');
-    } else {
-        // 如果不是在iframe中，使用本地通知
-        showLocalNotification(message, type, duration);
+    try {
+        // 全局抑制标志（可由父页面或其他框架通过 postMessage 控制）
+        var suppressed = !!window.__mw_global_suppress_toasts;
+
+        if (suppressed) {
+            try {
+                if (type === 'danger' || type === 'error') {
+                    console.error('[NotificationBridge suppressed] ' + message);
+                } else {
+                    console.log('[NotificationBridge suppressed] ' + message);
+                }
+            } catch (e) {}
+            return;
+        }
+
+        if (window.parent && window.parent !== window) {
+            // 如果在iframe中，向父框架发送消息
+            window.parent.postMessage({
+                type: 'notification',
+                message: message,
+                notificationType: type,
+                duration: duration
+            }, '*');
+        } else {
+            // 如果不是在iframe中，使用本地通知
+            showLocalNotification(message, type, duration);
+        }
+    } catch (e) {
+        // 在出错时退回到 console，避免抛出异常中断业务代码
+        try { console.warn('sendNotification fallback:', e); } catch(e){}
     }
 }
+
+// 监听来自其它 frame 的编辑模式消息，以便全局抑制或恢复通知
+(function(){
+    try {
+        // 初始化标志
+        if (typeof window.__mw_global_suppress_toasts === 'undefined') {
+            window.__mw_global_suppress_toasts = false;
+        }
+
+        window.addEventListener('message', function(evt){
+            try {
+                if (!evt || !evt.data) return;
+                var d = evt.data;
+                // 约定：{ type: 'mw_editing_mode', editing: true/false }
+                if (d && (d.type === 'mw_editing_mode')) {
+                    window.__mw_global_suppress_toasts = !!d.editing;
+                    try { console.log('[NotificationBridge] mw_editing_mode ->', window.__mw_global_suppress_toasts); } catch(e){}
+                }
+            } catch (e) {
+                // 忽略解析错误
+            }
+        }, false);
+    } catch (e) { /* ignore */ }
+})();
 
 /**
  * 显示本地通知（当不在iframe中时）

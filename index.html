@@ -698,10 +698,23 @@
 
         /**
          * 处理来自子页面的通知消息
+         * - 新增处理 mw_editing_mode 消息以设置全局抑制标志 window.__mw_global_suppress_toasts
+         * - 当全局抑制生效时，对 type==='notification' 的消息仅记录到 console 不展示 UI 通知
          */
         function handleNotificationMessage(event) {
             // 验证消息来源
             if (!event.data || !event.data.type) return;
+
+            // 先处理编辑模式开关消息（由子 iframe 广播）
+            try {
+                if (event.data.type === 'mw_editing_mode') {
+                    try {
+                        window.__mw_global_suppress_toasts = !!event.data.editing;
+                        console.log('[INDEX] mw_editing_mode ->', window.__mw_global_suppress_toasts);
+                    } catch (e) { /* ignore */ }
+                    return;
+                }
+            } catch (e) { /* ignore */ }
 
             // 转发来自思维导图的节点选中消息到 editor iframe（用于滚动/高亮）
             try {
@@ -760,6 +773,14 @@
             // 只处理通知相关的消息
             if (event.data.type === 'notification') {
                 const { message, notificationType, duration } = event.data;
+
+                // 若父页处于全局抑制状态，则跳过可视通知，仅写 console（避免编辑时打断）
+                if (window.__mw_global_suppress_toasts) {
+                    try {
+                        console.log('[INDEX] notification suppressed ->', notificationType, message);
+                    } catch (e) {}
+                    return;
+                }
 
                 switch (notificationType) {
                     case 'success':

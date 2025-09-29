@@ -414,18 +414,114 @@
         }
 
         function applyNodeVisibilityFilter() {
-          var showLists = !!document.getElementById('toggleShowListNodesCheckbox').checked;
-          var nodes = document.querySelectorAll('[nodeid]');
-          nodes.forEach(function(el){
-            var id = el.getAttribute('nodeid') || el.getAttribute('node-id') || el.getAttribute('data-nodeid');
-            if (!id) return;
-            var t = getNodeTypeSafe(id);
-            if (t === 'list' && !showLists) {
-              el.classList.add('mw-hidden-node');
-            } else {
-              el.classList.remove('mw-hidden-node');
+          // 方案2：按数据树过滤并重建视图 —— 当“只看标题”勾选时移除整颗 list 子树（不写入持久层）
+          try {
+            var hideLists = !!document.getElementById('toggleShowListNodesCheckbox').checked;
+
+            // Helper: deep clone node tree (safe)
+            function cloneTree(tree) {
+              try { return JSON.parse(JSON.stringify(tree)); } catch (e) { return null; }
             }
-          });
+
+            // Helper: remove list-type nodes recursively (removes node and its descendants)
+            function removeListSubtrees(node) {
+              if (!node || !node.children || node.children.length === 0) return node;
+              node.children = node.children.filter(function(child) {
+                var t = getNodeType(child) || (child.data && (child.data.type || (child.data.data && child.data.data.type)));
+                if (t === 'list') {
+                  // drop this child (and its subtree)
+                  return false;
+                }
+                // otherwise recurse into child
+                removeListSubtrees(child);
+                return true;
+              });
+              return node;
+            }
+
+            // If hideLists enabled -> build filtered tree and show it
+            if (hideLists) {
+              // If not already in filtered view, save original snapshot
+              if (!window.__mw_filteredViewActive) {
+                try { window.__mw_originalNodeTreeSnapshot = cloneTree(jm.get_data()); } catch(e){}
+              }
+              var original = window.__mw_originalNodeTreeSnapshot || cloneTree(jm.get_data());
+              if (!original || !original.data) {
+                console.warn('[MW] applyNodeVisibilityFilter: 无法获取原始 nodeTree');
+                return;
+              }
+              var filtered = cloneTree(original);
+              // remove list subtrees from filtered.data
+              filtered.data = removeListSubtrees(filtered.data) || filtered.data;
+              // mark flag and show filtered tree (do NOT persist)
+              window.__mw_filteredViewActive = true;
+              try {
+                console.log('[MW] applyNodeVisibilityFilter: 启用过滤视图（隐藏 list 子树）');
+                // save viewport then show filtered view and restore viewport
+                try { saveViewport(); } catch(e){}
+                jm.show(filtered);
+                // small delay then restore viewport and badges and re-init scrolling/layout
+                setTimeout(function(){
+                  try { restoreViewport(); } catch(e){}
+                  try { if (typeof window.MW_updateNodeTypeBadges === 'function') window.MW_updateNodeTypeBadges(); } catch(e){}
+                  // ensure inner scrollable is correctly initialized
+                  try {
+                    const inner = document.getElementById('fullScreenMindmap').querySelector('.jsmind-inner');
+                    if (inner) {
+                      inner.style.overflow = 'auto';
+                      inner.style.width = '100%';
+                      inner.style.height = '100%';
+                    }
+                    // call setupMindmapScrolling to reapply any required handlers (idempotent)
+                    try { if (typeof setupMindmapScrolling === 'function') setupMindmapScrolling(); } catch(e){}
+                    // force a small refresh on jm to recalc layout
+                    try { if (jm && typeof jm.refresh === 'function') jm.refresh(); } catch(e){}
+                  } catch(e){}
+                }, 80);
+              } catch (e) {
+                console.warn('[MW] applyNodeVisibilityFilter: 启用过滤视图失败', e);
+              }
+              return;
+            }
+
+            // If hideLists is false -> restore original tree if we had replaced it
+            if (window.__mw_filteredViewActive) {
+              try {
+                var snap = window.__mw_originalNodeTreeSnapshot || jm.get_data();
+                if (snap) {
+                  console.log('[MW] applyNodeVisibilityFilter: 恢复完整视图');
+                  try { saveViewport(); } catch(e){}
+                  jm.show(snap);
+                  setTimeout(function(){
+                    try { restoreViewport(); } catch(e){}
+                    try { if (typeof window.MW_updateNodeTypeBadges === 'function') window.MW_updateNodeTypeBadges(); } catch(e){}
+                    try { if (typeof window.MW_applyNodeVisibilityFilter === 'function') window.MW_applyNodeVisibilityFilter(); } catch(e){}
+                    // re-init scrolling/layout
+                    try {
+                      const inner = document.getElementById('fullScreenMindmap').querySelector('.jsmind-inner');
+                      if (inner) {
+                        inner.style.overflow = 'auto';
+                        inner.style.width = '100%';
+                        inner.style.height = '100%';
+                      }
+                      try { if (typeof setupMindmapScrolling === 'function') setupMindmapScrolling(); } catch(e){}
+                      try { if (jm && typeof jm.refresh === 'function') jm.refresh(); } catch(e){}
+                    } catch(e){}
+                  }, 80);
+                }
+              } catch (e) {
+                console.warn('[MW] applyNodeVisibilityFilter: 恢复完整视图失败', e);
+              } finally {
+                window.__mw_filteredViewActive = false;
+                // keep original snapshot for possible re-use; do not auto-clear to avoid reloading from storage
+              }
+              return;
+            }
+
+            // Default fallback: nothing to do
+          } catch (e) {
+            console.warn('[MW] applyNodeVisibilityFilter error', e);
+          }
         }
 
         function handleDetailsToggle(checked) {
@@ -904,6 +1000,36 @@
           jm.move_node = function (nodeid, beforeid, parentid, direction) {
             console.log(`🔄 jm.move_node被调用 - 节点:${nodeid}, 之前:${beforeid}, 父节点:${parentid}, 方向:${direction}`);
 
+            // 防护：禁止将节点移动到自身或其子孙下（会造成数据循环/丢失）
+            try {
+              if (nodeid && parentid) {
+                try {
+                  const maybeParent = jm.get_node(parentid);
+                  if (maybeParent) {
+                    // 遍历 parent 的祖先链，检查是否包含 nodeid
+                    let p = maybeParent;
+                    let depthGuard = 0;
+                    let illegal = false;
+                    while (p && depthGuard < 100) {
+                      if (String(p.id) === String(nodeid)) {
+                        illegal = true;
+                        break;
+                      }
+                      p = p.parent ? jm.get_node(p.parent.id) : null;
+                      depthGuard++;
+                    }
+                    if (illegal) {
+                      console.warn('[MW][protect] 拒绝移动：目标父节点是自身或子孙，操作已取消', { nodeid, beforeid, parentid, direction });
+                      // 打印快照便于诊断
+                      try { console.log('[MW][protect] node 快照:', jm.get_node(nodeid)); } catch(e){}
+                      try { console.log('[MW][protect] target parent 快照:', maybeParent); } catch(e){}
+                      return false;
+                    }
+                  }
+                } catch(e) { console.warn('[MW][protect] 检查 parent 合法性失败', e); }
+              }
+            } catch(e){ console.warn('[MW][protect] 前置防护异常', e); }
+
             // 检查是否是批量拖拽模式
             console.log('🔍 检查批量拖拽模式:', {
               hasBatchDragData: !!window.__batchDragData,
@@ -1219,16 +1345,7 @@
         setTimeout(() => {
 
 
-          // 在渲染完成后保持当前选中（不强制切换到 root），仅在没有任何选中且用户希望看到详情时才显示根节点详情
           try {
-            // 若当前没有选中并且用户开启了详情面板，则显示根节点详情（但不强制选中 root）
-            const curSel = (jm.get_selected_node && jm.get_selected_node()) ? jm.get_selected_node() : null;
-            if (!curSel && window.__nodeDetailsEnabled) {
-              const rootNode = jm.get_root();
-              if (rootNode) {
-                try { showNodeDetails(rootNode); } catch(e) { /* ignore */ }
-              }
-            }
             if (typeof window.MW_updateNodeTypeBadges === 'function') window.MW_updateNodeTypeBadges();
             if (typeof window.MW_applyNodeVisibilityFilter === 'function') window.MW_applyNodeVisibilityFilter();
           } catch (e) {}
@@ -1313,6 +1430,29 @@
       // 添加新的事件监听
       nodeTopic.addEventListener('input', handleAutoUpdate);
       nodeNotes.addEventListener('input', handleAutoUpdate);
+
+      // 在输入时进入编辑模式（抑制全局 toast），失焦恢复
+      try {
+        // 移除已有的 focus/blur，避免重复注册
+        nodeTopic.removeEventListener('focus', _mw_onInputFocus);
+        nodeTopic.removeEventListener('blur', _mw_onInputBlur);
+        nodeNotes.removeEventListener('focus', _mw_onInputFocus);
+        nodeNotes.removeEventListener('blur', _mw_onInputBlur);
+      } catch(e){}
+
+      function _mw_onInputFocus() {
+        try { window.MW_setEditingMode(true); } catch(e){}
+      }
+      function _mw_onInputBlur() {
+        try { window.MW_setEditingMode(false); } catch(e){}
+      }
+
+      try {
+        nodeTopic.addEventListener('focus', _mw_onInputFocus, { passive:true });
+        nodeTopic.addEventListener('blur', _mw_onInputBlur, { passive:true });
+        nodeNotes.addEventListener('focus', _mw_onInputFocus, { passive:true });
+        nodeNotes.addEventListener('blur', _mw_onInputBlur, { passive:true });
+      } catch(e){}
     }
 
     // 处理自动更新
@@ -1424,7 +1564,8 @@
       // 保存到localStorage并同步
       saveToLocalStorage();
 
-      showSuccess('节点更新成功！');
+      // 使用轻量的面板内提示代替全局通知
+      try { showAutoUpdateIndicator(); } catch (e) { try { showSuccess('节点更新成功！'); } catch(e2){} }
     }
 
     // 刷新所有备注显示
@@ -1858,6 +1999,8 @@
         if (!isDownOnNode && !e.target.closest('#toolbar') && !e.target.closest('#batchOperations')) {
           multiSelected.clear();
           if (window.jm && typeof jm.select_clear === 'function') { try { jm.select_clear(); } catch (err) { } }
+          // 隐藏右侧详情面板（当无选中时）
+          try { if (typeof hideNodeDetails === 'function') hideNodeDetails(); } catch(e){}
           // 额外：显式移除所有残留的单选样式，避免样式滞留
           document.querySelectorAll('.jmnode.selected').forEach(el => el.classList.remove('selected'));
           updateHighlight();
@@ -2509,26 +2652,136 @@
       }
     }
 
-    // 提示信息函数
-    function showWarning(msg) {
-      console.warn(msg);
-      alert(msg);
+    // 提示信息代理：根据编辑模式决定呈现方式
+    // 编辑状态标志（当用户在输入时设为 true，会抑制全局 toast）
+    window.__mw_suppress_toasts_when_editing = window.__mw_suppress_toasts_when_editing || false;
+    // API：设置编辑模式（true=编辑中，false=非编辑）
+    window.MW_setEditingMode = function(isEditing) {
+      try {
+        window.__mw_suppress_toasts_when_editing = !!isEditing;
+        try { console.log('[MW] 编辑模式 ->', !!isEditing); } catch(e){}
+        // 同步到父页面/其他框架，通知全局通知桥抑制或恢复提示
+        try { if (window.parent && window.parent !== window) window.parent.postMessage({ type: 'mw_editing_mode', editing: !!isEditing }, '*'); } catch(e){}
+      } catch (e) {}
+      return window.__mw_suppress_toasts_when_editing;
+    };
+
+    // 内联最弱提示（保留，供场景使用）
+    window.showInlineTinyHint = window.showInlineTinyHint || function(targetEl, text, opts) {
+      try {
+        opts = opts || {};
+        var duration = typeof opts.duration === 'number' ? opts.duration : 1200;
+        var container = document.body;
+        if (!targetEl || !(targetEl instanceof Element)) {
+          var fallback = document.getElementById('mw-inline-tiny-hint-fallback');
+          if (!fallback) {
+            fallback = document.createElement('div');
+            fallback.id = 'mw-inline-tiny-hint-fallback';
+            fallback.style.position = 'fixed';
+            fallback.style.right = '12px';
+            fallback.style.top = '12px';
+            fallback.style.zIndex = 9999;
+            container.appendChild(fallback);
+          }
+          fallback.innerHTML = '';
+          var wrapF = document.createElement('div');
+          wrapF.style.fontSize = '12px';
+          wrapF.style.color = '#333';
+          wrapF.style.opacity = '0.95';
+          wrapF.style.pointerEvents = 'none';
+          wrapF.textContent = text || '';
+          fallback.appendChild(wrapF);
+          setTimeout(function(){ try{ fallback.innerHTML=''; }catch(e){} }, duration);
+          return;
+        }
+
+        var id = 'mw-inline-tiny-hint-' + Math.random().toString(36).slice(2,9);
+        var el = document.createElement('div');
+        el.id = id;
+        el.className = 'mw-inline-tiny-hint';
+        el.style.position = 'absolute';
+        el.style.pointerEvents = 'none';
+        el.style.zIndex = 9999;
+        el.style.fontSize = '12px';
+        el.style.color = '#1f2937';
+        el.style.display = 'flex';
+        el.style.alignItems = 'center';
+        el.style.gap = '6px';
+        el.style.opacity = '0';
+        el.style.transition = 'opacity 140ms ease, transform 180ms ease';
+        var dot = document.createElement('span');
+        dot.style.width = '8px';
+        dot.style.height = '8px';
+        dot.style.borderRadius = '50%';
+        dot.style.background = '#10b981';
+        dot.style.display = 'inline-block';
+        dot.style.boxShadow = '0 0 6px rgba(16,185,129,0.12)';
+        var txt = document.createElement('span');
+        txt.textContent = text || '';
+        txt.style.lineHeight = '1';
+        txt.style.whiteSpace = 'nowrap';
+        el.appendChild(dot);
+        el.appendChild(txt);
+        container.appendChild(el);
+
+        var rect = targetEl.getBoundingClientRect();
+        var top = rect.top + window.scrollY;
+        var left = rect.left + window.scrollX;
+        var x = left + rect.width - 4;
+        var y = top - 6;
+        var elRectEstimateWidth = Math.max(80, (String(text || '').length * 8) + 32);
+        if (x + elRectEstimateWidth > window.scrollX + window.innerWidth) {
+          x = window.scrollX + window.innerWidth - elRectEstimateWidth - 12;
+        }
+        if (y < window.scrollY + 4) {
+          y = top + 4;
+        }
+        el.style.left = x + 'px';
+        el.style.top = y + 'px';
+        requestAnimationFrame(function(){
+          el.style.opacity = '1';
+          el.style.transform = 'translateY(0)';
+        });
+        setTimeout(function(){
+          try {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(-6px)';
+            setTimeout(function(){ try{ el.remove(); } catch(e){} }, 200);
+          } catch(e){}
+        }, duration);
+      } catch (e) {
+        try { console.warn('showInlineTinyHint error', e); } catch(e){}
+      }
+    };
+
+    // show* 代理：在编辑时抑制全局通知，优先使用内联提示或 console；非编辑时保留全局通知（若 NotificationBridge 可用）
+    function _mw_deliverNotification(msg, type, targetEl) {
+      try {
+        var isEditing = !!window.__mw_suppress_toasts_when_editing;
+        // 编辑中：使用最弱内联提示（若传入目标元素），否则只 log
+        if (isEditing) {
+          try {
+            if (targetEl && window.showInlineTinyHint) {
+              window.showInlineTinyHint(targetEl, msg, { duration: 900 });
+              return;
+            }
+          } catch(e) { /* ignore */ }
+          try { if (type === 'error') console.error('[MW]' + msg); else console.log('[MW]' + msg); } catch(e){}
+          return;
+        }
+        // 非编辑：优先使用 NotificationBridge / 原有弹窗逻辑；若不可用则降级到 console
+        if (window.NotificationBridge && typeof window.NotificationBridge.show === 'function') {
+          try { window.NotificationBridge.show(msg, type === 'error' ? 'danger' : 'success', 3000); return; } catch(e){}
+        }
+        // 最后降级：console
+        try { if (type === 'error') console.error('[MW]' + msg); else console.log('[MW]' + msg); } catch(e){}
+      } catch (e) { try { console.log('[MW deliver error]', e); } catch(e){} }
     }
 
-    function showError(msg) {
-      console.error(msg);
-      alert(msg);
-    }
-
-    function showSuccess(msg) {
-      console.log(msg);
-      alert(msg);
-    }
-
-    function showInfo(msg) {
-      console.log(msg);
-      alert(msg);
-    }
+    function showWarning(msg, targetEl) { _mw_deliverNotification(msg, 'warning', targetEl); }
+    function showError(msg, targetEl) { _mw_deliverNotification(msg, 'error', targetEl); }
+    function showSuccess(msg, targetEl) { _mw_deliverNotification(msg, 'success', targetEl); }
+    function showInfo(msg, targetEl) { _mw_deliverNotification(msg, 'info', targetEl); }
 
     // 获取默认NodeTree
     function getDefaultNodeTree() {
@@ -2581,6 +2834,160 @@
     function saveToLocalStorage() {
       if (!jm) return;
 
+      // 如果处于过滤视图（只看标题），需要把过滤视图中的变更合并回原始快照再保存
+      try {
+        if (window.__mw_filteredViewActive && window.__mw_originalNodeTreeSnapshot) {
+          try {
+            console.log('[MW] saveToLocalStorage: 过滤视图下合并变更回原始快照');
+            // build index for original snapshot
+            var orig = window.__mw_originalNodeTreeSnapshot;
+            var idMap = Object.create(null);
+            (function buildIndex(node){
+              if (!node) return;
+              idMap[node.id] = node;
+              if (node.children && node.children.length) {
+                node.children.forEach(buildIndex);
+              }
+            })(orig.data);
+
+            // take current filtered view data and walk to apply changes to original by id
+            var filtered = jm.get_data();
+            (function applyChanges(node){
+              if (!node) return;
+              var target = idMap[node.id];
+              if (target) {
+                // copy editable fields
+                try { target.topic = node.topic; } catch(e){}
+                try { target.notes = node.notes || (target.notes || ''); } catch(e){}
+                try {
+                  if (node.data) {
+                    // merge a few common fields
+                    target.data = target.data || {};
+                    if (typeof node.data.type !== 'undefined') target.data.type = node.data.type;
+                    if (typeof node.data.level !== 'undefined') target.data.level = node.data.level;
+                    if (typeof node.data.ordered !== 'undefined') target.data.ordered = node.data.ordered;
+                    if (typeof node.data.marker !== 'undefined') target.data.marker = node.data.marker;
+                  }
+                } catch(e){}
+              }
+              // recurse children
+              if (node.children && node.children.length) {
+                node.children.forEach(applyChanges);
+              }
+            })(filtered.data);
+
+            // NOTE: moves (parent changes) in filtered view are complex: we attempt a best-effort - if an id exists
+            // under a different parent in filtered view, we will relocate the original node accordingly.
+            try {
+              // build parent map from filtered view
+              var filteredParent = Object.create(null);
+              (function buildParentMap(n, parent){
+                if (!n) return;
+                filteredParent[n.id] = parent ? parent.id : null;
+                if (n.children && n.children.length) n.children.forEach(ch => buildParentMap(ch, n));
+              })(filtered.data, null);
+
+              // relocate nodes in orig to match filtered parent relationships (only if both nodes exist in orig)
+              Object.keys(filteredParent).forEach(function(nid){
+                var newPid = filteredParent[nid];
+                var origNode = idMap[nid];
+                if (!origNode) return;
+                var currentParentId = origNode.parent && origNode.parent.id ? origNode.parent.id : null;
+                if (String(currentParentId) !== String(newPid)) {
+                  // remove from current parent children
+                  try {
+                    if (currentParentId && idMap[currentParentId] && idMap[currentParentId].children) {
+                      idMap[currentParentId].children = (idMap[currentParentId].children || []).filter(c => !(c && c.id === nid));
+                    }
+                  } catch(e){}
+                  // add to new parent children (append)
+                  try {
+                    if (newPid && idMap[newPid]) {
+                      idMap[newPid].children = idMap[newPid].children || [];
+                      // prevent duplicates
+                      if (!idMap[newPid].children.find(c => c && c.id === nid)) {
+                        idMap[newPid].children.push(origNode);
+                      }
+                      // update parent pointer
+                      origNode.parent = { id: newPid };
+                    } else if (!newPid) {
+                      // moving to root
+                      if (orig.data && orig.data.id === 'root' && orig.data.children) {
+                        // noop
+                      } else {
+                        try {
+                          orig.data.children = orig.data.children || [];
+                          if (!orig.data.children.find(c => c && c.id === nid)) {
+                            orig.data.children.push(origNode);
+                            origNode.parent = { id: orig.data.id || 'root' };
+                          }
+                        } catch(e){}
+                      }
+                    }
+                  } catch(e){}
+                }
+              });
+            } catch(e) {
+              console.warn('[MW] saveToLocalStorage: 合并 parent 关系时出错', e);
+            }
+
+            // final data to persist is the modified orig snapshot
+            var mergedData = orig;
+            var mergedDataString = JSON.stringify(mergedData);
+            lastStorageData = mergedDataString;
+            window.__mindmapSuppressCount = (window.__mindmapSuppressCount || 0) + 1;
+            localStorage.setItem('mindword_nodetree_data', mergedDataString);
+
+            // continue with existing syncAll logic using mergedData
+            try {
+              if (typeof syncAll === 'function') {
+                if (!window.converter) {
+                  console.log('正在加载转换器...');
+                  import('../converter/converter.js')
+                    .then(module => {
+                      window.converter = new module.ConverterManager();
+                      console.log('转换器已加载');
+                      if (typeof syncAll === 'function') {
+                        window.__mindmapSelfUpdateUntil = Date.now() + 1500;
+                        window.__mindmapSuppressCount = (window.__mindmapSuppressCount || 0) + 1;
+                        syncAll('mindmap', true, true, mergedData);
+                      }
+                    })
+                    .catch(error => {
+                      console.warn('转换器加载失败，使用降级模式:', error);
+                      localStorage.setItem('mindword_nodetree_data', mergedDataString);
+                    });
+                } else {
+                  if (typeof syncAll === 'function') {
+                    window.__mindmapSelfUpdateUntil = Date.now() + 1500;
+                    window.__mindmapSuppressCount = (window.__mindmapSuppressCount || 0) + 1;
+                    syncAll('mindmap', true, true, mergedData);
+                  }
+                }
+              } else {
+                console.log('syncAll函数不存在，保存到localStorage');
+                localStorage.setItem('mindword_nodetree_data', mergedDataString);
+              }
+
+              if (window.parent !== window) {
+                window.parent.postMessage({
+                  type: 'mindmapUpdated',
+                  data: mergedData
+                }, '*');
+              }
+            } catch (error) {
+              console.warn('同步方法调用失败:', error);
+              localStorage.setItem('mindword_nodetree_data', mergedDataString);
+            }
+
+            return;
+          } catch(e) {
+            console.warn('[MW] saveToLocalStorage: 过滤视图合并失败，退回普通保存', e);
+            // fallthrough to normal save flow
+          }
+        }
+      } catch(e){ console.warn('[MW] saveToLocalStorage merge check error', e); }
+  
       const currentData = jm.get_data();
       const dataString = JSON.stringify(currentData);
 
@@ -2589,7 +2996,7 @@
       // 标记抑制：本页即将写入 nodetree，一次自发写入
       window.__mindmapSuppressCount = (window.__mindmapSuppressCount || 0) + 1;
       localStorage.setItem('mindword_nodetree_data', dataString);
-      // 同步数据到各个系统
+      // 同步数据到各個系统
       try {
         // 1. 优先使用syncAll函数（如果存在）
         if (typeof syncAll === 'function') {
