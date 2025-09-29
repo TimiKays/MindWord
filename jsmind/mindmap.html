@@ -1509,6 +1509,10 @@
       let addMode = false; // 是否叠加选择（Shift/Meta），空格为画布拖拽
       let isSpacePressed = false; // 空格按下时启用画布拖拽
 
+      // 延迟选择/拖拽判定状态
+      let pendingSingleSelectId = null; // 如果按下的是已选集合内的节点，则可能在 mouseup 后转为单选
+      let movedDuringPress = false; // 在按下后是否发生了足以判定为拖拽的移动
+
       // 计算内层容器的缩放比例（CSS transform: scale），用于坐标换算
       function getInnerScale() {
         const r = inner.getBoundingClientRect();
@@ -1584,17 +1588,26 @@
       function performHighlightUpdate() {
         console.log(`🎯 执行高亮更新，选中节点数: ${multiSelected.size}`);
 
-        // 清理高亮：仅移除节点矩形上的多选类，并移除覆盖层
+        // 清理高亮：移除之前多选相关类/覆盖层，避免残留
         const prevMulti = document.querySelectorAll('.jmnode.multi-selected');
-        let clearCount = 0;
-        prevMulti.forEach(el => {
-          el.classList.remove('multi-selected');
-          clearCount++;
-        });
-        // 额外：移除所有多选覆盖层，避免残留
+        prevMulti.forEach(el => el.classList.remove('multi-selected'));
         document.querySelectorAll('.multi-overlay').forEach(ov => ov.remove());
 
-        // 应用高亮
+        // 清理残留的单选样式：确保只有当前由 jsMind 选中的节点保留 .selected
+        try {
+          const currentSelectedId = (window.jm && typeof jm.get_selected_node === 'function') ? jm.get_selected_node() : null;
+          // 遍历所有带 selected 类的节点，移除非当前选中的 selected 类
+          document.querySelectorAll('.jmnode.selected').forEach(el => {
+            const nid = el.getAttribute('nodeid');
+            if (!nid || nid !== String(currentSelectedId)) {
+              el.classList.remove('selected');
+            }
+          });
+        } catch (e) {
+          console.warn('清理 selected 类时出错:', e);
+        }
+
+        // 应用多选高亮
         multiSelected.forEach(id => {
           const el = getNodeElement(id);
           if (el) {
@@ -1607,6 +1620,45 @@
 
         // 暴露便捷 API
         exposeMultiSelectAPI();
+      }
+
+      // 同步 jsMind 的 selected 状态与 multiSelected 集合到 DOM 样式，消除残留
+      function syncSelectionStyles() {
+        try {
+          const realSelectedNode = (window.jm && typeof jm.get_selected_node === 'function') ? jm.get_selected_node() : null;
+          const realSelectedId = realSelectedNode ? (realSelectedNode.id || String(realSelectedNode)) : null;
+
+          // 遍历所有节点，基于 jm 与 multiSelected 决定样式
+          const allNodes = document.querySelectorAll('[nodeid], .jmnode');
+          allNodes.forEach(el => {
+            const nid = el.getAttribute && el.getAttribute('nodeid') ? el.getAttribute('nodeid') : null;
+            // 优先处理 multiSelected：保留 multi-selected，不添加单选填充
+            if (nid && multiSelected.has(nid)) {
+              el.classList.add('multi-selected');
+              el.classList.remove('selected');
+              // 确保存在 overlay
+              if (!el.querySelector(':scope > .multi-overlay')) {
+                const ov = document.createElement('div');
+                ov.className = 'multi-overlay';
+                el.appendChild(ov);
+              }
+            } else {
+              // 非多选节点：移除多选样式
+              if (el.classList && el.classList.contains('multi-selected')) el.classList.remove('multi-selected');
+              // 单选由 jsMind 决定
+              if (nid && String(nid) === String(realSelectedId)) {
+                if (el.classList && !el.classList.contains('selected')) el.classList.add('selected');
+              } else {
+                if (el.classList && el.classList.contains('selected')) el.classList.remove('selected');
+              }
+              // 移除可能遗留的 overlay
+              const ovChild = el.querySelector && el.querySelector(':scope > .multi-overlay');
+              if (ovChild) ovChild.remove();
+            }
+          });
+        } catch (e) {
+          console.warn('syncSelectionStyles error', e);
+        }
       }
 
       // 获取节点元素的辅助函数
@@ -1727,6 +1779,8 @@
         if (!isDownOnNode && !e.target.closest('#toolbar') && !e.target.closest('#batchOperations')) {
           multiSelected.clear();
           if (window.jm && typeof jm.select_clear === 'function') { try { jm.select_clear(); } catch (err) { } }
+          // 额外：显式移除所有残留的单选样式，避免样式滞留
+          document.querySelectorAll('.jmnode.selected').forEach(el => el.classList.remove('selected'));
           updateHighlight();
         }
 
@@ -1736,6 +1790,53 @@
           isSelecting = false;
           isSelectingPrimed = false;
           rectEl.style.display = 'none';
+
+          // 计算点击的节点元素与 id（若存在）
+          const clickedNodeEl = (e.target && e.target.closest) ? (e.target.closest('.jmnode') || nodeElement) : nodeElement;
+          const clickedNodeId = clickedNodeEl ? clickedNodeEl.getAttribute('nodeid') : null;
+
+          // 场景A：点击的是已多选集合内的节点（且没有按 Ctrl/Meta）
+          // 这里不要立即启动批量拖拽，而是延后决定：记录 pending 状态与起点坐标，
+          // 在 mousemove 超过阈值时再真正启动批量拖拽；在 mouseup 且未移动时再切换为单选。
+          if (clickedNodeId && !(e.ctrlKey || e.metaKey) && multiSelected.has(clickedNodeId) && multiSelected.size > 0) {
+            // 记录按下坐标以便后续判断是否为拖拽
+            startClientX = e.clientX;
+            startClientY = e.clientY;
+            pendingSingleSelectId = clickedNodeId;
+            movedDuringPress = false;
+            // 不清空 multiSelected，延后在 mousemove/mouseup 决定
+            return;
+          }
+
+          // 场景B：点击节点且未按 Ctrl/Meta，但该节点不在 multiSelected 中 —— 进入纯单选（清除多选）
+          if (clickedNodeEl && !(e.ctrlKey || e.metaKey)) {
+            // 清理多选集合与视觉残留
+            multiSelected.clear();
+            document.querySelectorAll('.jmnode.multi-selected').forEach(el => el.classList.remove('multi-selected'));
+            document.querySelectorAll('.multi-overlay').forEach(ov => ov.remove());
+
+            // 让 jsMind 将该节点设为唯一选中（触发其内部选中逻辑）
+            if (clickedNodeId && window.jm && typeof jm.select_node === 'function') {
+              try { jm.select_node(clickedNodeId); } catch (err) { /* ignore */ }
+              try { syncSelectionStyles(); } catch (e) { /* ignore */ }
+            } else if (window.jm && typeof jm.select_clear === 'function') {
+              try { jm.select_clear(); } catch (err) { /* ignore */ }
+            }
+
+            // 主动清理可能残留的 .selected（除当前外）
+            document.querySelectorAll('.jmnode.selected').forEach(el => {
+              const nid = el.getAttribute('nodeid');
+              if (!nid || (clickedNodeId && String(nid) !== String(clickedNodeId))) {
+                el.classList.remove('selected');
+              }
+            });
+
+            // 更新 UI
+            updateHighlight();
+            // 继续让 jsMind 处理后续单节点拖拽/交互
+            e.preventDefault();
+            return;
+          }
 
           // 如果按住Ctrl键点击节点，切换选择状态（与框选多选功能一致）
           if (e.ctrlKey || e.metaKey) {
@@ -1755,7 +1856,7 @@
             }
           }
 
-          // 批量拖拽模式：有框选节点时启动
+          // 批量拖拽模式（兜底）：有框选节点时启动
           if (multiSelected.size > 0) {
             isDraggingNode = true;
             window.__batchDragLocked = true;
@@ -1765,8 +1866,6 @@
               targetParent: null,
               isBatchDragging: true
             };
-
-
             return;
           }
 
@@ -1837,6 +1936,32 @@
           inner.scrollTop = startScrollTop - dy;
           e.preventDefault();
           return;
+        }
+
+        // 若存在 pendingSingleSelectId（按下时点击的是已多选节点或可能切换为单选的节点），
+        // 在 mousemove 中判断是否超过移动阈值以启动批量拖拽。
+        if (pendingSingleSelectId && !movedDuringPress && typeof startClientX === 'number' && typeof startClientY === 'number') {
+          const dx = e.clientX - startClientX;
+          const dy = e.clientY - startClientY;
+          const dist2 = dx * dx + dy * dy;
+          const threshold = 6; // px 阈值（可调：4-8）
+          if (dist2 >= threshold * threshold) {
+            movedDuringPress = true;
+            // 仅在 pendingSingleSelectId 属于 multiSelected 集合时启动批量拖拽
+            if (multiSelected.has(pendingSingleSelectId) && multiSelected.size > 0) {
+              isDraggingNode = true;
+              window.__batchDragLocked = true;
+              window.__batchDragData = {
+                selectedNodes: Array.from(multiSelected),
+                dragStartNode: pendingSingleSelectId,
+                targetParent: null,
+                isBatchDragging: true,
+                movedNodes: new Set()
+              };
+              // 隐藏选框并让后续拖拽逻辑处理
+              rectEl.style.display = 'none';
+            }
+          }
         }
 
         // 如果正在拖拽节点，完全跳过框选逻辑
@@ -2004,6 +2129,37 @@
 
         // 若本次拖拽起点在节点上或正在拖拽节点，则不进行框选
         if (isDownOnNode || isDraggingNode) {
+          // 隐藏框选矩形，但**不阻止**jsMind的事件处理
+          rectEl.style.display = 'none';
+
+          // 如果存在 pendingSingleSelectId（按下时可能是已多选或将切换为单选），
+          // 且在按下后未发生足以判定为拖拽的移动，则认为是单击 -> 切换为单选。
+          if (pendingSingleSelectId && !movedDuringPress) {
+            // 清除多选视觉与集合
+            multiSelected.clear();
+            document.querySelectorAll('.jmnode.multi-selected').forEach(el => el.classList.remove('multi-selected'));
+            document.querySelectorAll('.multi-overlay').forEach(ov => ov.remove());
+            try {
+              if (window.jm && typeof jm.select_node === 'function') {
+                jm.select_node(pendingSingleSelectId);
+                try { syncSelectionStyles(); } catch (e) { /* ignore */ }
+              } else if (window.jm && typeof jm.select_clear === 'function') {
+                jm.select_clear();
+              }
+            } catch (err) { /* ignore */ }
+            document.querySelectorAll('.jmnode.selected').forEach(el => {
+              const nid = el.getAttribute('nodeid');
+              if (!nid || String(nid) !== String(pendingSingleSelectId)) {
+                el.classList.remove('selected');
+              }
+            });
+            updateHighlight();
+          }
+
+          // 清理 pending 标志（无论是否切换）
+          pendingSingleSelectId = null;
+          movedDuringPress = false;
+
           // 批量拖拽模式处理
           if (window.__batchDragData && window.__batchDragData.isBatchDragging) {
             // 延迟清理批量拖拽数据
