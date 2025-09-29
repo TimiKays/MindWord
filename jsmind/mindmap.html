@@ -2583,6 +2583,10 @@
         const key = e.key || '';
         if ((key === 'Delete' || key === 'Backspace') && typeof window.getMultiSelection === 'function') {
           const ids = window.getMultiSelection();
+          try {
+            // 记录最近删除的节点ID（过滤 root），供撤销后优先选中
+            window.__mw_lastDeletedIds = Array.isArray(ids) ? ids.filter(id => id && id !== 'root').slice() : [];
+          } catch(e){}
           if (Array.isArray(ids) && ids.length > 0) {
             e.preventDefault();
             e.stopPropagation();
@@ -3605,6 +3609,79 @@
         }
       } catch (e) { /* ignore */ }
 
+      // 视口全局工具（幂等注入）：用于在 jm.show 等重建后恢复缩放/平移/滚动，避免跳回根
+      if (!window.MW_saveViewport) {
+        window.MW_saveViewport = function() {
+          try {
+            const container = document.getElementById('fullScreenMindmap');
+            if (!container) return null;
+            const inner = container.querySelector('.jsmind-inner') || container;
+            let selectedId = null;
+            try {
+              const sel = (window.jm && typeof jm.get_selected_node === 'function') ? jm.get_selected_node() : null;
+              selectedId = sel ? (sel.id || String(sel)) : null;
+            } catch (e) { selectedId = null; }
+            let zoom = null, pan = null;
+            try {
+              if (window.jm && jm.view && typeof jm.view.get_scale === 'function') {
+                zoom = jm.view.get_scale();
+              }
+              if (window.jm && jm.view && typeof jm.view.get_translate === 'function') {
+                pan = jm.view.get_translate();
+              }
+            } catch (e) {}
+            return {
+              scrollTop: inner.scrollTop,
+              scrollLeft: inner.scrollLeft,
+              zoom, pan, selectedId
+            };
+          } catch (e) { return null; }
+        };
+      }
+      if (!window.MW_restoreViewport) {
+        // opts: { avoidReselect: true } 来避免 select 导致再次居中
+        window.MW_restoreViewport = function(state, opts) {
+          try {
+            if (!state) return;
+            const container = document.getElementById('fullScreenMindmap');
+            if (!container) return;
+            const inner = container.querySelector('.jsmind-inner') || container;
+            // 若调用方明确要求避免恢复选中（例如 jm.show 可能会触发自动居中），则清除选中以避免居中
+            try { 
+              var _avoid = opts && opts.avoidReselect === true;
+              if (_avoid) {
+                if (window.jm && typeof jm.select_clear === 'function') jm.select_clear();
+              }
+            } catch(e){}
+            // 恢复缩放与平移
+            try {
+              if (window.jm && jm.view && typeof jm.view.set_scale === 'function' && state.zoom != null) {
+                jm.view.set_scale(state.zoom);
+              }
+              if (window.jm && jm.view && typeof jm.view.set_translate === 'function' && state.pan != null) {
+                jm.view.set_translate(state.pan);
+              }
+            } catch (e) {}
+            // 恢复滚动
+            try { inner.scrollTop = state.scrollTop || 0; } catch(e){}
+            try { inner.scrollLeft = state.scrollLeft || 0; } catch(e){}
+            // 可选：恢复之前选中的节点（可能触发居中，默认关闭）
+            const avoidReselect = opts && opts.avoidReselect !== undefined ? opts.avoidReselect : true;
+            if (!avoidReselect && state.selectedId && window.jm && typeof jm.get_node === 'function' && jm.get_node(state.selectedId)) {
+              try { jm.select_node(state.selectedId); } catch(e){}
+            }
+          } catch (e) {}
+        };
+      }
+      if (!window.MW_preserveViewportAround) {
+        window.MW_preserveViewportAround = function(fn, restoreDelayMs, opts) {
+          const st = window.MW_saveViewport && window.MW_saveViewport();
+          try { fn && fn(); } catch (e) {}
+          const delay = typeof restoreDelayMs === 'number' ? restoreDelayMs : 100;
+          setTimeout(function(){ try { window.MW_restoreViewport && window.MW_restoreViewport(st, opts); } catch(e){} }, delay);
+        };
+      }
+
       // 初始化 UndoManager（如果已注入）
       try {
         if (window.UndoManager && jm) {
@@ -3615,7 +3692,78 @@
             },
             restoreSnapshot: function (s) {
               try {
-                jm.show(JSON.parse(s));
+                const parsed = JSON.parse(s);
+
+                // 收集重建前的所有节点ID集合
+                function collectIds(tree) {
+                  const set = new Set();
+                  (function walk(n){
+                    if (!n) return;
+                    if (n.id) set.add(String(n.id));
+                    if (n.children && n.children.length) n.children.forEach(walk);
+                  })(tree && tree.data);
+                  return set;
+                }
+                const beforeData = (jm && typeof jm.get_data === 'function') ? jm.get_data() : null;
+                const beforeIds = beforeData ? collectIds(beforeData) : new Set();
+
+                // 用视口保护包裹重建，避免跳回根
+                window.MW_preserveViewportAround(function(){
+                  jm.show(parsed);
+                }, 120, { avoidReselect: true });
+
+                // 重建后选择“被恢复”的节点（不打断视口）
+                setTimeout(function(){
+                  try {
+                    const afterData = (jm && typeof jm.get_data === 'function') ? jm.get_data() : null;
+                    if (!afterData) return;
+                    const afterIds = collectIds(afterData);
+
+                    // 优先使用最近删除记录
+                    let targetId = null;
+                    if (Array.isArray(window.__mw_lastDeletedIds) && window.__mw_lastDeletedIds.length > 0) {
+                      for (const rid of window.__mw_lastDeletedIds) {
+                        if (rid && afterIds.has(String(rid))) { targetId = String(rid); break; }
+                      }
+                    }
+                    // 次选：计算新增集合
+                    if (!targetId) {
+                      const added = [];
+                      afterIds.forEach(id => { if (!beforeIds.has(id)) added.push(id); });
+                      if (added.length === 1) {
+                        targetId = added[0];
+                      }
+                    }
+                    if (targetId) {
+                      // 选中时用视口保护避免再次因选中而居中跳动
+                      window.MW_preserveViewportAround(function(){
+                        try { jm.select_node(targetId); } catch(e){}
+                      }, 60, { avoidReselect: true });
+
+                      // 强制一次样式/高亮同步，覆盖后续可能的延迟任务（确保选中高亮不会被清掉）
+                      setTimeout(function(){
+                        try { if (typeof syncSelectionStyles === 'function') syncSelectionStyles(); } catch(e){}
+                        try { if (typeof updateHighlight === 'function') updateHighlight(); } catch(e){}
+                        try { window.__mw_lastDeletedIds = []; } catch(e){}
+                      }, 120);
+                    }
+                  } catch (e) { /* ignore */ }
+                }, 160);
+
+                // 保存并同步恢复后的数据到 localStorage / 编辑器 / 预览（避免撤销后数据未同步）
+                try {
+                  // 标记短期内为本页自发更新，避免被自身的 storage 监听立即重载
+                  window.__mindmapSelfUpdateUntil = Date.now() + 1500;
+                  window.__mindmapSuppressCount = (window.__mindmapSuppressCount || 0) + 1;
+                  try { if (typeof debouncedSave === 'function') debouncedSave(); else if (typeof saveToLocalStorage === 'function') saveToLocalStorage(); } catch(e){}
+                  // 立即向父页面广播最新数据（与 saveToLocalStorage 保持一致）
+                  try {
+                    if (window.parent && window.parent !== window) {
+                      window.parent.postMessage({ type: 'mindmapUpdated', data: (jm && typeof jm.get_data === 'function') ? jm.get_data() : null }, '*');
+                    }
+                  } catch(e){}
+                } catch(e){}
+
                 return true;
               } catch (err) {
                 console.error('UndoManager restore failed:', err);

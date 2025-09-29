@@ -48,17 +48,23 @@
       min-height: 0;
     }
 
-    /* 标题样式 - 保持较大间距 */
-    .preview-container h1,
-    .preview-container h2,
-    .preview-container h3,
-    .preview-container h4,
-    .preview-container h5,
-    .preview-container h6 {
-      margin-top: 0;
-      margin-bottom: 16px;
-      color: #333;
+    /* 全局基准：1rem = 12px */
+    :root{font-size:14px;}
+
+    /* 标题样式（h6..h1）： */
+    .preview-container{font-size:1rem;line-height:1.5;}
+    .preview-container h1,.preview-container h2,.preview-container h3,
+    .preview-container h4,.preview-container h5,.preview-container h6{
+      color:#333;
+      margin-top: 1.5rem;
+      margin-bottom:1rem;
     }
+    .preview-container h6{font-size:1rem;}   
+    .preview-container h5{font-size:1.2rem;} 
+    .preview-container h4{font-size:1.4rem;} 
+    .preview-container h3{font-size:1.6rem;} 
+    .preview-container h2{font-size:2.0rem;}  
+    .preview-container h1{font-size:2.6rem;} 
 
     /* 预览高亮（短暂）*/
     .mw-preview-highlight {

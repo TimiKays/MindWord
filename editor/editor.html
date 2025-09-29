@@ -44,6 +44,8 @@
             flex-direction: column;
             background-color: #fff;
             border-right: 1px solid #e1e5e9;
+            height: 100%;       /* 确保占满父容器高度 */
+            min-height: 0;      /* 允许 flex 子元素正确收缩/扩展 */
         }
 
         .editor-header {
