@@ -60,6 +60,15 @@
       color: #333;
     }
 
+    /* 预览高亮（短暂）*/
+    .mw-preview-highlight {
+      background: rgba(255, 235, 59, 0.35); /* 温和黄色 */
+      box-shadow: 0 0 0 4px rgba(255, 235, 59, 0.15);
+      transition: background 0.35s ease, box-shadow 0.35s ease;
+      border-radius: 6px;
+      padding: 2px 6px; /* 避免 inline 元素被高亮时看起来太拥挤 */
+    }
+
     /* 统一所有非标题元素的间距 */
     .preview-container p,
     .preview-container ul,
@@ -356,6 +365,128 @@
 
       // 定期检查 localStorage 变化（用于同一页面内的变化，但只在数据真正变化时才重新渲染）
       setInterval(loadAndRenderMarkdown, 2000); // 降低检查频率到2秒
+
+      // 接收来自 index 的滚动请求（preview-scroll-to），根据 raw 在预览中查找并滚动到对应位置
+      window.addEventListener('message', function (e) {
+        try {
+          if (!e.data || !e.data.type) return;
+          if (e.data.type !== 'preview-scroll-to') return;
+
+          try { console.log('[MD2WORD RAW MESSAGE]', e.data); } catch (err) {}
+
+          const payload = e.data || {};
+          const raw = (payload.raw || '').toString().trim();
+          const nodeid = payload.nodeid || '';
+
+          if (!raw) return;
+
+          // 规范化文本：去掉行首 Markdown 前缀（#、-、数字.、> 等）并 trim
+          const normalize = (s) => (s || '').toString().replace(/^\s*(#{1,6}\s+|[-*]\s+|\d+\.\s+|>\s+)/, '').trim();
+          const targetNormalized = normalize(raw.replace(/^\s*#{1,6}\s*/, ''));
+
+          // 在 preview DOM 中查找可能匹配的元素（优先标题 h1-h6，其次 li/p 等）
+          const container = previewEl;
+          if (!container) return;
+
+          const parentLast = (payload.parentPath || '').toString().split('/').pop().trim();
+          const matches = [];
+
+          // 优先在标题中查找（标题更可能是正文，而非目录中的链接）
+          try {
+            const headingEls = Array.from(container.querySelectorAll('h1,h2,h3,h4,h5,h6'));
+            for (let i = 0; i < headingEls.length; i++) {
+              const el = headingEls[i];
+              const text = (el.innerText || el.textContent || '').toString().trim();
+              const norm = normalize(text);
+              if (norm !== targetNormalized) continue;
+
+              // parentPath 校验（若提供）
+              if (parentLast) {
+                let foundParent = false;
+                // 在标题之前向上查找最多 8 个可读元素（避免跨大量内容）
+                const allCandidates = Array.from(container.querySelectorAll('h1,h2,h3,h4,h5,h6,li,p'));
+                const idx = allCandidates.indexOf(el);
+                for (let k = Math.max(0, idx - 8); k <= idx; k++) {
+                  const ctx = (allCandidates[k] && (allCandidates[k].innerText || allCandidates[k].textContent)) ? (allCandidates[k].innerText || allCandidates[k].textContent) : '';
+                  if (ctx && ctx.toString().includes(parentLast)) { foundParent = true; break; }
+                }
+                if (!foundParent) continue;
+              }
+
+              matches.push(el);
+            }
+          } catch (e) {}
+
+          // 如果标题没有命中，再回退到通用候选（li,p 等），以保证兼容 TOC/特殊结构
+          if (matches.length === 0) {
+            const candidates = Array.from(container.querySelectorAll('li,p'));
+            for (let i = 0; i < candidates.length; i++) {
+              const el = candidates[i];
+              const text = (el.innerText || el.textContent || '').toString().trim();
+              const norm = normalize(text);
+              if (norm !== targetNormalized) continue;
+
+              if (parentLast) {
+                let foundParent = false;
+                const allCandidates = Array.from(container.querySelectorAll('h1,h2,h3,h4,h5,h6,li,p'));
+                const idx = allCandidates.indexOf(el);
+                for (let k = Math.max(0, idx - 8); k <= idx; k++) {
+                  const ctx = (allCandidates[k] && (allCandidates[k].innerText || allCandidates[k].textContent)) ? (allCandidates[k].innerText || allCandidates[k].textContent) : '';
+                  if (ctx && ctx.toString().includes(parentLast)) { foundParent = true; break; }
+                }
+                if (!foundParent) continue;
+              }
+
+              matches.push(el);
+            }
+          }
+
+          if (matches.length === 0) {
+            console.warn('[MD2WORD] 未在预览中找到匹配项', { raw, targetNormalized, candidatesCount: candidates.length });
+            return;
+          }
+
+          // 支持多次点击切换匹配项（按 nodeid 或 raw 计数）
+          window.__mw_previewMatchIndex = window.__mw_previewMatchIndex || {};
+          const key = nodeid || raw;
+          let last = window.__mw_previewMatchIndex[key] || -1;
+          last = (last + 1) % matches.length;
+          window.__mw_previewMatchIndex[key] = last;
+          const targetEl = matches[last];
+
+          // 滚动并短暂高亮
+          try {
+            targetEl.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+          } catch (err) {
+            targetEl.scrollIntoView();
+          }
+
+          // 先移除页面上已有的预览高亮（防止残留）
+          try {
+            const existing = container.querySelectorAll('.mw-preview-highlight');
+            existing.forEach(el => el.classList.remove('mw-preview-highlight'));
+          } catch (e) {}
+
+          // 添加当前元素高亮，并用独立定时器在 1.6s 后只移除该元素的类
+          try {
+            targetEl.classList.add('mw-preview-highlight');
+            // 清理之前可能存在的元素级超时引用（如果有）
+            if (!window.__mw_previewHighlightTimers) window.__mw_previewHighlightTimers = new WeakMap();
+            const prevTimer = window.__mw_previewHighlightTimers.get(targetEl);
+            if (prevTimer) clearTimeout(prevTimer);
+
+            const t = setTimeout(() => {
+              try { targetEl.classList.remove('mw-preview-highlight'); } catch (e) {}
+              try { window.__mw_previewHighlightTimers.delete(targetEl); } catch (e) {}
+            }, 1600);
+            try { window.__mw_previewHighlightTimers.set(targetEl, t); } catch(e){}
+          } catch (err) {}
+
+          console.log('[MD2WORD] preview scrolled to match', { nodeid: nodeid, index: last, total: matches.length });
+        } catch (err) {
+          // ignore
+        }
+      }, { passive: true });
 
       // load default template if present
       try {

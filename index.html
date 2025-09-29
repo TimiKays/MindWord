@@ -708,18 +708,48 @@
                 if (event.data.type === 'mindmap-node-selected') {
                     // 找到 editor 面板 iframe（基于 PAGE_CONFIG 或常见选择器）
                     var editorIframe = document.querySelector('iframe[data-panel="editor"], iframe#panel-editor, iframe[src*="editor/editor.html"]');
+                    // 找到 preview/md2word 面板 iframe
+                    var previewIframe = document.querySelector('iframe[data-panel="preview"], iframe#panel-preview, iframe[src*="md2word/md2word.html"], iframe[src*="preview"]');
                     var payload = event.data;
-                    var forward = {
+                    var forwardEditor = {
                         type: 'editor-scroll-to',
                         nodeid: payload.nodeid,
                         raw: payload.raw,
                         parentPath: payload.parentPath
                     };
+                    var forwardPreview = {
+                        type: 'preview-scroll-to',
+                        nodeid: payload.nodeid,
+                        raw: payload.raw,
+                        parentPath: payload.parentPath
+                    };
+
+                    // 转发到 editor iframe
                     if (editorIframe && editorIframe.contentWindow) {
-                        editorIframe.contentWindow.postMessage(forward, '*');
+                        try {
+                            editorIframe.contentWindow.postMessage(forwardEditor, '*');
+                            console.log('[INDEX FORWARD] -> editor', { nodeid: payload.nodeid });
+                        } catch (e) {
+                            console.warn('[INDEX FORWARD] editor postMessage failed', e);
+                        }
                     } else {
                         // 如果 editor iframe 尚未就绪，缓存最后一条消息，init 时可重发
-                        window.__mw__pendingEditorMessage = forward;
+                        window.__mw__pendingEditorMessage = forwardEditor;
+                        console.log('[INDEX FORWARD] editor iframe not ready, cached');
+                    }
+
+                    // 转发到 preview/md2word iframe（如果存在）
+                    if (previewIframe && previewIframe.contentWindow) {
+                        try {
+                            previewIframe.contentWindow.postMessage(forwardPreview, '*');
+                            console.log('[INDEX FORWARD PREVIEW] -> preview', { nodeid: payload.nodeid });
+                        } catch (e) {
+                            console.warn('[INDEX FORWARD PREVIEW] preview postMessage failed', e);
+                        }
+                    } else {
+                        // 缓存以便在 iframe 初始化时重发
+                        window.__mw__pendingPreviewMessage = forwardPreview;
+                        console.log('[INDEX FORWARD PREVIEW] preview iframe not ready, cached');
                     }
                     return;
                 }
