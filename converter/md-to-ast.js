@@ -49,7 +49,7 @@ export class MdToAstConverter {
     return tempRoot;
   }
 
-  /**
+   /**
    * 解析块级元素
    * @private
    */
@@ -65,33 +65,92 @@ export class MdToAstConverter {
       depth: 0
     }];
 
+    // 状态：是否处于围栏代码块（```）中
+    let inFencedCode = false;
+    // 记录当前围栏起始标记（例如 ``` 或 ~~~），以支持不同的围栏标记
+    let fenceMarker = null;
+
     while (i < lines.length) {
       const line = lines[i];
       const lineNum = i + 1;
 
-      const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
+      // 检测围栏代码块开始/结束（支持 ``` 和 ~~~）
+      const fenceMatch = line.match(/^(\s*)(```+|~~~+)(.*)$/);
+      if (fenceMatch) {
+        const marker = fenceMatch[2];
+        if (!inFencedCode) {
+          inFencedCode = true;
+          fenceMarker = marker;
+        } else if (marker === fenceMarker) {
+          // 只有遇到相同的围栏标记才视为关闭
+          inFencedCode = false;
+          fenceMarker = null;
+        }
+
+        // 围栏标记行应作为备注（如果已有节点则附加）
+        if (lastNode || parent.children.length > 0) {
+          currentNotes.push(line);
+        }
+        i++;
+        continue;
+      }
+
+      // 如果在围栏代码块内，所有内容都作为备注，不做标题或列表解析
+      if (inFencedCode) {
+        if (lastNode || parent.children.length > 0) {
+          currentNotes.push(line);
+        }
+        i++;
+        continue;
+      }
+
+      // 普通行：先检测列表（保留前导空格用于缩进判断）
       const listMatch = line.match(/^(\s*)([-*+]|\d+\.)\s+(.+)$/);
 
-      if (headingMatch || listMatch) {
+      // 对于可能的标题行，需要额外判断：如果是被单行反引号包裹（整行为 inline code），或为引用行（> 开头），则视为备注
+      const trimmed = line.trim();
+
+      // 检查整行被单反引号包裹（类似：`# 测试`）
+      const isWholeLineInlineCode = /^[`]{1}.*[`]{1}$/.test(trimmed) && trimmed.indexOf('\n') === -1;
+
+      // 检查引用行（以 > 开头）
+      const isBlockQuote = /^\s*>/.test(line);
+
+      const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
+
+      // 如果行是真正的标题（不是在引用中、也不是整行 inline code），则创建节点
+      if (headingMatch && !isWholeLineInlineCode && !isBlockQuote) {
         // 处理前一个节点的备注
         if (lastNode) {
           lastNode.notes = currentNotes.join('\n').trim();
         }
         currentNotes = [];
 
-        let newNode;
-        if (headingMatch) {
-          newNode = this.createHeadingNode(headingMatch, lineNum, line);
-        } else {
-          newNode = this.createListNode(listMatch, lineNum, line);
-        }
-
+        const newNode = this.createHeadingNode(headingMatch, lineNum, line);
         this.addToTree(stack, newNode);
         lastNode = newNode;
-      } else {
-        if (lastNode || parent.children.length > 0) {
-          currentNotes.push(line);
+        i++;
+        continue;
+      }
+
+      // 列表仍按原规则处理（列表中的缩进与父子关系）
+      if (listMatch) {
+        // 处理前一个节点的备注
+        if (lastNode) {
+          lastNode.notes = currentNotes.join('\n').trim();
         }
+        currentNotes = [];
+
+        const newNode = this.createListNode(listMatch, lineNum, line);
+        this.addToTree(stack, newNode);
+        lastNode = newNode;
+        i++;
+        continue;
+      }
+
+      // 其他行：当作备注合并到最近的节点（或合并到已有子节点）
+      if (lastNode || parent.children.length > 0) {
+        currentNotes.push(line);
       }
 
       i++;
