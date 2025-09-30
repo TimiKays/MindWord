@@ -1,5 +1,12 @@
 /* mindmap-core.js - extracted from mindmap.html inline scripts (core) */
 
+// AI模块导入和全局导出（从mindmap-module-1.js迁移）
+import { AIExpander } from './ai-expander.js';
+import { AIConfigManager } from './ai-config.js';
+// 将类导出到全局作用域
+window.AIExpander = AIExpander;
+window.AIConfigManager = AIConfigManager;
+
 // --- 防重复绑定补丁（从 mindmap-extensions.js 整合） ---
 // 防重复绑定补丁（非侵入）：对一组常见事件的等价回调去重（DOMContentLoaded, load, resize, storage）
 // 只在 addEventListener 注册时做检测并忽略等价 listener 的重复注册（使用 listener.toString() 作为轻量指纹）
@@ -990,6 +997,8 @@ const availableIcons = [
   { emoji: '🚀', name: '启动' },
   { emoji: '💪', name: '力量' }
 ];
+// 将模块内定义的图标暴露到 window，兼容非模块脚本读取（createToolbarIconGrid）
+try { window.availableIcons = availableIcons; } catch (e) { /* ignore */ }
 
 let currentIcon = '';
 

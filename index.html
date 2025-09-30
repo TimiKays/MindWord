@@ -147,7 +147,7 @@
         // 页面加载功能
         // ===================================
 
-        // 加载iframe内容
+        // 加载iframe内容（改进：标识 iframe，onload 后向子页请求重排）
         function loadPanelContent(panelName) {
             const config = PAGE_CONFIG[panelName];
             const panelContent = document.querySelector(`#${panelName}-panel .panel-content`);
@@ -176,15 +176,32 @@
             // 添加时间戳参数避免缓存
             const timestamp = new Date().getTime();
             iframe.src = config.url + (config.url.includes('?') ? '&' : '?') + '_t=' + timestamp;
+
+            // 标识 iframe 便于后续选择与消息转发
+            iframe.dataset.panel = panelName;
+            iframe.id = `iframe-${panelName}`;
+
+            // 样式：确保占满面板内容
             iframe.style.width = '100%';
             iframe.style.height = '100%';
             iframe.style.border = 'none';
             iframe.style.backgroundColor = 'white';
+            iframe.style.display = 'none';
 
-            // iframe加载事件
+            // 加载成功后显示并请求子页重排（立即+短延迟）
             iframe.onload = function () {
                 placeholder.style.display = 'none';
                 iframe.style.display = 'block';
+
+                // 请求子页重排，防止首次渲染时尺寸未就绪
+                try {
+                    if (iframe.contentWindow) {
+                        iframe.contentWindow.postMessage({ type: 'mw_relayout' }, '*');
+                        setTimeout(() => {
+                            try { iframe.contentWindow.postMessage({ type: 'mw_relayout' }, '*'); } catch (e) {}
+                        }, 200);
+                    }
+                } catch (e) { console.warn('postMessage to iframe failed', e); }
             };
 
             iframe.onerror = function () {
@@ -196,8 +213,19 @@
                 `;
             };
 
-            iframe.style.display = 'none';
             panelContent.appendChild(iframe);
+
+            // 在父页窗口尺寸变化时，通知子 iframe 重排（防止父容器被调整）
+            // 延迟合并多次 resize
+            let _relayoutTimer = null;
+            window.addEventListener('resize', function () {
+                clearTimeout(_relayoutTimer);
+                _relayoutTimer = setTimeout(function () {
+                    try {
+                        if (iframe && iframe.contentWindow) iframe.contentWindow.postMessage({ type: 'mw_relayout' }, '*');
+                    } catch (e) {}
+                }, 150);
+            }, { passive: true });
         }
 
         // 重试加载
@@ -297,6 +325,8 @@
             } else {
                 togglePanel(panelName);
             }
+            // 在移动端切换到某个面板时，若是思维导图则触发 iframe 强制重载/重排
+            try { if (typeof MW_reloadMindmapOnShowIfMobile === 'function') MW_reloadMindmapOnShowIfMobile(panelName); } catch (e) { /* ignore */ }
         }
 
         // 更新布局
@@ -881,6 +911,47 @@
         document.addEventListener('DOMContentLoaded', () => {
             createMobileTabs();
         });
+    </script>
+
+    <script>
+    (function(){
+      // 仅在移动端启用的 mindmap iframe 强制重载策略
+      function isMobile() {
+        return (window.matchMedia && window.matchMedia('(max-width: 768px)').matches)
+          || ('ontouchstart' in window && navigator.maxTouchPoints > 0);
+      }
+
+      function reloadMindmapIframeOnce() {
+        var iframe = document.getElementById('iframe-mindmap');
+        if (!iframe) {
+          // 如果没有 id 为 iframe-mindmap 的元素，尝试按 panel src 选择
+          iframe = document.querySelector('iframe[src*="jsmind/mindmap.html"]');
+        }
+        if (!iframe) return;
+        try {
+          var src = iframe.getAttribute('src') || iframe.src;
+          src = src.replace(/([?&])_t=\d+/, '$1');
+          iframe.src = src + (src.includes('?') ? '&' : '?') + '_t=' + Date.now();
+
+          function onLoadHandler() {
+            try {
+              if (iframe.contentWindow) {
+                iframe.contentWindow.postMessage({ type: 'mw_relayout' }, '*');
+                setTimeout(function(){ try{ iframe.contentWindow.postMessage({ type: 'mw_relayout' }, '*'); }catch(e){} }, 200);
+              }
+            } catch(e) {}
+            iframe.removeEventListener('load', onLoadHandler);
+          }
+          iframe.addEventListener('load', onLoadHandler);
+        } catch (e) { console.warn('reloadMindmapIframeOnce error', e); }
+      }
+
+      window.MW_reloadMindmapOnShowIfMobile = function(panelName) {
+        if (panelName !== 'mindmap') return;
+        if (!isMobile()) return;
+        setTimeout(reloadMindmapIframeOnce, 80);
+      };
+    })();
     </script>
 </body>
 </html>
