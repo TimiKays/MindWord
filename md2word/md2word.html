@@ -248,7 +248,7 @@
       let defaultTplAB = null;
       let userTplAB = null;
 
-      const md = window.markdownit({ html: true, linkify: true, typographer: true });
+      const md = window.markdownit({ html: true, linkify: true, typographer: true, breaks: true });
       const statusEl = document.getElementById('status');
       const errlogEl = document.getElementById('errlog');
       const previewEl = document.getElementById('markdownPreview');

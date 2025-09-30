@@ -425,6 +425,15 @@ iframe .btn:not([class*="btn-"]):hover {
     border-radius: 12px 12px 0 0;
 }
 
+/* Ensure toolbar-primary is vertically centered inside the toolbar */
+.toolbar-primary {
+    display: flex !important;
+    align-items: center !important;
+    height: 100% !important;
+    margin: 0 !important;
+    gap: 8px;
+}
+
 /* 现代简约工具栏按钮样式 */
 .toolbar button,
 .toolbar .btn {

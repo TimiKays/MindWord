@@ -605,19 +605,19 @@
                 info: 'background-color: #17a2b8; border-color: #17a2b8; color: white;'     // 蓝色
             };
 
-            // 创建通知容器（如果不存在）
+            // 创建通知容器（如果不存在）——右对齐多条通知，垂直排列
             if ($('#global-notification-container').length === 0) {
-                $('body').append('<div id="global-notification-container" style="position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;"></div>');
+                $('body').append('<div id="global-notification-container" style="position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 6px; align-items: flex-end;"></div>');
             }
 
             // 创建通知元素
             const notificationId = 'global-notification-' + Date.now();
             const notificationHtml = `
                 <div id="${notificationId}" class="alert alert-dismissible fade show" 
-                     style="min-width: 300px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin: 0; ${typeStyles[type] || typeStyles.info}">
-                    ${message}
-                    <button type="button" class="close" data-dismiss="alert" aria-label="Close" style="color: inherit; opacity: 0.8;">
-                        <span aria-hidden="true">&times;</span>
+                     style="display: inline-flex; align-items: center; height: 24px; line-height: 14px; padding: 0 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.08); margin: 0; white-space: nowrap; ${typeStyles[type] || typeStyles.info}">
+                    <span style="font-size:12px; padding-right:16px;">${message}</span>
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Close" style="color: inherit; opacity: 0.9; padding:0 6px; height:20px; line-height:20px; background:transparent; border:none; display:inline-flex; align-items:center; justify-content:center;">
+                        <span aria-hidden="true" style="font-size:12px; line-height:20px;">&times;</span>
                     </button>
                 </div>
             `;

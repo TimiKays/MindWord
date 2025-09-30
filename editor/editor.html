@@ -58,6 +58,9 @@
 
         .editor {
             flex: 1;
+            display: block;
+            min-height: 0;
+            height: 100%;
             border: none;
             outline: none;
             padding: 20px;
@@ -95,9 +98,9 @@
         }
 
         .help-header {
-            background-color: #6366f1;
-            color: white;
-            padding: 16px;
+            background-color: #a7cae7;
+            color: rgb(255, 255, 255);
+            padding: 8px;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -255,6 +258,21 @@
             border: 2px dashed #3b82f6;
         }
     </style>
+        <style>
+            /* 强制工具栏为固定高度且不参与伸缩，确保主内容区域高度计算正确 */
+            .toolbar {
+                flex: 0 0 auto;
+                height: 48px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 8px 12px;
+            }
+            /* 强化主内容收缩约束 */
+            .main-content {
+                padding: 0px;
+            }
+        </style>
 </head>
 
 <body>
@@ -270,18 +288,13 @@
             上传
         </button>
 
-        <button class="btn" id="json-btn">
-
-            查看JSON
-        </button>
+        
 
         <button class="btn help-btn" id="help-btn" title="帮助文档" aria-label="帮助">
             <!-- 圆形 SVG 图标，防止在移动端变形；将按钮背景去掉，仅靠 svg 圆形作为视觉 -->
-            <svg class="help-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
-                <circle cx="12" cy="12" r="10" fill="#6366f1"></circle>
-                <path d="M12 8a2 2 0 1 1 0 4" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-                <circle cx="12" cy="17" r="1" fill="#fff"></circle>
-            </svg>
+            <svg class="help-svg" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" width="20" height="20">
+<path d="M512.956791 960.931592C266.363534 961.478038 64.969711 761.176083 64.479547 514.885723 63.98836 268.25051 264.216637 66.960041 510.574534 66.424852c245.564835-0.533143 447.856098 199.584618 448.462918 443.646216C959.656553 758.954485 760.363577 960.3831 512.956791 960.931592zM139.877771 517.064342c0.437975 206.380394 166.535921 372.055714 372.986923 372.036271 205.638497-0.019443 373.173165-167.17037 373.372709-372.517225C886.438994 310.307372 718.076472 142.700049 511.166005 143.194306 305.298288 143.68447 139.440819 310.697251 139.877771 517.064342z" fill="#bfbfbf"></path><path d="M533.706371 610.072643c-28.453029 0-52.5611 0-78.629825 0-8.176217-49.873897 2.848884-92.693122 40.473807-127.700427 13.622252-12.674671 27.497261-25.355481 39.222303-39.698141 7.992021-9.776667 14.149255-21.878287 18.140149-33.929764 8.40646-25.38311-3.360538-53.949726-24.848944-64.948221-22.3838-11.456936-50.65161-5.606695-67.99972 15.589047-7.039323 8.599865-12.148691 19.075451-16.686031 29.339212-4.205788 9.514701-6.478552 19.883863-10.524704 32.82357-29.947056-7.268544-59.390645-14.414291-90.285283-21.913079 10.208503-58.411341 31.146371-108.754936 87.706551-132.638903 60.505026-25.549909 122.591059-26.342971 179.231057 10.735505 52.072983 34.089399 66.654073 117.146047 31.156604 172.232666-13.338796 20.700461-31.6877 39.1036-50.724265 54.993498C557.223994 532.264533 526.186094 559.103808 533.706371 610.072643z" fill="#bfbfbf"></path><path d="M543.036877 756.13323c-33.396621 0-64.593134 0-97.456612 0 0-33.579793 0-66.103534 0-100.111069 32.640398 0 64.35368 0 97.456612 0C543.036877 689.488367 543.036877 721.383798 543.036877 756.13323z" fill="#bfbfbf"></path>
+</svg>
         </button>
 
         <style>
@@ -334,9 +347,7 @@
             <!-- 保存提示 -->
             <div class="save-notification" id="save-notification"></div>
 
-            <textarea class="editor" id="editor" placeholder="在这里输入 Markdown 内容...
-
-# 欢迎使用 Markdown 编辑器
+            <textarea class="editor" id="editor" placeholder="# 欢迎使用 Markdown 编辑器
 
 ## 功能特性
 
@@ -456,16 +467,7 @@
         </div>
     </div>
 
-    <!-- JSON查看模态框 -->
-    <div class="modal" id="json-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">📊 JSON 数据结构</h3>
-                <button class="modal-close" id="json-modal-close">&times;</button>
-            </div>
-            <div class="json-content" id="json-content"></div>
-        </div>
-    </div>
+
 
     <!-- 状态消息 -->
     <div class="status-message" id="status-message"></div>
@@ -520,18 +522,12 @@
                 // 工具栏按钮
                 document.getElementById('export-btn').addEventListener('click', () => this.exportContent());
                 document.getElementById('upload-btn').addEventListener('click', () => this.uploadFile());
-                document.getElementById('json-btn').addEventListener('click', () => this.showJSON());
                 document.getElementById('help-btn').addEventListener('click', () => this.toggleHelp());
                 document.getElementById('help-close').addEventListener('click', () => this.toggleHelp());
 
                 // 文件上传
                 document.getElementById('file-input').addEventListener('change', (e) => this.handleFileUpload(e));
 
-                // 模态框关闭
-                document.getElementById('json-modal-close').addEventListener('click', () => this.hideJSON());
-                document.getElementById('json-modal').addEventListener('click', (e) => {
-                    if (e.target === e.currentTarget) this.hideJSON();
-                });
 
                 // 键盘快捷键
                 document.addEventListener('keydown', (e) => this.handleKeyboard(e));
@@ -539,13 +535,6 @@
                 // 编辑器内容变化
                 this.editor.addEventListener('input', () => this.onContentChange());
 
-                // 点击模态框外部关闭
-                document.addEventListener('click', (e) => {
-                    if (e.target.closest('.modal') === null &&
-                        !e.target.closest('#json-btn')) {
-                        this.hideJSON();
-                    }
-                });
             }
 
             // ===================================
@@ -625,6 +614,27 @@
 
                 if (savedContent) {
                     this.setContent(savedContent);
+                } else {
+                    // 如果 localStorage 没有内容，则将 textarea 的 placeholder 作为初始内容写入编辑器
+                    try {
+                        const ta = document.getElementById('editor');
+                        const placeholderText = (ta && ta.placeholder) ? ta.placeholder : '';
+                        if (placeholderText) {
+                            this.setContent(placeholderText);
+                            try {
+                                // 保存到 localStorage，避免刷新丢失示例内容
+                                try { localStorage.setItem('mindword_markdown_data', placeholderText); } catch (e) { /* ignore */ }
+                                // 触发全局同步，更新预览与思维导图（若 syncAll 可用）
+                                try { if (typeof window.syncAll === 'function') window.syncAll('markdown', true, true); } catch (e) { console.warn('调用 syncAll 更新视图失败', e); }
+                                // 触发事件通知其他模块（如 localStorage 监听器）
+                                try { window.dispatchEvent(new Event('mindwordDataUpdated')); } catch (e) { /* ignore */ }
+                            } catch (e) {
+                                console.warn('placeholder -> initial sync failed', e);
+                            }
+                        }
+                    } catch (e) {
+                        // 忽略错误，保持原有空状态
+                    }
                 }
 
                 if (savedImages) {
@@ -635,6 +645,7 @@
                         console.warn('Failed to load images from storage:', e);
                     }
                 }
+               
             }
 
             // ===================================
@@ -919,21 +930,7 @@
                 });
             }
 
-            // ===================================
-            // 🔍 JSON查看功能
-            // ===================================
 
-            showJSON() {
-                const content = this.getContent();
-                const data = this.parseMarkdownToJSON(content);
-
-                document.getElementById('json-content').textContent = JSON.stringify(data, null, 2);
-                document.getElementById('json-modal').classList.add('show');
-            }
-
-            hideJSON() {
-                document.getElementById('json-modal').classList.remove('show');
-            }
 
             parseMarkdownToJSON(content) {
                 const lines = content.split('\n');

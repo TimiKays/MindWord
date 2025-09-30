@@ -2342,7 +2342,7 @@
       this.e_editor.className = 'jsmind-editor';
       this.e_editor.type = 'text';
 
-      this.actualZoom = 1;
+      this.actualZoom = 0.8;
       this.zoomStep = 0.1;
       this.minZoom = 0.5;
       this.maxZoom = 2;
@@ -2357,6 +2357,9 @@
       });
 
       this.container.appendChild(this.e_panel);
+
+      // 尝试立即应用默认缩放（兼容性安全调用）
+      try { this.setZoom(this.actualZoom); } catch (e) { /* ignore */ }
 
       // Used to avoid dragging, while editing node.
       this.dragging_enabled = true
