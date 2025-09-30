@@ -3126,13 +3126,15 @@ function setupLocalStorageWatcher() {
 function downloadMindmap() {
   if (!jm) return;
   try {
-    // 创建新的截图插件实例，使用白色背景
-    var screenshot_plugin = new JmScreenshot(jm, {
-      background: '#ffffff'  // 设置白色背景
-    });
-    screenshot_plugin.shoot();
+    // 使用jsMind 0.5.7版本匹配的截图插件API
+    if (jm.screenshot && typeof jm.screenshot.shootDownload === 'function') {
+      jm.screenshot.shootDownload();
+    } else {
+      console.warn('截图插件未正确加载或API不兼容');
+    }
   } catch (error) {
-    // 静默处理下载错误
+    console.error('下载思维导图失败:', error);
+    alert('下载失败，请检查浏览器控制台了解详情');
   }
 }
 

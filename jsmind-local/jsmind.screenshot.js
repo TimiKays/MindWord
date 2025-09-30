@@ -156,6 +156,12 @@
 
         _draw: function (callback) {
             var ctx = this.canvas_ctx;
+            var c = this.canvas_elem;
+            
+            // 设置画布背景为白色
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, c.width, c.height);
+            
             ctx.textAlign = 'left';
             ctx.textBaseline = 'top';
             this._draw_lines(function () {
