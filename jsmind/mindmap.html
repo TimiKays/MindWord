@@ -158,6 +158,7 @@
 
 
 
+  <script src="icons.js"></script>
   <script type="module" src="mindmap-core.js"></script>
   <script src="mindmap-ui.js"></script>
 
@@ -179,7 +180,41 @@
         clearBtn.onclick = function (e) { e.stopPropagation(); clearIconFromToolbar(); };
         grid.appendChild(clearBtn);
 
-        // 尝试读取可用图标；支持 window.availableIcons 或全局 availableIcons（const 定义）
+        // 如果 MWIcons.getGroups 可用，按组渲染（带分组标题）
+        var groups = (window.MWIcons && typeof window.MWIcons.getGroups === 'function') ? window.MWIcons.getGroups() : null;
+
+        if (groups && Object.keys(groups).length > 0) {
+          // 创建分组容器
+          Object.keys(groups).forEach(function (groupKey) {
+            var group = groups[groupKey];
+            // 分组标题
+            var header = document.createElement('div');
+            header.style.cssText = 'grid-column: 1 / -1; font-size:12px; font-weight:600; color:#333; padding:6px 0 4px 0;';
+            header.textContent = (groupKey.charAt(0).toUpperCase() + groupKey.slice(1));
+            grid.appendChild(header);
+
+            // 分组图标网格（7列内使用相同样式）
+            group.forEach(function (icon) {
+              var btn = document.createElement('button');
+              btn.type = 'button';
+              btn.className = 'icon-picker-item';
+              btn.title = icon.name || '';
+              btn.style.cssText = 'width:40px;height:40px;border:1px solid #ddd;border-radius:4px;background:white;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;';
+              btn.textContent = icon.emoji || '';
+              btn.onclick = function (ev) {
+                ev.stopPropagation();
+                applyIconToSelection(icon.emoji);
+                try { $('#iconPickerDropdown .dropdown-toggle').dropdown('toggle'); } catch (e) { }
+              };
+              btn.onmouseover = function () { btn.style.background = '#f0f0f0'; };
+              btn.onmouseout = function () { btn.style.background = 'white'; };
+              grid.appendChild(btn);
+            });
+          });
+          return;
+        }
+
+        // 兼容回退：扁平化 window.availableIcons 或全局 availableIcons
         var icons = (window.availableIcons && window.availableIcons.length) ? window.availableIcons
                   : (typeof availableIcons !== 'undefined' && availableIcons && availableIcons.length) ? availableIcons
                   : [];
@@ -198,7 +233,6 @@
           btn.className = 'icon-picker-item';
           btn.title = icon.name || '';
           btn.style.cssText = 'width:40px;height:40px;border:1px solid #ddd;border-radius:4px;background:white;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;';
-          // 使用 textContent 确保 emoji 正常渲染（innerHTML 在部分环境可能导致空白）
           btn.textContent = icon.emoji || '';
           btn.onclick = function (ev) {
             ev.stopPropagation();

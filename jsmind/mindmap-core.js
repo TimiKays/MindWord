@@ -978,25 +978,20 @@ function handleAutoUpdate() {
   }, 500);
 }
 
-// 图标选择器相关函数
-const availableIcons = [
-  { emoji: '✅', name: '绿色钩' },
-  { emoji: '❌', name: '红色叉' },
-  { emoji: '⚠️', name: '警告' },
-  { emoji: '❗', name: '重要' },
-  { emoji: '❓', name: '疑问' },
-  { emoji: '💡', name: '想法' },
-  { emoji: '🎯', name: '目标' },
-  { emoji: '📋', name: '任务' },
-  { emoji: '📌', name: '固定' },
-  { emoji: '⭐', name: '星标' },
-  { emoji: '🔥', name: '热门' },
-  { emoji: '💯', name: '满分' },
-  { emoji: '✨', name: '闪光' },
-  { emoji: '🎉', name: '庆祝' },
-  { emoji: '🚀', name: '启动' },
-  { emoji: '💪', name: '力量' }
-];
+/*
+  图标数据已迁移到 jsmind/icons.js（MWIcons），
+  这里改为在运行时读取 window.availableIcons 或 MWIcons.get()
+  保留向后兼容的行为。
+*/
+var availableIcons = (window && window.availableIcons && window.availableIcons.length) ? window.availableIcons
+  : (window && window.MWIcons && typeof window.MWIcons.get === 'function' ? window.MWIcons.get() : [
+    { emoji: '✅', name: '绿色钩' }, { emoji: '❌', name: '红色叉' }, { emoji: '⚠️', name: '警告' },
+    { emoji: '❗', name: '重要' }, { emoji: '❓', name: '疑问' }, { emoji: '💡', name: '想法' },
+    { emoji: '🎯', name: '目标' }, { emoji: '📋', name: '任务' }, { emoji: '📌', name: '固定' },
+    { emoji: '⭐', name: '星标' }, { emoji: '🔥', name: '热门' }, { emoji: '💯', name: '满分' },
+    { emoji: '✨', name: '闪光' }, { emoji: '🎉', name: '庆祝' }, { emoji: '🚀', name: '启动' },
+    { emoji: '💪', name: '力量' }
+  ]);
 // 将模块内定义的图标暴露到 window，兼容非模块脚本读取（createToolbarIconGrid）
 try { window.availableIcons = availableIcons; } catch (e) { /* ignore */ }
 
