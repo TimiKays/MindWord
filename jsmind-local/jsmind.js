@@ -2630,14 +2630,32 @@
       // support initial_offset_x as pixel number or percentage string like "10%"
       var _init = this.opts && this.opts.initial_offset_x;
       var _pixelOffset = 0;
+      // determine baseline for percentage: prefer explicit .jsmind-inner.jmnode-overflow-wrap, then this.size.w, then e_panel.clientWidth
       if (typeof _init === 'string' && _init.trim().endsWith('%')) {
-        var _pct = parseFloat(_init) / 100;
-        _pixelOffset = Math.round((_pct || 0) * (this.size && this.size.w || 0));
+        var s = _init.trim();
+        var pct = parseFloat(s) / 100 || 0;
+        var explicitInner = document.querySelector('.jsmind-inner.jmnode-overflow-wrap');
+        var baseline = null;
+        if (explicitInner && explicitInner.clientWidth) {
+          baseline = explicitInner.clientWidth;
+          console.log('[MW][view-offset] percent baseline= explicitInner.clientWidth', 'explicitInner.clientWidth=', explicitInner.clientWidth, 'pct=', pct);
+        } else if (this.size && this.size.w) {
+          baseline = this.size.w;
+          console.log('[MW][view-offset] percent baseline= this.size.w', 'this.size.w=', this.size && this.size.w, 'pct=', pct);
+        } else if (this.e_panel && this.e_panel.clientWidth) {
+          baseline = this.e_panel.clientWidth;
+          console.log('[MW][view-offset] percent baseline= e_panel.clientWidth', 'e_panel.clientWidth=', this.e_panel.clientWidth, 'pct=', pct);
+        } else {
+          baseline = 0;
+          console.log('[MW][view-offset] percent baseline= fallback 0', 'pct=', pct);
+        }
+        _pixelOffset = Math.round(pct * baseline);
       } else {
         _pixelOffset = Number(_init) || 0;
       }
-      // apply pixelOffset to horizontal origin
-      var _x = (this.size.w - bounds.e - bounds.w) / 2 + _pixelOffset;
+      // compute centered origin first, then apply pixelOffset (center then offset)
+      var _centerX = (this.size.w - bounds.e - bounds.w) / 2;
+      var _x = _centerX + _pixelOffset;
       var _y = this.size.h / 2;
       return { x: _x, y: _y };
     },
