@@ -583,13 +583,18 @@ function initMindmap() {
   // 初始化完成后加载数据
   loadNodeTree();
 
-  // 绑定事件 - 删除旧的批量移动逻辑，现在使用拖拽批量移动
+  // 绑定事件 - 删除旧的批量移动逻辑，现在使用拖拽批量拖拽保护并延迟在 mouseup 时展示详情
   jm.add_event_listener(function (type, data) {
     if (type === jsMind.event_type.select) {
-      const selectedNodeid = jm.get_selected_node();
-      if (selectedNodeid) {
-        // 正常模式：显示节点详情
-        showNodeDetails(selectedNodeid);
+      try {
+        // do NOT show details here to avoid showing on mousedown; record last selected id for mouseup handler
+        const sel = jm.get_selected_node && jm.get_selected_node();
+        const selId = sel && sel.id ? sel.id : null;
+        window.__mw_lastSelectedNodeId = selId;
+        console.log('[MW][details] select recorded lastSelectedNodeId=', selId);
+        // keep but DO NOT call showNodeDetails here
+      } catch (e) {
+        console.warn('[MW][details] select handler failed', e);
       }
     }
   });
@@ -769,6 +774,80 @@ function setupMindmapScrolling() {
       jsmindInner.style.overflow = 'auto';
       jsmindInner.style.width = '100%';
       jsmindInner.style.height = '100%';
+
+      // Add pointer handlers to show node details only on mouseup (if not dragged)
+      try {
+        // pointer state flags
+        let pointerDown = false;
+        let startX = 0, startY = 0;
+        let pointerDragged = false;
+        const DRAG_THRESHOLD = 6; // px
+
+        jsmindInner.addEventListener('mousedown', function (evt) {
+          try {
+            pointerDown = true;
+            pointerDragged = false;
+            startX = evt.clientX;
+            startY = evt.clientY;
+            // record selected node at mousedown time (may be updated by select event)
+            try { window.__mw_lastMouseDownSelectedId = (jm && jm.get_selected_node && jm.get_selected_node()) ? jm.get_selected_node().id : null; } catch (e) { window.__mw_lastMouseDownSelectedId = null; }
+            window.__mw_pointer_down = true;
+            window.__mw_pointer_dragged = false;
+            //console.log('[MW][details] mousedown recorded id=', window.__mw_lastMouseDownSelectedId);
+          } catch (e) { /* ignore */ }
+        }, { passive: true });
+
+        jsmindInner.addEventListener('mousemove', function (evt) {
+          try {
+            if (!pointerDown) return;
+            const dx = Math.abs(evt.clientX - startX);
+            const dy = Math.abs(evt.clientY - startY);
+            if (!pointerDragged && (dx > DRAG_THRESHOLD || dy > DRAG_THRESHOLD)) {
+              pointerDragged = true;
+              window.__mw_pointer_dragged = true;
+              //console.log('[MW][details] pointer considered dragged');
+            }
+          } catch (e) { /* ignore */ }
+        }, { passive: true });
+
+        jsmindInner.addEventListener('mouseup', function (evt) {
+          try {
+            if (!pointerDown) { return; }
+            pointerDown = false;
+            window.__mw_pointer_down = false;
+            // if we did not drag and details enabled and not batch dragging -> show details for last selected
+            const wasDragged = !!window.__mw_pointer_dragged;
+            window.__mw_pointer_dragged = false;
+            const lastId = window.__mw_lastMouseDownSelectedId || window.__mw_lastSelectedNodeId || null;
+
+            // additional guard: only show details if mouseup happened on the same jmnode that was mousedowned
+            var targetNodeId = null;
+            try {
+              var t = evt && evt.target;
+              // walk up to find nearest jmnode element (compatible with older browsers)
+              while (t && t.tagName && t.tagName.toLowerCase() !== 'jmnode') {
+                t = t.parentElement;
+              }
+              if (t && t.getAttribute) {
+                targetNodeId = t.getAttribute('nodeid') || t.getAttribute('data-nodeid') || t.getAttribute('node-id') || null;
+              }
+            } catch (e) { targetNodeId = null; }
+
+            if (!wasDragged && lastId && !!window.__nodeDetailsEnabled && !(window.__batchDragData && window.__batchDragData.isBatchDragging) && targetNodeId && String(targetNodeId) === String(lastId)) {
+              try {
+                const node = jm.get_node && jm.get_node(lastId);
+                if (node) {
+                  console.log('[MW][details] mouseup -> showNodeDetails id=', lastId, ' targetNodeId=', targetNodeId);
+                  showNodeDetails(node);
+                }
+              } catch (e) { console.warn('[MW][details] mouseup showNodeDetails failed', e); }
+            } else {
+              console.log('[MW][details] mouseup skipped show', { wasDragged: !!wasDragged, detailsEnabled: !!window.__nodeDetailsEnabled, lastId: lastId, targetNodeId: targetNodeId, batchDragging: !!(window.__batchDragData && window.__batchDragData.isBatchDragging) });
+            }
+          } catch (e) { /* ignore */ }
+        }, { passive: true });
+
+      } catch (e) { console.warn('[MW][details] pointer handlers install failed', e); }
     }
 
     // 已移除冗余滚动调试输出
