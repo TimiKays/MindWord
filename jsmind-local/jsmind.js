@@ -2627,8 +2627,17 @@
 
     get_view_offset: function () {
       var bounds = this.layout.bounds;
-      // apply configurable initial horizontal offset (default 0)
-      var _x = (this.size.w - bounds.e - bounds.w) / 2 + (this.opts.initial_offset_x || 0);
+      // support initial_offset_x as pixel number or percentage string like "10%"
+      var _init = this.opts && this.opts.initial_offset_x;
+      var _pixelOffset = 0;
+      if (typeof _init === 'string' && _init.trim().endsWith('%')) {
+        var _pct = parseFloat(_init) / 100;
+        _pixelOffset = Math.round((_pct || 0) * (this.size && this.size.w || 0));
+      } else {
+        _pixelOffset = Number(_init) || 0;
+      }
+      // apply pixelOffset to horizontal origin
+      var _x = (this.size.w - bounds.e - bounds.w) / 2 + _pixelOffset;
       var _y = this.size.h / 2;
       return { x: _x, y: _y };
     },

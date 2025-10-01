@@ -327,8 +327,7 @@ function initMindmap() {
       node_overflow: 'wrap',              // 文字过长处理：hidden|wrap，改为wrap确保多选时内容不被隐藏
 
       // 初始视图水平偏移（px）。负值向左偏移。
-      initial_offset_x: 200
-
+      initial_offset_x: "35%"
     },
     layout: {
       hspace: 30,                         // 节点水平间距
@@ -827,10 +826,62 @@ function loadNodeTree(nodeTreeData) {
           var zoom = (typeof jm.view.actualZoom === 'number') ? jm.view.actualZoom : null;
           try { console.log('[MW][offset-fix] initial_offset_x=', off, 'actualZoom=', zoom, 'inner.scrollLeft(before)=', inner.scrollLeft); } catch (e) { /* ignore */ }
 
-          // 将偏移按当前缩放比例应用（保持与 _center_root 计算一致）
-          if (off && zoom != null) {
+          // 支持百分比字符串（例如 "10%" 或 "-5%"）或像素数值。
+          // 百分比基准使用 jm.view.size.w（视图宽度），然后再乘以 actualZoom 应用到 scrollLeft。
+          function _parseInitialOffset(o) {
             try {
-              var delta = off * zoom;
+              if (o == null) return 0;
+              if (typeof o === 'string') {
+                var s = o.trim();
+                if (s.endsWith('%')) {
+                  var v = parseFloat(s.slice(0, -1));
+                  if (isNaN(v)) return 0;
+                  var vw_source = null;
+                  var vw = 0;
+                  // 优先使用显式的 .jsmind-inner.jmnode-overflow-wrap 容器宽度（更贴近可视画布）
+                  var explicitInner = null;
+                  try {
+                    var rootContainer = document.getElementById('fullScreenMindmap');
+                    if (rootContainer) {
+                      explicitInner = rootContainer.querySelector('.jsmind-inner.jmnode-overflow-wrap') || rootContainer.querySelector('.jsmind-inner');
+                    } else {
+                      explicitInner = document.querySelector('.jsmind-inner.jmnode-overflow-wrap') || document.querySelector('.jsmind-inner');
+                    }
+                  } catch (e) { explicitInner = null; }
+
+                  if (explicitInner && explicitInner.clientWidth) {
+                    vw_source = '.jsmind-inner.jmnode-overflow-wrap';
+                    vw = explicitInner.clientWidth;
+                  } else if (jm && jm.view && jm.view.size && typeof jm.view.size.w === 'number') {
+                    vw_source = 'jm.view.size.w';
+                    vw = jm.view.size.w;
+                  } else if (inner && inner.clientWidth) {
+                    vw_source = 'inner.clientWidth';
+                    vw = inner.clientWidth;
+                  } else {
+                    vw_source = 'unknown';
+                    vw = 0;
+                  }
+                  try { console.log('[MW][offset-fix] percent baseline=', vw_source, 'explicitInner.clientWidth=', (explicitInner && explicitInner.clientWidth), 'jm.view.size.w=', (jm && jm.view && jm.view.size && jm.view.size.w), 'inner.clientWidth=', (inner && inner.clientWidth), 'pct=', v); } catch (e) { /* ignore */ }
+                  return Math.round(v / 100 * vw);
+                }
+                // fallback: try parse as number string
+                var n = parseFloat(s);
+                return isNaN(n) ? 0 : n;
+              }
+              // if numeric already
+              var num = Number(o);
+              return isNaN(num) ? 0 : num;
+            } catch (ee) { return 0; }
+          }
+
+          var pixelOff = _parseInitialOffset(off);
+          try { console.log('[MW][offset-fix] parsed initial_offset_x -> pixelOff=', pixelOff); } catch (e) { /* ignore */ }
+
+          // 将偏移按当前缩放比例应用（保持与 _center_root 计算一致）
+          if (pixelOff && zoom != null) {
+            try {
+              var delta = pixelOff * zoom;
               console.log('[MW][offset-fix] applying delta=', delta);
               inner.scrollLeft = (inner.scrollLeft || 0) + delta;
               console.log('[MW][offset-fix] inner.scrollLeft(after)=', inner.scrollLeft);
@@ -838,7 +889,7 @@ function loadNodeTree(nodeTreeData) {
               console.error('[MW][offset-fix] apply error', e);
             }
           } else {
-            console.log('[MW][offset-fix] nothing to apply (off or zoom invalid)');
+            console.log('[MW][offset-fix] nothing to apply (pixelOff or zoom invalid)');
           }
         } catch (e) {
           console.error('[MW][offset-fix] unexpected error', e);
