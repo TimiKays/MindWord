@@ -2361,6 +2361,39 @@
       // 尝试立即应用默认缩放（兼容性安全调用）
       try { this.setZoom(this.actualZoom); } catch (e) { /* ignore */ }
 
+      // 修正布局，让画布更大
+      const __mw_cfg = { extraFactor: 1.5, pad: 80, targetFraction: 0.33 };
+      (function applyMWLayoutOnce() {
+        try {
+          const container = document.getElementById(this.opts.container) || this.container;
+          if (!container) return;
+          const jmnodes = container.querySelector('.jmnodes');
+          const jsmindInner = container.querySelector('.jsmind-inner') || this.e_panel;
+          if (jmnodes) {
+            const targetW = Math.max(jmnodes.scrollWidth || 0, (container.clientWidth || 0) * __mw_cfg.extraFactor);
+            const targetH = Math.max(jmnodes.scrollHeight || 0, (container.clientHeight || 0) * __mw_cfg.extraFactor);
+            jmnodes.style.width = targetW + 'px';
+            jmnodes.style.height = targetH + 'px';
+            jmnodes.style.margin = '0 auto';
+            jmnodes.style.position = jmnodes.style.position || 'relative';
+            // 标记已应用，避免重复
+            jmnodes.setAttribute('data-mw-layout', 'applied');
+          }
+          if (jsmindInner) {
+            jsmindInner.style.overflow = 'visible';
+            if (!jsmindInner.style.padding) jsmindInner.style.padding = __mw_cfg.pad + 'px';
+            jsmindInner.style.boxSizing = jsmindInner.style.boxSizing || 'content-box';
+          }
+          container.style.overflow = container.style.overflow || 'auto';
+          // 稍延时再对齐根节点一次（若 MW_alignRootToLeft 可用）
+          setTimeout(() => {
+            if (typeof window.MW_alignRootToLeft === 'function') {
+              window.MW_alignRootToLeft(__mw_cfg.targetFraction);
+            }
+          }, 80);
+        } catch (e) { /* ignore */ }
+      }).call(this);
+
       // Used to avoid dragging, while editing node.
       this.dragging_enabled = true
 

@@ -735,47 +735,43 @@ function setupMindmapScrolling() {
   const container = document.getElementById('fullScreenMindmap');
   if (!container) return;
 
-  // 等待jsmind完全初始化
-  setTimeout(() => {
-    // 查找jsmind创建的jmnodes容器
-    const jmnodes = container.querySelector('.jmnodes');
-    const jsmindInner = container.querySelector('.jsmind-inner');
+  // layout guard: if local jsMind already applied the layout, skip; otherwise apply minimal fallback once
+  (function () {
+    try {
+      const containerEl = container || document.getElementById('fullScreenMindmap');
+      if (!containerEl) return;
+      const jmnodes = containerEl.querySelector('.jmnodes');
+      const jsmindInner = containerEl.querySelector('.jsmind-inner');
 
-    if (jmnodes) {
-      // 确保jmnodes可以超出容器边界
-      jmnodes.style.overflow = 'visible';
-      jmnodes.style.position = 'relative';
-      try {
-        // 计算目标尺寸：要么是现有内容宽高，要么是容器*factor（二者取最大）
-        const extraFactor = 1.5;
-        const targetW = Math.max(jmnodes.scrollWidth || 0, (container.clientWidth || 0) * extraFactor);
-        const targetH = Math.max(jmnodes.scrollHeight || 0, (container.clientHeight || 0) * extraFactor);
-        // 使用显式 width/height（确保 scroll 区域与视觉留白一致）
-        jmnodes.style.width = targetW + 'px';
-        jmnodes.style.height = targetH + 'px';
-        // 水平居中 jmnodes（margin auto），垂直居中通过 inner 的 padding 实现
-        jmnodes.style.margin = '0 auto';
-      } catch (e) { /* ignore */ }
-    }
+      // if local has applied layout already, skip to avoid duplicate adjustments
+      if (jmnodes && jmnodes.getAttribute && jmnodes.getAttribute('data-mw-layout') === 'applied') {
+        return;
+      }
 
-    if (jsmindInner) {
-      // 内层不再作为滚动容器，避免出现双重滚动冲突
-      try {
-        jsmindInner.style.overflow = 'visible';
-        jsmindInner.style.width = '100%';
-        jsmindInner.style.height = '100%';
-        const pad = 500; // 内层保留缓冲区（可调整）
-        if (!jsmindInner.style.padding || jsmindInner.style.padding === '') {
-          jsmindInner.style.padding = pad + 'px';
-        }
-        jsmindInner.style.boxSizing = jsmindInner.style.boxSizing || 'content-box';
-      } catch (e) { /* ignore */ }
-      // 将实际滚动交给最外层 container（确保外层出现滚动条）
-      try { container.style.overflow = container.style.overflow || 'auto'; } catch (e) { /* ignore */ }
-    }
+      if (jmnodes) {
+        jmnodes.style.position = jmnodes.style.position || 'relative';
+        try {
+          const extraFactor = 1.5;
+          const targetW = Math.max(jmnodes.scrollWidth || 0, (containerEl.clientWidth || 0) * extraFactor);
+          const targetH = Math.max(jmnodes.scrollHeight || 0, (containerEl.clientHeight || 0) * extraFactor);
+          jmnodes.style.width = targetW + 'px';
+          jmnodes.style.height = targetH + 'px';
+          jmnodes.style.margin = '0 auto';
+          jmnodes.setAttribute && jmnodes.setAttribute('data-mw-layout', 'applied');
+        } catch (e) { /* ignore */ }
+      }
 
-    // 已移除冗余滚动调试输出
-  }, 500); // 延迟500ms确保jsmind完成DOM创建
+      if (jsmindInner) {
+        try {
+          jsmindInner.style.overflow = 'visible';
+          if (!jsmindInner.style.padding) jsmindInner.style.padding = '80px';
+          jsmindInner.style.boxSizing = jsmindInner.style.boxSizing || 'content-box';
+        } catch (e) { /* ignore */ }
+      }
+
+      try { containerEl.style.overflow = containerEl.style.overflow || 'auto'; } catch (e) {/*ignore*/ }
+    } catch (e) { }
+  })();
 }
 
 // 加载NodeTree数据
@@ -832,9 +828,9 @@ function loadNodeTree(nodeTreeData) {
       try {
         window.MW_scheduleOnce && window.MW_scheduleOnce('alignRootAfterShow', function () {
           try { window.MW_alignRootToLeft && window.MW_alignRootToLeft(0.33); } catch (e) { }
-        }, 160);
+        }, 1000);
       } catch (e) { }
-    }, 100);
+    }, 500);
   } catch (error) {
     // 如果加载失败，尝试加载默认数据
     try {
@@ -3407,101 +3403,6 @@ window.addEventListener('load', async function () {
     };
   }
 
-  // 统一最终布局与对齐（小且稳健的实现）
-  window.MW_layoutConfig = window.MW_layoutConfig || {
-    extraFactor: 1.5,
-    innerPadding: 80,
-    targetFraction: 0.33,
-    retryCount: 3,
-    retryDelay: 80
-  };
-
-  window.MW_finalizeLayout = function (cfg) {
-    cfg = Object.assign({}, window.MW_layoutConfig, cfg || {});
-    if (window.__mw_layoutFinalized && !cfg.force) return;
-    const container = document.getElementById('fullScreenMindmap');
-    if (!container) return;
-    const inner = container.querySelector('.jsmind-inner') || container;
-    const jmnodes = container.querySelector('.jmnodes');
-
-    const doAlign = function () {
-      try {
-        const rootEl = container.querySelector('[nodeid="root"]') || document.querySelector('[nodeid="root"]') || container.querySelector('.jmnode[data-id="root"]');
-        if (!rootEl) return false;
-        const cr = container.getBoundingClientRect();
-        const rr = rootEl.getBoundingClientRect();
-        const desiredX = cr.left + (container.clientWidth * cfg.targetFraction);
-        const desiredY = cr.top + (container.clientHeight / 2);
-        const rootCenterX = rr.left + (rr.width / 2);
-        const rootCenterY = rr.top + (rr.height / 2);
-        const deltaX = rootCenterX - desiredX;
-        const deltaY = rootCenterY - desiredY;
-        if (!isFinite(deltaX) || !isFinite(deltaY)) return false;
-
-        try {
-          if (window.jm && jm.view && typeof jm.view.get_translate === 'function' && typeof jm.view.set_translate === 'function') {
-            const pan = jm.view.get_translate && jm.view.get_translate();
-            if (pan && (typeof pan === 'object')) {
-              if (Array.isArray(pan)) {
-                const nx = (isFinite(pan[0]) ? pan[0] : 0) - deltaX;
-                const ny = (isFinite(pan[1]) ? pan[1] : 0) - deltaY;
-                jm.view.set_translate && jm.view.set_translate([nx, ny]);
-              } else {
-                const nx = (isFinite(pan.x) ? pan.x : 0) - deltaX;
-                const ny = (isFinite(pan.y) ? pan.y : 0) - deltaY;
-                jm.view.set_translate && jm.view.set_translate({ x: nx, y: ny });
-              }
-              return true;
-            }
-          }
-        } catch (e) { /* ignore */ }
-
-        try {
-          container.scrollLeft = (container.scrollLeft || 0) + deltaX;
-          container.scrollTop = (container.scrollTop || 0) + deltaY;
-          return true;
-        } catch (e) { /* ignore */ }
-
-        return false;
-      } catch (err) { return false; }
-    };
-
-    try {
-      if (jmnodes) {
-        jmnodes.style.overflow = 'visible';
-        jmnodes.style.position = 'relative';
-        const targetW = Math.max(jmnodes.scrollWidth || 0, (container.clientWidth || 0) * cfg.extraFactor);
-        const targetH = Math.max(jmnodes.scrollHeight || 0, (container.clientHeight || 0) * cfg.extraFactor);
-        jmnodes.style.width = targetW + 'px';
-        jmnodes.style.height = targetH + 'px';
-        jmnodes.style.margin = '0 auto';
-      }
-      if (inner) {
-        inner.style.overflow = 'visible';
-        inner.style.width = '100%';
-        inner.style.height = '100%';
-        if (!inner.style.padding || inner.style.padding === '') {
-          inner.style.padding = (cfg.innerPadding || 80) + 'px';
-        }
-        inner.style.boxSizing = inner.style.boxSizing || 'content-box';
-      }
-      try { container.style.overflow = container.style.overflow || 'auto'; } catch (e) { /* ignore */ }
-    } catch (e) { /* ignore */ }
-
-    let attempts = 0;
-    function tryAlignOnce() {
-      attempts++;
-      const ok = doAlign();
-      if (ok || attempts >= (cfg.retryCount || 3)) {
-        window.__mw_layoutFinalized = true;
-        try { window.dispatchEvent(new Event('mindmapLayoutFinalized')); } catch (e) { }
-        return;
-      }
-      setTimeout(tryAlignOnce, cfg.retryDelay || 80);
-    }
-    setTimeout(tryAlignOnce, cfg.retryDelay || 80);
-  };
-
   // 将根节点对齐到视口左侧的指定分数位置（默认 0.33 -> 左1/3），并垂直居中
   // 仅调整视图（pan 或 container.scrollTop/scrollLeft），不改变任何节点数据或布局
   window.MW_alignRootToLeft = function (targetFraction) {
@@ -3511,7 +3412,7 @@ window.addEventListener('load', async function () {
       if (!container) return;
       const inner = container.querySelector('.jsmind-inner') || container;
       // 找到根节点 DOM（尝试多种选择器以兼容不同版本）
-      let rootEl = container.querySelector('[nodeid="root"]') || document.querySelector('[nodeid="root"]') || container.querySelector('.jmnode[data-id="root"]');
+      let rootEl = container.querySelector('[class="root"]') || document.querySelector('[nodeid="root"]') || container.querySelector('.jmnode[data-id="root"]');
       if (!rootEl) return;
 
       const containerRect = container.getBoundingClientRect();
