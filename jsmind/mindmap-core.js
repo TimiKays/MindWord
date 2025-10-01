@@ -10,12 +10,12 @@ window.AIConfigManager = AIConfigManager;
 // --- 防重复绑定补丁（从 mindmap-extensions.js 整合） ---
 // 防重复绑定补丁（非侵入）：对一组常见事件的等价回调去重（DOMContentLoaded, load, resize, storage）
 // 只在 addEventListener 注册时做检测并忽略等价 listener 的重复注册（使用 listener.toString() 作为轻量指纹）
-(function(){
+(function () {
   try {
     if (!document.__mw_event_dedupe_installed) {
       var __orig_add = document.addEventListener.bind(document);
       var __seen = Object.create(null); // map: eventType -> Set of fingerprints
-      document.addEventListener = function(type, listener, options) {
+      document.addEventListener = function (type, listener, options) {
         try {
           if (typeof listener === 'function' && (type === 'DOMContentLoaded' || type === 'load' || type === 'resize' || type === 'storage')) {
             __seen[type] = __seen[type] || new Set();
@@ -629,29 +629,29 @@ function initMindmap() {
     try { debouncedApply(); } catch (e) {/* ignore */ }
   })();
 
-  // 强制缩放重排：在初始化后立即应用当前actualZoom，确保布局和连线正确
-  setTimeout(function() {
-    if (jm && jm.view && jm.view.actualZoom) {
-      console.log('[MW] 强制缩放重排 - 应用actualZoom:', jm.view.actualZoom);
-      // 使用setZoom重新应用当前缩放，触发重排和重绘
-      jm.view.setZoom(jm.view.actualZoom);
-    }
-  }, 100);
+  // // 强制缩放重排：在初始化后立即应用当前actualZoom，确保布局和连线正确
+  // setTimeout(function () {
+  //   if (jm && jm.view && jm.view.actualZoom) {
+  //     console.log('[MW] 强制缩放重排 - 应用actualZoom:', jm.view.actualZoom);
+  //     // 使用setZoom重新应用当前缩放，触发重排和重绘
+  //     jm.view.setZoom(jm.view.actualZoom);
+  //   }
+  // }, 100);
 
-  // 首次鼠标按下兜底执行强制缩放重排
-  let __mw_firstMouseDownHandled = false;
-  const container = document.getElementById('fullScreenMindmap');
-  if (container) {
-    const mindmapInner = container.querySelector('.jsmind-inner') || container;
-    mindmapInner.addEventListener('mousedown', function(e) {
-      if (!__mw_firstMouseDownHandled && jm && jm.view && jm.view.actualZoom) {
-        __mw_firstMouseDownHandled = true;
-        console.log('[MW] 首次鼠标按下兜底 - 强制缩放重排，actualZoom:', jm.view.actualZoom);
-        // 使用setZoom重新应用当前缩放，确保布局和连线正确
-        jm.view.setZoom(jm.view.actualZoom);
-      }
-    }, { once: false });
-  }
+  // // 首次鼠标按下兜底执行强制缩放重排
+  // let __mw_firstMouseDownHandled = false;
+  // const container = document.getElementById('fullScreenMindmap');
+  // if (container) {
+  //   const mindmapInner = container.querySelector('.jsmind-inner') || container;
+  //   mindmapInner.addEventListener('mousedown', function (e) {
+  //     if (!__mw_firstMouseDownHandled && jm && jm.view && jm.view.actualZoom) {
+  //       __mw_firstMouseDownHandled = true;
+  //       console.log('[MW] 首次鼠标按下兜底 - 强制缩放重排，actualZoom:', jm.view.actualZoom);
+  //       // 使用setZoom重新应用当前缩放，确保布局和连线正确
+  //       jm.view.setZoom(jm.view.actualZoom);
+  //     }
+  //   }, { once: false });
+  // }
 
 }
 
@@ -745,13 +745,33 @@ function setupMindmapScrolling() {
       // 确保jmnodes可以超出容器边界
       jmnodes.style.overflow = 'visible';
       jmnodes.style.position = 'relative';
+      try {
+        // 计算目标尺寸：要么是现有内容宽高，要么是容器*factor（二者取最大）
+        const extraFactor = 1.5;
+        const targetW = Math.max(jmnodes.scrollWidth || 0, (container.clientWidth || 0) * extraFactor);
+        const targetH = Math.max(jmnodes.scrollHeight || 0, (container.clientHeight || 0) * extraFactor);
+        // 使用显式 width/height（确保 scroll 区域与视觉留白一致）
+        jmnodes.style.width = targetW + 'px';
+        jmnodes.style.height = targetH + 'px';
+        // 水平居中 jmnodes（margin auto），垂直居中通过 inner 的 padding 实现
+        jmnodes.style.margin = '0 auto';
+      } catch (e) { /* ignore */ }
     }
 
     if (jsmindInner) {
-      // 确保内部容器有滚动条
-      jsmindInner.style.overflow = 'auto';
-      jsmindInner.style.width = '100%';
-      jsmindInner.style.height = '100%';
+      // 内层不再作为滚动容器，避免出现双重滚动冲突
+      try {
+        jsmindInner.style.overflow = 'visible';
+        jsmindInner.style.width = '100%';
+        jsmindInner.style.height = '100%';
+        const pad = 500; // 内层保留缓冲区（可调整）
+        if (!jsmindInner.style.padding || jsmindInner.style.padding === '') {
+          jsmindInner.style.padding = pad + 'px';
+        }
+        jsmindInner.style.boxSizing = jsmindInner.style.boxSizing || 'content-box';
+      } catch (e) { /* ignore */ }
+      // 将实际滚动交给最外层 container（确保外层出现滚动条）
+      try { container.style.overflow = container.style.overflow || 'auto'; } catch (e) { /* ignore */ }
     }
 
     // 已移除冗余滚动调试输出
@@ -806,6 +826,13 @@ function loadNodeTree(nodeTreeData) {
       try {
         if (typeof window.MW_updateNodeTypeBadges === 'function') window.MW_updateNodeTypeBadges();
         if (typeof window.MW_applyNodeVisibilityFilter === 'function') window.MW_applyNodeVisibilityFilter();
+      } catch (e) { }
+
+      // 在渲染完成后对齐根节点到视口左侧约1/3处（延迟以兼容各种布局重排）
+      try {
+        window.MW_scheduleOnce && window.MW_scheduleOnce('alignRootAfterShow', function () {
+          try { window.MW_alignRootToLeft && window.MW_alignRootToLeft(0.33); } catch (e) { }
+        }, 160);
       } catch (e) { }
     }, 100);
   } catch (error) {
@@ -1318,27 +1345,30 @@ function setupBoxSelection() {
     return { sx, sy };
   }
 
-  // 监听空格键状态；在输入框/文本域/可编辑内容内按空格不触发拖拽
+  // 监听触发平移的键状态；在输入框/文本域/可编辑内容内按键不触发拖拽
+  // 支持 Space 作为平移触发键（用户可按住 Space 并拖动画布）
   window.addEventListener('keydown', (e) => {
-    if (e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar') {
-      const t = e.target;
-      const isTyping = t && (
-        t.tagName === 'INPUT' ||
-        t.tagName === 'TEXTAREA' ||
-        t.isContentEditable
-      );
-      if (!isTyping) {
-        isSpacePressed = true;
-        // 阻止页面滚动（空格默认会滚动页面）
-        e.preventDefault();
-      }
+    const t = e.target;
+    const isTyping = t && (
+      t.tagName === 'INPUT' ||
+      t.tagName === 'TEXTAREA' ||
+      t.isContentEditable
+    );
+    if (isTyping) return;
+    // Space
+    if (e.code === 'Space') {
+      isSpacePressed = true;
+      e.preventDefault();
+      return;
     }
   }, { passive: false });
 
   window.addEventListener('keyup', (e) => {
-    if (e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar') {
+    // 释放 Space 后都清除平移状态
+    if (e.code === 'Space') {
       isSpacePressed = false;
     }
+
   });
   const multiSelected = new Set();
 
@@ -1671,9 +1701,11 @@ function setupBoxSelection() {
       const r = inner.getBoundingClientRect();
       startClientX = e.clientX;
       startClientY = e.clientY;
-      startScrollLeft = inner.scrollLeft;
-      startScrollTop = inner.scrollTop;
-      inner.style.cursor = 'grabbing';
+      // NOTE: container 现在才是实际的滚动容器，使用 container 的 scroll 值
+      startScrollLeft = container.scrollLeft;
+      startScrollTop = container.scrollTop;
+      // 将鼠标样式作用在 container（更直观）
+      try { container.style.cursor = 'grabbing'; } catch (e) { /* ignore */ }
       e.preventDefault();
       return;
     }
@@ -1713,8 +1745,15 @@ function setupBoxSelection() {
     if (isPanning) {
       const dx = e.clientX - startClientX;
       const dy = e.clientY - startClientY;
-      inner.scrollLeft = startScrollLeft - dx;
-      inner.scrollTop = startScrollTop - dy;
+      // 写入 container 的 scroll，确保移动生效
+      try {
+        container.scrollLeft = startScrollLeft - dx;
+        container.scrollTop = startScrollTop - dy;
+      } catch (e) {
+        // 回退：若 container 不可用则尝试 inner
+        inner.scrollLeft = startScrollLeft - dx;
+        inner.scrollTop = startScrollTop - dy;
+      }
       e.preventDefault();
       return;
     }
@@ -1898,7 +1937,7 @@ function setupBoxSelection() {
     // 结束画布平移
     if (isPanning) {
       isPanning = false;
-      inner.style.cursor = '';
+      try { container.style.cursor = ''; } catch (e) { /* ignore */ }
       return;
     }
 
@@ -2010,9 +2049,17 @@ function setupBoxSelection() {
   }
 
   // 绑定事件到 inner，这样滚动与坐标系一致
+  // 同时也绑定到 container，以便点击在内层子元素（如 jmnodes）上时也能触发平移
   // **不使用捕获阶段**，避免干扰jsMind的事件处理
-  inner.addEventListener('mousedown', onMouseDown);
-  inner.addEventListener('mousemove', onMouseMove);
+  try {
+    if (container) {
+      container.addEventListener('mousedown', onMouseDown);
+      container.addEventListener('mousemove', onMouseMove);
+    }
+  } catch (e) { /* ignore */ }
+  // inner 绑定已移除，平移事件仅由 container 处理以避免被内部元素拦截
+  // inner.addEventListener('mousedown', onMouseDown);
+  // inner.addEventListener('mousemove', onMouseMove);
   // mouseup 绑定到 window，避免在快速拖动出容器时丢事件
   window.addEventListener('mouseup', onMouseUp);
   // 在编辑输入上阻止事件传播，避免拖拽/框选/双击干扰（捕获阶段，保留默认以保证光标定位）
@@ -3195,6 +3242,9 @@ function downloadMindmap() {
   }
 }
 
+// 暴露全局函数以兼容旧的 onclick 调用（mindmap.html 中的按钮依赖全局名）
+try { window.downloadMindmap = downloadMindmap; } catch (e) { /* ignore */ }
+
 
 
 // 页面加载完成后初始化
@@ -3356,6 +3406,165 @@ window.addEventListener('load', async function () {
       setTimeout(function () { try { window.MW_restoreViewport && window.MW_restoreViewport(st, opts); } catch (e) { } }, delay);
     };
   }
+
+  // 统一最终布局与对齐（小且稳健的实现）
+  window.MW_layoutConfig = window.MW_layoutConfig || {
+    extraFactor: 1.5,
+    innerPadding: 80,
+    targetFraction: 0.33,
+    retryCount: 3,
+    retryDelay: 80
+  };
+
+  window.MW_finalizeLayout = function (cfg) {
+    cfg = Object.assign({}, window.MW_layoutConfig, cfg || {});
+    if (window.__mw_layoutFinalized && !cfg.force) return;
+    const container = document.getElementById('fullScreenMindmap');
+    if (!container) return;
+    const inner = container.querySelector('.jsmind-inner') || container;
+    const jmnodes = container.querySelector('.jmnodes');
+
+    const doAlign = function () {
+      try {
+        const rootEl = container.querySelector('[nodeid="root"]') || document.querySelector('[nodeid="root"]') || container.querySelector('.jmnode[data-id="root"]');
+        if (!rootEl) return false;
+        const cr = container.getBoundingClientRect();
+        const rr = rootEl.getBoundingClientRect();
+        const desiredX = cr.left + (container.clientWidth * cfg.targetFraction);
+        const desiredY = cr.top + (container.clientHeight / 2);
+        const rootCenterX = rr.left + (rr.width / 2);
+        const rootCenterY = rr.top + (rr.height / 2);
+        const deltaX = rootCenterX - desiredX;
+        const deltaY = rootCenterY - desiredY;
+        if (!isFinite(deltaX) || !isFinite(deltaY)) return false;
+
+        try {
+          if (window.jm && jm.view && typeof jm.view.get_translate === 'function' && typeof jm.view.set_translate === 'function') {
+            const pan = jm.view.get_translate && jm.view.get_translate();
+            if (pan && (typeof pan === 'object')) {
+              if (Array.isArray(pan)) {
+                const nx = (isFinite(pan[0]) ? pan[0] : 0) - deltaX;
+                const ny = (isFinite(pan[1]) ? pan[1] : 0) - deltaY;
+                jm.view.set_translate && jm.view.set_translate([nx, ny]);
+              } else {
+                const nx = (isFinite(pan.x) ? pan.x : 0) - deltaX;
+                const ny = (isFinite(pan.y) ? pan.y : 0) - deltaY;
+                jm.view.set_translate && jm.view.set_translate({ x: nx, y: ny });
+              }
+              return true;
+            }
+          }
+        } catch (e) { /* ignore */ }
+
+        try {
+          container.scrollLeft = (container.scrollLeft || 0) + deltaX;
+          container.scrollTop = (container.scrollTop || 0) + deltaY;
+          return true;
+        } catch (e) { /* ignore */ }
+
+        return false;
+      } catch (err) { return false; }
+    };
+
+    try {
+      if (jmnodes) {
+        jmnodes.style.overflow = 'visible';
+        jmnodes.style.position = 'relative';
+        const targetW = Math.max(jmnodes.scrollWidth || 0, (container.clientWidth || 0) * cfg.extraFactor);
+        const targetH = Math.max(jmnodes.scrollHeight || 0, (container.clientHeight || 0) * cfg.extraFactor);
+        jmnodes.style.width = targetW + 'px';
+        jmnodes.style.height = targetH + 'px';
+        jmnodes.style.margin = '0 auto';
+      }
+      if (inner) {
+        inner.style.overflow = 'visible';
+        inner.style.width = '100%';
+        inner.style.height = '100%';
+        if (!inner.style.padding || inner.style.padding === '') {
+          inner.style.padding = (cfg.innerPadding || 80) + 'px';
+        }
+        inner.style.boxSizing = inner.style.boxSizing || 'content-box';
+      }
+      try { container.style.overflow = container.style.overflow || 'auto'; } catch (e) { /* ignore */ }
+    } catch (e) { /* ignore */ }
+
+    let attempts = 0;
+    function tryAlignOnce() {
+      attempts++;
+      const ok = doAlign();
+      if (ok || attempts >= (cfg.retryCount || 3)) {
+        window.__mw_layoutFinalized = true;
+        try { window.dispatchEvent(new Event('mindmapLayoutFinalized')); } catch (e) { }
+        return;
+      }
+      setTimeout(tryAlignOnce, cfg.retryDelay || 80);
+    }
+    setTimeout(tryAlignOnce, cfg.retryDelay || 80);
+  };
+
+  // 将根节点对齐到视口左侧的指定分数位置（默认 0.33 -> 左1/3），并垂直居中
+  // 仅调整视图（pan 或 container.scrollTop/scrollLeft），不改变任何节点数据或布局
+  window.MW_alignRootToLeft = function (targetFraction) {
+    try {
+      targetFraction = (typeof targetFraction === 'number' && isFinite(targetFraction)) ? targetFraction : 0.33;
+      const container = document.getElementById('fullScreenMindmap');
+      if (!container) return;
+      const inner = container.querySelector('.jsmind-inner') || container;
+      // 找到根节点 DOM（尝试多种选择器以兼容不同版本）
+      let rootEl = container.querySelector('[nodeid="root"]') || document.querySelector('[nodeid="root"]') || container.querySelector('.jmnode[data-id="root"]');
+      if (!rootEl) return;
+
+      const containerRect = container.getBoundingClientRect();
+      const rootRect = rootEl.getBoundingClientRect();
+
+      // 水平目标 x（视口坐标）与垂直目标 y（视口中心）
+      const desiredX = containerRect.left + (container.clientWidth * targetFraction);
+      const desiredY = containerRect.top + (container.clientHeight / 2);
+
+      // 根节点中心坐标
+      const rootCenterX = rootRect.left + (rootRect.width / 2);
+      const rootCenterY = rootRect.top + (rootRect.height / 2);
+
+      // 需要平移的像素量（正值表示 root 需要向左/上移动视口，即向右/下滚动）
+      const deltaX = rootCenterX - desiredX;
+      const deltaY = rootCenterY - desiredY;
+
+      if (!isFinite(deltaX) || !isFinite(deltaY)) return;
+
+      // 优先使用 jsMind view 的 translate（若存在），调整 pan.x/pan.y
+      try {
+        if (window.jm && jm.view && typeof jm.view.get_translate === 'function' && typeof jm.view.set_translate === 'function') {
+          const pan = jm.view.get_translate && jm.view.get_translate();
+          if (pan && (typeof pan === 'object')) {
+            if (Array.isArray(pan)) {
+              const nx = (isFinite(pan[0]) ? pan[0] : 0) - deltaX;
+              const ny = (isFinite(pan[1]) ? pan[1] : 0) - deltaY;
+              jm.view.set_translate && jm.view.set_translate([nx, ny]);
+            } else {
+              const nx = (isFinite(pan.x) ? pan.x : 0) - deltaX;
+              const ny = (isFinite(pan.y) ? pan.y : 0) - deltaY;
+              jm.view.set_translate && jm.view.set_translate({ x: nx, y: ny });
+            }
+            return;
+          }
+        }
+      } catch (e) {
+        // 忽略 view 调整错误，回退到滚动调整
+      }
+
+      // 回退到调整外层滚动容器（container），因为我们已将滚动归一到 container
+      try {
+        container.scrollLeft = (container.scrollLeft || 0) + deltaX;
+        container.scrollTop = (container.scrollTop || 0) + deltaY;
+      } catch (e) {
+        // 最后兜底：尝试 inner
+        try {
+          inner.scrollLeft = (inner.scrollLeft || 0) + deltaX;
+          inner.scrollTop = (inner.scrollTop || 0) + deltaY;
+        } catch (e2) { /* ignore */ }
+      }
+    } catch (err) { /* ignore */ }
+  };
 
   // 初始化 UndoManager（如果已注入）
   try {
