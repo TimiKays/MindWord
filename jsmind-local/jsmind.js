@@ -62,9 +62,12 @@
       vmargin: 50,
       line_width: 1,
       line_color: '#999',
-      draggable: false, // drag the mind map with your mouse, when it's larger that the container
+      draggable: true, // drag the mind map with your mouse, when it's larger that the container
       hide_scrollbars_when_draggable: false, // hide container scrollbars, when mind map is larger than container and draggable option is true.
-      node_overflow: 'hidden' // hidden or wrap
+      node_overflow: 'hidden', // hidden or wrap
+      // initial horizontal offset applied to view center calculation (px).
+      // Positive shifts content to the right; negative shifts to the left.
+      initial_offset_x: 0
     },
     layout: {
       hspace: 30,
@@ -1159,11 +1162,9 @@
       // Avoid default page scrolling behavior.
       event.preventDefault()
 
-      if (event.deltaY < 0) {
-        this.view.zoomIn()
-      } else {
-        this.view.zoomOut()
-      }
+      // compute target zoom and call view.setZoom with event so view can preserve mouse position
+      var targetZoom = this.view.actualZoom + (event.deltaY < 0 ? this.view.zoomStep : -this.view.zoomStep);
+      this.view.setZoom(targetZoom, event);
     },
 
     begin_edit: function (node) {
@@ -2439,6 +2440,11 @@
       var min_size = this.layout.get_min_size();
       var min_width = min_size.w + this.opts.hmargin * 2;
       var min_height = min_size.h + this.opts.vmargin * 2;
+      // PoC: add a large extra virtual margin to give more draggable space
+      // 调整该值可控制可拖动的空白区域大小
+      var POCPAD = 2000;
+      min_width += 2 * POCPAD;
+      min_height += POCPAD;
       var client_w = this.e_panel.clientWidth;
       var client_h = this.e_panel.clientHeight;
       if (client_w < min_width) { client_w = min_width; }
@@ -2621,7 +2627,8 @@
 
     get_view_offset: function () {
       var bounds = this.layout.bounds;
-      var _x = (this.size.w - bounds.e - bounds.w) / 2;
+      // apply configurable initial horizontal offset (default 0)
+      var _x = (this.size.w - bounds.e - bounds.w) / 2 + (this.opts.initial_offset_x || 0);
       var _y = this.size.h / 2;
       return { x: _x, y: _y };
     },
@@ -2653,17 +2660,53 @@
       return this.setZoom(this.actualZoom - this.zoomStep);
     },
 
-    setZoom: function (zoom) {
+    setZoom: function (zoom, evt) {
       if ((zoom < this.minZoom) || (zoom > this.maxZoom)) {
         return false;
       }
-      this.actualZoom = zoom;
-      for (var i = 0; i < this.e_panel.children.length; i++) {
-        this.e_panel.children[i].style.zoom = zoom;
-      };
-      this.show(true);
-      return true;
+      // If an event is provided (mousewheel with Ctrl), preserve the point under cursor.
+      var prevZoom = this.actualZoom;
+      var hasEvent = !!evt && (typeof evt.clientX === 'number');
+      var panel = this.e_panel;
 
+      if (hasEvent) {
+        // client coordinates of pointer
+        var cx = evt.clientX;
+        var cy = evt.clientY;
+        // panel's bounding rect
+        var rect = panel.getBoundingClientRect();
+        // pointer position relative to panel (in css pixels)
+        var relX = cx - rect.left + panel.scrollLeft;
+        var relY = cy - rect.top + panel.scrollTop;
+        // position in content space before zoom
+        var posContentX = relX / prevZoom;
+        var posContentY = relY / prevZoom;
+
+        // apply new zoom
+        this.actualZoom = zoom;
+        for (var i = 0; i < panel.children.length; i++) {
+          panel.children[i].style.zoom = zoom;
+        }
+
+        // compute new scroll to keep the same content point under cursor
+        var newRelX = posContentX * zoom;
+        var newRelY = posContentY * zoom;
+        // set scrollLeft/Top so that (cx - rect.left) === newRelX - panel.scrollLeft
+        panel.scrollLeft = newRelX - (cx - rect.left);
+        panel.scrollTop = newRelY - (cy - rect.top);
+
+        // refresh view without re-centering
+        this.show(false);
+        return true;
+      } else {
+        // no event: legacy behavior (keep center)
+        this.actualZoom = zoom;
+        for (var j = 0; j < this.e_panel.children.length; j++) {
+          this.e_panel.children[j].style.zoom = zoom;
+        }
+        this.show(true);
+        return true;
+      }
     },
 
     _center_root: function () {
@@ -2862,11 +2905,31 @@
           this.e_panel.style = 'overflow: hidden'
         }
         // Move the whole mind map with mouse moves, while button is down.
+        // Require Space key + left mouse to pan the canvas. Space acts as a "hand" modifier.
+        let spacePressed = false;
+        // track space key state
+        window.addEventListener('keydown', function (ke) { try { if (ke.code === 'Space') { spacePressed = true; } } catch (e) { } }, false);
+        window.addEventListener('keyup', function (ke) { try { if (ke.code === 'Space') { spacePressed = false; } } catch (e) { } }, false);
+
         jm.util.dom.add_event(this.container, 'mousedown', (eventDown) => {
-          dragging = true
+          // Only start canvas dragging when Space is held AND left mouse button (button === 0)
+          if (!spacePressed || eventDown.button !== 0) {
+            return;
+          }
+          // If mousedown happens on a node/expander/editor, do NOT start canvas dragging
+          var t = eventDown.target || eventDown.srcElement;
+          try {
+            if (t && t.closest) {
+              if (t.closest('jmnode') || t.closest('jmexpander') || t.closest('.jsmind-editor') || t.closest('input') || t.closest('textarea')) {
+                return;
+              }
+            }
+          } catch (e) { /* ignore */ }
+
+          dragging = true;
           // Record current mouse position.
-          x = eventDown.clientX
-          y = eventDown.clientY
+          x = eventDown.clientX;
+          y = eventDown.clientY;
         })
         // Stop moving mind map once mouse button is released.
         jm.util.dom.add_event(this.container, 'mouseup', () => {

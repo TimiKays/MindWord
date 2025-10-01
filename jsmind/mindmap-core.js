@@ -10,12 +10,12 @@ window.AIConfigManager = AIConfigManager;
 // --- 防重复绑定补丁（从 mindmap-extensions.js 整合） ---
 // 防重复绑定补丁（非侵入）：对一组常见事件的等价回调去重（DOMContentLoaded, load, resize, storage）
 // 只在 addEventListener 注册时做检测并忽略等价 listener 的重复注册（使用 listener.toString() 作为轻量指纹）
-(function(){
+(function () {
   try {
     if (!document.__mw_event_dedupe_installed) {
       var __orig_add = document.addEventListener.bind(document);
       var __seen = Object.create(null); // map: eventType -> Set of fingerprints
-      document.addEventListener = function(type, listener, options) {
+      document.addEventListener = function (type, listener, options) {
         try {
           if (typeof listener === 'function' && (type === 'DOMContentLoaded' || type === 'load' || type === 'resize' || type === 'storage')) {
             __seen[type] = __seen[type] || new Set();
@@ -326,7 +326,8 @@ function initMindmap() {
 
       node_overflow: 'wrap',              // 文字过长处理：hidden|wrap，改为wrap确保多选时内容不被隐藏
 
-
+      // 初始视图水平偏移（px）。负值向左偏移。
+      initial_offset_x: 200
 
     },
     layout: {
@@ -365,6 +366,23 @@ function initMindmap() {
   // 将jsMind实例赋值给window，供其他模块访问
   window.jm = jm;
   const multiSelected = window.MW.multiSelected;
+
+  // 守护性注入：确保 runtime view.opts 包含 options.view.initial_offset_x（便于后续补丁读取）
+  try {
+    var __opt_iox = (options && options.view && typeof options.view.initial_offset_x !== 'undefined') ? options.view.initial_offset_x : null;
+    if (jm && jm.view) {
+      if (__opt_iox !== null) {
+        jm.view.opts.initial_offset_x = __opt_iox;
+        console.log('[MW][init] enforced jm.view.opts.initial_offset_x =', jm.view.opts.initial_offset_x);
+      } else {
+        console.log('[MW][init] options.view.initial_offset_x not provided; jm.view.opts.initial_offset_x =', jm.view.opts.initial_offset_x);
+      }
+    } else {
+      console.log('[MW][init] jm.view not ready to enforce initial_offset_x');
+    }
+  } catch (e) {
+    console.error('[MW][init] error enforcing initial_offset_x', e);
+  }
 
   // 配置思维导图容器的滚动行为
   setupMindmapScrolling();
@@ -630,7 +648,7 @@ function initMindmap() {
   })();
 
   // 强制缩放重排：在初始化后立即应用当前actualZoom，确保布局和连线正确
-  setTimeout(function() {
+  setTimeout(function () {
     if (jm && jm.view && jm.view.actualZoom) {
       console.log('[MW] 强制缩放重排 - 应用actualZoom:', jm.view.actualZoom);
       // 使用setZoom重新应用当前缩放，触发重排和重绘
@@ -638,20 +656,20 @@ function initMindmap() {
     }
   }, 100);
 
-  // 首次鼠标按下兜底执行强制缩放重排
-  let __mw_firstMouseDownHandled = false;
-  const container = document.getElementById('fullScreenMindmap');
-  if (container) {
-    const mindmapInner = container.querySelector('.jsmind-inner') || container;
-    mindmapInner.addEventListener('mousedown', function(e) {
-      if (!__mw_firstMouseDownHandled && jm && jm.view && jm.view.actualZoom) {
-        __mw_firstMouseDownHandled = true;
-        console.log('[MW] 首次鼠标按下兜底 - 强制缩放重排，actualZoom:', jm.view.actualZoom);
-        // 使用setZoom重新应用当前缩放，确保布局和连线正确
-        jm.view.setZoom(jm.view.actualZoom);
-      }
-    }, { once: false });
-  }
+  // // 首次鼠标按下兜底执行强制缩放重排
+  // let __mw_firstMouseDownHandled = false;
+  // const container = document.getElementById('fullScreenMindmap');
+  // if (container) {
+  //   const mindmapInner = container.querySelector('.jsmind-inner') || container;
+  //   mindmapInner.addEventListener('mousedown', function (e) {
+  //     if (!__mw_firstMouseDownHandled && jm && jm.view && jm.view.actualZoom) {
+  //       __mw_firstMouseDownHandled = true;
+  //       console.log('[MW] 首次鼠标按下兜底 - 强制缩放重排，actualZoom:', jm.view.actualZoom);
+  //       // 使用setZoom重新应用当前缩放，确保布局和连线正确
+  //       jm.view.setZoom(jm.view.actualZoom);
+  //     }
+  //   }, { once: false });
+  // }
 
 }
 
@@ -788,6 +806,45 @@ function loadNodeTree(nodeTreeData) {
     currentNodeTree = nodeTreeData;
     // 渲染完成后尝试恢复视口（延迟以保证DOM已就绪）
     window.MW_scheduleOnce('restoreViewportAfterShow', function () { try { restoreViewport(); } catch (e) { } }, 120);
+
+    // 兼容补丁：在 jm.show 后可能有其他逻辑（restoreViewport / setZoom / style 调整）覆盖初始 scroll，
+    // 此处再延迟一次强制应用 view.initial_offset_x（以像素为单位，乘以 actualZoom）
+    // 目的：确保用户配置的 initial_offset_x 在初始化后最终生效（例如 -600 向左偏移）。
+    try {
+      setTimeout(function () {
+        try {
+          var container = document.getElementById('fullScreenMindmap');
+          console.log('[MW][offset-fix] running post-show offset fix, container=', !!container);
+          if (!container) return;
+          var inner = container.querySelector('.jsmind-inner') || container;
+          console.log('[MW][offset-fix] inner found=', !!inner);
+          if (!inner) return;
+          if (!jm || !jm.view) {
+            console.log('[MW][offset-fix] jm or jm.view missing', { jm: !!jm, view: !!(jm && jm.view) });
+            return;
+          }
+          var off = (jm.view.opts && typeof jm.view.opts.initial_offset_x !== 'undefined') ? jm.view.opts.initial_offset_x : 0;
+          var zoom = (typeof jm.view.actualZoom === 'number') ? jm.view.actualZoom : null;
+          try { console.log('[MW][offset-fix] initial_offset_x=', off, 'actualZoom=', zoom, 'inner.scrollLeft(before)=', inner.scrollLeft); } catch (e) { /* ignore */ }
+
+          // 将偏移按当前缩放比例应用（保持与 _center_root 计算一致）
+          if (off && zoom != null) {
+            try {
+              var delta = off * zoom;
+              console.log('[MW][offset-fix] applying delta=', delta);
+              inner.scrollLeft = (inner.scrollLeft || 0) + delta;
+              console.log('[MW][offset-fix] inner.scrollLeft(after)=', inner.scrollLeft);
+            } catch (e) {
+              console.error('[MW][offset-fix] apply error', e);
+            }
+          } else {
+            console.log('[MW][offset-fix] nothing to apply (off or zoom invalid)');
+          }
+        } catch (e) {
+          console.error('[MW][offset-fix] unexpected error', e);
+        }
+      }, 180);
+    } catch (e) { console.error('[MW][offset-fix] outer error', e); }
 
     // 渲染完成后同步节点类型徽章与可见性过滤（确保开关生效）
     try {
