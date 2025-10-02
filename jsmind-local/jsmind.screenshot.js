@@ -8,7 +8,7 @@
 
 (function ($w) {
     'use strict';
-    console.warn("The version is outdated. see details: https://hizzgdev.github.io/jsmind/es6/")
+    // console.warn("The version is outdated. see details: https://hizzgdev.github.io/jsmind/es6/")
     var __name__ = 'jsMind';
     var jsMind = $w[__name__];
     if (!jsMind) { return; }
@@ -157,11 +157,11 @@
         _draw: function (callback) {
             var ctx = this.canvas_ctx;
             var c = this.canvas_elem;
-            
+
             // 设置画布背景为白色
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, c.width, c.height);
-            
+
             ctx.textAlign = 'left';
             ctx.textBaseline = 'top';
             this._draw_lines(function () {

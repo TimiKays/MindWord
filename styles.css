@@ -20,7 +20,7 @@ body {
 /* ===================================
    现代简约Tab样式 - 底部边框设计
    =================================== */
-.tabs {
+/* .tabs {
     display: flex;
     gap: 0;
     background: transparent;
@@ -66,7 +66,7 @@ body {
 .tab.active:hover {
     background: transparent;
     color: #2563eb;
-}
+} */
 
 /* ===================================
    核心按钮样式 - 简化版本

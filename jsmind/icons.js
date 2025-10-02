@@ -62,13 +62,10 @@
     return arr;
   }
 
-  // 尝试从本地 json 拉取，若失败使用分组内置图标
+  // 直接使用内置图标集合（不再尝试从本地 json 加载）
   function loadIconsFromLocalJson(path = '../res/icons.json') {
-    return fetch(path, { cache: 'no-cache' }).then(r => {
-      if (!r.ok) throw new Error('icons.json not ok');
-      return r.json();
-    }).then(data => (Array.isArray(data) && data.length) ? data : flattenGroups(groupedIcons))
-      .catch(() => flattenGroups(groupedIcons));
+    // 保持返回 Promise，以兼容原有调用方式
+    return Promise.resolve(flattenGroups(groupedIcons));
   }
 
   // 初始化：确保 window.availableIcons 存在并返回分组信息
