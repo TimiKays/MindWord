@@ -44,8 +44,10 @@
             flex-direction: column;
             background-color: #fff;
             border-right: 1px solid #e1e5e9;
-            height: 100%;       /* 确保占满父容器高度 */
-            min-height: 0;      /* 允许 flex 子元素正确收缩/扩展 */
+            height: 100%;
+            /* 确保占满父容器高度 */
+            min-height: 0;
+            /* 允许 flex 子元素正确收缩/扩展 */
         }
 
         .editor-header {
@@ -258,21 +260,7 @@
             border: 2px dashed #3b82f6;
         }
     </style>
-        <style>
-            /* 强制工具栏为固定高度且不参与伸缩，确保主内容区域高度计算正确 */
-            .toolbar {
-                flex: 0 0 auto;
-                height: 48px;
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                padding: 8px 12px;
-            }
-            /* 强化主内容收缩约束 */
-            .main-content {
-                padding: 0px;
-            }
-        </style>
+
 </head>
 
 <body>
@@ -288,53 +276,74 @@
             上传
         </button>
 
-        
+
 
         <button class="btn help-btn" id="help-btn" title="帮助文档" aria-label="帮助">
             <!-- 圆形 SVG 图标，防止在移动端变形；将按钮背景去掉，仅靠 svg 圆形作为视觉 -->
-            <svg class="help-svg" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" width="20" height="20">
-<path d="M512.956791 960.931592C266.363534 961.478038 64.969711 761.176083 64.479547 514.885723 63.98836 268.25051 264.216637 66.960041 510.574534 66.424852c245.564835-0.533143 447.856098 199.584618 448.462918 443.646216C959.656553 758.954485 760.363577 960.3831 512.956791 960.931592zM139.877771 517.064342c0.437975 206.380394 166.535921 372.055714 372.986923 372.036271 205.638497-0.019443 373.173165-167.17037 373.372709-372.517225C886.438994 310.307372 718.076472 142.700049 511.166005 143.194306 305.298288 143.68447 139.440819 310.697251 139.877771 517.064342z" fill="#bfbfbf"></path><path d="M533.706371 610.072643c-28.453029 0-52.5611 0-78.629825 0-8.176217-49.873897 2.848884-92.693122 40.473807-127.700427 13.622252-12.674671 27.497261-25.355481 39.222303-39.698141 7.992021-9.776667 14.149255-21.878287 18.140149-33.929764 8.40646-25.38311-3.360538-53.949726-24.848944-64.948221-22.3838-11.456936-50.65161-5.606695-67.99972 15.589047-7.039323 8.599865-12.148691 19.075451-16.686031 29.339212-4.205788 9.514701-6.478552 19.883863-10.524704 32.82357-29.947056-7.268544-59.390645-14.414291-90.285283-21.913079 10.208503-58.411341 31.146371-108.754936 87.706551-132.638903 60.505026-25.549909 122.591059-26.342971 179.231057 10.735505 52.072983 34.089399 66.654073 117.146047 31.156604 172.232666-13.338796 20.700461-31.6877 39.1036-50.724265 54.993498C557.223994 532.264533 526.186094 559.103808 533.706371 610.072643z" fill="#bfbfbf"></path><path d="M543.036877 756.13323c-33.396621 0-64.593134 0-97.456612 0 0-33.579793 0-66.103534 0-100.111069 32.640398 0 64.35368 0 97.456612 0C543.036877 689.488367 543.036877 721.383798 543.036877 756.13323z" fill="#bfbfbf"></path>
-</svg>
+            <svg class="help-svg" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"
+                focusable="false" width="20" height="20">
+                <path
+                    d="M512.956791 960.931592C266.363534 961.478038 64.969711 761.176083 64.479547 514.885723 63.98836 268.25051 264.216637 66.960041 510.574534 66.424852c245.564835-0.533143 447.856098 199.584618 448.462918 443.646216C959.656553 758.954485 760.363577 960.3831 512.956791 960.931592zM139.877771 517.064342c0.437975 206.380394 166.535921 372.055714 372.986923 372.036271 205.638497-0.019443 373.173165-167.17037 373.372709-372.517225C886.438994 310.307372 718.076472 142.700049 511.166005 143.194306 305.298288 143.68447 139.440819 310.697251 139.877771 517.064342z"
+                    fill="#bfbfbf"></path>
+                <path
+                    d="M533.706371 610.072643c-28.453029 0-52.5611 0-78.629825 0-8.176217-49.873897 2.848884-92.693122 40.473807-127.700427 13.622252-12.674671 27.497261-25.355481 39.222303-39.698141 7.992021-9.776667 14.149255-21.878287 18.140149-33.929764 8.40646-25.38311-3.360538-53.949726-24.848944-64.948221-22.3838-11.456936-50.65161-5.606695-67.99972 15.589047-7.039323 8.599865-12.148691 19.075451-16.686031 29.339212-4.205788 9.514701-6.478552 19.883863-10.524704 32.82357-29.947056-7.268544-59.390645-14.414291-90.285283-21.913079 10.208503-58.411341 31.146371-108.754936 87.706551-132.638903 60.505026-25.549909 122.591059-26.342971 179.231057 10.735505 52.072983 34.089399 66.654073 117.146047 31.156604 172.232666-13.338796 20.700461-31.6877 39.1036-50.724265 54.993498C557.223994 532.264533 526.186094 559.103808 533.706371 610.072643z"
+                    fill="#bfbfbf"></path>
+                <path
+                    d="M543.036877 756.13323c-33.396621 0-64.593134 0-97.456612 0 0-33.579793 0-66.103534 0-100.111069 32.640398 0 64.35368 0 97.456612 0C543.036877 689.488367 543.036877 721.383798 543.036877 756.13323z"
+                    fill="#bfbfbf"></path>
+            </svg>
         </button>
 
         <style>
-        /* ==== Editor: help button 调整，移除按钮背景避免 svg 与按钮背景叠层 ==== */
-        .toolbar .help-btn {
-          background: transparent !important;
-          border: none !important;
-          padding: 0 !important;
-          width: 40px;
-          height: 40px;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 50%;
-          box-shadow: none !important;
-        }
-        .toolbar .help-btn .help-svg {
-          width: 28px;
-          height: 28px;
-          display: block;
-          pointer-events: none; /* 避免 svg 本身接管 hover 导致额外效果 */
-        }
-        /* 移除所有交互状态下可能的背景/边框/阴影，确保单层视觉 */
-        .toolbar .help-btn:hover,
-        .toolbar .help-btn:focus,
-        .toolbar .help-btn:active {
-          background: transparent !important;
-          box-shadow: none !important;
-          outline: none !important;
-        }
-        /* 防止父级样式通过 outline/shadow 造成二次视觉（更高优先级） */
-        .toolbar .help-btn::before,
-        .toolbar .help-btn::after {
-          content: none !important;
-        }
-        /* 小屏确保同样圆形且不被扩展 */
-        @media (max-width: 768px) {
-          .toolbar .help-btn { width: 36px; height: 36px; }
-          .toolbar .help-btn .help-svg { width: 20px; height: 20px; }
-        }
+            /* ==== Editor: help button 调整，移除按钮背景避免 svg 与按钮背景叠层 ==== */
+            .toolbar .help-btn {
+                background: transparent !important;
+                border: none !important;
+                padding: 0 !important;
+                width: 40px;
+                height: 40px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 50%;
+                box-shadow: none !important;
+            }
+
+            .toolbar .help-btn .help-svg {
+                width: 28px;
+                height: 28px;
+                display: block;
+                pointer-events: none;
+                /* 避免 svg 本身接管 hover 导致额外效果 */
+            }
+
+            /* 移除所有交互状态下可能的背景/边框/阴影，确保单层视觉 */
+            .toolbar .help-btn:hover,
+            .toolbar .help-btn:focus,
+            .toolbar .help-btn:active {
+                background: transparent !important;
+                box-shadow: none !important;
+                outline: none !important;
+            }
+
+            /* 防止父级样式通过 outline/shadow 造成二次视觉（更高优先级） */
+            .toolbar .help-btn::before,
+            .toolbar .help-btn::after {
+                content: none !important;
+            }
+
+            /* 小屏确保同样圆形且不被扩展 */
+            @media (max-width: 768px) {
+                .toolbar .help-btn {
+                    width: 36px;
+                    height: 36px;
+                }
+
+                .toolbar .help-btn .help-svg {
+                    width: 20px;
+                    height: 20px;
+                }
+            }
         </style>
 
         <input type="file" class="file-input" id="file-input" accept=".md,.zip" />
@@ -645,7 +654,7 @@
                         console.warn('Failed to load images from storage:', e);
                     }
                 }
-               
+
             }
 
             // ===================================
@@ -1056,7 +1065,7 @@
                 }
             }
 
-            
+
 
             // ===================================
             // 🔄 跨窗口通信
@@ -1165,7 +1174,7 @@
                     'whiteSpace'
                 ];
                 props.forEach(p => {
-                    try { mirror.style[p] = style[p]; } catch(e){}
+                    try { mirror.style[p] = style[p]; } catch (e) { }
                 });
                 // Ensure same width for wrapping
                 mirror.style.width = textarea.clientWidth + 'px';
@@ -1187,7 +1196,7 @@
             window.addEventListener('message', function (e) {
                 try {
                     // 调试日志：打印 editor 收到的原始 message
-                    try { console.log('[EDITOR RAW MESSAGE]', e && e.data); } catch (err) {}
+                    try { console.log('[EDITOR RAW MESSAGE]', e && e.data); } catch (err) { }
                     if (!e.data || !e.data.type) return;
                     // 支持 mindmap 直接消息或 index 转发的 editor-scroll-to
                     if (e.data.type === 'mindmap-node-selected' || e.data.type === 'editor-scroll-to') {
@@ -1226,7 +1235,7 @@
                         }
 
                         if (matches.length === 0) {
-                            try { console.log('[EDITOR] 未找到直接包含 raw 的行，尝试回退匹配', { raw, parentPath, linesLength: lines.length }); } catch(e){}
+                            try { console.log('[EDITOR] 未找到直接包含 raw 的行，尝试回退匹配', { raw, parentPath, linesLength: lines.length }); } catch (e) { }
                             // 回退1：如果 raw 有 Markdown header (#)，去掉前导的 # 和空格再搜索
                             var rawFallback = raw.replace(/^\s*#{1,6}\s*/, '').trim();
                             if (rawFallback && rawFallback !== raw) {
@@ -1253,10 +1262,10 @@
                             // 调试：若仍未命中，打印附近内容供排查（前后5行）
                             if (matches.length === 0) {
                                 try {
-                                    const snippetIndex = Math.max(0, Math.floor(lines.length/2) - 3);
+                                    const snippetIndex = Math.max(0, Math.floor(lines.length / 2) - 3);
                                     const snippet = lines.slice(snippetIndex, Math.min(lines.length, snippetIndex + 12));
                                     console.warn('[EDITOR] fallback 仍未命中 raw，给出文本片段供排查', { raw, rawFallback, linesLength: lines.length, snippetIndex, snippet });
-                                } catch(e){}
+                                } catch (e) { }
                                 return;
                             }
                         }
@@ -1294,7 +1303,7 @@
                                 // 滚动到目标位置（不聚焦）
                                 const targetScrollTop = Math.max(0, measuredTop - textarea.clientHeight / 2);
                                 textarea.scrollTop = targetScrollTop;
-                                try { console.log('[EDITOR] measuredTop/targetScrollTop (overlay)', { measuredTop: measuredTop, targetScrollTop: targetScrollTop, lineHeight: lineHeight, charStart: charStartForMeasure }); } catch (e) {}
+                                try { console.log('[EDITOR] measuredTop/targetScrollTop (overlay)', { measuredTop: measuredTop, targetScrollTop: targetScrollTop, lineHeight: lineHeight, charStart: charStartForMeasure }); } catch (e) { }
 
                                 // 创建或复用 overlay 容器（挂到 document.body）
                                 let overlay = document.getElementById('mw-editor-overlay');
@@ -1337,7 +1346,7 @@
                                 // 在叠加高亮时短暂放大并回归，提升可见性
                                 overlay.style.transform = 'translateY(-4px) scale(1.02)';
                                 setTimeout(() => {
-                                    try { overlay.style.transform = 'translateY(0px) scale(1)'; } catch(e){}
+                                    try { overlay.style.transform = 'translateY(0px) scale(1)'; } catch (e) { }
                                 }, 60);
 
                                 // 自动淡出并移除 overlay
@@ -1345,24 +1354,24 @@
                                     try {
                                         overlay.style.opacity = '0';
                                         overlay.style.transform = 'translateY(-6px) scale(0.98)';
-                                        setTimeout(function(){ try { overlay.remove(); } catch(e){} }, 260);
+                                        setTimeout(function () { try { overlay.remove(); } catch (e) { } }, 260);
                                         window.__mw_editorOverlayTimeout = null;
-                                    } catch (e) {}
+                                    } catch (e) { }
                                 }, 1600);
 
-                                try { console.log('[EDITOR] Applied non-focus overlay highlight for node', { nodeid: nodeid, targetLine: targetLine }); } catch(e){}
+                                try { console.log('[EDITOR] Applied non-focus overlay highlight for node', { nodeid: nodeid, targetLine: targetLine }); } catch (e) { }
                             } catch (e) { console.warn('[EDITOR] overlay apply failed', e); }
                         })();
 
                         // 调试日志：选区与位置
-                        try { console.log('[EDITOR] setSelectionRange', { charStart, charEnd, targetLine }); } catch (e) {}
+                        try { console.log('[EDITOR] setSelectionRange', { charStart, charEnd, targetLine }); } catch (e) { }
 
                         // 使用精确测量来计算要滚动到的位置，避免基于行高的误差
                         const style = window.getComputedStyle(textarea);
                         const lineHeight = parseFloat(style.lineHeight) || (parseFloat(style.fontSize) * 1.6) || 18;
 
                         // 计算选中文本前的字符数位置并测量其渲染高度
-                        const contentBefore = (lines.slice(0, targetLine).join('\\n') + (lines[targetLine] ? lines[targetLine].slice(0, 0) : '') ) || '';
+                        const contentBefore = (lines.slice(0, targetLine).join('\\n') + (lines[targetLine] ? lines[targetLine].slice(0, 0) : '')) || '';
                         const charStartForMeasure = charStart;
                         const textBeforeCursor = content.substring(0, charStartForMeasure);
                         const measuredTop = measureTextHeight(textBeforeCursor, textarea);
@@ -1370,7 +1379,7 @@
                         // 目标 scrollTop：以选中起始位置为中心
                         const targetScrollTop = Math.max(0, measuredTop - textarea.clientHeight / 2);
                         textarea.scrollTop = targetScrollTop;
-                        try { console.log('[EDITOR] measuredTop/targetScrollTop', { measuredTop: measuredTop, targetScrollTop: targetScrollTop, lineHeight: lineHeight, charStart: charStartForMeasure }); } catch (e) {}
+                        try { console.log('[EDITOR] measuredTop/targetScrollTop', { measuredTop: measuredTop, targetScrollTop: targetScrollTop, lineHeight: lineHeight, charStart: charStartForMeasure }); } catch (e) { }
 
                         // 临时高亮（通过添加类，配合 CSS 可见效果）
                         textarea.classList.add('mw-editor-highlight');

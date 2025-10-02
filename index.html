@@ -7,75 +7,108 @@
     <title>MindWord</title>
     <link rel="stylesheet" href="styles.css">
     <!-- Bootstrap CSS for notifications -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet"> -->
     <style>
-        /* 精确还原 Tab 样式（作用于 .tabs / .tab，保留类名与交互不变） */
+        /* 完全匹配你贴出的按钮组外观（非 Tailwind 实现） */
         .tabs {
-            display: flex;
-            border-radius: 8px;
-            background-color: #e5e7eb;
-            overflow: hidden;
-            width: fit-content;
-            border: 1px solid #d1d5db;
-            padding: 0;
-            align-items: center;
-            flex: 0 0 auto;
-            gap: 0px;
-        }
-
-        .tab {
             display: flex;
             align-items: center;
             gap: 6px;
-            padding: 10px 20px;
-            cursor: pointer;
+            /* 等同于 tailwind 的 gap-4 */
+            border-radius: 8px;
+            padding: 4px;
+            /* p-1 */
+            background-color: rgba(0, 0, 0, 0.05);
+            /* bg-black/5 */
+            /* 深色模式可自行扩展，如果需要我可以加 media-query 或 .dark 前缀 */
             font-size: 14px;
-            color: #9b9da1;
-            transition: background 0.2s ease, color 0.15s ease;
-            margin: 2px;
-
+            /* text-sm */
+            font-weight: 500;
+            /* font-medium */
+            width: fit-content;
+            box-sizing: border-box;
+            flex: 0 0 auto;
         }
 
-        .tab:last-child {
-            /* 保持自然形态 */
-        }
-
-        .tab.active {
-            background-color: #ffffff;
+        /* 每个 tab 视觉等同于你给的 button */
+        .tab {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            /* 等同于 gap-2 */
+            padding: 6px 12px;
+            /* py-1.5 px-3 */
             border-radius: 6px;
-            margin: 2px;
-            color: #333;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
-
-
+            /* rounded-md */
+            cursor: pointer;
+            transition: color 0.15s ease, background-color 0.15s ease;
+            color: #6b7280;
+            /* text-gray-500 */
+            background: transparent;
+            box-shadow: none;
+            white-space: nowrap;
+            line-height: 1;
         }
 
-        /* svg/icon 精确 16px */
+        /* 非激活 hover 仅改变文字颜色（与示例一致） */
+        .tab:not(.active):hover {
+            color: #101922;
+            /* hover:text-[#101922] */
+        }
+
+        /* 激活项：白底、深色文字、轻阴影 */
+        .tab.active {
+            background: #ffffff;
+            color: #101922;
+            /* text-[#101922] */
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+            /* shadow-sm 风格 */
+        }
+
+        /* 图标：如果是 SVG 控制大小/填充；如果是 font icon（material symbols）也能兼容 */
         .tab svg,
-        .tab .icon {
+        .tab .icon,
+        .tab .material-symbols-outlined {
             width: 16px;
             height: 16px;
+            display: inline-block;
+            vertical-align: middle;
             flex: 0 0 16px;
-            display: block;
-            fill: #9b9da1;
+        }
+
+        /* 如果使用 SVG，控制 fill；font icon 使用 color */
+        .tab svg {
+            fill: currentColor;
+        }
+
+        .tab .icon {
+            fill: currentColor;
+        }
+
+        /* 激活/非激活颜色通过 color（currentColor）变化即可 */
+        .tab:not(.active) svg,
+        .tab:not(.active) .icon {
+            opacity: 0.85;
+            color: #6b7280;
         }
 
         .tab.active svg,
         .tab.active .icon {
-            fill: #333;
+            color: #101922;
+            opacity: 1;
         }
 
-        .tab:not(.active):hover {
-            background-color: #eff0f1;
-        }
-
+        /* 文本 */
         .tab>span {
-            line-height: 16px;
-            font-weight: 400;
             font-size: 14px;
+            font-weight: 500;
+            line-height: 16px;
+            color: inherit;
+            /* 继承 currentColor */
         }
 
-        /* 兼容 emoji 文字符号，使其尺寸与 svg 一致 */
+        /* emoji 的尺寸与图标一致 */
         .tab>.emoji,
         .tab>.emj {
             font-size: 16px;
@@ -83,32 +116,31 @@
             display: inline-block;
         }
 
-        /* 焦点可见，但样式更柔和（保留可访问性） */
+        /* 可访问的焦点环（轻量） */
         .tab:focus {
             outline: none;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+            box-shadow: 0 0 0 3px rgba(16, 25, 34, 0.08);
         }
 
-        /* 移动端克隆容器保持样式一致 */
+        /* 在小屏时，如果需要克隆到底部，保持隐藏/显示逻辑不变（JS 控制 show/hide） */
         .mobile-tabs {
             display: none;
             gap: 8px;
         }
 
-        /* 当 mobile-tabs 显示时，使用相同的样式行为 */
         @media (max-width: 768px) {
+            .header .tabs {
+                display: none;
+            }
+
             .mobile-tabs {
                 display: flex;
                 position: fixed;
                 bottom: 8px;
                 left: 50%;
                 transform: translateX(-50%);
-                background: transparent;
                 z-index: 999;
-            }
-
-            .header .tabs {
-                display: none;
+                gap: 8px;
             }
         }
     </style>
@@ -119,12 +151,12 @@
     <header class="header">
         <div class="brand"
             style="font-family: 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-weight:700; font-size:26px; background: linear-gradient(0deg,#0b82e4 0%,#11c49d 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;">
+            <img src="favicon.ico" alt="favicon" style="width:32px;height:32px;vertical-align:middle;margin-right:8px;">
             MindWord
         </div>
         <div class="tabs">
             <div class="tab active" data-panel="editor" style="font-size:14px;"><svg t="1759394685575" class="icon"
-                    viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1342" width="200"
-                    height="200">
+                    viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1342">
                     <path
                         d="M527.37066667 90.6976v62.41493333a7.8016 7.8016 0 0 1-7.80266667 7.8016H199.92426667a39.00906667 39.00906667 0 0 0-38.38613334 31.98826667l-0.624 7.02186667V824.07466667a39.00906667 39.00906667 0 0 0 31.98826667 38.38613333l7.02186667 0.624H824.07466667a39.00906667 39.00906667 0 0 0 38.38613333-31.98826667l0.624-7.02186666v-338.60266667a7.8016 7.8016 0 0 1 7.8016-7.8016h62.41493333a7.8016 7.8016 0 0 1 7.80266667 7.8016v338.60266667a117.02826667 117.02826667 0 0 1-105.79413333 116.4832l-11.2352 0.54613333H199.92533333a117.02826667 117.02826667 0 0 1-116.4832-105.79413333l-0.54613333-11.2352V199.92533333a117.02826667 117.02826667 0 0 1 105.79413333-116.4832l11.2352-0.54613333h319.64373334a7.8016 7.8016 0 0 1 7.8016 7.80266667z m327.83466666 33.93813333l44.16 44.15893334a7.8016 7.8016 0 0 1 0 11.00053333L413.85066667 665.30773333a7.8016 7.8016 0 0 1-11.00053334 0l-44.15893333-44.16a7.8016 7.8016 0 0 1 0-10.99946666l485.51253333-485.51253334a7.8016 7.8016 0 0 1 11.00053334 0z"
                         p-id="1343"></path>
@@ -134,8 +166,7 @@
                 <span>文本编辑</span>
             </div>
             <div class="tab active" data-panel="preview" style="font-size:14px;"><svg t="1759394709317" class="icon"
-                    viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1495" width="200"
-                    height="200">
+                    viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1495">
                     <path
                         d="M648.101506 803.835981a35.839821 35.839821 0 0 0-35.839821-35.839821H291.836621a35.839821 35.839821 0 1 0 0 72.106306h319.9984a35.839821 35.839821 0 0 0 36.266485-36.266485z m127.99936-159.9992a35.839821 35.839821 0 0 0-35.839821-35.839821H291.836621a35.839821 35.839821 0 1 0 0 72.106306h447.99776a35.839821 35.839821 0 0 0 36.266485-36.266485z m-191.99904-159.9992a35.839821 35.839821 0 0 0-35.839821-35.839821h-255.99872a35.839821 35.839821 0 1 0 0 72.106306h255.99872a35.839821 35.839821 0 0 0 35.839821-36.266485z m238.932139 469.330986H200.103746V72.106306H511.99552v239.785468A72.959635 72.959635 0 0 0 584.101826 383.99808h238.932139zM582.821833 110.506114l200.958995 201.812324h-200.958995z m291.83854 191.145711L597.328427 21.333227a76.799616 76.799616 0 0 0-14.506594-11.519943l-4.266646-2.133322h-2.986652A71.679642 71.679642 0 0 0 546.128683 0H200.957075A72.959635 72.959635 0 0 0 127.99744 72.106306v879.782268A72.959635 72.959635 0 0 0 200.957075 1023.99488h622.930219A71.252977 71.252977 0 0 0 895.9936 951.888574V352.424905a71.252977 71.252977 0 0 0-21.333227-50.77308z"
                         fill="#5E5C5C" p-id="1496"></path>
@@ -143,8 +174,7 @@
                 <span>文档预览</span>
             </div>
             <div class="tab active" data-panel="mindmap" style="font-size:14px;"><svg t="1759394646816" class="icon"
-                    viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1189" width="200"
-                    height="200">
+                    viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1189">
                     <path
                         d="M911.45752364 467.61583017a44.38416983 44.38416983 0 0 1 0 88.76833966h-355.07335381a44.38416983 44.38416983 0 0 1 0-88.76833966h355.07335381z m0 310.68918518a44.38416983 44.38416983 0 0 1 0 88.76833967h-355.07335381a44.38416983 44.38416983 0 0 1 0-88.76833967h355.07335381z m0-621.37837037a44.38416983 44.38416983 0 0 1 0 88.76833967h-355.07335381a44.38416983 44.38416983 0 0 1 0-88.76833967h355.07335381zM112.54247636 556.38416983l-5.90309451-0.31068918C53.42276267 550.34792194 55.42004994 467.61583017 112.54247636 467.61583017h88.76833846c23.16853673 0 32.22290674-18.59696746 44.91677969-101.06275248 1.50906228-9.85328541 2.21920795-14.64677535 3.10689185-19.97287637 17.13228883-107.72037874 42.60880202-163.06743857 115.48760837-187.38996353a44.38416983 44.38416983 0 0 1 28.05079518 84.24115405c-29.6042411 9.85328541-43.7184066 40.5671311-55.92405333 117.08543795l-3.01812334 19.52903502c-4.83787481 31.46837621-9.98643758 58.18764614-16.42214316 80.60165113L315.37812943 467.61583017H378.84749172a44.38416983 44.38416983 0 0 1 44.07348064 39.19122219L423.23166155 512a44.38416983 44.38416983 0 0 1-44.38416983 44.38416983H315.42251429l2.13043943 6.96831423c5.59240533 19.61780231 10.20835946 42.52003472 14.55800806 69.01738277l1.81975146 11.53988471 3.06250699 19.57341867c12.16126188 76.51830806 26.27542858 107.23215254 55.92405334 117.08543795a44.38416983 44.38416983 0 1 1-28.09517884 84.24115405c-72.92319001-24.32252496-98.35531954-79.66958356-115.48760837-187.38996353-0.8876839-5.3260998-1.59782958-10.11959094-3.10689185-19.97287637C233.53372157 575.02552095 224.47935154 556.38416983 201.31081482 556.38416983H112.54247636z"
                         fill="#000000" fill-opacity=".65" p-id="1190"></path>

@@ -2071,7 +2071,7 @@ function setupBoxSelection() {
       const dx = e.clientX - startClientX;
       const dy = e.clientY - startClientY;
       const dist2 = dx * dx + dy * dy;
-      const threshold = 6; // px 阈值（可调：4-8）
+      const threshold = 10; // px 阈值（可调：4-8）
       if (dist2 >= threshold * threshold) {
         movedDuringPress = true;
         // 仅在 pendingSingleSelectId 属于 multiSelected 集合时启动批量拖拽

@@ -7,7 +7,7 @@
   <title>Markdown → Word（兼容 PizZip 版本）</title>
   <link rel="stylesheet" href="../styles.css">
   <!-- Bootstrap CSS for notifications -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet"> -->
   <style>
     body {
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
@@ -49,30 +49,60 @@
     }
 
     /* 全局基准：1rem = 12px */
-    :root{font-size:14px;}
+    :root {
+      font-size: 14px;
+    }
 
     /* 标题样式（h6..h1）： */
-    .preview-container{font-size:1rem;line-height:1.5;}
-    .preview-container h1,.preview-container h2,.preview-container h3,
-    .preview-container h4,.preview-container h5,.preview-container h6{
-      color:#333;
-      margin-top: 1.5rem;
-      margin-bottom:1rem;
+    .preview-container {
+      font-size: 1rem;
+      line-height: 1.5;
     }
-    .preview-container h6{font-size:1rem;}   
-    .preview-container h5{font-size:1.2rem;} 
-    .preview-container h4{font-size:1.4rem;} 
-    .preview-container h3{font-size:1.6rem;} 
-    .preview-container h2{font-size:2.0rem;}  
-    .preview-container h1{font-size:2.6rem;} 
+
+    .preview-container h1,
+    .preview-container h2,
+    .preview-container h3,
+    .preview-container h4,
+    .preview-container h5,
+    .preview-container h6 {
+      color: #333;
+      margin-top: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .preview-container h6 {
+      font-size: 1rem;
+    }
+
+    .preview-container h5 {
+      font-size: 1.2rem;
+    }
+
+    .preview-container h4 {
+      font-size: 1.4rem;
+    }
+
+    .preview-container h3 {
+      font-size: 1.6rem;
+    }
+
+    .preview-container h2 {
+      font-size: 2.0rem;
+    }
+
+    .preview-container h1 {
+      font-size: 2.6rem;
+    }
 
     /* 预览高亮（短暂）*/
     .mw-preview-highlight {
-      background: rgba(255, 235, 59, 0.35); /* 温和黄色 */
+      background: rgba(255, 235, 59, 0.35);
+      /* 温和黄色 */
       box-shadow: 0 0 0 4px rgba(255, 235, 59, 0.15);
       transition: background 0.35s ease, box-shadow 0.35s ease;
       border-radius: 6px;
-      padding: 2px 6px; /* 避免 inline 元素被高亮时看起来太拥挤 */
+      padding: 2px 6px;
+      /* 避免 inline 元素被高亮时看起来太拥挤 */
     }
 
     /* 统一所有非标题元素的间距 */
@@ -169,53 +199,20 @@
       text-align: center;
       padding: 40px;
     }
-
-    /* 移动端 toolbar 响应式：保持与全局 .btn 一致，仅允许换行/折叠次要控件 */
-    @media (max-width: 768px) {
-      .toolbar {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        padding: 8px;
-        align-items: center; /* 垂直居中，使用全局 .btn 的内边距 */
-      }
-      /* 不覆盖 .btn 的 padding/边框，只调整伸缩行为和最小宽度 */
-      .toolbar .btn {
-        flex: 0 0 auto;
-        min-width: 72px;
-        margin: 6px 4px;
-      }
-      .toolbar .toolbar-select, .toolbar select {
-        flex: 1 1 100%;
-        min-width: 0;
-        margin: 6px 4px;
-        max-width: 100%;
-      }
-      .toolbar input[type="file"] {
-        margin: 6px 4px;
-        flex: 1 1 auto;
-      }
-      /* 防止按钮文字换行导致高度异常，但不改变按钮内边距 */
-      .toolbar .btn span {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-    }
   </style>
 </head>
 
 <body>
   <!-- 控制按钮区域（已改为：主操作 + 次要收纳） -->
   <div class="toolbar">
-    <div class="toolbar-primary" style="display:flex;align-items:center;gap:8px;">
-      <button class="btn" id="downloadBtn">生成 Word</button>
-      <button class="btn" id="uploadTplBtn">上传模板</button>
-      <button class="btn" id="downloadDefaultTplBtn">下载模板</button>
-      <select id="templateSelect" class="toolbar-select" style="display:inline-block; width:auto; margin-left:6px;">
-        <option value="default">默认模板</option>
-      </select>
-    </div>
+
+    <button class="btn" id="downloadBtn">生成Word</button>
+    <button class="btn" id="uploadTplBtn">上传模板</button>
+    <button class="btn" id="downloadDefaultTplBtn">下载模板</button>
+    <select class="toolbar-select" style="display:inline-block; width:auto; margin-left:6px;">
+      <option value="default">默认模板</option>
+    </select>
+
 
     <!-- 次要控件，移动端默认折叠 -->
     <div class="toolbar-secondary" style="display:inline-flex;align-items:center;gap:8px;margin-left:8px;">
@@ -358,7 +355,7 @@
             const rawHash = href.replace(/^#/, '');
             // 支持编码的 hash（例如 #%E8...）—先尝试解码
             let rawHashDecoded = rawHash;
-            try { rawHashDecoded = decodeURIComponent(rawHash); } catch(e){}
+            try { rawHashDecoded = decodeURIComponent(rawHash); } catch (e) { }
             // 先尝试用原始与解码后的 id 查找
             const targetById = rawHash ? (container.querySelector('#' + CSS.escape(rawHash)) || container.querySelector('#' + CSS.escape(rawHashDecoded))) : null;
             let target = targetById;
@@ -379,11 +376,11 @@
               }
             }
             if (target) {
-              try { target.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(e){ target.scrollIntoView(); }
+              try { target.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) { target.scrollIntoView(); }
               try {
                 target.classList.add('mw-preview-highlight');
-                setTimeout(() => { try { target.classList.remove('mw-preview-highlight'); } catch(e){} }, 1600);
-              } catch(e){}
+                setTimeout(() => { try { target.classList.remove('mw-preview-highlight'); } catch (e) { } }, 1600);
+              } catch (e) { }
             }
           } catch (e) { /* ignore */ }
         }, { passive: false });
@@ -414,8 +411,8 @@
             // 替换图片路径为localStorage中的base64数据
             htmlContent = replaceImagesInHtml(htmlContent);
             previewEl.innerHTML = htmlContent;
-            try { addHeadingIds(previewEl); } catch(e){}
-            try { handleTocClicks(previewEl); } catch(e){}
+            try { addHeadingIds(previewEl); } catch (e) { }
+            try { handleTocClicks(previewEl); } catch (e) { }
             status('已加载 Markdown 数据');
           } else {
             previewEl.innerHTML = '<div class="empty-preview">未找到 mindword_markdown_data 数据</div>';
@@ -447,7 +444,7 @@
           if (!e.data || !e.data.type) return;
           if (e.data.type !== 'preview-scroll-to') return;
 
-          try { console.log('[MD2WORD RAW MESSAGE]', e.data); } catch (err) {}
+          try { console.log('[MD2WORD RAW MESSAGE]', e.data); } catch (err) { }
 
           const payload = e.data || {};
           const raw = (payload.raw || '').toString().trim();
@@ -490,7 +487,7 @@
 
               matches.push(el);
             }
-          } catch (e) {}
+          } catch (e) { }
 
           // 如果标题没有命中，再回退到通用候选（li,p 等），以保证兼容 TOC/特殊结构
           if (matches.length === 0) {
@@ -540,7 +537,7 @@
           try {
             const existing = container.querySelectorAll('.mw-preview-highlight');
             existing.forEach(el => el.classList.remove('mw-preview-highlight'));
-          } catch (e) {}
+          } catch (e) { }
 
           // 添加当前元素高亮，并用独立定时器在 1.6s 后只移除该元素的类
           try {
@@ -551,11 +548,11 @@
             if (prevTimer) clearTimeout(prevTimer);
 
             const t = setTimeout(() => {
-              try { targetEl.classList.remove('mw-preview-highlight'); } catch (e) {}
-              try { window.__mw_previewHighlightTimers.delete(targetEl); } catch (e) {}
+              try { targetEl.classList.remove('mw-preview-highlight'); } catch (e) { }
+              try { window.__mw_previewHighlightTimers.delete(targetEl); } catch (e) { }
             }, 1600);
-            try { window.__mw_previewHighlightTimers.set(targetEl, t); } catch(e){}
-          } catch (err) {}
+            try { window.__mw_previewHighlightTimers.set(targetEl, t); } catch (e) { }
+          } catch (err) { }
 
           console.log('[MD2WORD] preview scrolled to match', { nodeid: nodeid, index: last, total: matches.length });
         } catch (err) {

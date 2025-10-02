@@ -17,68 +17,12 @@ body {
     line-height: 1.5;
 }
 
-/* ===================================
-   现代简约Tab样式 - 底部边框设计
-   =================================== */
-/* .tabs {
-    display: flex;
-    gap: 0;
-    background: transparent;
-    padding: 0;
-    border-radius: 0;
-    box-shadow: none;
-    position: relative;
-}
-
-.tab {
-    background: transparent;
-    border: none;
-    color: #94a3b8;
-    padding: 12px 24px;
-    border-radius: 0;
-    cursor: pointer;
-    font-size: 16px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    white-space: nowrap;
-    font-weight: 500;
-    user-select: none;
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: -2px;
-}
-
-.tab:hover {
-    background: transparent;
-    color: #64748b;
-}
-
-.tab.active {
-    background: transparent;
-    color: #5382cf;
-    border-bottom: 2px solid #57bbda;
-    box-shadow: none;
-    transform: none;
-    animation: tabActivate 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.tab.active:hover {
-    background: transparent;
-    color: #2563eb;
-} */
-
-/* ===================================
-   核心按钮样式 - 简化版本
-   =================================== */
-
-/* 基础按钮样式 - 白色灰框黑字 */
 .btn {
     background: #ffffff;
     border: 1px solid #e5e7eb;
     color: #374151;
-    padding: 10px 20px;
-    border-radius: 12px;
+    padding: 6px 12px;
+    border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     font-size: 14px;
@@ -238,18 +182,14 @@ iframe .btn:not([class*="btn-"]):hover {
     background-clip: text;
 }
 
-.tabs {
-    display: flex;
-    gap: 32px;
-    flex: 1;
-    justify-content: center;
-}
+
 
 .header-right {
     flex: 1;
     display: flex;
     justify-content: flex-end;
 }
+
 
 /* ===================================
    现代简约主内容区域
@@ -412,43 +352,33 @@ iframe .btn:not([class*="btn-"]):hover {
    现代简约工具栏样式
    =================================== */
 .toolbar {
-    height: 64px;
+    height: 44px;
     background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-    border-bottom: 1px solid #e2e8f0;
-    padding: 16px 24px;
+
+    padding: 4px;
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     z-index: 100;
     flex-shrink: 0;
     border-radius: 12px 12px 0 0;
 }
 
-/* Ensure toolbar-primary is vertically centered inside the toolbar */
-.toolbar-primary {
-    display: flex !important;
-    align-items: center !important;
-    height: 100% !important;
-    margin: 0 !important;
-    gap: 8px;
-}
+
 
 /* 现代简约工具栏按钮样式 */
-.toolbar button,
 .toolbar .btn {
     background: #ffffff !important;
     border: 1px solid #e2e8f0 !important;
     color: #475569 !important;
-    padding: 10px 18px !important;
-    border-radius: 10px !important;
     cursor: pointer !important;
     font-size: 14px !important;
     font-weight: 500 !important;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
     display: flex !important;
     align-items: center !important;
-    gap: 8px !important;
+    gap: 4px !important;
     line-height: 1 !important;
     font-family: inherit !important;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
@@ -459,7 +389,7 @@ iframe .btn:not([class*="btn-"]):hover {
     background-color: #f8fafc !important;
     border-color: #cbd5e1 !important;
     color: #1e293b !important;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08) !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08) !important;
     transform: translateY(-1px) !important;
 }
 
@@ -538,7 +468,7 @@ iframe .btn:not([class*="btn-"]):hover {
 }
 
 /* 工具栏中的选择框 */
-.toolbar select {
+.toolbar-select {
     background: #fff;
     border: 1px solid #d1d5db;
     color: #374151;
@@ -549,18 +479,11 @@ iframe .btn:not([class*="btn-"]):hover {
     transition: all 0.2s ease;
     font-family: inherit;
     min-width: 150px;
+    height: 27px;
+    padding: 0 16px;
+    line-height: 26px;
 }
 
-/* 工具栏下拉框专用样式 - 保持与按钮相同高度 */
-.toolbar select.toolbar-select {
-    height: 38px;
-    /* 与按钮相同高度 */
-    line-height: 38px;
-    padding: 0 16px;
-    /* 移除上下内边距 */
-    vertical-align: middle;
-    box-sizing: border-box;
-}
 
 .toolbar select:hover {
     border-color: #9ca3af;
@@ -568,7 +491,7 @@ iframe .btn:not([class*="btn-"]):hover {
 
 .toolbar select:focus {
     outline: none;
-    border-color: #3b82f6;
+    border-color: #73a8fd;
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
@@ -782,24 +705,7 @@ iframe .btn:not([class*="btn-"]):hover {
         flex: 1 1 auto;
     }
 
-    /* 顶部只保留品牌，tabs 在底部作为菜单栏（移动端） */
-    .tabs {
-        gap: 4px;
-        padding: 0;
-        border-radius: 0;
-        border-bottom: none;
-        justify-content: center;
-        position: fixed;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        width: 100%;
-        display: flex;
-        background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-        border-top: 1px solid #e2e8f0;
-        z-index: 1100;
-        padding: 8px 6px;
-    }
+
 
     /* 顶部 header 的高度压缩，content 底部预留菜单栏高度 */
     .header {
@@ -838,36 +744,13 @@ iframe .btn:not([class*="btn-"]):hover {
         border-radius: 0 !important;
     }
 
-    .tab {
-        padding: 8px 10px;
-        font-size: 14px;
-        border-radius: 8px;
-        margin: 0 6px;
-        white-space: nowrap;
-        /* 不换行，避免换行导致布局错乱 */
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-    }
 
-    .tab.active {
-        border-bottom: none;
-        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.12);
-        background: rgba(59, 130, 246, 0.06);
-        color: #0b82e4;
-    }
 
     /* 隐藏右侧区域（包括专注按钮），移动端顶部只显示品牌 */
     .header-right {
         display: none !important;
     }
 
-    .btn {
-        padding: 8px 12px;
-        font-size: 13px;
-        border-radius: 10px;
-        white-space: nowrap;
-    }
 
     .btn-small {
         padding: 6px 10px;
