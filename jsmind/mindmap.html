@@ -14,6 +14,7 @@
 
 
   <link rel="stylesheet" href="mindmap.css">
+
 </head>
 
 </head>
@@ -29,8 +30,15 @@
     <!-- 图标选择器下拉菜单（已定制：隐藏默认 caret、只保留网格内第一个“清除”按钮） -->
     <style>
       /* 隐藏 Bootstrap 的下拉小箭头并去掉可能的聚焦动画/outline */
-      #iconPickerBtn.dropdown-toggle::after { display: none !important; }
-      #iconPickerBtn:focus { outline: none !important; box-shadow: none !important; }
+      #iconPickerBtn.dropdown-toggle::after {
+        display: none !important;
+      }
+
+      #iconPickerBtn:focus {
+        outline: none !important;
+        box-shadow: none !important;
+      }
+
       /* 工具栏内图标按钮保证 emoji 可见 */
       #iconGridToolbar .icon-picker-item {
         font-family: "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", system-ui, sans-serif;
@@ -40,12 +48,13 @@
         padding: 0;
         background: white !important;
       }
+
       /* 去掉下拉菜单自身的动画（若存在） */
       #iconPickerDropdown .dropdown-menu {
         transition: none !important;
         -webkit-transition: none !important;
         -moz-transition: none !important;
-        
+
       }
     </style>
 
@@ -58,7 +67,8 @@
         style="width: 360px; max-height: 420px; overflow-y: auto; overflow-x: hidden;">
         <div style="padding: 12px;">
           <h6 style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600;">选择图标</h6>
-          <div id="iconGridToolbar" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; padding-bottom:8px; box-sizing: border-box; column-gap:6px;">
+          <div id="iconGridToolbar"
+            style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; padding-bottom:8px; box-sizing: border-box; column-gap:6px;">
             <!-- 图标将通过JavaScript动态生成（第一个为清除） -->
           </div>
         </div>
@@ -71,7 +81,8 @@
       style="margin-left:auto;display:flex;gap:12px;align-items:flex-end;justify-content:flex-end;">
       <label class="mw-toggle-showdetails"
         style="display:flex;flex-direction:column;align-items:center;font-size:12px;margin:0 4px;">
-        <input id="toggleNodeDetailsCheckbox" type="checkbox" checked style="width:18px;height:18px;margin:6px auto;display:block;">
+        <input id="toggleNodeDetailsCheckbox" type="checkbox" checked
+          style="width:18px;height:18px;margin:6px auto;display:block;">
         <span style="display:block;margin-top:0;">详情面板</span>
       </label>
       <label class="mw-toggle-showtype"
@@ -118,7 +129,8 @@
 
       <div class="form-group">
         <label for="nodeTopic">节点主题:</label>
-        <textarea id="nodeTopic" placeholder="输入节点主题..." rows="3" style="width:100%; resize:vertical; line-height:1.4em;"></textarea>
+        <textarea id="nodeTopic" placeholder="输入节点主题..." rows="3"
+          style="width:100%; resize:vertical; line-height:1.4em;"></textarea>
       </div>
 
       <div class="form-group">
@@ -216,8 +228,8 @@
 
         // 兼容回退：扁平化 window.availableIcons 或全局 availableIcons
         var icons = (window.availableIcons && window.availableIcons.length) ? window.availableIcons
-                  : (typeof availableIcons !== 'undefined' && availableIcons && availableIcons.length) ? availableIcons
-                  : [];
+          : (typeof availableIcons !== 'undefined' && availableIcons && availableIcons.length) ? availableIcons
+            : [];
         if (!icons || icons.length === 0) {
           // 显示占位提示（用户看到不会空白）
           var ph = document.createElement('div');

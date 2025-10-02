@@ -822,6 +822,7 @@ function setupMindmapScrolling() {
 
             // additional guard: only show details if mouseup happened on the same jmnode that was mousedowned
             var targetNodeId = null;
+            var targetElem = null;
             try {
               var t = evt && evt.target;
               // walk up to find nearest jmnode element (compatible with older browsers)
@@ -829,9 +830,10 @@ function setupMindmapScrolling() {
                 t = t.parentElement;
               }
               if (t && t.getAttribute) {
+                targetElem = t;
                 targetNodeId = t.getAttribute('nodeid') || t.getAttribute('data-nodeid') || t.getAttribute('node-id') || null;
               }
-            } catch (e) { targetNodeId = null; }
+            } catch (e) { targetNodeId = null; targetElem = null; }
 
             if (!wasDragged && lastId && !!window.__nodeDetailsEnabled && !(window.__batchDragData && window.__batchDragData.isBatchDragging) && targetNodeId && String(targetNodeId) === String(lastId)) {
               try {
@@ -839,6 +841,31 @@ function setupMindmapScrolling() {
                 if (node) {
                   console.log('[MW][details] mouseup -> showNodeDetails id=', lastId, ' targetNodeId=', targetNodeId);
                   showNodeDetails(node);
+
+                  // AFTER showing details, ensure node is not too close to right edge:
+                  try {
+                    const panel = document.getElementById('fullScreenMindmap') && document.getElementById('fullScreenMindmap').querySelector('.jsmind-inner');
+                    const nodeEl = node && node._data && node._data.view && node._data.view.element ? node._data.view.element : targetElem;
+                    if (panel && nodeEl && typeof panel.getBoundingClientRect === 'function' && typeof nodeEl.getBoundingClientRect === 'function') {
+                      const panelRect = panel.getBoundingClientRect();
+                      const nodeRect = nodeEl.getBoundingClientRect();
+                      const rightGap = panelRect.right - nodeRect.right; // px
+                      const MIN_GAP = 350; // px
+                      if (rightGap < MIN_GAP) {
+                        const delta = Math.round(MIN_GAP - rightGap);
+                        const before = panel.scrollLeft;
+                        try {
+                          panel.scrollBy({ left: delta, behavior: 'auto' });
+                        } catch (e) {
+                          panel.scrollLeft = panel.scrollLeft + delta;
+                        }
+                        const after = panel.scrollLeft;
+                        console.log('[MW][details] adjusted scroll to keep node left of right edge', { id: lastId, rightGap: rightGap, delta: delta, scrollBefore: before, scrollAfter: after });
+                      } else {
+                        console.log('[MW][details] no scroll adjustment needed', { id: lastId, rightGap: rightGap });
+                      }
+                    }
+                  } catch (e) { console.warn('[MW][details] scroll adjust failed', e); }
                 }
               } catch (e) { console.warn('[MW][details] mouseup showNodeDetails failed', e); }
             } else {

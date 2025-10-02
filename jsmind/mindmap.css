@@ -1,283 +1,288 @@
 /* mindmap.css - extracted from mindmap.html */
 
 
-    body {
-      font-family: 'Consolas', 'Monaco', monospace;
-      background: #f5f5f5;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
+body {
+  font-family: 'Consolas', 'Monaco', monospace;
+  background: #f5f5f5;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
 
-    .main-container {
-      flex: 1;
-      display: flex;
-      height: calc(100vh - 60px);
-    }
+.main-container {
+  flex: 1;
+  display: flex;
+  height: calc(100vh - 60px);
+}
 
-    #fullScreenMindmap {
-      width: 100%;
-      flex: 1;
-      height: 100%;
-      position: relative;
-      background: white;
-      overflow: auto;
-      /* 添加滚动条支持：现在占满父容器，不再保留侧栏空间 */
-    }
+#fullScreenMindmap {
+  width: 100%;
+  flex: 1;
+  height: 100%;
+  position: relative;
+  background: white;
+  overflow: auto;
+  /* 添加滚动条支持：现在占满父容器，不再保留侧栏空间 */
+}
 
-    /* jsmind 节点容器滚动支持 */
-    #fullScreenMindmap .jsmind-inner {
-      overflow: auto !important;
-    }
+/* jsmind 节点容器滚动支持 */
+#fullScreenMindmap .jsmind-inner {
+  overflow: auto !important;
+}
 
-    /* 确保思维导图节点容器可以滚动 */
-    #fullScreenMindmap .jmnodes {
-      overflow: visible !important;
-    }
+/* 确保思维导图节点容器可以滚动 */
+#fullScreenMindmap .jmnodes {
+  overflow: visible !important;
+}
 
-    /* 自定义滚动条样式 */
-    #fullScreenMindmap::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
-    }
+/* 自定义滚动条样式 */
+#fullScreenMindmap::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
 
-    #fullScreenMindmap::-webkit-scrollbar-track {
-      background: #f1f1f1;
-      border-radius: 4px;
-    }
+#fullScreenMindmap::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
 
-    #fullScreenMindmap::-webkit-scrollbar-thumb {
-      background: #c1c1c1;
-      border-radius: 4px;
-    }
+#fullScreenMindmap::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
 
-    #fullScreenMindmap::-webkit-scrollbar-thumb:hover {
-      background: #a8a8a8;
-    }
+#fullScreenMindmap::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
 
-    /* 将侧栏转换为浮动可关闭面板，默认隐藏（通过 JS showNodeDetails 控制显示） */
-    #nodeDetails {
-      position: fixed;
-      right: 12px;
-      top: 80px;
-      width: 300px;
-      max-width: calc(100% - 32px);
-      max-height: 100vh; /* 高度较小 */
-      padding: 10px;
-      border-left: none;
-      border-radius: 8px;
-      overflow-y: auto;
-      background: #f8f9fa;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-      z-index: 1200;
-      display: none; /* 默认由 showNodeDetails 显示 */
-      touch-action: none; /* 避免触摸滚动与拖拽冲突 */
-      cursor: move;
-      font-size: 14px; /* 统一面板内字体为 14px */
-    }
+/* 将侧栏转换为浮动可关闭面板，默认隐藏（通过 JS showNodeDetails 控制显示） */
+#nodeDetails {
+  position: fixed;
+  right: 12px;
+  top: 80px;
+  width: 300px;
+  max-width: calc(100% - 32px);
+  max-height: 100vh;
+  /* 高度较小 */
+  padding: 10px;
+  border-left: none;
+  border-radius: 8px;
+  overflow-y: auto;
+  background: #f8f9fa;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  z-index: 1200;
+  display: none;
+  /* 默认由 showNodeDetails 显示 */
+  touch-action: none;
+  /* 避免触摸滚动与拖拽冲突 */
+  cursor: move;
+  font-size: 14px;
+  /* 统一面板内字体为 14px */
+}
 
-    /* 确保面板内部常见控件字体一致 */
-    #nodeDetails input,
-    #nodeDetails textarea,
-    #nodeDetails .node-info,
-    #nodeDetails label,
-    #nodeDetails button {
-      font-size: 14px;
-    }
+/* 确保面板内部常见控件字体一致 */
+#nodeDetails input,
+#nodeDetails textarea,
+#nodeDetails .node-info,
+#nodeDetails label,
+#nodeDetails button {
+  font-size: 14px;
+}
 
-    /* 拖拽用的把手区域（如果存在 panel-header 则使用它） */
-    #nodeDetails .panel-header {
-      cursor: grab;
-      -webkit-user-select: none;
-      user-select: none;
-    }
-
-
-    .panel-close-btn {
-    border: none !important;
-    outline: none !important;
-    background: transparent !important;
-    padding: 0;
-    margin: 0;
-    line-height: 1;
-    color: inherit;
-    cursor: default; /* 如不需要鼠标手势，可改成 'pointer' */
-    }
+/* 拖拽用的把手区域（如果存在 panel-header 则使用它） */
+#nodeDetails .panel-header {
+  cursor: grab;
+  -webkit-user-select: none;
+  user-select: none;
+}
 
 
-    .node-info {
-      background: white;
-      padding: 15px;
-      border-radius: 4px;
-      margin-bottom: 15px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    }
-
-    .form-group {
-      margin-bottom: 15px;
-    }
-
-    .form-group label {
-      display: block;
-      margin-bottom: 5px;
-      font-weight: bold;
-      color: #495057;
-    }
-
-    .form-group input,
-    .form-group textarea {
-      width: 100%;
-      padding: 8px;
-      border: 1px solid #ced4da;
-      border-radius: 4px;
-      font-family: inherit;
-    }
-
-    .form-group textarea {
-      resize: vertical;
-      min-height: 100px;
-    }
-
-    .notes-section {
-      background: white;
-      padding: 15px;
-      border-radius: 4px;
-      margin-top: 15px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    }
-
-    .note-item {
-      padding: 10px;
-      border-left: 3px solid #007bff;
-      background: #f8f9fa;
-      margin-bottom: 10px;
-      border-radius: 0 4px 4px 0;
-    }
-
-    .note-item h5 {
-      margin: 0 0 5px 0;
-      color: #fad503;
-      font-size: 14px;
-    }
-
-    .note-item p {
-      margin: 0;
-      color: #495057;
-      font-size: 12px;
-      line-height: 1.4;
-    }
-
-    /* 自动更新动画 */
-    @keyframes pulse {
-      0% {
-        transform: scale(1);
-        opacity: 1;
-      }
-
-      50% {
-        transform: scale(1.2);
-        opacity: 0.7;
-      }
-
-      100% {
-        transform: scale(1);
-        opacity: 1;
-      }
-    }
-
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(-10px);
-      }
-
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    .auto-update-show {
-      animation: fadeIn 0.3s ease-in-out;
-    }
-
-    /* 框选矩形与多选高亮 */
-    #selectionRect {
-      position: fixed;
-      border: 1px dashed #4c9aff;
-      background: rgba(76, 154, 255, 0.15);
-      pointer-events: none;
-      display: none;
-      z-index: 999;
-    }
+.panel-close-btn {
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  padding: 0;
+  margin: 0;
+  line-height: 1;
+  color: inherit;
+  cursor: default;
+  /* 如不需要鼠标手势，可改成 'pointer' */
+}
 
 
+.node-info {
+  background: white;
+  padding: 15px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
 
-    /* 多选节点悬停效果 - 已移除，不再使用 */
-    /* #fullScreenMindmap .jmnode.multi-selected:hover { background-color: #3a8ce2; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); } */
+.form-group {
+  margin-bottom: 15px;
+}
 
-    /* 选中节点的脉冲动画 - 已移除，不再使用 */
-    @keyframes pulse-multi {
-      /* 动画已禁用，保留空关键帧避免引用错误 */
-    }
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+  color: #495057;
+}
 
-    /* 单选和多选节点样式统一定义 */
-    #fullScreenMindmap .jmnode.selected:not(.multi-selected) {
-      background-color: rgb(251, 255, 17);
-      color: #fff;
-      box-shadow: 2px 2px 8px #000;
-    }
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-family: inherit;
+}
 
-    /* 多选节点基础样式 - 已移除，只使用覆盖层样式 */
-    /* #fullScreenMindmap .jmnode.multi-selected { background-color: #4c9aff; color: white; border: 4px solid #f8ad0b; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); } */
+.form-group textarea {
+  resize: vertical;
+  min-height: 100px;
+}
 
-    /* 节点文本换行样式 */
-    #fullScreenMindmap .jmnode {
-      white-space: normal;
-      word-break: break-word;
-      overflow: visible;
-    }
+.notes-section {
+  background: white;
+  padding: 15px;
+  border-radius: 4px;
+  margin-top: 15px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
 
-    /* 多选节点展开器样式 - 已移除，不再使用 */
-    /* #fullScreenMindmap .jmnode.multi-selected .jmexpander { background-color: #4c9aff; border-color: #ffcf4c; color: #fff; } */
+.note-item {
+  padding: 10px;
+  border-left: 3px solid #007bff;
+  background: #f8f9fa;
+  margin-bottom: 10px;
+  border-radius: 0 4px 4px 0;
+}
 
-    /* 多选节点内容样式 - 已移除，不再使用 */
-    /* #fullScreenMindmap .jmnode.multi-selected * { color: #fff; background-color: rgba(76, 154, 255, 0.15); } */
+.note-item h5 {
+  margin: 0 0 5px 0;
+  color: #fad503;
+  font-size: 14px;
+}
+
+.note-item p {
+  margin: 0;
+  color: #495057;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* 自动更新动画 */
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.2);
+    opacity: 0.7;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.auto-update-show {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+/* 框选矩形与多选高亮 */
+#selectionRect {
+  position: fixed;
+  border: 1px dashed #4c9aff;
+  background: rgba(76, 154, 255, 0.15);
+  pointer-events: none;
+  display: none;
+  z-index: 999;
+}
 
 
 
-    /* 编辑输入最小宽度，避免过短导致编辑体验差 */
-    .jsmind-editor,
-    #jsmind-editor {
-      min-width: 100px;
-      padding: 2px 6px;
-      line-height: 1.4;
-      font-size: 14px;
-    }
+/* 多选节点悬停效果 - 已移除，不再使用 */
+/* #fullScreenMindmap .jmnode.multi-selected:hover { background-color: #3a8ce2; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); } */
 
-    /* 多选覆盖层样式 - 简洁版 */
-    .multi-overlay {
-      position: absolute;
-      left: -2px;
-      top: -2px;
-      right: -2px;
-      bottom: -2px;
-      border: 4px solid #ffd900;
-      border-radius: 4px;
-      pointer-events: none;
-      z-index: 100;
-    }
+/* 选中节点的脉冲动画 - 已移除，不再使用 */
+@keyframes pulse-multi {
+  /* 动画已禁用，保留空关键帧避免引用错误 */
+}
 
-    /* 辅助类 */
-    .mw-force-visible {
-      display: block;
-      visibility: visible;
-    }
+/* 单选和多选节点样式统一定义 */
+#fullScreenMindmap .jmnode.selected:not(.multi-selected) {
+  background-color: rgb(251, 255, 17);
+  color: #fff;
+  box-shadow: 2px 2px 8px #000;
+}
 
-    /* 内联样式类 - 已移除，不再使用 */
-    /* .jmnode.multi-selected-inline { background-color: rgba(76, 154, 255, 0.3); border: 2px solid #4c9aff; box-shadow: 0 0 0 3px rgba(76, 154, 255, 0.8); position: relative; } */
+/* 多选节点基础样式 - 已移除，只使用覆盖层样式 */
+/* #fullScreenMindmap .jmnode.multi-selected { background-color: #4c9aff; color: white; border: 4px solid #f8ad0b; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); } */
 
-    /* 工具栏图标选择器下拉菜单样式 */
+/* 节点文本换行样式 */
+#fullScreenMindmap .jmnode {
+  white-space: normal;
+  word-break: break-word;
+  overflow: visible;
+}
+
+/* 多选节点展开器样式 - 已移除，不再使用 */
+/* #fullScreenMindmap .jmnode.multi-selected .jmexpander { background-color: #4c9aff; border-color: #ffcf4c; color: #fff; } */
+
+/* 多选节点内容样式 - 已移除，不再使用 */
+/* #fullScreenMindmap .jmnode.multi-selected * { color: #fff; background-color: rgba(76, 154, 255, 0.15); } */
+
+
+
+/* 编辑输入最小宽度，避免过短导致编辑体验差 */
+.jsmind-editor,
+#jsmind-editor {
+  min-width: 100px;
+  padding: 2px 6px;
+  line-height: 1.4;
+  font-size: 14px;
+}
+
+/* 多选覆盖层样式 - 简洁版 */
+.multi-overlay {
+  position: absolute;
+  left: -2px;
+  top: -2px;
+  right: -2px;
+  bottom: -2px;
+  border: 4px solid #ffd900;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 100;
+}
+
+/* 辅助类 */
+.mw-force-visible {
+  display: block;
+  visibility: visible;
+}
+
+/* 内联样式类 - 已移除，不再使用 */
+/* .jmnode.multi-selected-inline { background-color: rgba(76, 154, 255, 0.3); border: 2px solid #4c9aff; box-shadow: 0 0 0 3px rgba(76, 154, 255, 0.8); position: relative; } */
+
+/* 工具栏图标选择器下拉菜单样式 */
 #iconPickerDropdown {
   position: relative;
   display: inline-block;
@@ -313,7 +318,7 @@
   min-width: 320px;
   max-height: 400px;
   overflow-y: auto;
-  box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
   border: 1px solid #ddd;
   border-radius: 4px;
   z-index: 1000;
@@ -398,27 +403,43 @@
 #iconPicker {
   display: none;
 }
-  
 
 
-      #mw-batchops {
-        position: absolute;
-        top: 80px; /* 向下移动，避免遮挡左侧按钮 */
-        left: 8px;
-        z-index: 220;
-        display: inline-flex;
-        align-items: center;
-        padding: 6px 10px;
-        background: rgba(255,255,255,0.92);
-        border: 1px solid rgba(76,154,255,0.15);
-        border-radius: 6px;
-        color: #0f172a;
-        font-size: 12px;
-        box-shadow: 0 6px 18px rgba(15,23,42,0.06);
-        backdrop-filter: blur(4px);
-      }
-      @media (max-width: 768px) {
-        /* 移动端不显示（避免遮挡） */
-        #mw-batchops { display: none !important; }
-      }
-    
+
+#mw-batchops {
+  position: absolute;
+  top: 80px;
+  /* 向下移动，避免遮挡左侧按钮 */
+  left: 8px;
+  z-index: 220;
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(76, 154, 255, 0.15);
+  border-radius: 6px;
+  color: #0f172a;
+  font-size: 12px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+  backdrop-filter: blur(4px);
+}
+
+@media (max-width: 768px) {
+
+  /* 移动端不显示（避免遮挡） */
+  #mw-batchops {
+    display: none !important;
+  }
+}
+
+
+/* 调整节点备注输入框大小，仅影响 id="nodeNotes" */
+#nodeNotes {
+  height: 600px;
+  /* 默认高度，可按需调整 */
+  min-height: 80px;
+  /* 最小高度 */
+  resize: vertical;
+  /* 允许用户垂直调整 */
+  box-sizing: border-box;
+}
