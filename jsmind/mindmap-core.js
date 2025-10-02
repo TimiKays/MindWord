@@ -845,26 +845,32 @@ function setupMindmapScrolling() {
             var targetNodeId = null;
             var targetElem = null;
             try {
-              var t = evt && evt.target;
-              // more robust: find nearest element that is a jmnode or carries a nodeid attribute
-              if (t && t.closest) {
-                targetElem = t.closest('.jmnode, [nodeid], [data-nodeid], [node-id]');
-              } else {
-                // fallback: traverse parents and check for attribute or class
-                while (t) {
-                  try {
-                    if ((t.getAttribute && (t.getAttribute('nodeid') || t.getAttribute('data-nodeid') || t.getAttribute('node-id'))) || (t.classList && t.classList.contains && t.classList.contains('jmnode'))) {
-                      targetElem = t;
-                      break;
-                    }
-                    t = t.parentElement;
-                  } catch (ee) { break; }
+              // 优先使用 closest（兼容 class 或 属性 标识的节点）
+              var targ = evt && evt.target;
+              var found = null;
+              try {
+                if (targ && targ.closest) {
+                  found = targ.closest('.jmnode, [nodeid], [data-nodeid], [node-id]');
                 }
+              } catch (e) { found = null; }
+              // 若 closest 未命中，再基于坐标使用 elementFromPoint 做二次探测（覆盖层 / 文本节点场景）
+              if (!found && typeof evt === 'object' && typeof evt.clientX === 'number' && typeof evt.clientY === 'number' && document.elementFromPoint) {
+                try {
+                  var elAtPoint = document.elementFromPoint(evt.clientX, evt.clientY);
+                  if (elAtPoint && elAtPoint.closest) {
+                    found = elAtPoint.closest('.jmnode, [nodeid], [data-nodeid], [node-id]');
+                  }
+                } catch (e) { /* ignore elementFromPoint errors */ }
               }
-              if (targetElem && targetElem.getAttribute) {
-                targetNodeId = targetElem.getAttribute('nodeid') || targetElem.getAttribute('data-nodeid') || targetElem.getAttribute('node-id') || null;
+              // 最后回退到 mousedown 时记录的 id（若存在）
+              if (found) {
+                try {
+                  targetNodeId = found.getAttribute('nodeid') || found.getAttribute('data-nodeid') || found.getAttribute('node-id') || null;
+                } catch (e) { targetNodeId = null; }
+              } else {
+                targetNodeId = window.__mw_lastMouseDownSelectedId || null;
               }
-            } catch (e) { targetNodeId = null; targetElem = null; }
+            } catch (e) { targetNodeId = null; }
 
             if (!wasDragged && lastId && !!window.__nodeDetailsEnabled && !(window.__batchDragData && window.__batchDragData.isBatchDragging) && targetNodeId && String(targetNodeId) === String(lastId)) {
               try {
@@ -3579,6 +3585,8 @@ function downloadMindmap() {
     alert('下载失败，请检查浏览器控制台了解详情');
   }
 }
+// 最小修复：确保页面中使用的 inline onclick 可见到该函数
+try { window.downloadMindmap = downloadMindmap; } catch (e) { /* ignore */ }
 
 
 
