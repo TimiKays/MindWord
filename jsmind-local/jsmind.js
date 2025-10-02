@@ -2959,7 +2959,13 @@
           y = eventDown.clientY;
         })
         // Stop moving mind map once mouse button is released.
-        jm.util.dom.add_event(this.container, 'mouseup', () => {
+        jm.util.dom.add_event(this.container, 'mouseup', (event) => {
+          // 如果全局输入 guard 正在捕获交互（来自输入域的拖选），则不要在这里改变 dragging 状态或触发后续可能影响焦点的行为
+          try {
+            if (window.__mw_input_focus_guard && window.__mw_input_focus_guard.installed && window.__mw_input_focus_guard.capturing) {
+              return;
+            }
+          } catch (e) { /* ignore */ }
           dragging = false
         })
         // Follow current mouse position and move mind map accordingly.

@@ -840,9 +840,15 @@ function setupMindmapScrolling() {
                 const node = jm.get_node && jm.get_node(lastId);
                 if (node) {
                   console.log('[MW][details] mouseup -> showNodeDetails id=', lastId, ' targetNodeId=', targetNodeId);
-                  showNodeDetails(node);
+                  // 仅在非由输入域发起的捕获期间才立即显示详情；若捕获自输入域则跳过以避免抢焦点
+                  if (!(window.__mw_input_focus_guard && window.__mw_input_focus_guard.installed && window.__mw_input_focus_guard.capturing)) {
+                    showNodeDetails(node);
+                  } else {
+                    // 捕获自输入域：跳过立即显示详情以避免在 mouseup 时抢占输入焦点
+                    console.log('[MW][details] skipped showNodeDetails due to active input capture');
+                  }
 
-                  // AFTER showing details, ensure node is not too close to right edge:
+                  // AFTER showing details, ensure node has sufficient margin from all four edges (left/right/top/bottom)
                   try {
                     const panel = document.getElementById('fullScreenMindmap') && document.getElementById('fullScreenMindmap').querySelector('.jsmind-inner');
                     const nodeEl = node && node._data && node._data.view && node._data.view.element ? node._data.view.element : targetElem;
@@ -1125,6 +1131,7 @@ function setupAutoUpdate() {
   nodeTopic.addEventListener('input', handleAutoUpdate);
   nodeNotes.addEventListener('input', handleAutoUpdate);
 
+
   // 在输入时进入编辑模式（抑制全局 toast），失焦恢复
   try {
     // 移除已有的 focus/blur，避免重复注册
@@ -1143,9 +1150,85 @@ function setupAutoUpdate() {
 
   try {
     nodeTopic.addEventListener('focus', _mw_onInputFocus, { passive: true });
-    nodeTopic.addEventListener('blur', _mw_onInputBlur, { passive: true });
+    nodeTopic.addEventListener('blur', function (e) {
+      try {
+        var shouldDelay = false;
+        try {
+          if (window.__mw_input_focus_guard && window.__mw_input_focus_guard.installed && window.__mw_input_focus_guard.capturing) shouldDelay = true;
+        } catch (ee) { /* ignore */ }
+        try {
+          if (document && document.activeElement === document.body) shouldDelay = true;
+        } catch (ee) { /* ignore */ }
+        try {
+          if (!e || !e.relatedTarget) shouldDelay = true;
+        } catch (ee) { /* ignore */ }
+
+        if (shouldDelay) {
+          // 延迟判断：只有当捕获结束或焦点不再为 body 时才执行 blur 行为
+          setTimeout(function () {
+            try {
+              var stillCapturing = false;
+              try { stillCapturing = !!(window.__mw_input_focus_guard && window.__mw_input_focus_guard.capturing); } catch (er) { stillCapturing = false; }
+              var activeIsBody = false;
+              try { activeIsBody = !!(document && document.activeElement === document.body); } catch (er) { activeIsBody = false; }
+              var activeIsCanvas = false;
+              try {
+                var ae = document && document.activeElement;
+                if (ae) {
+                  if (ae.classList && ae.classList.contains && ae.classList.contains('jsmind-inner')) activeIsCanvas = true;
+                  else if (ae.closest && ae.closest('.jsmind-inner')) activeIsCanvas = true;
+                }
+              } catch (er2) { activeIsCanvas = false; }
+              // 如果既不在捕获中、也不在body、且不是画布，则认为是真正失焦才执行 blur
+              if (!stillCapturing && !activeIsBody && !activeIsCanvas) {
+                _mw_onInputBlur.call(nodeTopic, e);
+              }
+            } catch (ee) { try { _mw_onInputBlur.call(nodeTopic, e); } catch (er) { } }
+          }, 20);
+          return;
+        }
+      } catch (ee) { /* ignore */ }
+      _mw_onInputBlur.call(nodeTopic, e);
+    }, { passive: true });
     nodeNotes.addEventListener('focus', _mw_onInputFocus, { passive: true });
-    nodeNotes.addEventListener('blur', _mw_onInputBlur, { passive: true });
+    nodeNotes.addEventListener('blur', function (e) {
+      try {
+        var shouldDelay = false;
+        try {
+          if (window.__mw_input_focus_guard && window.__mw_input_focus_guard.installed && window.__mw_input_focus_guard.capturing) shouldDelay = true;
+        } catch (ee) { /* ignore */ }
+        try {
+          if (document && document.activeElement === document.body) shouldDelay = true;
+        } catch (ee) { /* ignore */ }
+        try {
+          if (!e || !e.relatedTarget) shouldDelay = true;
+        } catch (ee) { /* ignore */ }
+
+        if (shouldDelay) {
+          setTimeout(function () {
+            try {
+              var stillCapturing = false;
+              try { stillCapturing = !!(window.__mw_input_focus_guard && window.__mw_input_focus_guard.capturing); } catch (er) { stillCapturing = false; }
+              var activeIsBody = false;
+              try { activeIsBody = !!(document && document.activeElement === document.body); } catch (er) { activeIsBody = false; }
+              var activeIsCanvas = false;
+              try {
+                var ae = document && document.activeElement;
+                if (ae) {
+                  if (ae.classList && ae.classList.contains && ae.classList.contains('jsmind-inner')) activeIsCanvas = true;
+                  else if (ae.closest && ae.closest('.jsmind-inner')) activeIsCanvas = true;
+                }
+              } catch (er2) { activeIsCanvas = false; }
+              if (!stillCapturing && !activeIsBody && !activeIsCanvas) {
+                _mw_onInputBlur.call(nodeNotes, e);
+              }
+            } catch (ee) { try { _mw_onInputBlur.call(nodeNotes, e); } catch (er) { } }
+          }, 20);
+          return;
+        }
+      } catch (ee) { /* ignore */ }
+      _mw_onInputBlur.call(nodeNotes, e);
+    }, { passive: true });
   } catch (e) { }
 }
 
@@ -1492,8 +1575,57 @@ function setupBoxSelection() {
   // 使容器可聚焦，确保在 iframe 中可接收空格键
   inner.setAttribute('tabindex', '0');
   inner.style.outline = 'none';
-  inner.addEventListener('mouseenter', () => { try { inner.focus({ preventScroll: true }); } catch (e) { } });
-  inner.addEventListener('mousedown', () => { try { inner.focus({ preventScroll: true }); } catch (e) { } });
+  // 精确的聚焦策略：
+  // - 不在 mouseenter/mousedown 时聚焦，避免划过或未完成交互时抢走焦点
+  // - 在真实 click 时聚焦（用户明确点击）
+  // - 支持 Space + 指针在画布上的平移聚焦体验（按空格且指针在画布上时聚焦）
+  (function () {
+    let lastPointerOverCanvas = false;
+    // pointer 进入/离开画布，维护指针是否在画布上
+    inner.addEventListener('pointerover', () => { lastPointerOverCanvas = true; });
+    inner.addEventListener('pointerout', () => { lastPointerOverCanvas = false; });
+
+    // 真实点击时聚焦（前置 guard：若输入捕获中则跳过）
+    inner.addEventListener('click', (e) => {
+      try {
+        if (window.__mw_input_focus_guard && window.__mw_input_focus_guard.installed && window.__mw_input_focus_guard.capturing) return;
+      } catch (err) { }
+      try { inner.focus({ preventScroll: true }); } catch (err) { }
+    });
+
+    // Space 支持：当 Space 按下且指针在画布上时聚焦（以支持按空格拖拽）
+    let spaceDown = false;
+    const onKeyDown = (ev) => {
+      try {
+        if (ev.code === 'Space' || ev.key === ' ') {
+          spaceDown = true;
+          // 若指针此刻在画布并非由输入捕获，则聚焦
+          try {
+            if (lastPointerOverCanvas) {
+              inner.focus({ preventScroll: true });
+            }
+          } catch (err) { }
+        }
+      } catch (err) { }
+    };
+    const onKeyUp = (ev) => {
+      try {
+        if (ev.code === 'Space' || ev.key === ' ') spaceDown = false;
+      } catch (err) { }
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    window.addEventListener('keyup', onKeyUp, true);
+
+
+
+    // 清理（页面卸载时）
+    window.addEventListener('beforeunload', function () {
+      try {
+        window.removeEventListener('keydown', onKeyDown, true);
+        window.removeEventListener('keyup', onKeyUp, true);
+      } catch (e) { }
+    }, { passive: true });
+  })();
   // 节点容器（jsMind 会把节点放在 .jmnodes 下）
   const nodesRoot = container.querySelector('.jmnodes') || inner;
 
@@ -2494,6 +2626,12 @@ window.__mw_suppress_toasts_when_editing = window.__mw_suppress_toasts_when_edit
 // API：设置编辑模式（true=编辑中，false=非编辑）
 window.MW_setEditingMode = function (isEditing) {
   try {
+    // 临时调试：当变为 false 时打印调用栈与关键信息，便于定位是谁/何时关闭编辑模式
+    if (!isEditing) {
+      try {
+      } catch (e) { /* ignore logging errors */ }
+    }
+
     window.__mw_suppress_toasts_when_editing = !!isEditing;
     try { console.log('[MW] 编辑模式 ->', !!isEditing); } catch (e) { }
     // 同步到父页面/其他框架，通知全局通知桥抑制或恢复提示
@@ -3412,6 +3550,208 @@ function downloadMindmap() {
 
 
 // 页面加载完成后初始化
+/* === 全局输入域指针捕获与焦点保留补丁（确保从输入内部拖出到外部时不丢失焦点） ===
+   插入位置：在 window.load 回调前注入 installGlobalPointerFocusGuard() 并在 load 时调用。
+   原理：
+   - 在 editable 元素上用 pointerdown 捕获指针（优先），降级到 mouse/touch；
+   - 在捕获期间拦截外部 pointerdown/focusin 防止其它元素抢占焦点；
+   - pointerup/mouseup/touchend 时恢复焦点并释放捕获；
+*/
+(function installGlobalPointerFocusGuard() {
+  try {
+    // 匹配的输入选择器（可按需扩展）
+    const EDITABLE_SELECTOR = 'textarea, input[type="text"], input[type="search"], input[type="email"], input[type="url"], input[type="tel"], input[type="password"], [contenteditable=""], [contenteditable="true"]';
+
+    // 状态
+    let activeEl = null;
+    let activePointerId = null;
+    let capturing = false;
+    // 全局可读 guard（确保外部代码随时可检查状态）
+    try {
+      if (!window.__mw_input_focus_guard) {
+        window.__mw_input_focus_guard = { installed: true, capturing: false, activeEl: null };
+      } else {
+        window.__mw_input_focus_guard.installed = true;
+        // 保持已有字段，确保存在 capturing/activeEl
+        window.__mw_input_focus_guard.capturing = !!window.__mw_input_focus_guard.capturing;
+        window.__mw_input_focus_guard.activeEl = window.__mw_input_focus_guard.activeEl || null;
+      }
+    } catch (e) { /* ignore */ }
+
+    function isEditable(el) {
+      return !!(el && el.matches && el.matches(EDITABLE_SELECTOR));
+    }
+
+    function blockExternalPointerDown(ev) {
+      if (!capturing) return;
+      if (!activeEl) return;
+      const target = ev.target;
+      if (activeEl.contains(target) || (document.getElementById('nodeDetails') && document.getElementById('nodeDetails').contains(target))) {
+        return;
+      }
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+    }
+
+    function blockExternalFocusIn(ev) {
+      if (!capturing) return;
+      if (!activeEl) return;
+      const target = ev.target;
+      if (activeEl.contains(target) || (document.getElementById('nodeDetails') && document.getElementById('nodeDetails').contains(target))) {
+        return;
+      }
+      // 防止在捕获期间外部元素获得焦点，延迟恢复焦点
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+      setTimeout(() => { if (capturing && activeEl) try { activeEl.focus({ preventScroll: true }); } catch (e) { } }, 0);
+    }
+
+    // 在 editable 元素上开始捕获
+    function onPointerDown(e) {
+      const el = e.target;
+      if (!isEditable(el)) return;
+      activeEl = el;
+      capturing = true;
+      // 同步到全局 guard
+      try {
+
+        window.__mw_input_focus_guard.capturing = true;
+        window.__mw_input_focus_guard.activeEl = activeEl;
+      } catch (err) { /* ignore */ }
+      try {
+        if (typeof e.pointerId !== 'undefined' && activeEl.setPointerCapture) {
+          activePointerId = e.pointerId;
+          try { activeEl.setPointerCapture(activePointerId); } catch (err) { /* ignore */ }
+        } else {
+          activePointerId = null;
+        }
+      } catch (e) { activePointerId = null; }
+      // 拦截外部的 pointerdown/focusin（捕获阶段）
+      window.addEventListener('pointerdown', blockExternalPointerDown, true);
+      window.addEventListener('focusin', blockExternalFocusIn, true);
+    }
+
+    function onPointerUp(e) {
+      if (!capturing) return;
+      try {
+        if (activePointerId != null && activeEl && activeEl.releasePointerCapture) {
+          try { activeEl.releasePointerCapture(activePointerId); } catch (err) { /* ignore */ }
+        }
+      } catch (e) { }
+      // 尝试把焦点保持/恢复到起始元素（用户可能仍在交互）
+      try { if (activeEl && typeof activeEl.focus === 'function') activeEl.focus({ preventScroll: true }); } catch (e) { }
+      // 同步到全局 guard：结束捕获
+      try {
+        if (window.__mw_input_focus_guard) {
+          window.__mw_input_focus_guard.capturing = false;
+          window.__mw_input_focus_guard.activeEl = null;
+        }
+      } catch (err) { /* ignore */ }
+      capturing = false;
+      activeEl = null;
+      activePointerId = null;
+      window.removeEventListener('pointerdown', blockExternalPointerDown, true);
+      window.removeEventListener('focusin', blockExternalFocusIn, true);
+    }
+
+    // 降级：鼠标
+    function onMouseDown(e) {
+      const el = e.target;
+      if (!isEditable(el)) return;
+      activeEl = el;
+      capturing = true;
+      // 同步到全局 guard
+      try {
+        if (!window.__mw_input_focus_guard) window.__mw_input_focus_guard = { installed: true, capturing: false, activeEl: null };
+        window.__mw_input_focus_guard.capturing = true;
+        window.__mw_input_focus_guard.activeEl = activeEl;
+      } catch (err) { /* ignore */ }
+      window.addEventListener('mousedown', blockExternalPointerDown, true);
+      window.addEventListener('focusin', blockExternalFocusIn, true);
+
+      const onMouseUp = function (upEvent) {
+        try {
+          if (activeEl && typeof activeEl.focus === 'function') activeEl.focus({ preventScroll: true });
+        } catch (e) { }
+        // 同步到全局 guard：结束捕获
+        try {
+          if (window.__mw_input_focus_guard) {
+            window.__mw_input_focus_guard.capturing = false;
+            window.__mw_input_focus_guard.activeEl = null;
+          }
+        } catch (err) { /* ignore */ }
+        capturing = false;
+        activeEl = null;
+        window.removeEventListener('mousedown', blockExternalPointerDown, true);
+        window.removeEventListener('focusin', blockExternalFocusIn, true);
+        document.removeEventListener('mouseup', onMouseUp, true);
+      };
+      document.addEventListener('mouseup', onMouseUp, true);
+    }
+
+    // 降级：触摸
+    function onTouchStart(e) {
+      const el = e.target;
+      if (!isEditable(el)) return;
+      activeEl = el;
+      capturing = true;
+      // 同步到全局 guard
+      try {
+        if (!window.__mw_input_focus_guard) window.__mw_input_focus_guard = { installed: true, capturing: false, activeEl: null };
+        window.__mw_input_focus_guard.capturing = true;
+        window.__mw_input_focus_guard.activeEl = activeEl;
+      } catch (err) { /* ignore */ }
+      window.addEventListener('touchstart', blockExternalPointerDown, true);
+      window.addEventListener('focusin', blockExternalFocusIn, true);
+
+      const onTouchEnd = function () {
+        try {
+          if (activeEl && typeof activeEl.focus === 'function') activeEl.focus({ preventScroll: true });
+        } catch (e) { }
+        // 同步到全局 guard：结束捕获
+        try {
+          if (window.__mw_input_focus_guard) {
+            window.__mw_input_focus_guard.capturing = false;
+            window.__mw_input_focus_guard.activeEl = null;
+          }
+        } catch (err) { /* ignore */ }
+        capturing = false;
+        activeEl = null;
+        window.removeEventListener('touchstart', blockExternalPointerDown, true);
+        window.removeEventListener('focusin', blockExternalFocusIn, true);
+        document.removeEventListener('touchend', onTouchEnd, true);
+        document.removeEventListener('touchcancel', onTouchEnd, true);
+      };
+      document.addEventListener('touchend', onTouchEnd, true);
+      document.addEventListener('touchcancel', onTouchEnd, true);
+    }
+
+    // 全局绑定（事件委托，减少绑定数量）
+    document.addEventListener('pointerdown', onPointerDown, true);
+    document.addEventListener('pointerup', onPointerUp, true);
+    document.addEventListener('mousedown', onMouseDown, true);
+    document.addEventListener('touchstart', onTouchStart, true);
+
+    // 页面卸载时清理
+    window.addEventListener('beforeunload', function cleanup() {
+      try {
+        document.removeEventListener('pointerdown', onPointerDown, true);
+        document.removeEventListener('pointerup', onPointerUp, true);
+        document.removeEventListener('mousedown', onMouseDown, true);
+        document.removeEventListener('touchstart', onTouchStart, true);
+        window.removeEventListener('pointerdown', blockExternalPointerDown, true);
+        window.removeEventListener('focusin', blockExternalFocusIn, true);
+      } catch (e) { }
+    }, { passive: true });
+
+    // 暴露调试接口（可选）
+    window.__mw_input_focus_guard = window.__mw_input_focus_guard || {};
+    window.__mw_input_focus_guard.installed = true;
+  } catch (e) {
+    console.warn('[MW] installGlobalPointerFocusGuard failed', e);
+  }
+})();
+
 window.addEventListener('load', async function () {
   // 初始化转换器
   try {
@@ -3672,4 +4012,15 @@ window.addEventListener('load', async function () {
     window.aiExpander = new window.AIExpander();
     window.aiExpander.init(jm);
   }
+});
+
+// 焦点丢失监听
+document.addEventListener('focusout', (e) => {
+  const from = e.target;
+  const to = e.relatedTarget || document.activeElement;
+
+  console.log(`[focusout] 焦点从`, from, `转移到`, to);
+  console.trace('焦点丢失调用栈');
+
+
 });

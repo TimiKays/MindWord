@@ -217,6 +217,12 @@
             });
             jdom.add_event(container, 'mouseup', function (e) {
                 var evt = e || event;
+                // Guard: 如果当前是由输入域发起的捕获/拖选，则跳过 dragend 的后续处理以防止抢占输入焦点
+                try {
+                    if (window.__mw_input_focus_guard && window.__mw_input_focus_guard.installed && window.__mw_input_focus_guard.capturing) {
+                        return;
+                    }
+                } catch (err) { /* ignore */ }
                 jd.dragend.call(jd, evt);
             });
             jdom.add_event(container, 'touchstart', function (e) {
@@ -277,7 +283,15 @@
                 e.preventDefault();
                 this.show_shadow();
                 this.moved = true;
-                clear_selection();
+                // Guard: 保留输入域发起的选区（避免输入内选中文字在移动到画布时被清除）
+                try {
+                    if (!(window.__mw_input_focus_guard && window.__mw_input_focus_guard.installed && window.__mw_input_focus_guard.capturing)) {
+                        clear_selection();
+                    }
+                } catch (err) {
+                    // 若 guard 检查失败，则降级执行清除以保持原行为
+                    clear_selection();
+                }
                 var jview = this.jm.view;
                 var px = (e.clientX || e.touches[0].clientX) / jview.actualZoom - this.offset_x;
                 var py = (e.clientY || e.touches[0].clientY) / jview.actualZoom - this.offset_y;
@@ -321,7 +335,14 @@
 
                 this.shadow.style.left = px + 'px';
                 this.shadow.style.top = py + 'px';
-                clear_selection();
+                // Guard: 保留输入域发起的选区（避免输入内选中文字在移动到画布时被清除）
+                try {
+                    if (!(window.__mw_input_focus_guard && window.__mw_input_focus_guard.installed && window.__mw_input_focus_guard.capturing)) {
+                        clear_selection();
+                    }
+                } catch (err) {
+                    clear_selection();
+                }
             }
         },
 
