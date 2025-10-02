@@ -793,6 +793,12 @@ function setupMindmapScrolling() {
             try { window.__mw_lastMouseDownSelectedId = (jm && jm.get_selected_node && jm.get_selected_node()) ? jm.get_selected_node().id : null; } catch (e) { window.__mw_lastMouseDownSelectedId = null; }
             window.__mw_pointer_down = true;
             window.__mw_pointer_dragged = false;
+            // record timestamp and expose for debugging
+            try {
+              var __ts = Date.now();
+              window.__mw_pointer_down_ts = __ts;
+              console.log('[MW][details] mousedown', { x: startX, y: startY, ts: __ts, lastSelectedId: window.__mw_lastMouseDownSelectedId });
+            } catch (e) { /* ignore logging errors */ }
             //console.log('[MW][details] mousedown recorded id=', window.__mw_lastMouseDownSelectedId);
           } catch (e) { /* ignore */ }
         }, { passive: true });
@@ -805,6 +811,12 @@ function setupMindmapScrolling() {
             if (!pointerDragged && (dx > DRAG_THRESHOLD || dy > DRAG_THRESHOLD)) {
               pointerDragged = true;
               window.__mw_pointer_dragged = true;
+              try {
+                var __now = Date.now();
+                var __dt = window.__mw_pointer_down_ts ? (__now - window.__mw_pointer_down_ts) : null;
+                console.log('[MW][details] pointer considered dragged', { dx: dx, dy: dy, threshold: DRAG_THRESHOLD, elapsedMs: __dt, start: { x: startX, y: startY }, now: { x: evt.clientX, y: evt.clientY } });
+                console.log('[MW][details] ENTER DRAG via pointermove', { start: { x: startX, y: startY }, now: { x: evt.clientX, y: evt.clientY }, elapsedMs: __dt });
+              } catch (e) { /* ignore logging errors */ }
               //console.log('[MW][details] pointer considered dragged');
             }
           } catch (e) { /* ignore */ }
@@ -818,6 +830,15 @@ function setupMindmapScrolling() {
             // if we did not drag and details enabled and not batch dragging -> show details for last selected
             const wasDragged = !!window.__mw_pointer_dragged;
             window.__mw_pointer_dragged = false;
+            // debug info: end coords, duration, drag flag
+            try {
+              var __endX = evt.clientX;
+              var __endY = evt.clientY;
+              var __endTs = Date.now();
+              var __startTs = window.__mw_pointer_down_ts || null;
+              var __duration = (__startTs != null) ? (__endTs - __startTs) : null;
+              console.log('[MW][details] mouseup', { x: __endX, y: __endY, durationMs: __duration, wasDragged: wasDragged, lastSelectedId: window.__mw_lastMouseDownSelectedId });
+            } catch (e) { /* ignore logging errors */ }
             const lastId = window.__mw_lastMouseDownSelectedId || window.__mw_lastSelectedNodeId || null;
 
             // additional guard: only show details if mouseup happened on the same jmnode that was mousedowned
@@ -825,13 +846,23 @@ function setupMindmapScrolling() {
             var targetElem = null;
             try {
               var t = evt && evt.target;
-              // walk up to find nearest jmnode element (compatible with older browsers)
-              while (t && t.tagName && t.tagName.toLowerCase() !== 'jmnode') {
-                t = t.parentElement;
+              // more robust: find nearest element that is a jmnode or carries a nodeid attribute
+              if (t && t.closest) {
+                targetElem = t.closest('.jmnode, [nodeid], [data-nodeid], [node-id]');
+              } else {
+                // fallback: traverse parents and check for attribute or class
+                while (t) {
+                  try {
+                    if ((t.getAttribute && (t.getAttribute('nodeid') || t.getAttribute('data-nodeid') || t.getAttribute('node-id'))) || (t.classList && t.classList.contains && t.classList.contains('jmnode'))) {
+                      targetElem = t;
+                      break;
+                    }
+                    t = t.parentElement;
+                  } catch (ee) { break; }
+                }
               }
-              if (t && t.getAttribute) {
-                targetElem = t;
-                targetNodeId = t.getAttribute('nodeid') || t.getAttribute('data-nodeid') || t.getAttribute('node-id') || null;
+              if (targetElem && targetElem.getAttribute) {
+                targetNodeId = targetElem.getAttribute('nodeid') || targetElem.getAttribute('data-nodeid') || targetElem.getAttribute('node-id') || null;
               }
             } catch (e) { targetNodeId = null; targetElem = null; }
 
@@ -1993,6 +2024,7 @@ function setupBoxSelection() {
           targetParent: null,
           isBatchDragging: true
         };
+        try { console.log('[MW][details] ENTER BATCH DRAG via mousedown', { selectedCount: multiSelected.size, selectedNodes: Array.from(multiSelected).slice(0, 10) }); } catch (e) { }
         return;
       }
 
@@ -2071,7 +2103,7 @@ function setupBoxSelection() {
       const dx = e.clientX - startClientX;
       const dy = e.clientY - startClientY;
       const dist2 = dx * dx + dy * dy;
-      const threshold = 10; // px 阈值（可调：4-8）
+      const threshold = 14; // px 阈值（提高以减少误触；原为10）
       if (dist2 >= threshold * threshold) {
         movedDuringPress = true;
         // 仅在 pendingSingleSelectId 属于 multiSelected 集合时启动批量拖拽
@@ -2085,6 +2117,7 @@ function setupBoxSelection() {
             isBatchDragging: true,
             movedNodes: new Set()
           };
+          try { console.log('[MW][details] ENTER BATCH DRAG via pendingSingleSelect (mousemove)', { pendingId: pendingSingleSelectId, selectedCount: multiSelected.size }); } catch (e) { }
           // 隐藏选框并让后续拖拽逻辑处理
           rectEl.style.display = 'none';
         }
