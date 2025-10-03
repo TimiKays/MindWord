@@ -3,7 +3,7 @@
  * 提供AI扩写界面和功能实现
  */
 
-import { AIConfigManager } from './ai-config.js';
+import { AIConfigManager } from '../ai/ai-config.js';
 
 export class AIExpander {
   constructor() {
