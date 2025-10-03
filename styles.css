@@ -683,6 +683,50 @@ iframe .btn:not([class*="btn-"]):hover {
 }
 
 /* ===================================
+   详情面板图标（三态，无外层按钮效果）
+   =================================== */
+.detail-icon {
+    width: 18px;
+    height: 18px;
+    display: inline-block;
+    cursor: pointer;
+    background-color: #4b5563;
+    /* 默认深灰 */
+    -webkit-mask: url('res/detail.svg') center / contain no-repeat;
+    mask: url('res/detail.svg') center / contain no-repeat;
+}
+
+/* 三种状态色直接作用于元素本身 */
+.detail-icon.state-default {
+    background-color: #4b5563;
+}
+
+/* 深灰 */
+.detail-icon.state-off {
+    background-color: #cbd5e1;
+}
+
+/* 浅灰（关闭） */
+.detail-icon.state-on {
+    background-color: #2563eb;
+}
+
+/* 蓝色（激活） */
+
+/* 仅颜色轻微 hover（不加任何阴影/位移/背景） */
+.detail-icon:hover.state-default {
+    background-color: #374151;
+}
+
+.detail-icon:hover.state-off {
+    background-color: #94a3b8;
+}
+
+.detail-icon:hover.state-on {
+    background-color: #1d4ed8;
+}
+
+/* ===================================
    现代简约响应式设计
    =================================== */
 @media (max-width: 768px) {

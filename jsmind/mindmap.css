@@ -73,7 +73,7 @@ body {
   z-index: 1200;
   display: none;
   /* 默认由 showNodeDetails 显示 */
-  touch-action: none;
+  touch-action: auto;
   /* 避免触摸滚动与拖拽冲突 */
   cursor: move;
   font-size: 14px;

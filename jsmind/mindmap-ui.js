@@ -35,6 +35,22 @@ function hideNodeDetails() {
       try { window.removeNodeDetailsDragHandlers(); } catch (e) { /* ignore */ }
     }
   }
+  // 同步关闭“详情面板”开关，直到用户手动再开启
+  try {
+    window.__nodeDetailsEnabled = false;
+    const cb = document.getElementById('toggleNodeDetailsCheckbox');
+    if (cb) {
+      cb.checked = false;
+      cb.setAttribute('aria-checked', 'false');
+    }
+    const btn = document.getElementById('toggleNodeDetailsBtn');
+    if (btn) {
+      btn.classList.remove('state-on');
+      btn.classList.remove('state-default');
+      btn.classList.add('state-off');
+      btn.setAttribute('aria-pressed', 'false');
+    }
+  } catch (e) { /* ignore */ }
 }
 function showNodeDetailsPanel() {
   const p = document.getElementById('nodeDetails');
@@ -48,10 +64,59 @@ function showNodeDetailsPanel() {
       p.style.top = '80px';
     }
     // 初始化拖拽监听（幂等）
-    initNodeDetailsDragHandlers();
+    try {
+      if (typeof initNodeDetailsDragHandlers === 'function') {
+        initNodeDetailsDragHandlers();
+      } else if (typeof window.initNodeDetailsDragHandlers === 'function') {
+        window.initNodeDetailsDragHandlers();
+      }
+    } catch (e) { /* ignore */ }
   }
 }
 
+/* 打开详情面板并提示“请选择一个节点” */
+function showEmptyDetailsPrompt() {
+  try {
+    if (window.__nodeDetailsEnabled === false) {
+      try { console.log('[MW][details][UI] skip empty: toggle disabled'); } catch (e) { }
+      return;
+    }
+    // 确保面板可见
+    try { showNodeDetailsPanel(); } catch (e) { try { console.warn('[MW][details][UI] showNodeDetailsPanel failed', e); } catch (ee) { } }
+    var panel = document.getElementById('nodeDetails');
+    var empty = document.getElementById('nodeDetailsEmpty');
+    var form = document.getElementById('nodeDetailsForm');
+    var info = document.getElementById('nodeInfo');
+    var topic = document.getElementById('nodeTopic');
+    var notes = document.getElementById('nodeNotes');
+
+    // 切换为空状态：显示空视图，隐藏表单
+    if (empty) empty.style.display = 'block';
+    if (form) form.style.display = 'none';
+
+    if (topic) topic.value = '';
+    if (notes) notes.value = '';
+
+    // 关键日志：输出各元素与可见性
+    try {
+      console.log('[MW][details][UI] showEmptyDetailsPrompt:',
+        {
+          panelExists: !!panel,
+          panelDisplay: panel && panel.style ? panel.style.display : undefined,
+          panelAriaHidden: panel ? panel.getAttribute('aria-hidden') : undefined,
+          emptyExists: !!empty,
+          emptyDisplay: empty && empty.style ? empty.style.display : undefined,
+          formExists: !!form,
+          formDisplay: form && form.style ? form.style.display : undefined
+        }
+      );
+    } catch (e) { }
+  } catch (e) {
+    try { console.warn('[MW][details][UI] showEmptyDetailsPrompt error', e); } catch (ee) { }
+  }
+}
+
+try { window.showEmptyDetailsPrompt = showEmptyDetailsPrompt; } catch (e) { /* ignore */ }
 // 缩放中心修正：在鼠标/触摸位置设置 transform-origin，配合现有库缩放以该点为中心
 (function setupZoomOrigin() {
   const container = document.getElementById('fullScreenMindmap');
@@ -206,10 +271,20 @@ function showNodeDetailsPanel() {
   window.__nodeDetailsEnabled = (window.__nodeDetailsEnabled === undefined) ? true : !!window.__nodeDetailsEnabled;
 
   function updateToggleUI() {
+    var enabled = !!window.__nodeDetailsEnabled;
+    // 复选框（兼容保留）
     var cb = document.getElementById('toggleNodeDetailsCheckbox');
-    if (!cb) return;
-    cb.checked = !!window.__nodeDetailsEnabled;
-    cb.setAttribute('aria-checked', cb.checked ? 'true' : 'false');
+    if (cb) {
+      cb.checked = enabled;
+      cb.setAttribute('aria-checked', enabled ? 'true' : 'false');
+    }
+    // 图标按钮（新）
+    var btn = document.getElementById('toggleNodeDetailsBtn');
+    if (btn) {
+      btn.classList.remove('state-on', 'state-off', 'state-default');
+      btn.classList.add(enabled ? 'state-on' : 'state-off');
+      btn.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+    }
   }
 
   // 切换处理：启用时若存在选中节点立即显示详情；禁用时隐藏面板并阻止后续弹出
@@ -220,7 +295,7 @@ function showNodeDetailsPanel() {
         try { hideNodeDetails(); } catch (e) { /* ignore */ }
       }
     } else {
-      // 启用时：若有选中节点，立即显示其详情
+      // 启用时：若有选中节点，立即显示其详情；否则打开面板并提示“请选择一个节点”
       try {
         var sel = null;
         if (window.jm && typeof window.jm.get_selected_node === 'function') {
@@ -228,6 +303,9 @@ function showNodeDetailsPanel() {
         }
         if (sel) {
           try { showNodeDetails(sel); } catch (e) { /* ignore */ }
+        } else {
+          // 无选中节点：打开面板并显示空状态
+          try { showEmptyDetailsPrompt(); } catch (e) { /* ignore */ }
         }
       } catch (e) { /* ignore */ }
     }
@@ -236,21 +314,35 @@ function showNodeDetailsPanel() {
 
   // 挂载事件
   document.addEventListener('DOMContentLoaded', function () {
-    var cb = document.getElementById('toggleNodeDetailsCheckbox');
-    if (!cb) return;
-    // 初始化 UI 状态
+    // 初始化 UI（无论是否有复选框或按钮）
     updateToggleUI();
-    // 监听 change 事件
-    cb.addEventListener('change', function (e) {
-      handleToggleChange(!!e.target.checked);
-    }, { passive: true });
-    // 支持键盘空格/回车切换（aria 无障碍）
-    cb.addEventListener('keydown', function (e) {
-      if (e.key === ' ' || e.key === 'Enter') {
-        // 浏览器会自动切换 checked，延迟触发 change 即可
-        setTimeout(function () { handleToggleChange(!!cb.checked); }, 0);
-      }
-    });
+
+    // 复选框（兼容）
+    var cb = document.getElementById('toggleNodeDetailsCheckbox');
+    if (cb) {
+      cb.addEventListener('change', function (e) {
+        handleToggleChange(!!e.target.checked);
+      }, { passive: true });
+      cb.addEventListener('keydown', function (e) {
+        if (e.key === ' ' || e.key === 'Enter') {
+          setTimeout(function () { handleToggleChange(!!cb.checked); }, 0);
+        }
+      });
+    }
+
+    // 图标按钮（新）
+    var btn = document.getElementById('toggleNodeDetailsBtn');
+    if (btn) {
+      btn.addEventListener('click', function () {
+        handleToggleChange(!window.__nodeDetailsEnabled);
+      });
+      btn.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleToggleChange(!window.__nodeDetailsEnabled);
+        }
+      });
+    }
   });
 
   // 包装 showNodeDetails：若开关关闭则静默返回

@@ -599,6 +599,39 @@ function initMindmap() {
     }
   });
 
+  // 当详情面板处于打开状态时，自动跟随“单选节点”变化刷新面板内容
+  (function attachAutoDetailsFollow() {
+    try {
+      function isDetailsPanelVisible() {
+        var p = document.getElementById('nodeDetails');
+        return !!(p && p.style.display !== 'none' && p.getAttribute('aria-hidden') !== 'true');
+      }
+      jm.add_event_listener(function (type, data) {
+        try {
+          // 跳过拖拽/输入捕获期间，避免抢焦点或与拖拽冲突
+          var dragging = !!(window.__mw_pointer_down || (window.__batchDragData && window.__batchDragData.isBatchDragging));
+          var inputCapturing = !!(window.__mw_input_focus_guard && window.__mw_input_focus_guard.capturing);
+          // 放宽早退：仅在开关关闭或拖拽中早退；允许 select_clear 在面板不可见时也能切到空状态
+          if (!window.__nodeDetailsEnabled || dragging) return;
+
+          if (type === jsMind.event_type.select) {
+            if (inputCapturing) return; // 编辑输入期间不刷新
+            var sel = jm.get_selected_node && jm.get_selected_node();
+            if (sel && typeof showNodeDetails === 'function') {
+              try { console.log('[MW][details] select -> showNodeDetails', sel && sel.id); } catch (e) { }
+              showNodeDetails(sel);
+            }
+          } else if (type === jsMind.event_type.select_clear) {
+            try { console.log('[MW][details] select_clear -> try empty, exists=', typeof window.showEmptyDetailsPrompt); } catch (e) { }
+            if (typeof window.showEmptyDetailsPrompt === 'function') {
+              window.showEmptyDetailsPrompt();
+            }
+          }
+        } catch (e) { /* ignore */ }
+      });
+    } catch (e) { console.warn('[MW] attachAutoDetailsFollow failed', e); }
+  })();
+
   // --- 自动触发：在多种 jsMind 事件后防抖地重新应用节点类型徽章与可见性过滤 ---
   (function attachBadgeHooks() {
     const debouncedApply = (function () {
@@ -1092,6 +1125,13 @@ function showNodeDetails(node) {
   if (typeof showNodeDetailsPanel === 'function') {
     try { showNodeDetailsPanel(); } catch (e) { /* ignore */ }
   }
+  // 切换为“表单”状态：隐藏空视图，显示表单
+  try {
+    var empty = document.getElementById('nodeDetailsEmpty');
+    var form = document.getElementById('nodeDetailsForm');
+    if (empty) empty.style.display = 'none';
+    if (form) form.style.display = 'block';
+  } catch (e) { /* ignore */ }
 
   const nodeInfo = document.getElementById('nodeInfo');
   const nodeTopic = document.getElementById('nodeTopic');
@@ -1631,6 +1671,8 @@ function setupBoxSelection() {
     });
 
     // 已移除按空格聚焦画布的功能：画布只在点击时聚焦，按空格不再触发聚焦或启用画布拖拽。
+    // window.addEventListener('keydown', onKeyDown, true);
+    // window.addEventListener('keyup', onKeyUp, true);
     // 清理（页面卸载时）— 无需移除空间键相关监听器（因未注册）
     window.addEventListener('beforeunload', function () {
       try {
@@ -1933,8 +1975,15 @@ function setupBoxSelection() {
     if (!isDownOnNode && !e.target.closest('#toolbar') && !e.target.closest('#batchOperations')) {
       multiSelected.clear();
       if (window.jm && typeof jm.select_clear === 'function') { try { jm.select_clear(); } catch (err) { } }
-      // 隐藏右侧详情面板（当无选中时）
-      try { if (typeof hideNodeDetails === 'function') hideNodeDetails(); } catch (e) { }
+      // 不再因点击空白而隐藏详情面板；若开关为开，则显示“请选择一个节点”提示
+      try {
+        if (window.__nodeDetailsEnabled !== false && typeof window.showEmptyDetailsPrompt === 'function') {
+          try { console.log('[MW][details] blank-click -> window.showEmptyDetailsPrompt()'); } catch (e) { }
+          window.showEmptyDetailsPrompt();
+        } else {
+          try { console.log('[MW][details] blank-click -> skip empty (enabled=', window.__nodeDetailsEnabled, ', fn=', typeof window.showEmptyDetailsPrompt, ')'); } catch (e) { }
+        }
+      } catch (e) { }
       // 额外：显式移除所有残留的单选样式，避免样式滞留
       document.querySelectorAll('.jmnode.selected').forEach(el => el.classList.remove('selected'));
       updateHighlight();
@@ -3636,12 +3685,8 @@ try { window.downloadMindmap = downloadMindmap; } catch (e) { /* ignore */ }
         window.__mw_input_focus_guard.activeEl = activeEl;
       } catch (err) { /* ignore */ }
       try {
-        if (typeof e.pointerId !== 'undefined' && activeEl.setPointerCapture) {
-          activePointerId = e.pointerId;
-          try { activeEl.setPointerCapture(activePointerId); } catch (err) { /* ignore */ }
-        } else {
-          activePointerId = null;
-        }
+        // 不在可编辑元素上使用指针捕获，以避免影响首次点击的插入点定位
+        activePointerId = null;
       } catch (e) { activePointerId = null; }
       // 拦截外部的 pointerdown/focusin（捕获阶段）
       window.addEventListener('pointerdown', blockExternalPointerDown, true);

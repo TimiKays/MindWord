@@ -86,12 +86,8 @@
     <!-- 右侧三个简单复选框：详情面板 / 显示节点类型 / 显示列表节点 -->
     <div id="toolbarToggles"
       style="margin-left:auto;display:flex;gap:12px;align-items:flex-end;justify-content:flex-end;">
-      <label class="mw-toggle-showdetails"
-        style="display:flex;flex-direction:column;align-items:center;font-size:12px;margin:0 4px;">
-        <input id="toggleNodeDetailsCheckbox" type="checkbox" checked
-          style="width:14px;height:14px;display:inline-block;vertical-align:middle;">
-        <span style="display:inline-block;vertical-align:middle;margin:0;">详情面板</span>
-      </label>
+      <span id="toggleNodeDetailsBtn" class="detail-icon state-on" role="button" tabindex="0" aria-pressed="true"
+        title="详情面板"></span>
       <label class="mw-toggle-showtype"
         style="display:none;flex-direction:column;align-items:center;font-size:12px;margin:0 4px;">
         <input id="toggleShowNodeTypeCheckbox" type="checkbox" style="width:18px;height:18px;margin-bottom:6px;">
@@ -122,30 +118,38 @@
         <button class="panel-close-btn" aria-label="关闭节点详情" onclick="hideNodeDetails()">✕</button>
       </div>
 
-      <div id="nodeInfo"></div>
-
-      <div class="form-group">
-        <label for="nodeTopic">节点主题:</label>
-        <textarea id="nodeTopic" placeholder="输入节点主题..." rows="3"
-          style="width:100%; resize:vertical; line-height:1.4em;"></textarea>
+      <div id="nodeDetailsEmpty" style="display:none; padding:24px; text-align:center; color:#64748b;">
+        <img src="../res/empty.svg" alt="空状态" style="width:72px;height:72px;opacity:0.9;margin-bottom:12px;">
+        <div>请选择一个节点</div>
       </div>
 
-      <div class="form-group">
-        <label for="nodeNotes">节点备注:</label>
-        <textarea id="nodeNotes" placeholder="输入节点备注..."></textarea>
-      </div>
+      <div id="nodeDetailsForm">
+        <div id="nodeInfo"></div>
 
-      <div style="margin-bottom: 15px; display: flex; gap: 10px;">
-        <button class="btn" onclick="expandWithAI()"
-          style="flex: 1; background: linear-gradient(135deg, #6da8e7, #6adbc8); color: white;">AI扩写</button>
-        <button class="btn" onclick="AIExpander.showConfig()" style="flex: 0 0 40px; background: #ffffff;"
-          title="AI配置">⚙️</button>
-      </div>
+        <div class="form-group">
+          <label for="nodeTopic">节点主题:</label>
+          <textarea id="nodeTopic" placeholder="输入节点主题..." rows="3"
+            style="width:100%; resize:vertical; line-height:1.4em;"></textarea>
+        </div>
 
-      <!-- 自动更新提示 -->
-      <div id="autoUpdateIndicator"
-        style="display: none; margin-bottom: 10px; padding: 5px 10px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 4px; color: #155724; font-size: 12px; text-align: center;">
-        <span style="display: inline-block; animation: pulse 1s ease-in-out;">✓</span> 已自动更新
+        <div class="form-group">
+          <label for="nodeNotes">节点备注:</label>
+          <textarea id="nodeNotes" placeholder="输入节点备注..."></textarea>
+        </div>
+
+        <div style="margin-bottom: 15px; display: flex; gap: 10px;">
+          <button class="btn" onclick="expandWithAI()"
+            style="flex: 1; background: linear-gradient(135deg, #6da8e7, #6adbc8); color: white;">AI扩写</button>
+          <button class="btn" onclick="AIExpander.showConfig()" style="flex: 0 0 40px; background: #ffffff;"
+            title="AI配置">⚙️</button>
+        </div>
+
+        <!-- 自动更新提示 -->
+        <div id="autoUpdateIndicator"
+          style="display: none; margin-bottom: 10px; padding: 5px 10px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 4px; color: #155724; font-size: 12px; text-align: center;">
+          <span style="display: inline-block; animation: pulse 1s ease-in-out;">✓</span> 已自动更新
+        </div>
+
       </div>
 
       <!-- 通知桥接器 -->
@@ -369,92 +373,6 @@
     })();
   </script>
 
-  <script>
-    // 输入保护与空格插入（防止全局处理器干扰内联编辑）
-    (function () {
-      // 在编辑态设置 guard，让 core 的聚焦/空格处理跳过
-      function setInputFocusGuard(enabled) {
-        try {
-          if (enabled) {
-            window.__mw_input_focus_guard = { installed: true, capturing: true };
-          } else {
-            try { delete window.__mw_input_focus_guard; } catch (e) { window.__mw_input_focus_guard = null; }
-          }
-        } catch (e) { /* ignore */ }
-      }
-
-      // 当 focus 进入可编辑元素时启用 guard；离开时禁用
-      document.addEventListener('focusin', function (ev) {
-        try {
-          const t = ev.target;
-          if (!t) return;
-          const isInput = (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
-          if (isInput) setInputFocusGuard(true);
-        } catch (e) { }
-      }, true);
-
-      document.addEventListener('focusout', function (ev) {
-        try {
-          const t = ev.target;
-          if (!t) return;
-          const isInput = (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
-          if (isInput) setInputFocusGuard(false);
-        } catch (e) { }
-      }, true);
-
-      // 旧的空格处理：在编辑态插入空格并阻止页面滚动/冒泡
-      document.addEventListener('keydown', function (e) {
-        try {
-          const target = e.target;
-          const isInputElement = target && (typeof target.tagName === 'string' && (target.tagName.toUpperCase() === 'INPUT' || target.tagName.toUpperCase() === 'TEXTAREA'));
-          const isContentEditable = target && target.isContentEditable;
-          const isEditing = isInputElement || isContentEditable;
-          if (isEditing && e.key === ' ') {
-            // 阻止冒泡并阻止默认滚动行为
-            e.stopPropagation();
-            e.preventDefault();
-            try {
-              // 将空格插入到光标位置
-              if (isContentEditable) {
-                // 尝试使用 execCommand 插入文本（兼容多数浏览器）
-                if (!document.execCommand('insertText', false, ' ')) {
-                  // 退回到手动插入（兼容性备用）
-                  const sel = window.getSelection();
-                  if (sel && sel.getRangeAt && sel.rangeCount) {
-                    const range = sel.getRangeAt(0);
-                    range.deleteContents();
-                    range.insertNode(document.createTextNode(' '));
-                    // 将光标移动到插入后
-                    range.collapse(false);
-                    sel.removeAllRanges();
-                    sel.addRange(range);
-                  }
-                }
-              } else if (isInputElement) {
-                const el = target;
-                const start = el.selectionStart || 0;
-                const end = el.selectionEnd || 0;
-                const val = el.value || '';
-                el.value = val.slice(0, start) + ' ' + val.slice(end);
-                // 恢复光标到空格后面
-                const pos = start + 1;
-                el.selectionStart = el.selectionEnd = pos;
-                // 触发 input 事件以便其他监听器响应
-                const ev = new Event('input', { bubbles: true });
-                el.dispatchEvent(ev);
-              }
-            } catch (insertErr) {
-              console.warn('插入空格失败，已阻止默认滚动', insertErr);
-            }
-            return;
-          }
-        } catch (err) {
-          // 防守性：若执行出错，不影响其它功能
-          console.warn('inline-edit protection error', err);
-        }
-      }, true);
-    })();
-  </script>
 </body>
 
 </html>
