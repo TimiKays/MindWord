@@ -369,6 +369,95 @@
     })();
   </script>
 
+  <script>
+    // 输入保护与空格插入（防止全局处理器干扰内联编辑）
+    (function () {
+      // 在编辑态设置 guard，让 core 的聚焦/空格处理跳过
+      function setInputFocusGuard(enabled) {
+        try {
+          if (enabled) {
+            window.__mw_input_focus_guard = { installed: true, capturing: true };
+          } else {
+            try { delete window.__mw_input_focus_guard; } catch (e) { window.__mw_input_focus_guard = null; }
+          }
+        } catch (e) { /* ignore */ }
+      }
+
+      // 当 focus 进入可编辑元素时启用 guard；离开时禁用
+      document.addEventListener('focusin', function (ev) {
+        try {
+          const t = ev.target;
+          if (!t) return;
+          const isInput = (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+          if (isInput) setInputFocusGuard(true);
+        } catch (e) { }
+      }, true);
+
+      document.addEventListener('focusout', function (ev) {
+        try {
+          const t = ev.target;
+          if (!t) return;
+          const isInput = (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+          if (isInput) setInputFocusGuard(false);
+        } catch (e) { }
+      }, true);
+
+      // 旧的空格处理：在编辑态插入空格并阻止页面滚动/冒泡
+      document.addEventListener('keydown', function (e) {
+        try {
+          const target = e.target;
+          const isInputElement = target && (typeof target.tagName === 'string' && (target.tagName.toUpperCase() === 'INPUT' || target.tagName.toUpperCase() === 'TEXTAREA'));
+          const isContentEditable = target && target.isContentEditable;
+          const isEditing = isInputElement || isContentEditable;
+          if (isEditing && e.key === ' ') {
+            // 阻止冒泡并阻止默认滚动行为
+            e.stopPropagation();
+            e.preventDefault();
+            try {
+              // 将空格插入到光标位置
+              if (isContentEditable) {
+                // 尝试使用 execCommand 插入文本（兼容多数浏览器）
+                if (!document.execCommand('insertText', false, ' ')) {
+                  // 退回到手动插入（兼容性备用）
+                  const sel = window.getSelection();
+                  if (sel && sel.getRangeAt && sel.rangeCount) {
+                    const range = sel.getRangeAt(0);
+                    range.deleteContents();
+                    range.insertNode(document.createTextNode(' '));
+                    // 将光标移动到插入后
+                    range.collapse(false);
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                  }
+                }
+              } else if (isInputElement) {
+                const el = target;
+                const start = el.selectionStart || 0;
+                const end = el.selectionEnd || 0;
+                const val = el.value || '';
+                el.value = val.slice(0, start) + ' ' + val.slice(end);
+                // 恢复光标到空格后面
+                const pos = start + 1;
+                el.selectionStart = el.selectionEnd = pos;
+                // 触发 input 事件以便其他监听器响应
+                const ev = new Event('input', { bubbles: true });
+                el.dispatchEvent(ev);
+              }
+            } catch (insertErr) {
+              console.warn('插入空格失败，已阻止默认滚动', insertErr);
+            }
+            return;
+          }
+        } catch (err) {
+          // 防守性：若执行出错，不影响其它功能
+          console.warn('inline-edit protection error', err);
+        }
+      }, true);
+    })();
+  </script>
+</body>
+
+</html>
 </body>
 
 </html>

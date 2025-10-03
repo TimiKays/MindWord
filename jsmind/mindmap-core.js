@@ -1630,32 +1630,8 @@ function setupBoxSelection() {
       try { inner.focus({ preventScroll: true }); } catch (err) { }
     });
 
-    // Space 支持：当 Space 按下且指针在画布上时聚焦（以支持按空格拖拽）
-    let spaceDown = false;
-    const onKeyDown = (ev) => {
-      try {
-        if (ev.code === 'Space' || ev.key === ' ') {
-          spaceDown = true;
-          // 若指针此刻在画布并非由输入捕获，则聚焦
-          try {
-            if (lastPointerOverCanvas) {
-              inner.focus({ preventScroll: true });
-            }
-          } catch (err) { }
-        }
-      } catch (err) { }
-    };
-    const onKeyUp = (ev) => {
-      try {
-        if (ev.code === 'Space' || ev.key === ' ') spaceDown = false;
-      } catch (err) { }
-    };
-    window.addEventListener('keydown', onKeyDown, true);
-    window.addEventListener('keyup', onKeyUp, true);
-
-
-
-    // 清理（页面卸载时）
+    // 已移除按空格聚焦画布的功能：画布只在点击时聚焦，按空格不再触发聚焦或启用画布拖拽。
+    // 清理（页面卸载时）— 无需移除空间键相关监听器（因未注册）
     window.addEventListener('beforeunload', function () {
       try {
         window.removeEventListener('keydown', onKeyDown, true);
