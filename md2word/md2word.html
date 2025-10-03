@@ -7,7 +7,7 @@
   <title>Markdown → Word（兼容 PizZip 版本）</title>
   <link rel="stylesheet" href="../styles.css">
   <!-- Bootstrap CSS for notifications -->
-  <!-- <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet"> -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
     body {
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
@@ -200,6 +200,26 @@
       padding: 40px;
     }
   </style>
+  <script>
+    (function () {
+      try {
+        const now = new Date();
+        const ts = now.getFullYear().toString()
+          + String(now.getMonth() + 1).padStart(2, '0')
+          + String(now.getDate()).padStart(2, '0')
+          + String(now.getHours()).padStart(2, '0')
+          + String(now.getMinutes()).padStart(2, '0')
+          + String(now.getSeconds()).padStart(2, '0');
+        if (!location.search.includes('_t=')) {
+          // 使用 replace 避免在历史记录中添加多条记录
+          location.replace(location.pathname + location.search + (location.search ? '&' : '?') + '_t=' + ts + location.hash);
+        }
+      } catch (e) {
+        // 不影响主流程
+        console.warn('timestamp reload failed', e);
+      }
+    })();
+  </script>
 </head>
 
 <body>
@@ -209,7 +229,7 @@
     <button class="btn" id="downloadBtn">生成Word</button>
     <button class="btn" id="uploadTplBtn">上传模板</button>
     <button class="btn" id="downloadDefaultTplBtn">下载模板</button>
-    <select class="toolbar-select" style="display:inline-block; width:auto; margin-left:6px;">
+    <select id="templateSelect" class="toolbar-select" style="display:inline-block; width:auto; margin-left:6px;">
       <option value="default">默认模板</option>
     </select>
 
@@ -1054,6 +1074,109 @@
         return bytes.buffer;
       }
 
+      // 提取通用的 processInlineTokens 为顶层可复用函数（供 blocks 与 ast 输出复用）
+      // 该函数与原来 blocksToDocumentXmlFragment 内部的实现等价，但接受必要参数以便在外层可用
+      async function processInlineTokens(inlineTokens, zip, charStyleMap, relsObj, embedImages) {
+        // reuse inlineTokensToRunsSimple -> 生成 runs 或对象，再处理 link/image/embed 行为
+        const runsOrObjs = inlineTokensToRunsSimple(inlineTokens, charStyleMap);
+        const outRuns = [];
+        function ensureHyperlinkRel_for_processing(href, relsObjLocal) {
+          if (!href) return null;
+          for (const id in relsObjLocal) {
+            const r = relsObjLocal[id];
+            if (r.Type && r.Type.endsWith('/hyperlink') && r.Target === href && (r.TargetMode === 'External' || !r.TargetMode)) return id;
+          }
+          let max = 0;
+          for (const id in relsObjLocal) {
+            const m = id.match(/^rId(\d+)$/i);
+            if (m) max = Math.max(max, parseInt(m[1], 10));
+          }
+          const newId = 'rId' + (max + 1);
+          relsObjLocal[newId] = { Id: newId, Type: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink', Target: href, TargetMode: 'External' };
+          return newId;
+        }
+        function generateMediaFilenameLocal(zipLocal, ext) {
+          const mediaFiles = Object.keys(zipLocal.files).filter(n => n.startsWith('word/media/')).map(n => n.replace(/^word\/media\//, ''));
+          let idx = 1;
+          let name = `image${idx}.${ext}`;
+          while (mediaFiles.includes(name)) { idx++; name = `image${idx}.${ext}`; }
+          return name;
+        }
+
+        for (const r of runsOrObjs) {
+          if (typeof r === 'string') { outRuns.push(r); }
+          else if (r.type === 'link') {
+            const href = r.href;
+            const rid = ensureHyperlinkRel_for_processing(href, relsObj);
+            outRuns.push(`<w:hyperlink r:id="${rid}">${r.runs.join('')}</w:hyperlink>`);
+          } else if (r.type === 'image') {
+            const src = r.src;
+            const alt = r.alt || '';
+            if (!src) { outRuns.push(`<w:r><w:t>${escapeXml(alt)}</w:t></w:r>`); continue; }
+            if (!embedImages) {
+              const rid = ensureHyperlinkRel_for_processing(src, relsObj);
+              outRuns.push(`<w:hyperlink r:id="${rid}"><w:r><w:rPr><w:rStyle w:val="InternetLink"/></w:rPr><w:t>${escapeXml(alt || src)}</w:t></w:r></w:hyperlink>`);
+            } else {
+              try {
+                let dataBuf = null;
+                let ext = 'png';
+                let imageDataUrl = null;
+
+                if (!src.startsWith('data:') && !src.startsWith('http')) {
+                  imageDataUrl = getImageFromStorage(src);
+                } else {
+                  imageDataUrl = src;
+                }
+
+                if (imageDataUrl && imageDataUrl.startsWith('data:')) {
+                  const m = imageDataUrl.match(/^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i);
+                  if (m) {
+                    const mime = m[1];
+                    const b64 = m[2];
+                    const ab = base64ToArrayBuffer(b64);
+                    dataBuf = new Uint8Array(ab);
+                    ext = mime.split('/')[1] || ext;
+                  }
+                } else if (imageDataUrl && imageDataUrl.startsWith('http')) {
+                  const resp = await fetch(imageDataUrl);
+                  if (!resp.ok) throw new Error('Fetch image failed: ' + resp.status);
+                  const blob = await resp.blob();
+                  const arr = await blob.arrayBuffer();
+                  dataBuf = new Uint8Array(arr);
+                  const mime = blob.type || '';
+                  if (mime && mime.startsWith('image/')) ext = mime.split('/')[1];
+                }
+
+                if (dataBuf && dataBuf.length > 0) {
+                  const name = generateMediaFilenameLocal(zip, ext);
+                  const mediaPath = `word/media/${name}`;
+                  zip.file(mediaPath, dataBuf);
+                  let newIdIndex = 0;
+                  for (const id in relsObj) {
+                    const m = id.match(/^rId(\d+)$/i);
+                    if (m) newIdIndex = Math.max(newIdIndex, parseInt(m[1], 10));
+                  }
+                  const newRid = 'rId' + (newIdIndex + 1);
+                  relsObj[newRid] = { Id: newRid, Type: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image', Target: `media/${name}`, TargetMode: null };
+
+                  const dimensions = await getImageDimensions(imageDataUrl);
+                  const { widthEmu, heightEmu } = calculateDisplaySize(dimensions.width, dimensions.height);
+                  outRuns.push(makeImageRunXml(newRid, name, widthEmu, heightEmu));
+                } else {
+                  outRuns.push(`<w:r><w:t>[图片: ${escapeXml(alt || src)}]</w:t></w:r>`);
+                }
+              } catch (e) {
+                outRuns.push(`<w:r><w:t>[图片加载失败: ${escapeXml(alt || src)}]</w:t></w:r>`);
+              }
+            }
+          } else {
+            if (r && typeof r === 'string') outRuns.push(r);
+            else if (r && r.runs) outRuns.push(...r.runs);
+          }
+        }
+        return outRuns;
+      }
+
       async function blocksToDocumentXmlFragment(blocks, zip, parStyleMap, charStyleMap, numberingInfo, relsObj, embedImages) {
         let frag = '';
         const defaultOlNumId = chooseNumIdForList('ol', parStyleMap, numberingInfo);
@@ -1344,10 +1467,261 @@
             // 备注（notes）作为正文段落
             if (node.notes && String(node.notes).trim()) {
               const ps = decideStyleIdFor('paragraph', 0, parStyleMap);
-              const lines = String(node.notes).split(/\r?\n/);
-              for (const ln of lines) {
-                if (ln.trim() === '') continue;
-                frag += paragraphXml(ps, runsFromPlainText(ln));
+              // 从 notes 中检测并提取 Markdown 表格（优先使用 markdown-it tokens 解析）
+              function parseMarkdownTablesFromText(text) {
+                const tables = [];
+                try {
+                  const tokens = md.parse(String(text || ''), {});
+                  let i = 0;
+                  while (i < tokens.length) {
+                    const t = tokens[i];
+                    if (t.type === 'table_open') {
+                      const table = { header: [], rows: [], align: [] };
+                      i++;
+                      // 尝试解析 thead 的表头
+                      if (i < tokens.length && tokens[i].type === 'thead_open') {
+                        i++;
+                        if (i < tokens.length && tokens[i].type === 'tr_open') i++;
+                        while (i < tokens.length && tokens[i].type !== 'tr_close') {
+                          if (tokens[i].type === 'th_open') {
+                            const inline = (tokens[i + 1] && tokens[i + 1].type === 'inline') ? (tokens[i + 1].children || []) : [];
+                            table.header.push(inline);
+                            i++;
+                          } else {
+                            i++;
+                          }
+                        }
+                        // 跳过 thead_close
+                        while (i < tokens.length && tokens[i].type !== 'thead_close') i++;
+                        if (i < tokens.length) i++;
+                      }
+                      // 解析 tbody 的行
+                      while (i < tokens.length && tokens[i].type !== 'table_close') {
+                        if (tokens[i].type === 'tr_open') {
+                          i++;
+                          const row = [];
+                          while (i < tokens.length && tokens[i].type !== 'tr_close') {
+                            if (tokens[i].type === 'td_open' || tokens[i].type === 'th_open') {
+                              const inline = (tokens[i + 1] && tokens[i + 1].type === 'inline') ? (tokens[i + 1].children || []) : [];
+                              row.push(inline);
+                              // advance to next after inline
+                              i += 2;
+                            } else {
+                              i++;
+                            }
+                          }
+                          table.rows.push(row);
+                          if (i < tokens.length && tokens[i].type === 'tr_close') i++;
+                        } else {
+                          i++;
+                        }
+                      }
+                      // 尝试从 table_open token 获取对齐信息（若存在）
+                      try {
+                        if (t && t.align) table.align = Array.isArray(t.align) ? t.align.slice() : [];
+                      } catch (e) { /* ignore */ }
+                      tables.push(table);
+                      // 跳过 table_close
+                      while (i < tokens.length && tokens[i].type !== 'table_close') i++;
+                      if (i < tokens.length && tokens[i].type === 'table_close') i++;
+                    } else {
+                      i++;
+                    }
+                  }
+                } catch (e) { /* ignore */ }
+                return tables;
+              }
+
+              const notesText = String(node.notes || '');
+              const tables = parseMarkdownTablesFromText(notesText);
+              if (!tables || tables.length === 0) {
+                // 无表格，保持原有按行输出行为
+                const lines = notesText.split(/\r?\n/);
+                for (const ln of lines) {
+                  if (ln.trim() === '') continue;
+                  frag += paragraphXml(ps, runsFromPlainText(ln));
+                }
+              } else {
+                // 如果检测到表格，先尝试把表格前的文本输出为段落（简单基于首次表格 markdown 的匹配）
+                const tableMarkdownMatch = notesText.match(/\|[\s\S]*?\|\r?\n\|[-: ]+\|[\s\S]*?(?:\r?\n|$)/m);
+                if (tableMarkdownMatch) {
+                  const before = notesText.slice(0, tableMarkdownMatch.index || 0).trim();
+                  if (before) {
+                    const lines = before.split(/\r?\n/);
+                    for (const ln of lines) {
+                      if (ln.trim() === '') continue;
+                      frag += paragraphXml(ps, runsFromPlainText(ln));
+                    }
+                  }
+                } else {
+                  // 无法定位，先输出所有文本段作为段落（保守）
+                  const lines = notesText.split(/\r?\n/);
+                  for (const ln of lines) {
+                    if (ln.trim() === '') continue;
+                    frag += paragraphXml(ps, runsFromPlainText(ln));
+                  }
+                }
+
+                // 使用更稳健的方式按序分割 notes 为“非表格段 / 表格段 / 非表格段”，逐段渲染，避免重复输出表格文本
+                try {
+                  const tableRegex = /(\|[^\n]*\n\|[ \-:|]+\n(?:\|[^\n]*\n)*)/g;
+                  let lastIndex = 0;
+                  let m;
+                  while ((m = tableRegex.exec(notesText)) !== null) {
+                    const matchText = m[0];
+                    const matchIndex = m.index;
+
+                    // 输出 match 之前的文本（如果有）
+                    if (matchIndex > lastIndex) {
+                      const beforeText = notesText.slice(lastIndex, matchIndex);
+                      const beforeLines = beforeText.split(/\r?\n/);
+                      for (const ln of beforeLines) {
+                        if (ln.trim() === '') continue;
+                        frag += paragraphXml(ps, runsFromPlainText(ln));
+                      }
+                    }
+
+                    // 只解析并渲染当前匹配到的表格块（避免使用 parseMarkdownTablesFromText 对整个 notes 再次解析）
+                    try {
+                      const tableTokens = md.parse(matchText, {});
+                      // 从 tokens 中提取第一个 table token 区块
+                      let i2 = 0;
+                      while (i2 < tableTokens.length) {
+                        if (tableTokens[i2].type === 'table_open') {
+                          // 收集 tokens 直到 table_close
+                          const sliceTokens = [];
+                          let j2 = i2;
+                          while (j2 < tableTokens.length && tableTokens[j2].type !== 'table_close') {
+                            sliceTokens.push(tableTokens[j2]);
+                            j2++;
+                          }
+                          if (j2 < tableTokens.length && tableTokens[j2].type === 'table_close') sliceTokens.push(tableTokens[j2]);
+
+                          // 从 sliceTokens 构造 header/rows/align（复用之前 parse 逻辑）
+                          const table = { header: [], rows: [], align: [] };
+                          let k = 0;
+                          if (k < sliceTokens.length && sliceTokens[k].type === 'table_open') k++;
+                          // thead
+                          if (k < sliceTokens.length && sliceTokens[k].type === 'thead_open') {
+                            k++;
+                            if (k < sliceTokens.length && sliceTokens[k].type === 'tr_open') k++;
+                            while (k < sliceTokens.length && sliceTokens[k].type !== 'tr_close') {
+                              if (sliceTokens[k].type === 'th_open') {
+                                const inline = (sliceTokens[k + 1] && sliceTokens[k + 1].type === 'inline') ? (sliceTokens[k + 1].children || []) : [];
+                                table.header.push(inline);
+                                k++;
+                              } else k++;
+                            }
+                            while (k < sliceTokens.length && sliceTokens[k].type !== 'thead_close') k++;
+                            if (k < sliceTokens.length) k++;
+                          }
+                          // tbody rows
+                          while (k < sliceTokens.length && sliceTokens[k].type !== 'table_close') {
+                            if (sliceTokens[k].type === 'tr_open') {
+                              k++;
+                              const row = [];
+                              while (k < sliceTokens.length && sliceTokens[k].type !== 'tr_close') {
+                                if (sliceTokens[k].type === 'td_open' || sliceTokens[k].type === 'th_open') {
+                                  const inline = (sliceTokens[k + 1] && sliceTokens[k + 1].type === 'inline') ? (sliceTokens[k + 1].children || []) : [];
+                                  row.push(inline);
+                                  k += 2;
+                                } else k++;
+                              }
+                              table.rows.push(row);
+                              if (k < sliceTokens.length && sliceTokens[k].type === 'tr_close') k++;
+                            } else k++;
+                          }
+                          // render this table (use usableWidthInches if available)
+                          const header = table.header || [];
+                          const rows = table.rows || [];
+                          const aligns = table.align || [];
+                          const colCount = Math.max(header.length || 0, (rows[0] ? rows[0].length : 0));
+                          const dxaPerInch = 1440;
+                          const usedInches = (typeof usableWidthInches === 'number' && usableWidthInches > 0) ? usableWidthInches : 6.5;
+                          const colWidth = colCount > 0 ? Math.floor((usedInches * dxaPerInch) / colCount) : Math.floor((usedInches * dxaPerInch));
+                          let tbl = '<w:tbl>';
+                          tbl += '<w:tblPr>';
+                          tbl += '<w:jc w:val="center"/>';
+                          tbl += '<w:tblBorders>';
+                          tbl += '<w:top w:val="single" w:sz="4" w:color="000000"/>';
+                          tbl += '<w:left w:val="single" w:sz="4" w:color="000000"/>';
+                          tbl += '<w:bottom w:val="single" w:sz="4" w:color="000000"/>';
+                          tbl += '<w:right w:val="single" w:sz="4" w:color="000000"/>';
+                          tbl += '<w:insideH w:val="single" w:sz="4" w:color="000000"/>';
+                          tbl += '<w:insideV w:val="single" w:sz="4" w:color="000000"/>';
+                          tbl += '</w:tblBorders>';
+                          tbl += '<w:tblLayout w:type="fixed"/>';
+                          tbl += '</w:tblPr>';
+                          tbl += '<w:tblGrid>';
+                          for (let ci = 0; ci < colCount; ci++) tbl += `<w:gridCol w:w="${colWidth}"/>`;
+                          tbl += '</w:tblGrid>';
+
+                          // header
+                          if (header && header.length) {
+                            tbl += '<w:tr>';
+                            for (let ci = 0; ci < header.length; ci++) {
+                              const cellInline = header[ci] && Array.isArray(header[ci]) ? header[ci] : [{ type: 'text', content: header[ci] != null ? String(header[ci]) : '' }];
+                              const runs = await processInlineTokens(cellInline);
+                              const cellContent = runs.map(r => {
+                                if (typeof r === 'string') return r.replace(/^<w:r>(?=<)/, '<w:r><w:rPr><w:b/></w:rPr>');
+                                return String(r);
+                              }).join('');
+                              const a = (aligns[ci] || '').toLowerCase();
+                              const jc = (a === 'center') ? 'center' : (a === 'right' ? 'right' : 'left');
+                              tbl += `<w:tc><w:tcPr/><w:p><w:pPr><w:ind w:left="0" w:firstLine="0"/><w:jc w:val="${jc}"/></w:pPr>${cellContent}</w:p></w:tc>`;
+                            }
+                            tbl += '</w:tr>';
+                          }
+
+                          // rows
+                          for (let ri = 0; ri < rows.length; ri++) {
+                            const row = rows[ri] || [];
+                            tbl += '<w:tr>';
+                            for (let ci = 0; ci < colCount; ci++) {
+                              const cellInline = row[ci] && Array.isArray(row[ci]) ? row[ci] : [{ type: 'text', content: row[ci] != null ? String(row[ci]) : '' }];
+                              const runs = await processInlineTokens(cellInline);
+                              const a = (aligns[ci] || '').toLowerCase();
+                              const jc = (a === 'center') ? 'center' : (a === 'right' ? 'right' : 'left');
+                              const cellContent = runs.join('');
+                              tbl += `<w:tc><w:tcPr/><w:p><w:pPr><w:ind w:left="0" w:firstLine="0"/><w:jc w:val="${jc}"/></w:pPr>${cellContent}</w:p></w:tc>`;
+                            }
+                            tbl += '</w:tr>';
+                          }
+
+                          tbl += '</w:tbl>';
+                          frag += tbl;
+
+                          // advance i2 past this table
+                          i2 = j2 + 1;
+                        } else i2++;
+                      }
+                    } catch (errTable) {
+                      console.warn('render matched table failed', errTable);
+                    }
+
+                    // update lastIndex to end of this match
+                    lastIndex = matchIndex + matchText.length;
+                  }
+
+                  // 输出最后一段（匹配之后的文本）
+                  if (lastIndex < notesText.length) {
+                    const afterText = notesText.slice(lastIndex);
+                    const afterLines = afterText.split(/\r?\n/);
+                    for (const ln of afterLines) {
+                      if (ln.trim() === '') continue;
+                      frag += paragraphXml(ps, runsFromPlainText(ln));
+                    }
+                  }
+                } catch (segErr) {
+                  // 回退保守策略：按行输出全部 notes
+                  const lines = notesText.split(/\r?\n/);
+                  for (const ln of lines) {
+                    if (ln.trim() === '') continue;
+                    frag += paragraphXml(ps, runsFromPlainText(ln));
+                  }
+                }
+
+
               }
             }
           } else if (node.type === 'list') {
@@ -1433,6 +1807,52 @@
               status('已解析 styles.xml，段落样式数=' + parStyleMap.size + ' 字符样式数=' + charStyleMap.size);
             } else status('模板中未找到 styles.xml（将使用默认样式）');
           } catch (e) { console.warn(e); status('读取 styles.xml 失败，继续'); }
+
+          // 读取 template 的 document.xml 以获得页面宽度和页边距（用于表格列宽计算）
+          let usableWidthInches = null; // 英寸
+          try {
+            const docTemplateTxt = await readZipFileAsync(zip, 'word/document.xml');
+            if (docTemplateTxt) {
+              try {
+                const parser = new DOMParser();
+                const docTmp = parser.parseFromString(docTemplateTxt, 'application/xml');
+                const ns = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+                const sectPr = docTmp.getElementsByTagNameNS(ns, 'sectPr')[0] || docTmp.getElementsByTagName('w:sectPr')[0];
+                let pgSzW = null, pgMarLeft = null, pgMarRight = null;
+                if (sectPr) {
+                  const pgSz = sectPr.getElementsByTagNameNS(ns, 'pgSz')[0] || sectPr.getElementsByTagName('w:pgSz')[0];
+                  const pgMar = sectPr.getElementsByTagNameNS(ns, 'pgMar')[0] || sectPr.getElementsByTagName('w:pgMar')[0];
+                  if (pgSz) {
+                    pgSzW = pgSz.getAttribute('w:w') || pgSz.getAttribute('w');
+                    if (pgSzW) pgSzW = parseInt(pgSzW, 10);
+                  }
+                  if (pgMar) {
+                    pgMarLeft = pgMar.getAttribute('w:left') || pgMar.getAttribute('left');
+                    pgMarRight = pgMar.getAttribute('w:right') || pgMar.getAttribute('right');
+                    if (pgMarLeft) pgMarLeft = parseInt(pgMarLeft, 10);
+                    if (pgMarRight) pgMarRight = parseInt(pgMarRight, 10);
+                  }
+                }
+                // OpenXML 使用的单位是 twips（1 twip = 1/1440 inch）
+                if (pgSzW != null) {
+                  const pageWidthInches = Number(pgSzW) / 1440;
+                  // 如果模板中没有 margin，则使用默认 3.18 cm = 1.2519685 inch
+                  const defaultMarginInches = 3.18 / 2.54;
+                  const leftInches = (pgMarLeft != null) ? (Number(pgMarLeft) / 1440) : defaultMarginInches;
+                  const rightInches = (pgMarRight != null) ? (Number(pgMarRight) / 1440) : defaultMarginInches;
+                  usableWidthInches = Math.max(0.1, pageWidthInches - leftInches - rightInches);
+                } else {
+                  // 回退：假定可用宽度为 6.5 英寸 减去默认页边距（各 3.18cm）
+                  const defaultMarginInches = 3.18 / 2.54;
+                  usableWidthInches = Math.max(0.1, 8.27 - 2 * defaultMarginInches); // 8.27 inch ~= A4 width
+                }
+              } catch (e) {
+                console.warn('parse document.xml for page size failed', e);
+              }
+            }
+          } catch (e) { console.warn('read document.xml failed', e); }
+          // 如果无法从模板解析到值，设置默认值（6.5 英寸减去默认页边距）
+          if (!usableWidthInches) usableWidthInches = Math.max(0.1, 6.5 - 2 * (3.18 / 2.54));
 
           // numbering
           let numberingInfo = { nums: {}, abstractNums: {} };
