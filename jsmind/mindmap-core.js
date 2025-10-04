@@ -919,29 +919,29 @@ function setupMindmapScrolling() {
                   }
 
                   // AFTER showing details, ensure node has sufficient margin from all four edges (left/right/top/bottom)
-                  try {
-                    const panel = document.getElementById('fullScreenMindmap') && document.getElementById('fullScreenMindmap').querySelector('.jsmind-inner');
-                    const nodeEl = node && node._data && node._data.view && node._data.view.element ? node._data.view.element : targetElem;
-                    if (panel && nodeEl && typeof panel.getBoundingClientRect === 'function' && typeof nodeEl.getBoundingClientRect === 'function') {
-                      const panelRect = panel.getBoundingClientRect();
-                      const nodeRect = nodeEl.getBoundingClientRect();
-                      const rightGap = panelRect.right - nodeRect.right; // px
-                      const MIN_GAP = 350; // px
-                      if (rightGap < MIN_GAP) {
-                        const delta = Math.round(MIN_GAP - rightGap);
-                        const before = panel.scrollLeft;
-                        try {
-                          panel.scrollBy({ left: delta, behavior: 'auto' });
-                        } catch (e) {
-                          panel.scrollLeft = panel.scrollLeft + delta;
-                        }
-                        const after = panel.scrollLeft;
-                        console.log('[MW][details] adjusted scroll to keep node left of right edge', { id: lastId, rightGap: rightGap, delta: delta, scrollBefore: before, scrollAfter: after });
-                      } else {
-                        console.log('[MW][details] no scroll adjustment needed', { id: lastId, rightGap: rightGap });
-                      }
-                    }
-                  } catch (e) { console.warn('[MW][details] scroll adjust failed', e); }
+                  // try {
+                  //   const panel = document.getElementById('fullScreenMindmap') && document.getElementById('fullScreenMindmap').querySelector('.jsmind-inner');
+                  //   const nodeEl = node && node._data && node._data.view && node._data.view.element ? node._data.view.element : targetElem;
+                  //   if (panel && nodeEl && typeof panel.getBoundingClientRect === 'function' && typeof nodeEl.getBoundingClientRect === 'function') {
+                  //     const panelRect = panel.getBoundingClientRect();
+                  //     const nodeRect = nodeEl.getBoundingClientRect();
+                  //     const rightGap = panelRect.right - nodeRect.right; // px
+                  //     const MIN_GAP = 350; // px
+                  //     if (rightGap < MIN_GAP) {
+                  //       const delta = Math.round(MIN_GAP - rightGap);
+                  //       const before = panel.scrollLeft;
+                  //       try {
+                  //         panel.scrollBy({ left: delta, behavior: 'auto' });
+                  //       } catch (e) {
+                  //         panel.scrollLeft = panel.scrollLeft + delta;
+                  //       }
+                  //       const after = panel.scrollLeft;
+                  //       console.log('[MW][details] adjusted scroll to keep node left of right edge', { id: lastId, rightGap: rightGap, delta: delta, scrollBefore: before, scrollAfter: after });
+                  //     } else {
+                  //       console.log('[MW][details] no scroll adjustment needed', { id: lastId, rightGap: rightGap });
+                  //     }
+                  //   }
+                  // } catch (e) { console.warn('[MW][details] scroll adjust failed', e); }
                 }
               } catch (e) { console.warn('[MW][details] mouseup showNodeDetails failed', e); }
             } else {
