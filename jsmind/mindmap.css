@@ -289,7 +289,7 @@ body {
 }
 
 #iconPickerBtn {
-  background: #f8f9fa;
+  /* background: #f8f9fa; */
   border: 1px solid #ddd;
   border-radius: 4px;
   padding: 6px 12px;
@@ -302,7 +302,7 @@ body {
 }
 
 #iconPickerBtn:hover:not(:disabled) {
-  background: #e9ecef;
+  /* background: #e9ecef; */
   border-color: #007bff;
 }
 

@@ -24,8 +24,11 @@
     <!-- 批量操作工具栏 -->
 
 
-    <button class="btn" onclick="exportData()">查看JSON</button>
-    <button class="btn" onclick="downloadMindmap()">下载图片</button>
+    <span class="ico-btn" role="button" onclick="downloadMindmap()" tabindex="0" title="下载图片"
+      style="--ico: url('res/download.svg'); "></span>
+    <span class="ico-btn" role="button" onclick="exportData()" tabindex="0" title="查看JSON"
+      style="--ico: url('res/code.svg'); "></span>
+
 
     <!-- 图标选择器下拉菜单（已定制：隐藏默认 caret、只保留网格内第一个“清除”按钮） -->
     <style>
@@ -59,10 +62,9 @@
     </style>
 
     <div class="dropdown" id="iconPickerDropdown" style="display: inline-block;">
-      <button class="btn btn-secondary dropdown-toggle" type="button" id="iconPickerBtn" data-toggle="dropdown"
-        aria-haspopup="true" aria-expanded="false" title="选择图标">
-        😊 图标
-      </button>
+
+      <span id="iconPickerBtn" class="ico-btn dropdown-toggle" role="button" data-toggle="dropdown" aria-haspopup="true"
+        aria-expanded="false" title="选择图标" tabindex="0" style="--ico: url('res/tag.svg');"></span>
       <div class="dropdown-menu" aria-labelledby="iconPickerBtn"
         style="width: 360px; max-height: 420px; overflow-y: auto; overflow-x: hidden;">
         <div style="padding: 12px;">
@@ -86,8 +88,8 @@
     <!-- 右侧三个简单复选框：详情面板 / 显示节点类型 / 显示列表节点 -->
     <div id="toolbarToggles"
       style="margin-left:auto;display:flex;gap:12px;align-items:flex-end;justify-content:flex-end;">
-      <span id="toggleNodeDetailsBtn" class="detail-icon state-on" role="button" tabindex="0" aria-pressed="true"
-        title="详情面板"></span>
+      <span id="toggleNodeDetailsBtn" class="ico-btn state-on" role="button" tabindex="0" aria-pressed="true"
+        title="详情面板" style="--ico: url('res/detail.svg'); "></span>
       <label class="mw-toggle-showtype"
         style="display:none;flex-direction:column;align-items:center;font-size:12px;margin:0 4px;">
         <input id="toggleShowNodeTypeCheckbox" type="checkbox" style="width:18px;height:18px;margin-bottom:6px;">

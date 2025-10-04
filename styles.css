@@ -685,44 +685,54 @@ iframe .btn:not([class*="btn-"]):hover {
 /* ===================================
    详情面板图标（三态，无外层按钮效果）
    =================================== */
-.detail-icon {
+.ico-btn {
     width: 18px;
     height: 18px;
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
     background-color: #4b5563;
-    /* 默认深灰 */
-    -webkit-mask: url('res/detail.svg') center / contain no-repeat;
-    mask: url('res/detail.svg') center / contain no-repeat;
+    /* 默认深灰（由状态类覆盖） */
+
+    /* 使用 CSS custom properties 指定图标路径（由 HTML 提供 --ico / --ico-fallback） */
+    -webkit-mask: var(--ico) center / contain no-repeat;
+    mask: var(--ico) center / contain no-repeat;
+
+    /* fallback：在不支持 mask 的环境下使用 background-image
+    background-image: var(--ico-fallback);
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain; */
 }
 
 /* 三种状态色直接作用于元素本身 */
-.detail-icon.state-default {
+/* 深灰 */
+.ico-btn.state-default {
     background-color: #4b5563;
 }
 
-/* 深灰 */
-.detail-icon.state-off {
+/* 浅灰（关闭） */
+.ico-btn.state-off {
     background-color: #cbd5e1;
 }
 
-/* 浅灰（关闭） */
-.detail-icon.state-on {
+/* 蓝色（激活） */
+.ico-btn.state-on {
     background-color: #2563eb;
 }
 
-/* 蓝色（激活） */
 
-/* 仅颜色轻微 hover（不加任何阴影/位移/背景） */
-.detail-icon:hover.state-default {
-    background-color: #374151;
+/*  hover */
+.ico-btn:hover {
+    background-color: #7389aa;
 }
 
-.detail-icon:hover.state-off {
+.ico-btn:hover.state-off {
     background-color: #94a3b8;
 }
 
-.detail-icon:hover.state-on {
+.ico-btn:hover.state-on {
     background-color: #1d4ed8;
 }
 
