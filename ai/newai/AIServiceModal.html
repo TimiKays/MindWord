@@ -1,0 +1,2788 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI服务调用工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <!-- Tailwind 配置 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#10B981',
+                        neutral: '#1F2937',
+                        'neutral-light': '#F3F4F6',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .modal-backdrop {
+                @apply fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center p-4;
+            }
+            .modal-container {
+                @apply bg-white rounded-lg shadow-2xl w-full max-w-4xl h-[85vh] flex flex-col;
+            }
+            .modal-header {
+                @apply px-6 py-4 border-b flex justify-between items-center;
+            }
+            .modal-body {
+                @apply px-6 py-4 overflow-hidden flex-grow;
+            }
+            .modal-footer {
+                @apply px-6 py-4 border-t flex justify-end gap-3;
+            }
+            .form-group {
+                @apply mb-4;
+            }
+            .form-label {
+                @apply block text-sm font-medium text-gray-700 mb-1;
+            }
+            .form-control {
+                @apply w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary;
+            }
+            .btn {
+                @apply px-4 py-2 rounded-md font-medium cursor-pointer transition-colors;
+            }
+            .btn-primary {
+                @apply bg-primary text-white hover:bg-primary/90;
+            }
+            .btn-secondary {
+                @apply bg-gray-200 text-gray-800 hover:bg-gray-300;
+            }
+            .btn-outline {
+                @apply border border-gray-300 text-gray-700 hover:bg-gray-50;
+            }
+            .status-indicator {
+                @apply inline-block w-2 h-2 rounded-full mr-2;
+            }
+            .config-section {
+                @apply border rounded-lg p-4 mb-6 transition-all duration-300;
+            }
+            .config-header {
+                @apply flex justify-between items-center cursor-pointer mb-3;
+            }
+            .collapsible-content {
+                @apply transition-all duration-300 ease-in-out;
+            }
+            .model-search-container {
+                @apply relative mb-2;
+            }
+            .model-search-input {
+                @apply w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary;
+            }
+            .model-search-icon {
+                @apply absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400;
+            }
+            .model-option-highlight {
+                @apply bg-yellow-100;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 p-8">
+    <!-- 触发弹窗的按钮 -->
+    <button id="openAIModalBtn" class="btn btn-primary">
+        <i class="fa fa-robot mr-2"></i>打开AI工具
+    </button>
+
+    <!-- AI服务弹窗组件 -->
+    <div id="aiServiceModal" class="modal-backdrop hidden">
+        <div class="modal-container">
+            <!-- 弹窗头部 -->
+            <div class="modal-header">
+                <h3 class="text-xl font-bold text-neutral">AI服务调用工具</h3>
+                <button id="closeModalBtn" class="text-gray-500 hover:text-gray-700">
+                    <i class="fa fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <!-- 弹窗主体 -->
+            <div class="modal-body">
+                <form id="aiServiceForm">
+                    <!-- AI使用界面 -->
+                    <div id="aiUsageView" class="view-container">
+                        <div id="usageConfigStatusBar" class="mb-2 p-3 rounded-md text-sm">
+                            <!-- 配置状态将动态更新 -->
+                        </div>
+                        <!-- 使用态状态提示条：始终保留，在操作时显示提示/成功/失败 -->
+                        <div id="usageStatusIndicator" class="mb-4 p-3 rounded-md text-sm hidden"></div>
+
+                        <!-- 平台/模型/配置：模型占剩余宽度，配置按钮仅占自身宽度 -->
+                        <div class="grid gap-4 items-end" style="grid-template-columns: auto 1fr auto;">
+                            <div>
+                                <label class="form-label" for="usagePlatformSelect">平台</label>
+                                <select id="usagePlatformSelect" class="form-control" required>
+                                    <option value="">-- 请选择平台 --</option>
+                                    <!-- 平台选项将通过JS动态填充（与配置中的 platformSelect 保持一致） -->
+                                </select>
+                            </div>
+
+                            <div class="flex flex-col">
+                                <label class="form-label" for="usageModelSelect">模型</label>
+                                <div class="flex items-center">
+                                    <select id="usageModelSelect" class="form-control flex-1" required>
+                                        <option value="">-- 请选择模型 --</option>
+                                        <!-- 常用模型选项将通过JS动态填充 -->
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="flex items-end justify-end">
+                                <button type="button" id="quickConfigBtn"
+                                    class="btn btn-outline whitespace-nowrap w-auto" title="配置平台">
+                                    <i class="fa fa-cog mr-2"></i>配置
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 提示词模板与参数行 -->
+                        <div class="form-group mt-4">
+                            <div class="flex gap-3 items-center">
+                                <div class="flex-1">
+                                    <label class="form-label" for="promptTemplateSelect">提示词模板</label>
+                                    <div class="flex flex-nowrap items-center">
+                                        <select id="promptTemplateSelect" class="form-control">
+                                            <option value="">无模板</option>
+                                            <!-- 模板项可由JS填充 -->
+                                        </select>
+                                        <button type="button" id="promptTemplateConfigBtn"
+                                            class="btn btn-outline ml-2 inline-flex whitespace-nowrap items-center">配置</button>
+                                        <button type="button" id="promptTemplateApplyBtn"
+                                            class="btn btn-primary ml-2 inline-flex whitespace-nowrap items-center">应用</button>
+                                    </div>
+                                </div>
+
+                                <div class="w-1/3">
+                                    <label class="form-label" for="promptParamsSelect">参数</label>
+                                    <div class="flex">
+                                        <select id="promptParamsSelect" class="form-control">
+                                            <option value="">{{name}} 节点名称</option>
+                                            <!-- 更多参数由JS填充 -->
+                                        </select>
+                                        <button type="button" id="insertParamBtn"
+                                            class="btn btn-outline ml-2 inline-flex whitespace-nowrap items-center">插入</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 输入与输出并列区 -->
+                        <div class="grid grid-cols-12 gap-4 mt-4">
+                            <!-- 输入区域 -->
+                            <div class="col-span-7">
+                                <label class="form-label" for="usagePromptInput">输入</label>
+                                <textarea id="usagePromptInput" class="form-control h-52" placeholder="请输入提示词..."
+                                    required></textarea>
+
+                                <div class="flex justify-end mt-3">
+                                    <button id="usageSubmitBtn" type="button" class="btn btn-primary" disabled>
+                                        <i class="fa fa-paper-plane mr-2"></i>发送
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- 输出区域 -->
+                            <div class="col-span-5">
+                                <label class="form-label">输出</label>
+                                <div id="usageResultContainer"
+                                    class="bg-neutral-light p-3 rounded-md h-52 overflow-y-auto">
+                                    <div id="usageResultContent" class="whitespace-pre-wrap break-words"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI配置界面：左侧已配置平台列表 + 右侧单平台配置 -->
+                    <div id="aiConfigView" class="view-container hidden">
+                        <div class="mb-4 p-3 rounded-md text-sm" id="configStatusBar">
+                            <i class="fa fa-info-circle text-blue-600 mr-2"></i>请选择平台并填写必要信息，完成后点击“保存配置”。
+                        </div>
+
+                        <div class="grid grid-cols-12 gap-4">
+                            <!-- 左侧：已配置平台列表（窄侧栏） -->
+                            <div class="col-span-3 border-r pr-3">
+                                <div class="mb-2">
+                                    <div class="mb-2">
+                                        <div class="flex items-center justify-between">
+                                            <h4 class="font-medium">已配置平台列表</h4>
+                                        </div>
+                                        <div class="mt-2 flex items-center gap-2">
+                                            <button id="addPlatformBtn" type="button"
+                                                class="btn btn-outline text-[12px] px-1 py-0.5 whitespace-nowrap">添加</button>
+                                            <button id="exportConfigsBtn" type="button"
+                                                class="btn btn-outline text-[12px] px-1 py-0.5 whitespace-nowrap">导出</button>
+                                            <button id="importConfigsBtn" type="button"
+                                                class="btn btn-outline text-[12px] px-1 py-0.5 whitespace-nowrap">导入</button>
+                                            <input id="importFileInput" type="file" accept="application/json"
+                                                class="hidden" />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="savedPlatformsList" class="flex flex-col gap-1 max-h-[60vh] overflow-y-auto">
+                                    <!-- JS 填充已保存平台项 -->
+                                </div>
+                            </div>
+
+                            <!-- 右侧：单个平台配置（显示被选中的平台） -->
+                            <div class="col-span-9 h-full overflow-y-auto">
+                                <div class="config-section">
+                                    <div class="config-header">
+                                        <h4 class="font-semibold text-lg">AI配置（单平台）</h4>
+                                    </div>
+
+                                    <div id="configContent" class="collapsible-content">
+
+
+                                        <!-- 平台选择（用于新增/切换） -->
+                                        <div class="form-group">
+                                            <label class="form-label" for="platformSelect">选择AI平台</label>
+                                            <select id="platformSelect" class="form-control" required>
+                                                <option value="">-- 请选择平台 --</option>
+                                                <!-- 选项将通过JS动态填充 -->
+                                            </select>
+                                        </div>
+
+                                        <!-- API密钥配置 -->
+                                        <div class="form-group">
+                                            <div class="flex justify-between items-center">
+                                                <label class="form-label" for="apiKeyInput">API 密钥</label>
+                                                <a id="apiKeyHelpLink" href="#" target="_blank"
+                                                    class="text-xs text-primary hover:underline">
+                                                    <i class="fa fa-external-link mr-1"></i>获取API密钥
+                                                </a>
+                                            </div>
+                                            <div class="relative">
+                                                <input type="password" id="apiKeyInput" class="form-control pr-10"
+                                                    placeholder="输入平台API密钥">
+                                                <span id="toggleKeyVisibility"
+                                                    class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 cursor-pointer select-none">
+                                                    <i class="fa fa-eye-slash"></i>
+                                                </span>
+                                            </div>
+                                            <div class="mt-2 flex items-center justify-end gap-2">
+                                                <button type="button" id="verifyApiKeyBtn"
+                                                    class="btn btn-outline text-sm">
+                                                    校验密钥
+                                                </button>
+                                            </div>
+                                            <p class="text-xs text-gray-500 mt-1">密钥将按平台保存在浏览器本地存储中</p>
+                                        </div>
+
+                                        <!-- 平台特定配置 -->
+                                        <div id="platformSpecificConfigs">
+                                            <div id="cloudflareConfig" class="form-group hidden">
+                                                <label class="form-label" for="cloudflareAccountId">Cloudflare
+                                                    账户ID</label>
+                                                <input type="text" id="cloudflareAccountId" class="form-control"
+                                                    placeholder="输入Cloudflare账户ID">
+                                            </div>
+
+                                            <div id="azureConfig" class="form-group hidden">
+                                                <label class="form-label" for="azureEndpoint">Azure 终结点</label>
+                                                <input type="text" id="azureEndpoint" class="form-control"
+                                                    placeholder="输入Azure OpenAI终结点">
+                                            </div>
+                                        </div>
+
+                                        <!-- 常用模型设置（带搜索功能） -->
+                                        <div class="form-group">
+                                            <div class="flex justify-between items-center">
+                                                <label class="form-label">常用模型设置</label>
+                                                <button type="button" id="refreshFavoriteModelsBtn"
+                                                    class="text-sm text-primary hover:text-primary/80">
+                                                    <i class="fa fa-refresh mr-1"></i>刷新模型
+                                                </button>
+                                            </div>
+
+                                            <div class="model-search-container" id="modelSearchContainer">
+                                                <i class="fa fa-search model-search-icon"></i>
+                                                <input type="text" id="modelSearchInput" class="model-search-input"
+                                                    placeholder="搜索模型...">
+                                            </div>
+
+                                            <div id="favoriteModelsContainer"
+                                                class="border rounded-md p-3 bg-gray-50 mt-2">
+                                                <div id="favoriteModelsList" class="max-h-48 overflow-y-auto">
+                                                    <!-- 常用模型复选框将通过JS动态填充 -->
+                                                </div>
+                                            </div>
+
+                                            <div id="modelLoadingIndicator" class="hidden mt-2 text-sm text-gray-600">
+                                                <i class="fa fa-circle-o-notch fa-spin mr-1"></i>正在获取模型列表...
+                                            </div>
+                                        </div>
+
+                                        <!-- 高级选项 -->
+                                        <div class="form-group mt-6">
+                                            <details class="group">
+                                                <summary class="text-sm font-medium text-gray-700 cursor-pointer">高级选项
+                                                </summary>
+                                                <div class="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label class="form-label" for="temperatureInput">温度
+                                                            (0-1)</label>
+                                                        <input type="number" id="temperatureInput" class="form-control"
+                                                            min="0" max="1" step="0.1" value="0.7">
+                                                    </div>
+                                                    <div>
+                                                        <label class="form-label" for="maxTokensInput">最大Token数</label>
+                                                        <input type="number" id="maxTokensInput" class="form-control"
+                                                            min="1" max="4096" value="1000">
+                                                    </div>
+                                                </div>
+                                            </details>
+                                        </div>
+
+                                        <!-- 底部操作 -->
+                                        <div class="flex justify-end gap-3 mt-4">
+
+                                            <button id="configBackBtn" class="btn btn-outline">返回</button>
+                                            <button id="configSaveBtn" class="btn btn-primary">
+                                                <i class="fa fa-save mr-2"></i>保存配置
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 模板配置界面：左侧模板列表 + 右侧编辑 -->
+                    <div id="templateConfigView" class="view-container hidden">
+                        <div class="mb-4 p-3 rounded-md text-sm bg-blue-100 text-blue-800" id="templateStatusBar">
+                            <i
+                                class="fa fa-info-circle text-blue-600 mr-2"></i>管理提示词模板：支持新增、编辑、删除、导入、导出。保存后将更新使用界面的模板下拉。
+                        </div>
+                        <div class="grid grid-cols-12 gap-4">
+                            <div class="col-span-3 border-r pr-3">
+                                <div class="mb-2">
+                                    <div class="flex items-center gap-2">
+                                        <button id="addTemplateBtn" type="button"
+                                            class="btn btn-outline text-[12px] px-1 py-0.5">新增</button>
+                                        <button id="exportTemplatesBtn" type="button"
+                                            class="btn btn-outline text-[12px] px-1 py-0.5">导出</button>
+                                        <button id="importTemplatesBtn" type="button"
+                                            class="btn btn-outline text-[12px] px-1 py-0.5">导入</button>
+                                        <input id="importTemplatesFileInput" type="file" accept="application/json"
+                                            class="hidden" />
+                                    </div>
+                                </div>
+                                <div id="templateList" class="flex flex-col gap-1 max-h-[60vh] overflow-y-auto"></div>
+                            </div>
+                            <div class="col-span-9">
+                                <div class="config-section">
+                                    <div class="config-header">
+                                        <h4 class="font-semibold text-lg">模板编辑</h4>
+                                    </div>
+                                    <div class="collapsible-content">
+                                        <div class="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label class="form-label" for="tplNameInput">名称</label>
+                                                <input id="tplNameInput" type="text" class="form-control"
+                                                    placeholder="模板名称">
+                                            </div>
+                                            <div>
+                                                <label class="form-label" for="tplTypeInput">类型</label>
+                                                <input id="tplTypeInput" type="text" class="form-control"
+                                                    placeholder="如：通用/扩展/总结...">
+                                            </div>
+                                            <div>
+                                                <label class="form-label" for="tplCallerInput">调用方</label>
+                                                <input id="tplCallerInput" type="text" class="form-control"
+                                                    placeholder="如：AI应用/外部调用...">
+                                            </div>
+                                            <div>
+                                                <label class="form-label" for="tplDescInput">描述</label>
+                                                <input id="tplDescInput" type="text" class="form-control"
+                                                    placeholder="该模板的用途说明">
+                                            </div>
+                                        </div>
+                                        <div class="mt-3">
+                                            <label class="form-label">参数（名称 与 描述）</label>
+                                            <div id="tplParamsContainer" class="space-y-2"></div>
+                                            <button id="addTplParamBtn" type="button"
+                                                class="btn btn-outline text-[12px] px-2 py-1 mt-2">添加参数</button>
+                                        </div>
+                                        <div class="mt-3">
+                                            <label class="form-label" for="tplContentInput">模板内容</label>
+                                            <textarea id="tplContentInput" class="form-control h-48"
+                                                placeholder="模板正文，支持占位符"></textarea>
+                                        </div>
+                                        <div class="flex justify-end gap-3 mt-4">
+                                            <button id="tplBackBtn" class="btn btn-outline">返回</button>
+                                            <button id="tplSaveBtn" class="btn btn-primary"><i
+                                                    class="fa fa-save mr-2"></i>保存模板</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 弹窗底部 -->
+                    <div class="modal-footer">
+                        <!-- AI使用界面的底部按钮 -->
+                        <div id="usageViewFooter">
+                            <button id="usageCancelBtn" class="btn btn-secondary">取消</button>
+                            <button id="usageSubmitBtnFooter" type="button" class="btn btn-primary" disabled>
+                                <i class="fa fa-paper-plane mr-2"></i>发送请求
+                            </button>
+                        </div>
+
+                        <!-- AI配置界面的底部按钮 -->
+                        <!-- <div id="configViewFooter" class="hidden">
+                            <button id="configCancelBtn" class="btn btn-secondary">取消</button>
+                            <button id="configSaveBtn" class="btn btn-primary">
+                                <i class="fa fa-save mr-2"></i>保存配置
+                            </button>
+                        </div> -->
+                    </div>
+            </div>
+        </div>
+
+        <script>
+            // AI服务类
+            class AIPlatformService {
+                constructor() {
+                    // 初始化支持的平台基本信息，包含API密钥申请链接
+                    this.platforms = {
+                        openai: {
+                            name: "OpenAI",
+                            baseUrl: "https://api.openai.com/v1",
+                            modelsUrl: "https://api.openai.com/v1/models",
+                            modelsFetched: false,
+                            apiKeyUrl: "https://platform.openai.com/account/api-keys",
+                            models: []
+                        },
+                        anthropic: {
+                            name: "Anthropic",
+                            baseUrl: "https://api.anthropic.com/v1",
+                            modelsUrl: null,
+                            modelsFetched: false,
+                            apiKeyUrl: "https://console.anthropic.com/settings/keys",
+                            predefinedModels: [
+                                "claude-3-opus-20240229",
+                                "claude-3-sonnet-20240229",
+                                "claude-3-haiku-20240307",
+                                "claude-2.1"
+                            ],
+                            models: []
+                        },
+                        google: {
+                            name: "Google Gemini",
+                            baseUrl: "https://generativelanguage.googleapis.com/v1beta",
+                            modelsUrl: "https://generativelanguage.googleapis.com/v1beta/models?key=API_KEY_PLACEHOLDER",
+                            modelsFetched: false,
+                            apiKeyUrl: "https://makersuite.google.com/app/apikey",
+                            models: []
+                        },
+                        azure: {
+                            name: "Azure OpenAI",
+                            modelsUrl: null,
+                            modelsFetched: false,
+                            apiKeyUrl: "https://portal.azure.com/",
+                            models: []
+                        },
+                        openrouter: {
+                            name: "OpenRouter",
+                            baseUrl: "https://openrouter.ai/api/v1",
+                            modelsUrl: "https://openrouter.ai/api/v1/models",
+                            modelsFetched: false,
+                            apiKeyUrl: "https://openrouter.ai/settings/keys",
+                            models: []
+                        },
+                        cloudflare: {
+                            name: "Cloudflare Workers AI",
+                            baseUrl: "https://api.cloudflare.com/client/v4/accounts/ACCOUNT_ID_PLACEHOLDER/ai/run",
+                            modelsUrl: "https0://api.cloudflare.com/client/v4/accounts/ACCOUNT_ID_PLACEHOLDER/ai/models",
+                            modelsFetched: false,
+                            apiKeyUrl: "https://dash.cloudflare.com/profile/api-tokens",
+                            models: []
+                        },
+                        silibase: {
+                            name: "硅基流动",
+                            baseUrl: "https://api.siliconflow.cn/v1",
+                            modelsUrl: "https://api.siliconflow.cn/v1/models",
+                            modelsFetched: false,
+                            apiKeyUrl: "https://www.siliconflow.cn",
+                            models: []
+                        }
+                    };
+
+                    // 存储配置信息
+                    this.config = {
+                        selectedPlatform: null,
+                        selectedModel: null,
+                        apiKey: null,
+                        azureEndpoint: null,
+                        cloudflareAccountId: null
+                    };
+                }
+
+                getPlatforms() {
+                    return { ...this.platforms };
+                }
+
+                getModels(platform) {
+                    if (!this.platforms[platform]) {
+                        throw new Error(`不支持的AI平台: ${platform}`);
+                    }
+                    if (platform === 'anthropic' && this.platforms[platform].models.length === 0) {
+                        return [...this.platforms[platform].predefinedModels];
+                    }
+                    return [...this.platforms[platform].models];
+                }
+
+                async fetchModels(platform, apiKey = null, options = {}) {
+                    if (!this.platforms[platform]) {
+                        throw new Error(`不支持的AI平台: ${platform}`);
+                    }
+
+                    const platformInfo = this.platforms[platform];
+
+                    if (platform === 'anthropic') {
+                        platformInfo.models = [...platformInfo.predefinedModels];
+                        platformInfo.modelsFetched = true;
+                        return platformInfo.models;
+                    }
+
+                    if (platform === 'azure') {
+                        console.warn('Azure平台不支持动态获取模型，请手动输入模型名称');
+                        return [];
+                    }
+
+                    if (!platformInfo.modelsUrl) {
+                        throw new Error(`平台 ${platform} 不支持动态获取模型`);
+                    }
+
+                    let url = platformInfo.modelsUrl;
+                    if (platform === 'google' && apiKey) {
+                        url = url.replace('API_KEY_PLACEHOLDER', apiKey);
+                    }
+                    if (platform === 'cloudflare' && options.cloudflareAccountId) {
+                        url = url.replace('ACCOUNT_ID_PLACEHOLDER', options.cloudflareAccountId);
+                    }
+
+                    const headers = {
+                        "Content-Type": "application/json"
+                    };
+
+                    if (apiKey) {
+                        switch (platform) {
+                            case 'openai':
+                            case 'openrouter':
+                            case 'silibase':
+                                headers["Authorization"] = `Bearer ${apiKey}`;
+                                break;
+                            case 'cloudflare':
+                                headers["Authorization"] = `Bearer ${apiKey}`;
+                                break;
+                        }
+                    }
+
+                    try {
+                        const response = await fetch(url, {
+                            method: "GET",
+                            headers: headers
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`获取模型列表失败: ${response.statusText}`);
+                        }
+
+                        const data = await response.json();
+                        let models = [];
+
+                        switch (platform) {
+                            case 'openai':
+                                models = data.data.map(model => model.id);
+                                break;
+                            case 'google':
+                                models = data.models.map(model => model.name);
+                                break;
+                            case 'openrouter':
+                                models = data.data.map(model => model.id);
+                                break;
+                            case 'cloudflare':
+                                models = data.result.map(model => model.name);
+                                break;
+                            case 'silibase':
+                                // 兼容不同返回结构：优先 data.data，其次 data.models
+                                if (Array.isArray(data?.data)) {
+                                    models = data.data.map(m => m.id || m.name || m.model || m);
+                                } else if (Array.isArray(data?.models)) {
+                                    models = data.models.map(m => m.id || m.name || m.model || m);
+                                } else {
+                                    models = [];
+                                }
+                                break;
+                        }
+
+                        platformInfo.models = models;
+                        platformInfo.modelsFetched = true;
+
+                        return models;
+                    } catch (error) {
+                        console.error(`获取${platform}模型列表失败:`, error);
+                        throw error;
+                    }
+                }
+
+                configure(options) {
+                    const { platform, model, apiKey, azureEndpoint, cloudflareAccountId } = options;
+
+                    if (!this.platforms[platform]) {
+                        throw new Error(`不支持的AI平台: ${platform}`);
+                    }
+
+                    if (platform === 'azure' && !azureEndpoint) {
+                        throw new Error('Azure平台需要提供终结点(azureEndpoint)');
+                    }
+
+                    if (platform === 'cloudflare' && !cloudflareAccountId) {
+                        throw new Error('Cloudflare平台需要提供账户ID(cloudflareAccountId)');
+                    }
+
+                    this.config = {
+                        selectedPlatform: platform,
+                        selectedModel: model,
+                        apiKey: apiKey,
+                        azureEndpoint: azureEndpoint || null,
+                        cloudflareAccountId: cloudflareAccountId || null
+                    };
+                }
+
+                isConfigured() {
+                    if (!this.config.selectedPlatform || !this.config.selectedModel || !this.config.apiKey) {
+                        return false;
+                    }
+
+                    if (this.config.selectedPlatform === 'azure' && !this.config.azureEndpoint) {
+                        return false;
+                    }
+
+                    if (this.config.selectedPlatform === 'cloudflare' && !this.config.cloudflareAccountId) {
+                        return false;
+                    }
+
+                    return true;
+                }
+
+                async generate(options) {
+                    if (!this.isConfigured()) {
+                        throw new Error('AI服务尚未配置，请先调用configure方法');
+                    }
+
+                    const { prompt, temperature = 0.7, maxTokens = 1000 } = options;
+
+                    switch (this.config.selectedPlatform) {
+                        case 'openai':
+                            return this._callOpenAI(prompt, temperature, maxTokens);
+                        case 'anthropic':
+                            return this._callAnthropic(prompt, temperature, maxTokens);
+                        case 'google':
+                            return this._callGoogle(prompt, temperature, maxTokens);
+                        case 'azure':
+                            return this._callAzure(prompt, temperature, maxTokens);
+                        case 'openrouter':
+                            return this._callOpenRouter(prompt, temperature, maxTokens);
+                        case 'cloudflare':
+                            return this._callCloudflare(prompt, temperature, maxTokens);
+                        case 'silibase':
+                            return this._callSilibase(prompt, temperature, maxTokens);
+                        default:
+                            throw new Error(`不支持的AI平台: ${this.config.selectedPlatform}`);
+                    }
+                }
+
+                /**
+                 * 验证与AI平台的连接是否有效
+                 */
+                async verifyConnection() {
+                    if (!this.isConfigured()) {
+                        throw new Error('AI服务尚未配置完整，请检查配置');
+                    }
+
+                    try {
+                        // 不同平台使用不同的验证方法
+                        switch (this.config.selectedPlatform) {
+                            case 'openai':
+                                // 调用模型列表API验证
+                                const models = await this.fetchModels(this.config.selectedPlatform, this.config.apiKey);
+                                return models.length > 0;
+
+                            case 'anthropic':
+                                // 发送一个简单的测试请求
+                                const testPrompt = "请返回'连接成功'以验证API可用";
+                                const response = await this._callAnthropic(testPrompt, 0, 10);
+                                return response.includes('连接成功');
+
+                            case 'google':
+                                // 调用模型列表API验证
+                                const googleModels = await this.fetchModels(this.config.selectedPlatform, this.config.apiKey);
+                                return googleModels.length > 0;
+
+                            case 'azure':
+                                // 发送一个简单的测试请求
+                                const azureTestPrompt = "请返回'连接成功'以验证API可用";
+                                const azureResponse = await this._callAzure(azureTestPrompt, 0, 10);
+                                return azureResponse.includes('连接成功');
+
+                            case 'openrouter':
+                                // 调用模型列表API验证
+                                const orModels = await this.fetchModels(this.config.selectedPlatform, this.config.apiKey);
+                                return orModels.length > 0;
+
+                            case 'cloudflare':
+                                // 调用模型列表API验证
+                                const cfModels = await this.fetchModels(
+                                    this.config.selectedPlatform,
+                                    this.config.apiKey,
+                                    { cloudflareAccountId: this.config.cloudflareAccountId }
+                                );
+                                return cfModels.length > 0;
+
+                            case 'silibase':
+                                // 调用模型列表API验证
+                                const sbModels = await this.fetchModels(this.config.selectedPlatform, this.config.apiKey);
+                                return sbModels.length > 0;
+
+                            default:
+                                throw new Error(`不支持的AI平台: ${this.config.selectedPlatform}`);
+                        }
+                    } catch (error) {
+                        console.error("连接验证失败:", error);
+                        throw error;
+                    }
+                }
+
+                async _callOpenAI(prompt, temperature, maxTokens) {
+                    const url = `${this.platforms.openai.baseUrl}/chat/completions`;
+
+                    const messages = Array.isArray(prompt)
+                        ? prompt
+                        : [{ role: "user", content: prompt }];
+
+                    try {
+                        const response = await fetch(url, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "Authorization": `Bearer ${this.config.apiKey}`
+                            },
+                            body: JSON.stringify({
+                                model: this.config.selectedModel,
+                                messages: messages,
+                                temperature: temperature,
+                                max_tokens: maxTokens
+                            })
+                        });
+
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(`OpenAI API 错误: ${error.error?.message || '未知错误'}`);
+                        }
+
+                        const data = await response.json();
+                        return data.choices[0].message.content;
+                    } catch (error) {
+                        console.error("OpenAI调用失败:", error);
+                        throw error;
+                    }
+                }
+
+                async _callAnthropic(prompt, temperature, maxTokens) {
+                    const url = `${this.platforms.anthropic.baseUrl}/messages`;
+
+                    const messages = Array.isArray(prompt)
+                        ? prompt
+                        : [{ role: "user", content: prompt }];
+
+                    try {
+                        const response = await fetch(url, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "x-api-key": this.config.apiKey,
+                                "anthropic-version": "2023-06-01",
+                                "User-Agent": ("AI Service Tool").replace(/[^\x00-\xFF]/g, '') // 移除非ASCII字符
+                            },
+                            body: JSON.stringify({
+                                model: this.config.selectedModel,
+                                messages: messages,
+                                temperature: temperature,
+                                max_tokens: maxTokens
+                            })
+                        });
+
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(`Anthropic API 错误: ${error.error?.message || '未知错误'}`);
+                        }
+
+                        const data = await response.json();
+                        return data.content[0].text;
+                    } catch (error) {
+                        console.error("Anthropic调用失败:", error);
+                        throw error;
+                    }
+                }
+
+                async _callGoogle(prompt, temperature, maxTokens) {
+                    const url = `${this.platforms.google.baseUrl}/models/${this.config.selectedModel}:generateContent?key=${this.config.apiKey}`;
+
+                    const contents = Array.isArray(prompt)
+                        ? prompt.map(msg => ({
+                            role: msg.role === 'assistant' ? 'model' : msg.role,
+                            parts: [{ text: msg.content }]
+                        }))
+                        : [{
+                            role: 'user',
+                            parts: [{ text: prompt }]
+                        }];
+
+                    try {
+                        const response = await fetch(url, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify({
+                                contents: contents,
+                                generationConfig: {
+                                    temperature: temperature,
+                                    maxOutputTokens: maxTokens
+                                }
+                            })
+                        });
+
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(`Google Gemini API 错误: ${error.error?.message || '未知错误'}`);
+                        }
+
+                        const data = await response.json();
+                        return data.candidates[0].content.parts[0].text;
+                    } catch (error) {
+                        console.error("Google Gemini调用失败:", error);
+                        throw error;
+                    }
+                }
+
+                async _callAzure(prompt, temperature, maxTokens) {
+                    const url = `${this.config.azureEndpoint}/openai/deployments/${this.config.selectedModel}/chat/completions?api-version=2023-10-01-preview`;
+
+                    const messages = Array.isArray(prompt)
+                        ? prompt
+                        : [{ role: "user", content: prompt }];
+
+                    try {
+                        const response = await fetch(url, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "api-key": this.config.apiKey
+                            },
+                            body: JSON.stringify({
+                                messages: messages,
+                                temperature: temperature,
+                                max_tokens: maxTokens
+                            })
+                        });
+
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(`Azure OpenAI API 错误: ${error.error?.message || '未知错误'}`);
+                        }
+
+                        const data = await response.json();
+                        return data.choices[0].message.content;
+                    } catch (error) {
+                        console.error("Azure OpenAI调用失败:", error);
+                        throw error;
+                    }
+                }
+
+                async _callOpenRouter(prompt, temperature, maxTokens) {
+                    const url = `${this.platforms.openrouter.baseUrl}/chat/completions`;
+
+                    const messages = Array.isArray(prompt)
+                        ? prompt
+                        : [{ role: "user", content: prompt }];
+
+                    // 处理可能包含非ASCII字符的referer和title
+                    const safeReferer = window.location.href.replace(/[^\x00-\xFF]/g, '');
+                    const safeTitle = (document.title || "AI Application").replace(/[^\x00-\xFF]/g, '');
+
+                    try {
+                        const response = await fetch(url, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "Authorization": `Bearer ${this.config.apiKey}`,
+                                "HTTP-Referer": safeReferer,
+                                "X-Title": safeTitle
+                            },
+                            body: JSON.stringify({
+                                model: this.config.selectedModel,
+                                messages: messages,
+                                temperature: temperature,
+                                max_tokens: maxTokens
+                            })
+                        });
+
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(`OpenRouter API 错误: ${error.error?.message || '未知错误'}`);
+                        }
+
+                        const data = await response.json();
+                        return data.choices[0].message.content;
+                    } catch (error) {
+                        console.error("OpenRouter调用失败:", error);
+                        throw error;
+                    }
+                }
+
+                async _callCloudflare(prompt, temperature, maxTokens) {
+                    const url = `https://api.cloudflare.com/client/v4/accounts/${this.config.cloudflareAccountId}/ai/run/${this.config.selectedModel}`;
+
+                    const input = Array.isArray(prompt)
+                        ? { messages: prompt }
+                        : { prompt: prompt };
+
+                    try {
+                        const response = await fetch(url, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "Authorization": `Bearer ${this.config.apiKey}`
+                            },
+                            body: JSON.stringify({
+                                input: input,
+                                parameters: {
+                                    temperature: temperature,
+                                    max_tokens: maxTokens
+                                }
+                            })
+                        });
+
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(`Cloudflare API 错误: ${error.errors?.[0]?.message || '未知错误'}`);
+                        }
+
+                        const data = await response.json();
+                        if (data.result?.response) return data.result.response;
+                        if (data.result?.choices?.[0]?.message?.content) return data.result.choices[0].message.content;
+                        return JSON.stringify(data.result);
+                    } catch (error) {
+                        console.error("Cloudflare调用失败:", error);
+                        throw error;
+                    }
+                }
+
+                async _callSilibase(prompt, temperature, maxTokens) {
+                    const url = `${this.platforms.silibase.baseUrl}/chat/completions`;
+
+                    const messages = Array.isArray(prompt)
+                        ? prompt
+                        : [{ role: "user", content: prompt }];
+
+                    try {
+                        const response = await fetch(url, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "Authorization": `Bearer ${this.config.apiKey}`
+                            },
+                            body: JSON.stringify({
+                                model: this.config.selectedModel,
+                                messages: messages,
+                                temperature: temperature,
+                                max_tokens: maxTokens
+                            })
+                        });
+
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(`硅基流动 API 错误: ${error.error?.message || '未知错误'}`);
+                        }
+
+                        const data = await response.json();
+                        return data.choices[0].message.content;
+                    } catch (error) {
+                        console.error("硅基流动调用失败:", error);
+                        throw error;
+                    }
+                }
+            }
+
+            // 创建AI服务实例
+            const aiService = new AIPlatformService();
+
+            // DOM元素引用
+            const modal = document.getElementById('aiServiceModal');
+            const openModalBtn = document.getElementById('openAIModalBtn');
+            const closeModalBtn = document.getElementById('closeModalBtn');
+
+            // 视图容器
+            const aiUsageView = document.getElementById('aiUsageView');
+            const aiConfigView = document.getElementById('aiConfigView');
+
+            // AI使用界面元素
+            const usageConfigStatusBar = document.getElementById('usageConfigStatusBar');
+            const usageModelSelect = document.getElementById('usageModelSelect');
+            const usagePromptInput = document.getElementById('usagePromptInput');
+            const openConfigViewBtn = document.getElementById('openConfigViewBtn');
+            const usageStatusIndicator = document.getElementById('usageStatusIndicator');
+            const usageResultContainer = document.getElementById('usageResultContainer');
+            const usageResultContent = document.getElementById('usageResultContent');
+            const usageCancelBtn = document.getElementById('usageCancelBtn');
+            const usageSubmitBtn = document.getElementById('usageSubmitBtn');
+
+            // AI配置界面元素
+            const configStatusBar = document.getElementById('configStatusBar');
+            const platformSelect = document.getElementById('platformSelect');
+            const apiKeyInput = document.getElementById('apiKeyInput');
+            const toggleKeyVisibility = document.getElementById('toggleKeyVisibility');
+            const modelSearchContainer = document.getElementById('modelSearchContainer');
+            const modelSearchInput = document.getElementById('modelSearchInput');
+            const refreshFavoriteModelsBtn = document.getElementById('refreshFavoriteModelsBtn');
+            const modelLoadingIndicator = document.getElementById('modelLoadingIndicator');
+            const platformSpecificConfigs = document.getElementById('platformSpecificConfigs');
+            const cloudflareConfig = document.getElementById('cloudflareConfig');
+            const azureConfig = document.getElementById('azureConfig');
+            const cloudflareAccountId = document.getElementById('cloudflareAccountId');
+            const azureEndpoint = document.getElementById('azureEndpoint');
+            const configHeader = document.getElementById('configHeader');
+            const configContent = document.getElementById('configContent');
+            const toggleConfigBtn = document.getElementById('toggleConfigBtn');
+            const configIcon = document.getElementById('configIcon');
+            const apiKeyHelpLink = document.getElementById('apiKeyHelpLink');
+            const configCancelBtn = document.getElementById('configCancelBtn');
+            const configSaveBtn = document.getElementById('configSaveBtn');
+
+            // 高级选项元素
+            const temperatureInput = document.getElementById('temperatureInput');
+            const maxTokensInput = document.getElementById('maxTokensInput');
+
+            // 常用模型相关元素
+            const favoriteModelsContainer = document.getElementById('favoriteModelsContainer');
+            const favoriteModelsList = document.getElementById('favoriteModelsList');
+
+            // 保存所有平台的配置数据
+            let allPlatformConfigs = {};
+
+            // 保存常用模型数据
+            let favoriteModels = {};
+
+            // 当前视图状态
+            let currentView = 'usage'; // 'usage' 或 'config'
+
+            // 初始化平台选择下拉框
+            function initPlatformSelect() {
+                // 确保平台选择元素存在
+                if (!platformSelect) return;
+
+                const platforms = aiService.getPlatforms();
+                platformSelect.innerHTML = '<option value="">-- 请选择平台 --</option>'; // 清空并添加默认选项
+                Object.entries(platforms).forEach(([key, platform]) => {
+                    const option = document.createElement('option');
+                    option.value = key;
+                    option.textContent = platform.name;
+                    platformSelect.appendChild(option);
+                });
+            }
+
+            // 保存当前平台的配置到存储
+            function saveCurrentPlatformConfig() {
+                const selectedPlatform = platformSelect.value;
+                if (!selectedPlatform) return;
+
+                // 创建当前平台的配置对象
+                const platformConfig = {
+                    apiKey: apiKeyInput.value,
+                    cloudflareAccountId: cloudflareAccountId.value,
+                    azureEndpoint: azureEndpoint.value,
+                    temperature: temperatureInput.value,
+                    maxTokens: maxTokensInput.value,
+                    // 保存常用模型设置
+                    favoriteModels: favoriteModels[selectedPlatform] || []
+                };
+
+                // 更新配置集合
+                allPlatformConfigs[selectedPlatform] = platformConfig;
+
+                // 保存到本地存储
+                localStorage.setItem('allAIPlatformConfigs', JSON.stringify(allPlatformConfigs));
+
+                // 添加调试信息
+                console.log('保存配置:', selectedPlatform, platformConfig);
+            }
+
+            // 保存配置（仅保存当前配置，不自动切换视图）
+            function saveConfigAndReturn() {
+                // 保存当前配置到 storage 并刷新侧栏，但不切换回使用界面
+                saveCurrentPlatformConfig();
+                showStatus('配置已保存', 'success');
+            }
+
+            // 取消配置并返回使用界面
+            function cancelConfigAndReturn() {
+                // 重新加载配置以撤销未保存的更改
+                loadCurrentPlatformConfig();
+
+                // 切换回使用界面
+                switchToUsageView();
+            }
+
+            // 从本地存储加载所有平台的配置
+            function loadAllConfigsFromStorage() {
+                const savedConfigs = localStorage.getItem('allAIPlatformConfigs');
+                console.log('从本地存储加载配置:', savedConfigs);
+                if (savedConfigs) {
+                    try {
+                        allPlatformConfigs = JSON.parse(savedConfigs);
+                        // 加载常用模型设置
+                        for (const [platform, config] of Object.entries(allPlatformConfigs)) {
+                            if (config.favoriteModels) {
+                                favoriteModels[platform] = config.favoriteModels;
+                            }
+                        }
+                        console.log('加载的配置:', allPlatformConfigs);
+                    } catch (e) {
+                        console.error('加载平台配置失败:', e);
+                        allPlatformConfigs = {};
+                    }
+                }
+
+                // 自动选择已配置的平台
+                autoSelectConfiguredPlatform();
+            }
+
+            // 自动选择已配置的平台
+            function autoSelectConfiguredPlatform() {
+                console.log('自动选择平台: 检查所有平台配置', allPlatformConfigs);
+
+                // 遍历所有已保存的配置，找到第一个完整配置的平台
+                for (const [platform, config] of Object.entries(allPlatformConfigs)) {
+                    console.log(`检查平台 ${platform}:`, config);
+
+                    // 检查必要配置是否存在
+                    const hasApiKey = config.apiKey && config.apiKey.trim() !== '';
+                    const hasCloudflareAccount = platform !== 'cloudflare' || (config.cloudflareAccountId && config.cloudflareAccountId.trim() !== '');
+                    const hasAzureEndpoint = platform !== 'azure' || (config.azureEndpoint && config.azureEndpoint.trim() !== '');
+
+                    console.log(`平台 ${platform} 配置检查: apiKey=${hasApiKey}, cloudflare=${hasCloudflareAccount}, azure=${hasAzureEndpoint}`);
+
+                    if (hasApiKey && hasCloudflareAccount && hasAzureEndpoint) {
+                        console.log(`选择平台 ${platform}`);
+
+                        // 设置平台选择
+                        if (platformSelect) platformSelect.value = platform;
+
+                        // 直接加载该平台的配置
+                        loadCurrentPlatformConfig();
+
+                        // 更新使用界面
+                        updateUsageModelSelect();
+                        updateUsageConfigStatus();
+
+                        return;
+                    }
+                }
+
+                console.log('没有找到完整配置的平台');
+            }
+
+            // 加载当前选中平台的配置
+            function loadCurrentPlatformConfig() {
+                const selectedPlatform = platformSelect.value;
+                console.log('加载平台配置:', selectedPlatform);
+                if (!selectedPlatform) return;
+
+                const platformConfig = allPlatformConfigs[selectedPlatform] || {};
+                console.log('平台配置内容:', platformConfig);
+
+                // 填充表单字段
+                apiKeyInput.value = platformConfig.apiKey || '';
+                cloudflareAccountId.value = platformConfig.cloudflareAccountId || '';
+                azureEndpoint.value = platformConfig.azureEndpoint || '';
+                temperatureInput.value = platformConfig.temperature || 0.7;
+                maxTokensInput.value = platformConfig.maxTokens || 1000;
+
+                // 加载常用模型设置
+                if (platformConfig.favoriteModels) {
+                    favoriteModels[selectedPlatform] = platformConfig.favoriteModels;
+                    console.log('加载常用模型:', platformConfig.favoriteModels);
+                }
+
+                // 更新API密钥申请链接
+                const platforms = aiService.getPlatforms();
+                if (platforms[selectedPlatform]?.apiKeyUrl) {
+                    apiKeyHelpLink.href = platforms[selectedPlatform].apiKeyUrl;
+                    apiKeyHelpLink.classList.remove('hidden');
+                } else {
+                    apiKeyHelpLink.classList.add('hidden');
+                }
+
+                // 更新常用模型列表
+                updateFavoriteModelsList();
+
+                updateConfigStatus();
+            }
+
+            // 更新常用模型列表显示
+            function updateFavoriteModelsList() {
+                const selectedPlatform = platformSelect.value;
+                if (!selectedPlatform) return;
+
+                // 清空列表
+                favoriteModelsList.innerHTML = '';
+
+                // 获取当前平台的所有模型
+                const allModels = aiService.getModels(selectedPlatform);
+
+                // 如果没有模型，显示提示信息
+                if (allModels.length === 0) {
+                    favoriteModelsList.innerHTML = '<p class="text-sm text-gray-500">暂无可用模型，请先获取模型列表</p>';
+                    return;
+                }
+
+                // 获取当前平台的常用模型设置
+                const platformFavoriteModels = favoriteModels[selectedPlatform] || [];
+
+                // 为每个模型创建复选框
+                allModels.forEach(model => {
+                    const div = document.createElement('div');
+                    div.className = 'flex items-center mb-1';
+
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.id = `favorite-${model}`;
+                    checkbox.value = model;
+                    checkbox.className = 'mr-2';
+                    checkbox.checked = platformFavoriteModels.includes(model);
+
+                    const label = document.createElement('label');
+                    label.htmlFor = `favorite-${model}`;
+                    label.className = 'text-sm';
+                    label.textContent = model;
+
+                    // 添加事件监听器
+                    checkbox.addEventListener('change', function () {
+                        toggleFavoriteModel(selectedPlatform, model, this.checked);
+                    });
+
+                    div.appendChild(checkbox);
+                    div.appendChild(label);
+                    favoriteModelsList.appendChild(div);
+                });
+            }
+
+            // 切换常用模型状态
+            function toggleFavoriteModel(platform, model, isFavorite) {
+                console.log('切换常用模型状态:', platform, model, isFavorite);
+                if (!favoriteModels[platform]) {
+                    favoriteModels[platform] = [];
+                }
+
+                if (isFavorite) {
+                    // 添加到常用模型
+                    if (!favoriteModels[platform].includes(model)) {
+                        favoriteModels[platform].push(model);
+                    }
+                } else {
+                    // 从常用模型中移除
+                    favoriteModels[platform] = favoriteModels[platform].filter(m => m !== model);
+                }
+
+                console.log('更新后的常用模型:', favoriteModels[platform]);
+
+                // 保存配置
+                saveCurrentPlatformConfig();
+
+                // 更新快速切换按钮状态
+                updateQuickModelSwitchButton();
+            }
+
+            // 刷新常用模型列表
+            async function refreshFavoriteModels() {
+                const selectedPlatform = platformSelect.value;
+                const apiKey = apiKeyInput.value;
+
+                if (!selectedPlatform || !apiKey) {
+                    showStatus('请先选择平台并输入API密钥', 'error');
+                    return;
+                }
+
+                try {
+                    modelLoadingIndicator.classList.remove('hidden');
+                    showStatus('正在获取模型列表...', 'info');
+
+                    // 准备平台特定选项
+                    const options = {};
+                    if (selectedPlatform === 'cloudflare') {
+                        options.cloudflareAccountId = cloudflareAccountId.value;
+                    }
+
+                    // 获取模型列表
+                    await aiService.fetchModels(selectedPlatform, apiKey, options);
+
+                    // 更新常用模型列表
+                    updateFavoriteModelsList();
+
+                    showStatus('模型列表刷新成功', 'success');
+                } catch (error) {
+                    showStatus(`获取模型列表失败: ${error.message}`, 'error');
+                } finally {
+                    modelLoadingIndicator.classList.add('hidden');
+                }
+            }
+
+            // 更新快速切换模型按钮状态
+            function updateQuickModelSwitchButton() {
+                // 确保元素存在再操作
+                const quickModelSwitchBtn = document.getElementById('quickModelSwitchBtn');
+                if (!quickModelSwitchBtn) return;
+
+                const selectedPlatform = platformSelect.value;
+                if (!selectedPlatform) {
+                    quickModelSwitchBtn.classList.add('hidden');
+                    return;
+                }
+
+                const platformFavoriteModels = favoriteModels[selectedPlatform] || [];
+                if (platformFavoriteModels.length > 0) {
+                    quickModelSwitchBtn.classList.remove('hidden');
+                } else {
+                    quickModelSwitchBtn.classList.add('hidden');
+                }
+            }
+
+            // 显示常用模型下拉菜单
+            function showFavoriteModelsDropdown() {
+                // 确保元素存在再操作
+                const favoriteModelsDropdown = document.getElementById('favoriteModelsDropdown');
+                if (!favoriteModelsDropdown) return;
+
+                const selectedPlatform = platformSelect.value;
+                if (!selectedPlatform) return;
+
+                const platformFavoriteModels = favoriteModels[selectedPlatform] || [];
+                if (platformFavoriteModels.length === 0) return;
+
+                // 清空下拉菜单
+                favoriteModelsDropdown.innerHTML = '';
+
+                // 为每个常用模型创建选项
+                platformFavoriteModels.forEach(model => {
+                    const div = document.createElement('div');
+                    div.className = 'px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer';
+                    div.textContent = model;
+
+                    // 添加点击事件
+                    div.addEventListener('click', () => {
+                        // 隐藏下拉菜单
+                        favoriteModelsDropdown.classList.add('hidden');
+                    });
+
+                    favoriteModelsDropdown.appendChild(div);
+                });
+
+                // 显示下拉菜单
+                favoriteModelsDropdown.classList.remove('hidden');
+            }
+
+            // 隐藏常用模型下拉菜单
+            function hideFavoriteModelsDropdown() {
+                const favoriteModelsDropdown = document.getElementById('favoriteModelsDropdown');
+                if (favoriteModelsDropdown) {
+                    favoriteModelsDropdown.classList.add('hidden');
+                }
+            }
+
+            // 处理平台选择变化
+            function onPlatformChange() {
+                // 切换平台时：不要立即保存或创建配置（编辑时不影响数据）
+                const selectedPlatform = platformSelect.value;
+
+                // 显示平台特定配置
+                cloudflareConfig.classList.add('hidden');
+                azureConfig.classList.add('hidden');
+
+                if (selectedPlatform === 'cloudflare') {
+                    cloudflareConfig.classList.remove('hidden');
+                } else if (selectedPlatform === 'azure') {
+                    azureConfig.classList.remove('hidden');
+                }
+
+                // 加载新选中平台的配置到右侧表单（仅在存在已保存配置时填充）
+                loadCurrentPlatformConfig();
+
+                // 若用户已输入 API key，则可尝试刷新模型（仅用于 UI 显示，不写入配置）
+                if (selectedPlatform && apiKeyInput.value) {
+                    refreshFavoriteModels();
+                }
+
+                // 延迟更新配置可见性，确保配置加载完成
+                setTimeout(() => {
+                    updateConfigStatus();
+                    updateConfigVisibility();
+                }, 300);
+            }
+
+            // 获取并更新模型列表
+            async function fetchAndUpdateModels() {
+                const selectedPlatform = platformSelect.value;
+                const apiKey = apiKeyInput.value;
+
+                if (!selectedPlatform || !apiKey) {
+                    showStatus('请先选择平台并输入API密钥', 'error');
+                    return;
+                }
+
+                try {
+                    modelLoadingIndicator.classList.remove('hidden');
+                    showStatus('正在获取模型列表...', 'info');
+
+                    // 准备平台特定选项
+                    const options = {};
+                    if (selectedPlatform === 'cloudflare') {
+                        options.cloudflareAccountId = cloudflareAccountId.value;
+                    }
+
+                    // 获取模型列表
+                    const models = await aiService.fetchModels(selectedPlatform, apiKey, options);
+
+                    // 更新常用模型列表
+                    updateFavoriteModelsList();
+
+                    showStatus(`成功获取 ${models.length} 个模型`, 'success');
+                } catch (error) {
+                    showStatus(`获取模型失败: ${error.message}`, 'error');
+                } finally {
+                    modelLoadingIndicator.classList.add('hidden');
+                    updateConfigStatus();
+                }
+            }
+
+            // 模型搜索功能
+            function searchModels() {
+                const searchTerm = modelSearchInput.value.toLowerCase().trim();
+                const checkboxes = favoriteModelsList.querySelectorAll('input[type="checkbox"]');
+
+                if (!searchTerm) {
+                    // 清空搜索时显示所有选项
+                    checkboxes.forEach(checkbox => {
+                        const parentDiv = checkbox.parentElement;
+                        parentDiv.style.display = '';
+                    });
+                    return;
+                }
+
+                // 过滤匹配的模型
+                checkboxes.forEach(checkbox => {
+                    const label = checkbox.parentElement.querySelector('label');
+                    const text = label.textContent.toLowerCase();
+                    const matches = text.includes(searchTerm);
+
+                    const parentDiv = checkbox.parentElement;
+                    parentDiv.style.display = matches ? '' : 'none';
+                });
+            }
+
+            // 显示状态信息
+            function showStatus(message, type = 'info') {
+                const statusIndicator = configStatusBar; // 使用配置状态栏作为状态指示器
+                statusIndicator.textContent = message;
+                statusIndicator.classList.remove('hidden', 'bg-blue-100', 'text-blue-800',
+                    'bg-green-100', 'text-green-800',
+                    'bg-yellow-100', 'text-yellow-800',
+                    'bg-red-100', 'text-red-800');
+
+                switch (type) {
+                    case 'info':
+                        statusIndicator.classList.add('bg-blue-100', 'text-blue-800');
+                        break;
+                    case 'success':
+                        statusIndicator.classList.add('bg-green-100', 'text-green-800');
+                        break;
+                    case 'warning':
+                        statusIndicator.classList.add('bg-yellow-100', 'text-yellow-800');
+                        break;
+                    case 'error':
+                        statusIndicator.classList.add('bg-red-100', 'text-red-800');
+                        break;
+                }
+            }
+
+            // 隐藏状态信息
+            function hideStatus() {
+                // 固定显示：恢复为默认引导文案与蓝色信息样式，而不是隐藏
+                const statusIndicator = configStatusBar;
+                statusIndicator.classList.remove('hidden', 'bg-green-100', 'text-green-800', 'bg-yellow-100', 'text-yellow-800', 'bg-red-100', 'text-red-800');
+                statusIndicator.classList.add('bg-blue-100', 'text-blue-800');
+                statusIndicator.innerHTML = '<i class="fa fa-info-circle text-blue-600 mr-2"></i>请选择平台并填写必要信息，完成后点击“保存配置”。';
+            }
+
+            // 更新配置状态条
+            function updateConfigStatus() {
+                // 固定显示：根据已保存配置状态切换提示内容与颜色，不再隐藏
+                const savedCfg = allPlatformConfigs[platformSelect.value] || null;
+                const savedConfigured = !!(savedCfg && savedCfg.apiKey && savedCfg.apiKey.trim() !== '' &&
+                    (platformSelect.value !== 'cloudflare' || (savedCfg.cloudflareAccountId && savedCfg.cloudflareAccountId.trim() !== '')) &&
+                    (platformSelect.value !== 'azure' || (savedCfg.azureEndpoint && savedCfg.azureEndpoint.trim() !== '')));
+
+                configStatusBar.classList.remove('hidden', 'bg-blue-100', 'text-blue-800', 'bg-green-100', 'text-green-800', 'bg-yellow-100', 'text-yellow-800', 'bg-red-100', 'text-red-800');
+
+                if (savedConfigured) {
+                    const platforms = aiService.getPlatforms();
+                    const name = platforms[platformSelect.value]?.name || platformSelect.value || '未选择';
+                    configStatusBar.innerHTML = '<i class="fa fa-check-circle text-green-600 mr-2"></i>已配置：' + name;
+                    configStatusBar.classList.add('bg-green-100', 'text-green-800');
+                } else if (platformSelect.value) {
+                    configStatusBar.innerHTML = '<i class="fa fa-exclamation-triangle text-yellow-600 mr-2"></i>当前平台未完成配置，请完善后保存';
+                    configStatusBar.classList.add('bg-yellow-100', 'text-yellow-800');
+                } else {
+                    // 默认引导
+                    configStatusBar.innerHTML = '<i class="fa fa-info-circle text-blue-600 mr-2"></i>请选择平台并填写必要信息，完成后点击“保存配置”。';
+                    configStatusBar.classList.add('bg-blue-100', 'text-blue-800');
+                }
+            }
+
+            // 检查是否已配置
+            function checkIfConfigured() {
+                // 检查是否选择了平台
+                if (!platformSelect.value) return false;
+
+                // 检查是否输入了API密钥
+                if (!apiKeyInput.value) return false;
+
+                // 平台特定检查
+                if (platformSelect.value === 'cloudflare' && !cloudflareAccountId.value) {
+                    return false;
+                }
+
+                if (platformSelect.value === 'azure' && !azureEndpoint.value) {
+                    return false;
+                }
+
+                return true;
+            }
+
+            // 更新配置区域可见性
+            function updateConfigVisibility() {
+                // 始终展开配置区域，不再折叠
+                if (configContent) {
+                    configContent.classList.remove('hidden', 'h-0', 'opacity-0', 'overflow-hidden');
+                }
+                updateConfigStatus();
+            }
+
+            // 展开配置区域
+            function expandConfig() {
+                // 始终展开（去掉图标切换）
+                if (configContent) {
+                    configContent.classList.remove('hidden', 'h-0', 'opacity-0', 'overflow-hidden');
+                }
+            }
+
+            // 折叠配置区域
+            function collapseConfig() {
+                // 不再折叠，保持展开
+            }
+
+            // 切换配置区域显示/隐藏
+            function toggleConfig() {
+                // 取消折叠/展开切换
+                expandConfig();
+            }
+
+            // 更新提交按钮状态
+            function updateSubmitButtonState() {
+                const isReady = checkIfConfigured() && usagePromptInput.value; // 修复引用错误
+                usageSubmitBtn.disabled = !isReady; // 修复引用错误
+            }
+
+            // 切换API密钥可见性
+            function toggleKeyVisibilityHandler() {
+                const type = apiKeyInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                apiKeyInput.setAttribute('type', type);
+                toggleKeyVisibility.innerHTML = type === 'password' ?
+                    '<i class="fa fa-eye-slash"></i>' :
+                    '<i class="fa fa-eye"></i>';
+            }
+
+            // 验证连接
+            async function verifyConnection() {
+                const selectedPlatform = platformSelect.value;
+                const apiKey = apiKeyInput.value;
+
+                if (!selectedPlatform || !apiKey) {
+                    showStatus('请先选择平台并输入API密钥', 'error');
+                    return;
+                }
+
+                try {
+                    // 保存当前配置
+                    saveCurrentPlatformConfig();
+
+                    // 配置AI服务
+                    aiService.configure({
+                        platform: selectedPlatform,
+                        model: '', // 模型将在实际调用时指定
+                        apiKey: apiKey,
+                        azureEndpoint: azureEndpoint.value,
+                        cloudflareAccountId: cloudflareAccountId.value
+                    });
+
+                    // 显示验证中状态
+                    showStatus('正在验证与AI平台的连接...', 'info');
+
+                    // 执行验证
+                    const isConnected = await aiService.verifyConnection();
+
+                    if (isConnected) {
+                        showStatus('连接验证成功！可以使用AI服务', 'success');
+                        updateConfigVisibility();
+
+                        // 更新常用模型列表
+                        updateFavoriteModelsList();
+                    } else {
+                        showStatus('连接验证失败，无法确认API是否可用', 'error');
+                    }
+                } catch (error) {
+                    showStatus(`连接验证失败: ${error.message}`, 'error');
+                }
+            }
+
+            // 发送AI请求
+            async function sendAIRequest() {
+                const selectedPlatform = platformSelect.value;
+                const selectedModel = usageModelSelect.value;
+                const apiKey = apiKeyInput.value;
+                const prompt = usagePromptInput.value;
+                const temperature = parseFloat(temperatureInput.value);
+                const maxTokens = parseInt(maxTokensInput.value);
+
+                // 保存配置
+                saveCurrentPlatformConfig();
+
+                try {
+                    // 配置AI服务
+                    aiService.configure({
+                        platform: selectedPlatform,
+                        model: selectedModel,
+                        apiKey: apiKey,
+                        azureEndpoint: azureEndpoint.value,
+                        cloudflareAccountId: cloudflareAccountId.value
+                    });
+
+                    // 显示加载状态
+                    usageSubmitBtn.disabled = true;
+                    usageSubmitBtn.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i>处理中...';
+                    showUsageStatus('正在向AI发送请求...', 'info');
+                    usageResultContainer.classList.add('hidden');
+
+                    // 调用AI生成内容
+                    const result = await aiService.generate({
+                        prompt: prompt,
+                        temperature: temperature,
+                        maxTokens: maxTokens
+                    });
+
+                    // 显示结果
+                    showUsageStatus('请求成功完成', 'success');
+                    usageResultContent.textContent = result;
+                    usageResultContainer.classList.remove('hidden');
+
+                    // 滚动到结果区域
+                    usageResultContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                } catch (error) {
+                    // 失败时也将错误写入输出区域，并显示
+                    const msg = (error && error.message) ? error.message : String(error);
+                    showUsageStatus(`请求失败: ${msg}`, 'error');
+                    usageResultContent.textContent = `错误：${msg}`;
+                    usageResultContainer.classList.remove('hidden');
+                } finally {
+                    usageSubmitBtn.disabled = false;
+                    usageSubmitBtn.innerHTML = '<i class="fa fa-paper-plane mr-2"></i>发送请求';
+                }
+            }
+
+            // 显示使用界面状态信息
+            function showUsageStatus(message, type = 'info') {
+                const bar = document.getElementById('usageStatusIndicator');
+                if (!bar) return;
+                bar.textContent = message;
+                bar.classList.remove('hidden', 'bg-blue-100', 'text-blue-800',
+                    'bg-green-100', 'text-green-800',
+                    'bg-yellow-100', 'text-yellow-800',
+                    'bg-red-100', 'text-red-800');
+
+                switch (type) {
+                    case 'info':
+                        bar.classList.add('bg-blue-100', 'text-blue-800');
+                        break;
+                    case 'success':
+                        bar.classList.add('bg-green-100', 'text-green-800');
+                        break;
+                    case 'warning':
+                        bar.classList.add('bg-yellow-100', 'text-yellow-800');
+                        break;
+                    case 'error':
+                        bar.classList.add('bg-red-100', 'text-red-800');
+                        break;
+                }
+            }
+
+            // 打开弹窗
+            function openModal() {
+                modal.classList.remove('hidden');
+                // 如果有预设的提示词，填充它
+                const presetPrompt = modal.dataset.presetPrompt;
+                if (presetPrompt) {
+                    usagePromptInput.value = presetPrompt;
+                    // 清除预设，避免下次打开还显示
+                    delete modal.dataset.presetPrompt;
+                }
+
+                // 默认显示使用界面
+                switchToUsageView();
+            }
+
+            // 关闭弹窗
+            function closeModal() {
+                // 保存当前配置
+                if (platformSelect.value) {
+                    saveCurrentPlatformConfig();
+                }
+                modal.classList.add('hidden');
+                hideStatus();
+                showUsageStatus('', 'info'); // 清空使用界面状态
+            }
+
+            // 切换到AI使用界面
+            function switchToUsageView() {
+                aiUsageView.classList.remove('hidden');
+                aiConfigView.classList.add('hidden');
+                document.getElementById('usageViewFooter').classList.remove('hidden');
+                document.getElementById('configViewFooter').classList.add('hidden');
+                currentView = 'usage';
+
+                // 更新使用界面的模型选择
+                updateUsageModelSelect();
+
+                // 更新配置状态
+                updateUsageConfigStatus();
+            }
+
+            // 切换到AI配置界面
+            function switchToConfigView() {
+                aiUsageView.classList.add('hidden');
+                aiConfigView.classList.remove('hidden');
+                const usageFooter = document.getElementById('usageViewFooter');
+                if (usageFooter) usageFooter.classList.add('hidden');
+                const configFooter = document.getElementById('configViewFooter');
+                if (configFooter) configFooter.classList.remove('hidden');
+                currentView = 'config';
+
+                // 更新配置状态
+                updateConfigStatus();
+            }
+
+            // 更新使用界面的模型选择
+            function updateUsageModelSelect() {
+                // 清空选择框
+                usageModelSelect.innerHTML = '';
+
+                // 获取当前配置的平台
+                const selectedPlatform = platformSelect.value;
+                const apiKey = apiKeyInput.value;
+                if (!selectedPlatform) {
+                    usageModelSelect.innerHTML = '<option value="">-- 请先配置AI平台 --</option>';
+                    usageSubmitBtn.disabled = true;
+                    return;
+                }
+
+                // 获取当前平台的常用模型
+                const platformFavoriteModels = favoriteModels[selectedPlatform] || [];
+
+                const fillOptions = (models) => {
+                    usageModelSelect.innerHTML = '';
+                    if (Array.isArray(models) && models.length > 0) {
+                        models.forEach(model => {
+                            const option = document.createElement('option');
+                            option.value = model;
+                            option.textContent = model;
+                            usageModelSelect.appendChild(option);
+                        });
+                        // 记忆上次模型选择
+                        const lastModelKey = `lastUsedModel_${platformSelect.value}`;
+                        const lastModel = localStorage.getItem(lastModelKey);
+                        if (lastModel && models.includes(lastModel)) {
+                            usageModelSelect.value = lastModel;
+                        } else {
+                            usageModelSelect.value = models[0];
+                        }
+                    } else {
+                        usageModelSelect.innerHTML = '<option value="">-- 暂无可用模型 --</option>';
+                    }
+                    updateUsageSubmitButtonState();
+                };
+
+                if (platformFavoriteModels.length > 0) {
+                    // 优先使用常用模型
+                    fillOptions(platformFavoriteModels);
+                } else {
+                    // 无常用模型则显示全部模型；若尚未加载则自动拉取
+                    let models = aiService.getModels(selectedPlatform);
+                    if (!Array.isArray(models) || models.length === 0) {
+                        // 需要拉取
+                        const options = {};
+                        if (selectedPlatform === 'cloudflare' && cloudflareAccountId.value) {
+                            options.cloudflareAccountId = cloudflareAccountId.value;
+                        }
+                        if (apiKey) {
+                            aiService.fetchModels(selectedPlatform, apiKey, options)
+                                .then(ms => fillOptions(ms))
+                                .catch(() => fillOptions([]));
+                        } else {
+                            fillOptions(models);
+                        }
+                    } else {
+                        fillOptions(models);
+                    }
+                }
+            }
+
+            // 更新使用界面配置状态
+            function updateUsageConfigStatus() {
+                // 与配置页一致：仅根据“已保存的配置”判断是否已配置，避免“输入即已配置”
+                const savedCfg = allPlatformConfigs[platformSelect.value] || null;
+                const savedConfigured = !!(savedCfg && savedCfg.apiKey && savedCfg.apiKey.trim() !== '' &&
+                    (platformSelect.value !== 'cloudflare' || (savedCfg.cloudflareAccountId && savedCfg.cloudflareAccountId.trim() !== '')) &&
+                    (platformSelect.value !== 'azure' || (savedCfg.azureEndpoint && savedCfg.azureEndpoint.trim() !== '')));
+
+                usageConfigStatusBar.classList.remove('hidden', 'bg-green-100', 'text-green-800', 'bg-yellow-100', 'text-yellow-800');
+
+                if (savedConfigured) {
+                    const platforms = aiService.getPlatforms();
+                    const platformName = platforms[platformSelect.value]?.name || platformSelect.value;
+                    usageConfigStatusBar.innerHTML = `<i class="fa fa-check-circle text-green-600 mr-2"></i>已配置: ${platformName}`;
+                    usageConfigStatusBar.classList.add('bg-green-100', 'text-green-800');
+                } else {
+                    usageConfigStatusBar.innerHTML = '<i class="fa fa-exclamation-triangle text-yellow-600 mr-2"></i>请先配置AI平台';
+                    usageConfigStatusBar.classList.add('bg-yellow-100', 'text-yellow-800');
+                }
+            }
+
+            // 更新使用界面发送按钮状态
+            function updateUsageSubmitButtonState() {
+                const isReady = checkIfConfigured() && usagePromptInput.value && usageModelSelect.value;
+                usageSubmitBtn.disabled = !isReady;
+            }
+
+            // 事件监听器
+            if (openModalBtn) openModalBtn.addEventListener('click', openModal);
+            if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
+            if (usageCancelBtn) usageCancelBtn.addEventListener('click', (e) => { e.preventDefault(); closeModal(); });
+            if (configCancelBtn) configCancelBtn.addEventListener('click', (e) => { e.preventDefault(); cancelConfigAndReturn(); });
+            if (configBackBtn) configBackBtn.addEventListener('click', (e) => { e.preventDefault(); switchToUsageView(); });
+            if (usageSubmitBtn) usageSubmitBtn.addEventListener('click', (e) => { e.preventDefault(); sendAIRequest(); });
+            if (configSaveBtn) configSaveBtn.addEventListener('click', (e) => { e.preventDefault(); saveConfigAndReturn(); showStatus('配置已保存', 'success'); populateSavedPlatformsList(); populateUsagePlatforms(); });
+            if (openConfigViewBtn) openConfigViewBtn.addEventListener('click', (e) => { e.preventDefault(); switchToConfigView(); });
+            if (platformSelect) platformSelect.addEventListener('change', onPlatformChange);
+            if (refreshFavoriteModelsBtn) refreshFavoriteModelsBtn.addEventListener('click', refreshFavoriteModels);
+            if (toggleKeyVisibility) toggleKeyVisibility.addEventListener('click', toggleKeyVisibilityHandler);
+            if (toggleConfigBtn) toggleConfigBtn.addEventListener('click', toggleConfig);
+            if (configHeader) configHeader.addEventListener('click', toggleConfig);
+
+            // verifyApiKey 按钮：根据当前 platform 与 apiKey 做校验，校验成功则刷新模型列表
+            const verifyApiKeyBtn = document.getElementById('verifyApiKeyBtn');
+            if (verifyApiKeyBtn) {
+                verifyApiKeyBtn.addEventListener('click', async () => {
+                    const selectedPlatform = platformSelect.value;
+                    const apiKey = apiKeyInput.value;
+                    if (!selectedPlatform) {
+                        showStatus('请先选择平台以验证密钥', 'error');
+                        return;
+                    }
+                    if (!apiKey) {
+                        showStatus('请先输入 API 密钥', 'error');
+                        return;
+                    }
+
+                    showStatus('正在校验密钥...', 'info');
+                    try {
+                        // 平台特定验证：优先尝试 fetchModels（如支持）；若不支持则使用 verifyConnection
+                        const platformsInfo = aiService.getPlatforms();
+                        const info = platformsInfo[selectedPlatform] || {};
+                        let ok = false;
+
+                        // 若平台有 modelsUrl 或预定义模型，则尝试 fetchModels
+                        const canFetchModels = !!(info.modelsUrl) || Array.isArray(info.predefinedModels);
+                        if (canFetchModels) {
+                            try {
+                                await aiService.fetchModels(selectedPlatform, apiKey, {
+                                    cloudflareAccountId: cloudflareAccountId.value
+                                });
+                                ok = true;
+                            } catch (e) {
+                                ok = false;
+                            }
+                        } else {
+                            // 回退到 verifyConnection（需要先临时配置 aiService）
+                            try {
+                                aiService.configure({
+                                    platform: selectedPlatform,
+                                    model: '',
+                                    apiKey: apiKey,
+                                    azureEndpoint: azureEndpoint.value,
+                                    cloudflareAccountId: cloudflareAccountId.value
+                                });
+                                ok = await aiService.verifyConnection();
+                            } catch (e) {
+                                ok = false;
+                            }
+                        }
+
+                        if (ok) {
+                            showStatus('密钥校验成功，正在刷新模型列表...', 'success');
+                            try {
+                                await aiService.fetchModels(selectedPlatform, apiKey, {
+                                    cloudflareAccountId: cloudflareAccountId.value
+                                });
+                            } catch (e) {
+                                // ignore
+                            }
+                            // 若当前平台未配置常用模型，则显示所有模型（不强行覆盖已保存的）
+                            if (!Array.isArray(favoriteModels[selectedPlatform]) || favoriteModels[selectedPlatform].length === 0) {
+                                favoriteModels[selectedPlatform] = [];
+                            }
+                            updateFavoriteModelsList();
+                            showStatus('模型列表已刷新', 'success');
+                        } else {
+                            showStatus('密钥校验失败，请检查平台与密钥是否正确', 'error');
+                        }
+                    } catch (err) {
+                        showStatus('校验过程中出错: ' + (err.message || err), 'error');
+                    }
+                });
+            }
+
+            // 输入变化时更新状态
+            if (apiKeyInput) apiKeyInput.addEventListener('input', () => {
+                updateConfigStatus();
+            });
+            if (usagePromptInput) usagePromptInput.addEventListener('input', updateUsageSubmitButtonState);
+            if (usageModelSelect) usageModelSelect.addEventListener('change', () => {
+                // 记忆模型选择（按平台维度存储）
+                if (platformSelect && usageModelSelect.value) {
+                    localStorage.setItem(`lastUsedModel_${platformSelect.value}`, usageModelSelect.value);
+                }
+                updateUsageSubmitButtonState();
+            });
+            if (cloudflareAccountId) cloudflareAccountId.addEventListener('input', () => {
+                updateConfigStatus();
+            });
+            if (azureEndpoint) azureEndpoint.addEventListener('input', () => {
+                updateConfigStatus();
+            });
+            if (temperatureInput) temperatureInput.addEventListener('change', saveCurrentPlatformConfig);
+            if (maxTokensInput) maxTokensInput.addEventListener('change', saveCurrentPlatformConfig);
+
+            // 模型搜索
+            if (modelSearchInput) modelSearchInput.addEventListener('input', searchModels);
+
+            // 导出/导入
+            const exportConfigsBtn = document.getElementById('exportConfigsBtn');
+            const importConfigsBtn = document.getElementById('importConfigsBtn');
+            const importFileInput = document.getElementById('importFileInput');
+
+            if (exportConfigsBtn) {
+                exportConfigsBtn.addEventListener('click', () => {
+                    const data = JSON.stringify(allPlatformConfigs || {}, null, 2);
+                    const blob = new Blob([data], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `ai-platform-configs-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    showStatus('配置已导出', 'success');
+                });
+            }
+
+            if (importConfigsBtn && importFileInput) {
+                importConfigsBtn.addEventListener('click', () => importFileInput.click());
+                importFileInput.addEventListener('change', (e) => {
+                    const file = e.target.files && e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        try {
+                            const json = JSON.parse(reader.result);
+                            if (typeof json === 'object' && json) {
+                                allPlatformConfigs = json;
+                                localStorage.setItem('allAIPlatformConfigs', JSON.stringify(allPlatformConfigs));
+                                populateSavedPlatformsList();
+                                populateUsagePlatforms();
+                                showStatus('配置已导入', 'success');
+                            } else {
+                                showStatus('导入失败：文件格式不正确', 'error');
+                            }
+                        } catch (err) {
+                            showStatus('导入失败：' + (err.message || err), 'error');
+                        } finally {
+                            importFileInput.value = '';
+                        }
+                    };
+                    reader.readAsText(file, 'utf-8');
+                });
+            }
+
+            // 点击弹窗背景关闭弹窗
+            if (modal) modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    closeModal();
+                }
+            });
+
+            // 按ESC键关闭弹窗
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
+                    closeModal();
+                }
+            });
+
+            // 额外 DOM 元素（新增控件）
+            const usagePlatformSelect = document.getElementById('usagePlatformSelect');
+            const promptTemplateSelect = document.getElementById('promptTemplateSelect');
+            const promptTemplateConfigBtn = document.getElementById('promptTemplateConfigBtn');
+            const promptTemplateApplyBtn = document.getElementById('promptTemplateApplyBtn');
+            const promptParamsSelect = document.getElementById('promptParamsSelect');
+            const insertParamBtn = document.getElementById('insertParamBtn');
+            const quickConfigBtn = document.getElementById('quickConfigBtn');
+
+            // 扩展 initPlatformSelect：同时填充使用界面的平台下拉
+            const _origInitPlatformSelect = initPlatformSelect;
+            initPlatformSelect = function () {
+                _origInitPlatformSelect();
+                // 复制 platformSelect 的选项到 usagePlatformSelect（如果存在）
+                if (usagePlatformSelect && platformSelect) {
+                    usagePlatformSelect.innerHTML = platformSelect.innerHTML;
+                    // 若 platformSelect 有选中值，同步到 usagePlatformSelect
+                    usagePlatformSelect.value = platformSelect.value || '';
+                }
+            };
+
+            // usagePlatformSelect 改变时，同步到 platformSelect 并触发平台变更逻辑
+            if (usagePlatformSelect) {
+                usagePlatformSelect.addEventListener('change', () => {
+                    if (platformSelect) {
+                        platformSelect.value = usagePlatformSelect.value;
+                        // 保存上次平台选择
+                        if (usagePlatformSelect.value) {
+                            localStorage.setItem('lastUsedPlatform', usagePlatformSelect.value);
+                        }
+                        // 触发已有的处理流程
+                        onPlatformChange();
+                        // 更新使用界面模型下拉
+                        updateUsageModelSelect();
+                    }
+                });
+            }
+
+            // quickConfigBtn：打开配置视图并聚焦到对应平台
+            if (quickConfigBtn) {
+                quickConfigBtn.addEventListener('click', () => {
+                    if (usagePlatformSelect && platformSelect) {
+                        platformSelect.value = usagePlatformSelect.value || platformSelect.value;
+                        loadCurrentPlatformConfig();
+                    }
+                    switchToConfigView();
+                });
+            }
+
+            // promptTemplateConfigBtn：进入模板配置视图
+            if (promptTemplateConfigBtn) {
+                promptTemplateConfigBtn.addEventListener('click', () => {
+                    switchToTemplateConfigView();
+                });
+            }
+
+            // promptTemplateApplyBtn：将选中模板插入输入区域（追加）
+            if (promptTemplateApplyBtn && promptTemplateSelect && usagePromptInput) {
+                promptTemplateApplyBtn.addEventListener('click', () => {
+                    const opt = promptTemplateSelect.options[promptTemplateSelect.selectedIndex];
+                    // 优先使用 option dataset.content，否则使用 option.value 或文本
+                    const tpl = (opt && (opt.dataset?.content || opt.value || opt.text)) || '';
+                    if (!tpl) return;
+                    // 如果输入框已有内容，添加分隔换行
+                    const cur = usagePromptInput.value || '';
+                    usagePromptInput.value = cur ? (cur + "\n\n" + tpl) : tpl;
+                    usagePromptInput.focus();
+                    updateUsageSubmitButtonState();
+                });
+            }
+
+            // insertParamBtn：在光标位置插入参数文本
+            if (insertParamBtn && promptParamsSelect && usagePromptInput) {
+                insertParamBtn.addEventListener('click', () => {
+                    const val = promptParamsSelect.value || (promptParamsSelect.options[promptParamsSelect.selectedIndex]?.value) || '';
+                    if (!val) return;
+                    const textarea = usagePromptInput;
+                    const start = textarea.selectionStart || 0;
+                    const end = textarea.selectionEnd || 0;
+                    const before = textarea.value.substring(0, start);
+                    const after = textarea.value.substring(end);
+                    textarea.value = before + val + after;
+                    // 将光标移到插入后面
+                    const pos = start + val.length;
+                    textarea.selectionStart = textarea.selectionEnd = pos;
+                    textarea.focus();
+                    updateUsageSubmitButtonState();
+                });
+            }
+
+            // 当用户在配置界面保存/切换平台后，确保 usagePlatformSelect 与 usageModelSelect 更新
+            const _origLoadCurrentPlatformConfig = loadCurrentPlatformConfig;
+            loadCurrentPlatformConfig = function () {
+                _origLoadCurrentPlatformConfig();
+                // 将 platformSelect 的值同步到 usagePlatformSelect
+                if (usagePlatformSelect && platformSelect) {
+                    usagePlatformSelect.value = platformSelect.value || '';
+                }
+                // 更新使用界面模型选择
+                updateUsageModelSelect();
+            };
+
+            function populateUsagePlatforms() {
+                if (!usagePlatformSelect) return;
+                usagePlatformSelect.innerHTML = '<option value="">-- 请选择平台 --</option>';
+                const platforms = aiService.getPlatforms();
+                const configuredKeys = [];
+                Object.entries(allPlatformConfigs || {}).forEach(([key, cfg]) => {
+                    const savedConfigured = !!(cfg && cfg.apiKey && cfg.apiKey.trim() !== '' &&
+                        (key !== 'cloudflare' || (cfg.cloudflareAccountId && cfg.cloudflareAccountId.trim() !== '')) &&
+                        (key !== 'azure' || (cfg.azureEndpoint && cfg.azureEndpoint.trim() !== '')));
+                    if (savedConfigured) {
+                        const opt = document.createElement('option');
+                        opt.value = key;
+                        opt.textContent = platforms[key]?.name || key;
+                        usagePlatformSelect.appendChild(opt);
+                        configuredKeys.push(key);
+                    }
+                });
+                // 如果当前 platformSelect 有值且已配置，同步它
+                if (platformSelect && usagePlatformSelect.querySelector(`option[value="${platformSelect.value}"]`)) {
+                    usagePlatformSelect.value = platformSelect.value;
+                }
+            }
+
+            // 在初始化后填充平台下拉（initPlatformSelect 已被覆盖）
+            initPlatformSelect();
+            loadAllConfigsFromStorage();
+            populateUsagePlatforms();
+
+            // 填充左侧已保存平台列表（仅显示已保存的平台）
+            if (typeof populateSavedPlatformsList === 'function') {
+                populateSavedPlatformsList();
+            }
+
+            // 模板数据管理（本地优先，文件为初始导入）
+            const TPL_STORE_KEY = 'promptTemplates';
+            let promptTemplates = [];
+
+            function loadTemplatesFromStorage() {
+                try {
+                    const s = localStorage.getItem(TPL_STORE_KEY);
+                    if (!s) return null;
+                    const arr = JSON.parse(s);
+                    if (Array.isArray(arr)) return arr;
+                } catch (_) { }
+                return null;
+            }
+
+            function saveTemplatesToStorage(arr) {
+                promptTemplates = Array.isArray(arr) ? arr : [];
+                localStorage.setItem(TPL_STORE_KEY, JSON.stringify(promptTemplates));
+            }
+
+            async function ensureTemplatesLoaded() {
+                const fromLocal = loadTemplatesFromStorage();
+                if (fromLocal) {
+                    promptTemplates = fromLocal;
+                    return;
+                }
+                // 初次加载：从文件导入并写入本地
+                try {
+                    const res = await fetch('./prompt-templates.json', { cache: 'no-cache' });
+                    if (!res.ok) throw new Error('加载提示词模板失败: ' + res.status);
+                    const fileTpls = await res.json();
+                    // 确保包含 type 与 caller 字段
+                    promptTemplates = (Array.isArray(fileTpls) ? fileTpls : []).map(t => ({
+                        name: t.name || '',
+                        description: t.description || '',
+                        type: t.type || '',
+                        caller: t.caller || '',
+                        params: Array.isArray(t.params) ? t.params : [],
+                        content: t.content || ''
+                    }));
+                    saveTemplatesToStorage(promptTemplates);
+                } catch (e) {
+                    console.warn('加载初始模板失败:', e);
+                    promptTemplates = [];
+                    saveTemplatesToStorage(promptTemplates);
+                }
+            }
+
+            function populateTemplateSelect() {
+                const tplSelect = document.getElementById('promptTemplateSelect');
+                const paramsSelect = document.getElementById('promptParamsSelect');
+                if (!tplSelect) return;
+                tplSelect.innerHTML = '';
+                const defaultOpt = document.createElement('option');
+                defaultOpt.value = '';
+                defaultOpt.textContent = '无模板';
+                tplSelect.appendChild(defaultOpt);
+
+                promptTemplates.forEach((t, idx) => {
+                    const opt = document.createElement('option');
+                    opt.value = String(idx);
+                    opt.textContent = t.name || (`模板 ${idx + 1}`);
+                    opt.dataset.content = t.content || '';
+                    opt.dataset.params = JSON.stringify(t.params || []);
+                    opt.title = t.description || '';
+                    tplSelect.appendChild(opt);
+                });
+
+                tplSelect.addEventListener('change', () => {
+                    const sel = tplSelect.options[tplSelect.selectedIndex];
+                    const params = sel?.dataset?.params ? JSON.parse(sel.dataset.params) : [];
+                    if (paramsSelect) {
+                        paramsSelect.innerHTML = '';
+                        params.forEach(p => {
+                            const pOpt = document.createElement('option');
+                            if (typeof p === 'string') {
+                                pOpt.value = p;
+                                pOpt.textContent = p;
+                                pOpt.title = '';
+                            } else {
+                                pOpt.value = p.name || '';
+                                pOpt.textContent = p.name || p.value || '';
+                                pOpt.title = p.description || '';
+                            }
+                            paramsSelect.appendChild(pOpt);
+                        });
+                    }
+                });
+
+                tplSelect.dispatchEvent(new Event('change'));
+            }
+
+            // 初始化“应用”界面的模板下拉与“应用”按钮
+            (function initTemplatesUI() {
+                const applyBtn = document.getElementById('promptTemplateApplyBtn');
+                ensureTemplatesLoaded().then(() => {
+                    populateTemplateSelect();
+                });
+
+                if (applyBtn) {
+                    applyBtn.addEventListener('click', () => {
+                        const tplSelect = document.getElementById('promptTemplateSelect');
+                        const sel = tplSelect?.options[tplSelect.selectedIndex];
+                        const tpl = sel?.dataset?.content || sel?.value || '';
+                        if (!tpl) return;
+                        const cur = usagePromptInput.value || '';
+                        usagePromptInput.value = cur ? (cur + "\n\n" + tpl) : tpl;
+                        usagePromptInput.focus();
+                        updateUsageSubmitButtonState();
+                    });
+                }
+            })();
+
+            // 模板配置界面逻辑
+            const templateStatusBar = document.getElementById('templateStatusBar');
+            const templateList = document.getElementById('templateList');
+            const addTemplateBtn = document.getElementById('addTemplateBtn');
+            const exportTemplatesBtn = document.getElementById('exportTemplatesBtn');
+            const importTemplatesBtn = document.getElementById('importTemplatesBtn');
+            const importTemplatesFileInput = document.getElementById('importTemplatesFileInput');
+            const tplNameInput = document.getElementById('tplNameInput');
+            const tplTypeInput = document.getElementById('tplTypeInput');
+            const tplCallerInput = document.getElementById('tplCallerInput');
+            const tplDescInput = document.getElementById('tplDescInput');
+            const tplParamsContainer = document.getElementById('tplParamsContainer');
+            const addTplParamBtn = document.getElementById('addTplParamBtn');
+            const tplContentInput = document.getElementById('tplContentInput');
+            const tplSaveBtn = document.getElementById('tplSaveBtn');
+            const tplBackBtn = document.getElementById('tplBackBtn');
+
+            let editingTplIndex = -1;
+
+            function showTplStatus(msg, type = 'info') {
+                if (!templateStatusBar) return;
+                templateStatusBar.textContent = msg;
+                templateStatusBar.className = 'mb-4 p-3 rounded-md text-sm';
+                const map = {
+                    info: ['bg-blue-100', 'text-blue-800'],
+                    success: ['bg-green-100', 'text-green-800'],
+                    warning: ['bg-yellow-100', 'text-yellow-800'],
+                    error: ['bg-red-100', 'text-red-800'],
+                };
+                templateStatusBar.classList.add(...(map[type] || map.info));
+            }
+
+            function renderTplParams(params) {
+                tplParamsContainer.innerHTML = '';
+                (params || []).forEach((p, i) => addParamRow(typeof p === 'string' ? { name: p, description: '' } : p));
+            }
+
+            function addParamRow(p = { name: '', description: '' }) {
+                const row = document.createElement('div');
+                row.className = 'grid grid-cols-5 gap-2';
+                const name = document.createElement('input');
+                name.className = 'form-control col-span-2';
+                name.placeholder = '参数名';
+                name.value = p.name || '';
+                const desc = document.createElement('input');
+                desc.className = 'form-control col-span-3';
+                desc.placeholder = '参数描述';
+                desc.value = p.description || '';
+                const del = document.createElement('button');
+                del.className = 'btn btn-outline text-[12px] px-2 py-1 mt-2';
+                del.textContent = '删除';
+                del.addEventListener('click', () => row.remove());
+                row.appendChild(name);
+                row.appendChild(desc);
+                row.appendChild(del);
+                tplParamsContainer.appendChild(row);
+            }
+
+            function collectParams() {
+                const rows = Array.from(tplParamsContainer.children);
+                return rows.map(r => {
+                    const inputs = r.querySelectorAll('input');
+                    return { name: inputs[0]?.value?.trim() || '', description: inputs[1]?.value?.trim() || '' };
+                }).filter(p => p.name);
+            }
+
+            function clearTplForm() {
+                editingTplIndex = -1;
+                tplNameInput.value = '';
+                tplTypeInput.value = '';
+                tplCallerInput.value = '';
+                tplDescInput.value = '';
+                tplContentInput.value = '';
+                tplParamsContainer.innerHTML = '';
+            }
+
+            function fillTplForm(t) {
+                tplNameInput.value = t.name || '';
+                tplTypeInput.value = t.type || '';
+                tplCallerInput.value = t.caller || '';
+                tplDescInput.value = t.description || '';
+                tplContentInput.value = t.content || '';
+                renderTplParams(t.params || []);
+            }
+
+            function renderTemplateList() {
+                if (!templateList) return;
+                templateList.innerHTML = '';
+                if (!Array.isArray(promptTemplates) || promptTemplates.length === 0) {
+                    const p = document.createElement('p');
+                    p.className = 'text-sm text-gray-500';
+                    p.textContent = '暂无模板';
+                    templateList.appendChild(p);
+                    return;
+                }
+                promptTemplates.forEach((t, idx) => {
+                    const row = document.createElement('div');
+                    row.className = 'px-2 py-1 rounded-md hover:bg-gray-100 flex justify-between items-center';
+                    const left = document.createElement('div');
+                    left.className = 'flex-1 min-w-0 cursor-pointer';
+                    const span = document.createElement('span');
+                    span.className = 'text-sm truncate';
+                    span.textContent = t.name || `模板 ${idx + 1}`;
+                    left.appendChild(span);
+                    const right = document.createElement('div');
+                    const editBtn = document.createElement('button');
+                    editBtn.className = 'btn btn-outline text-[11px] px-2 py-0.5 mr-2';
+                    editBtn.textContent = '编辑';
+                    const delBtn = document.createElement('button');
+                    delBtn.className = 'btn btn-outline text-[11px] px-2 py-0.5';
+                    delBtn.textContent = '删除';
+
+                    left.addEventListener('click', () => {
+                        editingTplIndex = idx;
+                        fillTplForm(promptTemplates[idx]);
+                    });
+                    editBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        editingTplIndex = idx;
+                        fillTplForm(promptTemplates[idx]);
+                    });
+                    delBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        promptTemplates.splice(idx, 1);
+                        saveTemplatesToStorage(promptTemplates);
+                        renderTemplateList();
+                        populateTemplateSelect();
+                        showTplStatus('已删除模板', 'success');
+                        if (editingTplIndex === idx) clearTplForm();
+                    });
+
+                    right.appendChild(editBtn);
+                    right.appendChild(delBtn);
+                    row.appendChild(left);
+                    row.appendChild(right);
+                    templateList.appendChild(row);
+                });
+            }
+
+            function switchToTemplateConfigView() {
+                aiUsageView.classList.add('hidden');
+                aiConfigView.classList.add('hidden');
+                const v = document.getElementById('templateConfigView');
+                if (v) v.classList.remove('hidden');
+                const usageFooter = document.getElementById('usageViewFooter');
+                if (usageFooter) usageFooter.classList.add('hidden');
+                currentView = 'template';
+                ensureTemplatesLoaded().then(() => {
+                    renderTemplateList();
+                });
+            }
+
+            if (addTplParamBtn) addTplParamBtn.addEventListener('click', () => addParamRow());
+
+            if (tplSaveBtn) tplSaveBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const obj = {
+                    name: tplNameInput.value.trim(),
+                    type: tplTypeInput.value.trim(),
+                    caller: tplCallerInput.value.trim(),
+                    description: tplDescInput.value.trim(),
+                    params: collectParams(),
+                    content: tplContentInput.value
+                };
+                if (!obj.name) {
+                    showTplStatus('请填写模板名称', 'error');
+                    return;
+                }
+                if (editingTplIndex >= 0 && editingTplIndex < promptTemplates.length) {
+                    promptTemplates[editingTplIndex] = obj;
+                } else {
+                    promptTemplates.push(obj);
+                }
+                saveTemplatesToStorage(promptTemplates);
+                renderTemplateList();
+                populateTemplateSelect();
+                showTplStatus('模板已保存', 'success');
+            });
+
+            if (tplBackBtn) tplBackBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                switchToUsageView();
+            });
+
+            if (addTemplateBtn) addTemplateBtn.addEventListener('click', () => {
+                clearTplForm();
+                showTplStatus('已创建新模板草稿，请填写后保存', 'info');
+            });
+
+            if (exportTemplatesBtn) exportTemplatesBtn.addEventListener('click', () => {
+                const data = JSON.stringify(promptTemplates || [], null, 2);
+                const blob = new Blob([data], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `prompt-templates-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showTplStatus('模板已导出', 'success');
+            });
+
+            if (importTemplatesBtn && importTemplatesFileInput) {
+                importTemplatesBtn.addEventListener('click', () => importTemplatesFileInput.click());
+                importTemplatesFileInput.addEventListener('change', (e) => {
+                    const file = e.target.files && e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        try {
+                            const json = JSON.parse(reader.result);
+                            if (Array.isArray(json)) {
+                                // 规范化字段
+                                promptTemplates = json.map(t => ({
+                                    name: t.name || '',
+                                    description: t.description || '',
+                                    type: t.type || '',
+                                    caller: t.caller || '',
+                                    params: Array.isArray(t.params) ? t.params : [],
+                                    content: t.content || ''
+                                }));
+                                saveTemplatesToStorage(promptTemplates);
+                                renderTemplateList();
+                                populateTemplateSelect();
+                                showTplStatus('模板已导入', 'success');
+                            } else {
+                                showTplStatus('导入失败：文件格式不正确（应为数组）', 'error');
+                            }
+                        } catch (err) {
+                            showTplStatus('导入失败：' + (err.message || err), 'error');
+                        } finally {
+                            importTemplatesFileInput.value = '';
+                        }
+                    };
+                    reader.readAsText(file, 'utf-8');
+                });
+            }
+
+            // 新：填充并管理左侧已保存平台列表
+            function loadAllConfigsLocal() {
+                return allPlatformConfigs || {};
+            }
+
+            function populateSavedPlatformsList() {
+                const container = document.getElementById('savedPlatformsList');
+                if (!container) return;
+                container.innerHTML = '';
+
+                const configs = loadAllConfigsLocal();
+                const keys = Object.keys(configs || {});
+                if (keys.length === 0) {
+                    const p = document.createElement('p');
+                    p.className = 'text-sm text-gray-500';
+                    p.textContent = '尚未保存任何平台';
+                    container.appendChild(p);
+                    return;
+                }
+
+                keys.forEach(key => {
+                    const row = document.createElement('div');
+                    row.className = 'px-2 py-1 rounded-md hover:bg-gray-100 flex justify-between items-center';
+                    row.dataset.platformKey = key;
+
+                    const left = document.createElement('div');
+                    left.className = 'flex-1 min-w-0 cursor-pointer';
+                    const displayName = (configs[key] && configs[key].platformName) || (aiService.getPlatforms()[key]?.name) || key;
+                    const span = document.createElement('span');
+                    span.textContent = displayName;
+                    span.className = 'text-sm truncate';
+                    left.appendChild(span);
+
+                    const delBtn = document.createElement('button');
+                    delBtn.className = 'btn btn-outline text-[11px] px-1 py-0.5 ml-2 whitespace-nowrap';
+                    delBtn.title = '删除';
+                    delBtn.textContent = '删除';
+
+                    left.addEventListener('click', () => {
+                        Array.from(container.children).forEach(c => c.classList.remove('bg-primary/10'));
+                        row.classList.add('bg-primary/10');
+                        loadPlatformToConfig(key);
+                    });
+
+                    delBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (!allPlatformConfigs[key]) return;
+                        delete allPlatformConfigs[key];
+                        localStorage.setItem('allAIPlatformConfigs', JSON.stringify(allPlatformConfigs));
+                        if (favoriteModels && favoriteModels[key]) delete favoriteModels[key];
+                        populateSavedPlatformsList();
+                        populateUsagePlatforms();
+                        // 若当前右侧显示的是被删项，清空表单
+                        if (platformSelect.value === key) {
+                            platformSelect.value = '';
+                            apiKeyInput.value = '';
+                            cloudflareAccountId.value = '';
+                            azureEndpoint.value = '';
+                            if (favoriteModelsList) favoriteModelsList.innerHTML = '';
+                            updateConfigStatus();
+                        }
+                        showStatus('已删除平台配置', 'success');
+                    });
+
+                    row.appendChild(left);
+                    row.appendChild(delBtn);
+                    container.appendChild(row);
+                });
+            }
+
+            async function loadPlatformToConfig(key) {
+                if (!key || !allPlatformConfigs[key]) return;
+                const cfg = allPlatformConfigs[key];
+                // 设定 platformSelect 为 key 并加载其配置
+                platformSelect.value = key;
+
+                apiKeyInput.value = cfg.apiKey || '';
+                cloudflareAccountId.value = cfg.cloudflareAccountId || '';
+                azureEndpoint.value = cfg.azureEndpoint || '';
+                temperatureInput.value = cfg.temperature || 0.7;
+                maxTokensInput.value = cfg.maxTokens || 1000;
+
+                // 先确保模型已加载（否则无法回显复选）
+                try {
+                    const info = aiService.getPlatforms()[key] || {};
+                    const needFetch = Array.isArray(aiService.getModels(key)) ? aiService.getModels(key).length === 0 : true;
+                    if (needFetch && cfg.apiKey) {
+                        modelLoadingIndicator.classList.remove('hidden');
+                        const options = {};
+                        if (key === 'cloudflare' && cfg.cloudflareAccountId) options.cloudflareAccountId = cfg.cloudflareAccountId;
+                        await aiService.fetchModels(key, cfg.apiKey, options);
+                    }
+                } catch (e) {
+                    console.warn('加载模型失败（回显仍继续）:', e);
+                } finally {
+                    modelLoadingIndicator.classList.add('hidden');
+                }
+
+                // 加载 favoriteModels 到内存变量并刷新列表
+                if (cfg.favoriteModels) {
+                    favoriteModels[key] = cfg.favoriteModels;
+                } else {
+                    favoriteModels[key] = [];
+                }
+                // 更新界面
+                updateFavoriteModelsList();
+
+                // 展示配置面板并更新状态
+                if (configContent) expandConfig();
+                updateConfigStatus();
+            }
+
+            // 添加 / 删除 平台按钮逻辑
+            const addPlatformBtn = document.getElementById('addPlatformBtn');
+            const removePlatformBtn = document.getElementById('removePlatformBtn');
+
+            if (addPlatformBtn) {
+                addPlatformBtn.addEventListener('click', () => {
+                    // 点击“添加”时：仅在右侧展示空表单供填写（不创建临时数据、不写入 storage）
+                    // 清空右侧表单字段以便用户填写新配置
+                    platformSelect.value = '';
+                    apiKeyInput.value = '';
+                    cloudflareAccountId.value = '';
+                    azureEndpoint.value = '';
+                    temperatureInput.value = 0.7;
+                    maxTokensInput.value = 1000;
+                    // 清空右侧常用模型 UI（不影响已保存数据）
+                    if (favoriteModelsList) favoriteModelsList.innerHTML = '';
+                    if (configContent) expandConfig();
+                    showStatus('请在右侧填写新平台配置，填写完成后点击“保存配置”以创建新项', 'info');
+                });
+            }
+
+            // 顶部删除按钮已移除；删除操作在侧栏每一项的“删除”按钮中实现
+
+            // 在保存配置后刷新侧栏并自动选中当前平台
+            const _origSaveCurrentPlatformConfig = saveCurrentPlatformConfig;
+            saveCurrentPlatformConfig = function () {
+                _origSaveCurrentPlatformConfig();
+
+                // 当前在编辑的 key：优先从 platformSelect 获取（如果为空，尝试从已选侧栏项或临时草稿保持一致）
+                let currentKey = platformSelect.value || null;
+
+                // 如果 platformSelect 为空，但 loadPlatformToConfig 在加载草稿时会把 platformSelect 设置为草稿 key
+                if (!currentKey && typeof document !== 'undefined') {
+                    // 尝试从 savedPlatformsList 中找到带选中样式的项
+                    const container = document.getElementById('savedPlatformsList');
+                    if (container) {
+                        const selected = Array.from(container.children).find(c => c.classList.contains('bg-primary/10'));
+                        if (selected) currentKey = selected.dataset.platformKey;
+                    }
+                }
+
+                // 如果仍没有 key，退出保存扩展逻辑
+                if (!currentKey) {
+                    localStorage.setItem('allAIPlatformConfigs', JSON.stringify(allPlatformConfigs));
+                    return;
+                }
+
+                // 如果是草稿 key（以 custom_ 开头），尝试把草稿迁移为真实 key
+                if (currentKey.startsWith('custom_')) {
+                    // 优先使用用户在 platformSelect 中选择的真实平台作为新 key
+                    const chosenPlatform = platformSelect.value && !platformSelect.value.startsWith('custom_') ? platformSelect.value : null;
+                    let newKey = chosenPlatform;
+
+                    // 若用户未在 platformSelect 选择平台，则尝试使用平台友好名作为 key（去空格与非字母数字）
+                    if (!newKey) {
+                        const draftCfg = allPlatformConfigs[currentKey] || {};
+                        const nameCandidate = (draftCfg.platformName || '').trim();
+                        if (nameCandidate) {
+                            newKey = nameCandidate.replace(/\s+/g, '_').replace(/[^\w\-]/g, '').toLowerCase();
+                        }
+                    }
+
+                    // 如果仍无可用 newKey，则使用时间戳命名但不保留 custom_ 前缀
+                    if (!newKey) {
+                        newKey = `platform_${Date.now()}`;
+                    }
+
+                    // 若 newKey 已存在，追加时间戳以避免覆盖
+                    if (allPlatformConfigs[newKey] && newKey !== currentKey) {
+                        newKey = `${newKey}_${Date.now()}`;
+                    }
+
+                    // 迁移草稿到 newKey
+                    allPlatformConfigs[newKey] = allPlatformConfigs[currentKey];
+                    // 如果用户在保存时选择了真实平台名，记录它
+                    if (platformSelect.value && !platformSelect.value.startsWith('custom_')) {
+                        // 设定平台标识为 newKey（已是 chosenPlatform）
+                    }
+                    // 删除草稿 key
+                    delete allPlatformConfigs[currentKey];
+                    // 更新 currentKey 引用为 newKey
+                    currentKey = newKey;
+                    // 将 platformSelect 设为新的 key（以便后续 UI 同步）
+                    platformSelect.value = currentKey;
+                }
+
+                // 更新友好名称（若存在）
+                if (currentKey && allPlatformConfigs[currentKey]) {
+                    allPlatformConfigs[currentKey].platformName = allPlatformConfigs[currentKey].platformName || (aiService.getPlatforms()[currentKey]?.name) || currentKey;
+                }
+
+                // 写回存储并刷新侧栏（保存后再刷新）
+                localStorage.setItem('allAIPlatformConfigs', JSON.stringify(allPlatformConfigs));
+                populateSavedPlatformsList();
+
+                // 自动选中当前 platform 在侧栏
+                const container = document.getElementById('savedPlatformsList');
+                if (container) {
+                    Array.from(container.children).forEach(c => {
+                        if (c.dataset.platformKey === currentKey) c.classList.add('bg-primary/10');
+                        else c.classList.remove('bg-primary/10');
+                    });
+                }
+            };
+
+            // 提供一个公开方法，允许从外部设置提示词并打开弹窗
+            window.setAIPromptAndOpenModal = function (prompt) {
+                if (modal) modal.dataset.presetPrompt = prompt;
+                openModal();
+            };
+        </script>
+</body>
+
+</html>

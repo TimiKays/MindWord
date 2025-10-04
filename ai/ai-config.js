@@ -61,7 +61,30 @@ export class AIConfigManager {
             console.warn('jQuery未定义，某些UI功能可能受限');
         }
         this.loadConfig();
+
+        // 加载内置提示词模板（从 ai/prompt-templates.json）
+        this.promptTemplates = [];
+        try {
+            // 使用相对路径 fetch JSON 文件（在Electron/本地环境中若无法 fetch，可改为同步导入）
+            fetch('./prompt-templates.json', { cache: 'no-cache' })
+                .then(res => {
+                    if (!res.ok) throw new Error('加载提示词模板失败: ' + res.status);
+                    return res.json();
+                })
+                .then(list => {
+                    if (Array.isArray(list)) {
+                        this.promptTemplates = list;
+                        console.log('提示词模板已加载:', this.promptTemplates);
+                    }
+                })
+                .catch(err => {
+                    console.warn('读取提示词模板失败:', err);
+                });
+        } catch (e) {
+            console.warn('加载提示词模板遇到异常:', e);
+        }
     }
+
 
     /**
      * 加载配置
