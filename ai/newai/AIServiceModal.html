@@ -1774,6 +1774,16 @@
                         missingPlaceholders: [],
                         result
                     });
+                    // 回传给父窗口（供 demo 父页面或调用方转发给子 iframe）
+                    try {
+                        const rid = modal?.dataset?.requestId || null;
+                        window.parent?.postMessage({
+                            type: 'AI_MODAL_RESULT',
+                            requestId: rid,
+                            status: 'success',
+                            detail: { platform: selectedPlatform, model: selectedModel, resolvedText: prompt, result }
+                        }, '*');
+                    } catch (_) { /* noop */ }
 
                     // 滚动到结果区域
                     usageResultContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1786,6 +1796,17 @@
 
                     // 派发错误事件
                     emitEvent('onError', { code: 'SEND_FAILED', message: msg });
+
+                    // 回传失败给父窗口
+                    try {
+                        const rid = modal?.dataset?.requestId || null;
+                        window.parent?.postMessage({
+                            type: 'AI_MODAL_RESULT',
+                            requestId: rid,
+                            status: 'error',
+                            detail: { message: msg }
+                        }, '*');
+                    } catch (_) { /* noop */ }
                 } finally {
                     usageSubmitBtn.disabled = false;
                     usageSubmitBtn.innerHTML = '<i class="fa fa-paper-plane mr-2"></i>发送请求';
@@ -1849,15 +1870,26 @@
 
             // 关闭弹窗
             function closeModal() {
-                // 保存当前配置
-                if (platformSelect.value) {
-                    saveCurrentPlatformConfig();
-                }
+                // 关闭时不进行隐式保存副作用 — 仅在用户确认为保存时调用保存逻辑
+                console.log('[aiModal] closeModal called, requestId=', modal?.dataset?.requestId);
                 // 派发关闭事件
                 emitEvent('onClose', { reason: 'user' });
+                // 隐藏弹窗
                 modal.classList.add('hidden');
                 hideStatus();
                 showUsageStatus('', 'info'); // 清空使用界面状态
+                // 通知父窗口此次为用户取消/关闭（以便父页隐藏顶层 aiFrame 并恢复焦点）
+                try {
+                    const rid = modal?.dataset?.requestId || null;
+                    window.parent?.postMessage({
+                        type: 'AI_MODAL_RESULT',
+                        requestId: rid,
+                        status: 'cancel',
+                        detail: { message: 'user_closed' }
+                    }, '*');
+                } catch (err) {
+                    console.warn('[aiModal] postMessage close failed', err);
+                }
             }
 
             // 切换到AI使用界面
@@ -2240,6 +2272,19 @@
                         updateUsageSubmitButtonState();
                     } catch (e) {
                         const msg = e?.message || String(e);
+                        console.error('[aiModal] preview error:', msg);
+                        // 向父窗口回传预览错误，包含 requestId，便于父页恢复 UI
+                        try {
+                            const rid = modal?.dataset?.requestId || null;
+                            window.parent?.postMessage({
+                                type: 'AI_MODAL_RESULT',
+                                requestId: rid,
+                                status: 'error',
+                                detail: { message: msg, phase: 'preview' }
+                            }, '*');
+                        } catch (err) {
+                            console.warn('[aiModal] postMessage preview error failed', err);
+                        }
                         showUsageStatus('预览失败：' + msg, 'error');
                         usageResultContent.textContent = '预览失败：' + msg;
                         usageResultContainer.classList.remove('hidden');
@@ -3203,9 +3248,8 @@
                 }
             };
 
-            // 新：统一的壳调用接口，允许设置标题与初始面板
             window.openAIServiceModal = function (options = {}) {
-                const { title, initialView, presetPrompt } = options;
+                const { title, initialView, presetPrompt, requestId } = options;
 
                 // 设置标题
                 const titleEl = document.getElementById('modalTitle');
@@ -3222,9 +3266,26 @@
                 if (typeof presetPrompt === 'string') {
                     modal.dataset.presetPrompt = presetPrompt;
                 }
+                if (typeof requestId === 'string' && requestId) {
+                    modal.dataset.requestId = requestId;
+                } else {
+                    delete modal.dataset.requestId;
+                }
 
-                if (window.AIServiceModalAutoOpen === true) openModal();
+                openModal();
             };
+
+            // 监听父页面转发的打开请求（来自 demo 父页面）
+            window.addEventListener('message', (e) => {
+                try {
+                    const msg = e?.data;
+                    if (!msg || typeof msg !== 'object') return;
+                    if (msg.type === 'AI_MODAL_OPEN' && msg.payload) {
+                        const { title, initialView, presetPrompt, requestId } = msg.payload;
+                        window.openAIServiceModal({ title, initialView, presetPrompt, requestId });
+                    }
+                } catch (_) { /* noop */ }
+            }, false);
         </script>
 </body>
 
