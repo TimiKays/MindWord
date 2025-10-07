@@ -33,7 +33,7 @@
                 @apply fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center p-4;
             }
             .modal-container {
-                @apply bg-white rounded-lg shadow-2xl w-full max-w-4xl h-[85vh] flex flex-col;
+                @apply bg-white rounded-lg shadow-2xl w-full max-w-4xl h-[65vh] flex flex-col;
             }
             .modal-header {
                 @apply px-6 py-4 border-b flex justify-between items-center;
@@ -104,7 +104,7 @@
         <div class="modal-container">
             <!-- 弹窗头部 -->
             <div class="modal-header">
-                <h3 class="text-xl font-bold text-neutral">AI服务调用工具</h3>
+                <h3 id="modalTitle" class="text-xl font-bold text-neutral">AI服务调用工具</h3>
                 <button id="closeModalBtn" class="text-gray-500 hover:text-gray-700">
                     <i class="fa fa-times text-xl"></i>
                 </button>
@@ -115,7 +115,7 @@
                 <form id="aiServiceForm">
                     <!-- AI使用界面 -->
                     <div id="aiUsageView" class="view-container">
-                        <div id="usageConfigStatusBar" class="mb-2 p-3 rounded-md text-sm">
+                        <div id="usageConfigStatusBar" class="mb-2 p-3 rounded-md text-sm hidden">
                             <!-- 配置状态将动态更新 -->
                         </div>
                         <!-- 使用态状态提示条：始终保留，在操作时显示提示/成功/失败 -->
@@ -163,6 +163,8 @@
                                             class="btn btn-outline ml-2 inline-flex whitespace-nowrap items-center">配置</button>
                                         <button type="button" id="promptTemplateApplyBtn"
                                             class="btn btn-primary ml-2 inline-flex whitespace-nowrap items-center">应用</button>
+                                        <button type="button" id="promptTemplatePreviewBtn"
+                                            class="btn btn-secondary ml-2 inline-flex whitespace-nowrap items-center">预览</button>
                                     </div>
                                 </div>
 
@@ -185,6 +187,13 @@
                             <!-- 输入区域 -->
                             <div class="col-span-7">
                                 <label class="form-label" for="usagePromptInput">输入</label>
+                                <div class="flex justify-end items-center gap-2 text-xs text-gray-600 mt-1">
+                                    <label class="inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="toggleTemplateViewChk" class="mr-1">
+                                        查看模板
+                                    </label>
+                                    <span>显示：<span id="promptViewModeText">实际值</span></span>
+                                </div>
                                 <textarea id="usagePromptInput" class="form-control h-52" placeholder="请输入提示词..."
                                     required></textarea>
 
@@ -350,8 +359,8 @@
                                         <!-- 底部操作 -->
                                         <div class="flex justify-end gap-3 mt-4">
 
-                                            <button id="configBackBtn" class="btn btn-outline">返回</button>
-                                            <button id="configSaveBtn" class="btn btn-primary">
+                                            <button id="configBackBtn" type="button" class="btn btn-outline">返回</button>
+                                            <button id="configSaveBtn" type="button" class="btn btn-primary">
                                                 <i class="fa fa-save mr-2"></i>保存配置
                                             </button>
                                         </div>
@@ -372,23 +381,23 @@
                                 <div class="mb-2">
                                     <div class="flex items-center gap-2">
                                         <button id="addTemplateBtn" type="button"
-                                            class="btn btn-outline text-[12px] px-1 py-0.5">新增</button>
+                                            class="btn btn-outline text-[12px] px-1 py-0.5 whitespace-nowrap">新增</button>
                                         <button id="exportTemplatesBtn" type="button"
-                                            class="btn btn-outline text-[12px] px-1 py-0.5">导出</button>
+                                            class="btn btn-outline text-[12px] px-1 py-0.5 whitespace-nowrap">导出</button>
                                         <button id="importTemplatesBtn" type="button"
-                                            class="btn btn-outline text-[12px] px-1 py-0.5">导入</button>
+                                            class="btn btn-outline text-[12px] px-1 py-0.5 whitespace-nowrap">导入</button>
                                         <input id="importTemplatesFileInput" type="file" accept="application/json"
                                             class="hidden" />
                                     </div>
                                 </div>
                                 <div id="templateList" class="flex flex-col gap-1 max-h-[60vh] overflow-y-auto"></div>
                             </div>
-                            <div class="col-span-9">
+                            <div class="col-span-9 h-full overflow-y-auto">
                                 <div class="config-section">
                                     <div class="config-header">
                                         <h4 class="font-semibold text-lg">模板编辑</h4>
                                     </div>
-                                    <div class="collapsible-content">
+                                    <div class="collapsible-content max-h-[65vh] overflow-y-auto">
                                         <div class="grid grid-cols-2 gap-4">
                                             <div>
                                                 <label class="form-label" for="tplNameInput">名称</label>
@@ -422,35 +431,21 @@
                                             <textarea id="tplContentInput" class="form-control h-48"
                                                 placeholder="模板正文，支持占位符"></textarea>
                                         </div>
+                                        <!-- 底部固定按钮已移动至 modal-footer 的 templateViewFooter -->
                                         <div class="flex justify-end gap-3 mt-4">
-                                            <button id="tplBackBtn" class="btn btn-outline">返回</button>
-                                            <button id="tplSaveBtn" class="btn btn-primary"><i
+                                            <button id="tplBackBtn" type="button" class="btn btn-outline">返回</button>
+                                            <button id="tplSaveBtn" type="button" class="btn btn-primary"><i
                                                     class="fa fa-save mr-2"></i>保存模板</button>
                                         </div>
+
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- 弹窗底部 -->
-                    <div class="modal-footer">
-                        <!-- AI使用界面的底部按钮 -->
-                        <div id="usageViewFooter">
-                            <button id="usageCancelBtn" class="btn btn-secondary">取消</button>
-                            <button id="usageSubmitBtnFooter" type="button" class="btn btn-primary" disabled>
-                                <i class="fa fa-paper-plane mr-2"></i>发送请求
-                            </button>
-                        </div>
-
-                        <!-- AI配置界面的底部按钮 -->
-                        <!-- <div id="configViewFooter" class="hidden">
-                            <button id="configCancelBtn" class="btn btn-secondary">取消</button>
-                            <button id="configSaveBtn" class="btn btn-primary">
-                                <i class="fa fa-save mr-2"></i>保存配置
-                            </button>
-                        </div> -->
-                    </div>
+                    <!-- 弹窗底部（移除固定底部，改为由各面板自带操作区） -->
+                    <div class="modal-footer hidden"></div>
             </div>
         </div>
 
@@ -843,11 +838,15 @@
                 }
 
                 async _callGoogle(prompt, temperature, maxTokens) {
-                    const url = `${this.platforms.google.baseUrl}/models/${this.config.selectedModel}:generateContent?key=${this.config.apiKey}`;
+                    // 兼容模型名是否带有 "models/" 前缀，避免重复拼接
+                    const modelPath = this.config.selectedModel?.startsWith('models/')
+                        ? this.config.selectedModel
+                        : `models/${this.config.selectedModel}`;
+                    const url = `${this.platforms.google.baseUrl}/${modelPath}:generateContent?key=${this.config.apiKey}`;
 
                     const contents = Array.isArray(prompt)
                         ? prompt.map(msg => ({
-                            role: msg.role === 'assistant' ? 'model' : msg.role,
+                            role: msg.role === 'assistant' ? 'model' : 'user',
                             parts: [{ text: msg.content }]
                         }))
                         : [{
@@ -1035,10 +1034,41 @@
             // 创建AI服务实例
             const aiService = new AIPlatformService();
 
+            // 统一事件派发与状态接口
+            function emitEvent(name, detail = {}) {
+                try {
+                    window.dispatchEvent(new CustomEvent('AIServiceModal:' + name, { detail }));
+                } catch (_) { /* noop */ }
+            }
+            let isDirty = false;
+            function setDirty(v) {
+                if (isDirty !== v) {
+                    isDirty = v;
+                    emitEvent('onDirtyChange', { dirty: v });
+                }
+            }
+            window.getAIServiceModalState = function () {
+                return {
+                    currentView,
+                    configured: typeof checkIfConfigured === 'function' ? checkIfConfigured() : false,
+                    isDirty
+                };
+            };
+            window.setAIServiceModalView = function (view) {
+                if (view === 'config') switchToConfigView();
+                else if (view === 'template') switchToTemplateConfigView();
+                else switchToUsageView();
+            };
+
             // DOM元素引用
             const modal = document.getElementById('aiServiceModal');
             const openModalBtn = document.getElementById('openAIModalBtn');
             const closeModalBtn = document.getElementById('closeModalBtn');
+
+            // 作为组件时默认不显示“打开AI工具”按钮；需要时由外部设置 window.AIServiceModalShowTrigger = true
+            if (openModalBtn && !window.AIServiceModalShowTrigger) {
+                openModalBtn.classList.add('hidden');
+            }
 
             // 视图容器
             const aiUsageView = document.getElementById('aiUsageView');
@@ -1319,6 +1349,13 @@
 
                 // 更新快速切换按钮状态
                 updateQuickModelSwitchButton();
+
+                // 若在使用界面，刷新模型下拉
+                if (typeof updateUsageModelSelect === 'function') {
+                    if (window.currentView === 'usage' || currentView === 'usage') {
+                        updateUsageModelSelect();
+                    }
+                }
             }
 
             // 刷新常用模型列表
@@ -1530,6 +1567,13 @@
                         statusIndicator.classList.add('bg-red-100', 'text-red-800');
                         break;
                 }
+                // 非常驻：除 info 外，3秒后自动恢复默认引导
+                if (type !== 'info') {
+                    if (window._cfgStatusTimer) clearTimeout(window._cfgStatusTimer);
+                    window._cfgStatusTimer = setTimeout(() => {
+                        hideStatus();
+                    }, 3000);
+                }
             }
 
             // 隐藏状态信息
@@ -1712,6 +1756,25 @@
                     usageResultContent.textContent = result;
                     usageResultContainer.classList.remove('hidden');
 
+                    // 派发提交事件
+                    emitEvent('onSubmit', {
+                        platformConfig: {
+                            provider: selectedPlatform,
+                            apiKey,
+                            azureEndpoint: azureEndpoint.value,
+                            cloudflareAccountId: cloudflareAccountId.value
+                        },
+                        modelConfig: {
+                            model: selectedModel,
+                            temperature,
+                            max_tokens: maxTokens
+                        },
+                        resolvedText: prompt,
+                        usedPlaceholders: [],
+                        missingPlaceholders: [],
+                        result
+                    });
+
                     // 滚动到结果区域
                     usageResultContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 } catch (error) {
@@ -1720,6 +1783,9 @@
                     showUsageStatus(`请求失败: ${msg}`, 'error');
                     usageResultContent.textContent = `错误：${msg}`;
                     usageResultContainer.classList.remove('hidden');
+
+                    // 派发错误事件
+                    emitEvent('onError', { code: 'SEND_FAILED', message: msg });
                 } finally {
                     usageSubmitBtn.disabled = false;
                     usageSubmitBtn.innerHTML = '<i class="fa fa-paper-plane mr-2"></i>发送请求';
@@ -1750,21 +1816,35 @@
                         bar.classList.add('bg-red-100', 'text-red-800');
                         break;
                 }
+                // 非常驻：显示后3秒自动隐藏
+                bar.classList.remove('hidden');
+                if (window._usageStatusTimer) clearTimeout(window._usageStatusTimer);
+                window._usageStatusTimer = setTimeout(() => {
+                    bar.classList.add('hidden');
+                    bar.textContent = '';
+                }, 3000);
             }
 
             // 打开弹窗
             function openModal() {
                 modal.classList.remove('hidden');
-                // 如果有预设的提示词，填充它
+
+                // 读取预设提示词
                 const presetPrompt = modal.dataset.presetPrompt;
                 if (presetPrompt) {
                     usagePromptInput.value = presetPrompt;
-                    // 清除预设，避免下次打开还显示
                     delete modal.dataset.presetPrompt;
                 }
 
-                // 默认显示使用界面
-                switchToUsageView();
+                // 读取初始视图：usage/config/template
+                const initialView = modal.dataset.initialView || 'usage';
+                if (initialView === 'config') {
+                    switchToConfigView();
+                } else if (initialView === 'template') {
+                    switchToTemplateConfigView();
+                } else {
+                    switchToUsageView();
+                }
             }
 
             // 关闭弹窗
@@ -1773,6 +1853,8 @@
                 if (platformSelect.value) {
                     saveCurrentPlatformConfig();
                 }
+                // 派发关闭事件
+                emitEvent('onClose', { reason: 'user' });
                 modal.classList.add('hidden');
                 hideStatus();
                 showUsageStatus('', 'info'); // 清空使用界面状态
@@ -1782,8 +1864,16 @@
             function switchToUsageView() {
                 aiUsageView.classList.remove('hidden');
                 aiConfigView.classList.add('hidden');
-                document.getElementById('usageViewFooter').classList.remove('hidden');
-                document.getElementById('configViewFooter').classList.add('hidden');
+                // 同时隐藏模板配置视图，避免串屏
+                const tplView = document.getElementById('templateConfigView');
+                if (tplView) tplView.classList.add('hidden');
+                // 设置弹窗高度（使用界面较低）
+                const modalContainer = document.querySelector('.modal-container');
+                if (modalContainer) modalContainer.style.height = '65vh';
+                // 弹窗主体不滚动
+                const modalBodyEl = document.querySelector('.modal-body');
+                if (modalBodyEl) modalBodyEl.style.overflowY = 'hidden';
+
                 currentView = 'usage';
 
                 // 更新使用界面的模型选择
@@ -1797,14 +1887,31 @@
             function switchToConfigView() {
                 aiUsageView.classList.add('hidden');
                 aiConfigView.classList.remove('hidden');
-                const usageFooter = document.getElementById('usageViewFooter');
-                if (usageFooter) usageFooter.classList.add('hidden');
-                const configFooter = document.getElementById('configViewFooter');
-                if (configFooter) configFooter.classList.remove('hidden');
+                // 同时隐藏模板配置视图，避免串屏
+                const tplView = document.getElementById('templateConfigView');
+                if (tplView) tplView.classList.add('hidden');
+                // 设置弹窗高度（配置界面更高）
+                const modalContainer = document.querySelector('.modal-container');
+                if (modalContainer) modalContainer.style.height = '90vh';
+                // 弹窗主体内部滚动，底部按钮固定可见
+                const modalBodyEl = document.querySelector('.modal-body');
+                if (modalBodyEl) modalBodyEl.style.overflowY = 'auto';
+
                 currentView = 'config';
 
                 // 更新配置状态
                 updateConfigStatus();
+                // 初次进入：高亮并回显第一个已保存平台
+                (function () {
+                    const container = document.getElementById('savedPlatformsList');
+                    if (!container) return;
+                    const first = Array.from(container.children).find(c => c.dataset && c.dataset.platformKey);
+                    if (first) {
+                        Array.from(container.children).forEach(c => c.classList.remove('bg-primary/10'));
+                        first.classList.add('bg-primary/10');
+                        loadPlatformToConfig(first.dataset.platformKey);
+                    }
+                })();
             }
 
             // 更新使用界面的模型选择
@@ -1891,6 +1998,12 @@
                     usageConfigStatusBar.innerHTML = '<i class="fa fa-exclamation-triangle text-yellow-600 mr-2"></i>请先配置AI平台';
                     usageConfigStatusBar.classList.add('bg-yellow-100', 'text-yellow-800');
                 }
+                // 非常驻：显示3秒后自动隐藏
+                usageConfigStatusBar.classList.remove('hidden');
+                if (window._usageCfgBarTimer) clearTimeout(window._usageCfgBarTimer);
+                window._usageCfgBarTimer = setTimeout(() => {
+                    usageConfigStatusBar.classList.add('hidden');
+                }, 3000);
             }
 
             // 更新使用界面发送按钮状态
@@ -1906,7 +2019,7 @@
             if (configCancelBtn) configCancelBtn.addEventListener('click', (e) => { e.preventDefault(); cancelConfigAndReturn(); });
             if (configBackBtn) configBackBtn.addEventListener('click', (e) => { e.preventDefault(); switchToUsageView(); });
             if (usageSubmitBtn) usageSubmitBtn.addEventListener('click', (e) => { e.preventDefault(); sendAIRequest(); });
-            if (configSaveBtn) configSaveBtn.addEventListener('click', (e) => { e.preventDefault(); saveConfigAndReturn(); showStatus('配置已保存', 'success'); populateSavedPlatformsList(); populateUsagePlatforms(); });
+            if (configSaveBtn) configSaveBtn.addEventListener('click', (e) => { e.preventDefault(); saveConfigAndReturn(); showStatus('配置已保存', 'success'); populateSavedPlatformsList(); populateUsagePlatforms(); updateUsageModelSelect(); });
             if (openConfigViewBtn) openConfigViewBtn.addEventListener('click', (e) => { e.preventDefault(); switchToConfigView(); });
             if (platformSelect) platformSelect.addEventListener('change', onPlatformChange);
             if (refreshFavoriteModelsBtn) refreshFavoriteModelsBtn.addEventListener('click', refreshFavoriteModels);
@@ -2083,6 +2196,108 @@
             const insertParamBtn = document.getElementById('insertParamBtn');
             const quickConfigBtn = document.getElementById('quickConfigBtn');
 
+            // 预览按钮：解析占位符并在右侧输出区域展示预览
+            (function attachTemplatePreviewHandler() {
+                const previewBtn = document.getElementById('promptTemplatePreviewBtn');
+                if (!previewBtn) return;
+                previewBtn.addEventListener('click', () => {
+                    try {
+                        const sel = promptTemplateSelect?.options[promptTemplateSelect.selectedIndex];
+                        const tpl = sel?.dataset?.content || sel?.value || '';
+                        if (!tpl) {
+                            showUsageStatus('请选择一个模板以预览', 'warning');
+                            return;
+                        }
+                        // 获取参数定义
+                        const params = sel?.dataset?.params ? JSON.parse(sel.dataset.params) : [];
+                        const placeholders = {};
+                        const chosenKey = (promptParamsSelect?.value || '').trim();
+
+                        if (Array.isArray(params)) {
+                            params.forEach(p => {
+                                const key = typeof p === 'string' ? p : (p?.name || '');
+                                if (!key) return;
+                                // 将当前选择的参数名用其自身作为示例值，其它占位符使用空串（并在缺失策略下保留原样）
+                                placeholders[key] = (key === chosenKey && chosenKey) ? chosenKey : '';
+                            });
+                        }
+
+                        const { resolvedText } = resolveTemplatePlaceholders(
+                            tpl,
+                            placeholders,
+                            '{{name}}',
+                            { missingPolicy: 'keep' } // 未提供值的占位符保留原样，便于用户确认
+                        );
+
+                        // 预览直接写回输入框（稳定换行处理：CRLF/CR 统一为 LF）
+                        usagePromptInput.value = String(resolvedText || '').split(/\r?\n/).join("\n");
+                        // 同步显示模式为“实际值”
+                        const modeText = document.getElementById('promptViewModeText');
+                        const toggleChk = document.getElementById('toggleTemplateViewChk');
+                        if (modeText) modeText.textContent = '实际值';
+                        if (toggleChk) toggleChk.checked = false;
+                        showUsageStatus('已生成预览（输入框）', 'info');
+                        updateUsageSubmitButtonState();
+                    } catch (e) {
+                        const msg = e?.message || String(e);
+                        showUsageStatus('预览失败：' + msg, 'error');
+                        usageResultContent.textContent = '预览失败：' + msg;
+                        usageResultContainer.classList.remove('hidden');
+                    }
+                });
+            })();
+
+            // 输入框视图切换：模板/实际值
+            (function attachPromptViewToggle() {
+                const toggleChk = document.getElementById('toggleTemplateViewChk');
+                const modeText = document.getElementById('promptViewModeText');
+
+                function computeResolvedFromSelection() {
+                    const sel = promptTemplateSelect?.options[promptTemplateSelect.selectedIndex];
+                    const tpl = sel?.dataset?.content || sel?.value || '';
+                    if (!tpl) return '';
+                    const params = sel?.dataset?.params ? JSON.parse(sel.dataset.params) : [];
+                    const placeholders = {};
+                    const chosenKey = (promptParamsSelect?.value || '').trim();
+                    if (Array.isArray(params)) {
+                        params.forEach(p => {
+                            const key = typeof p === 'string' ? p : (p?.name || '');
+                            if (!key) return;
+                            placeholders[key] = (key === chosenKey && chosenKey) ? chosenKey : '';
+                        });
+                    }
+                    const { resolvedText } = resolveTemplatePlaceholders(
+                        tpl,
+                        placeholders,
+                        '{{name}}',
+                        { missingPolicy: 'keep' }
+                    );
+                    return String(resolvedText || '');
+                }
+
+                function computeTemplateFromSelection() {
+                    const sel = promptTemplateSelect?.options[promptTemplateSelect.selectedIndex];
+                    return (sel?.dataset?.content || sel?.value || '') || '';
+                }
+
+                function applyView() {
+                    const isTemplate = !!(toggleChk && toggleChk.checked);
+                    const text = isTemplate ? computeTemplateFromSelection() : computeResolvedFromSelection();
+                    usagePromptInput.value = String(text).replace(/\r\n/g, "\n");
+                    if (modeText) modeText.textContent = isTemplate ? '模板' : '实际值';
+                    updateUsageSubmitButtonState();
+                }
+
+                // 开关切换
+                if (toggleChk) toggleChk.addEventListener('change', applyView);
+                // 模板或参数选择变化时，自动刷新输入框展示
+                if (promptTemplateSelect) promptTemplateSelect.addEventListener('change', applyView);
+                if (promptParamsSelect) promptParamsSelect.addEventListener('change', applyView);
+
+                // 初始化一次（默认实际值）
+                applyView();
+            })();
+
             // 扩展 initPlatformSelect：同时填充使用界面的平台下拉
             const _origInitPlatformSelect = initPlatformSelect;
             initPlatformSelect = function () {
@@ -2204,6 +2419,20 @@
             loadAllConfigsFromStorage();
             populateUsagePlatforms();
 
+            // 统一脏状态监听（配置、模板与使用输入）
+            (function attachDirtyListeners() {
+                const ids = [
+                    'apiKeyInput', 'cloudflareAccountId', 'azureEndpoint',
+                    'temperatureInput', 'maxTokensInput',
+                    'tplNameInput', 'tplTypeInput', 'tplCallerInput', 'tplDescInput', 'tplContentInput',
+                    'usagePromptInput'
+                ];
+                ids.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.addEventListener('input', () => setDirty(true));
+                });
+            })();
+
             // 填充左侧已保存平台列表（仅显示已保存的平台）
             if (typeof populateSavedPlatformsList === 'function') {
                 populateSavedPlatformsList();
@@ -2229,17 +2458,19 @@
             }
 
             async function ensureTemplatesLoaded() {
+                // 1) 优先本地存储
                 const fromLocal = loadTemplatesFromStorage();
-                if (fromLocal) {
+                if (fromLocal && Array.isArray(fromLocal)) {
                     promptTemplates = fromLocal;
                     return;
                 }
-                // 初次加载：从文件导入并写入本地
+
+                // 2) 再读同目录 JSON
+                let loaded = false;
                 try {
                     const res = await fetch('./prompt-templates.json', { cache: 'no-cache' });
                     if (!res.ok) throw new Error('加载提示词模板失败: ' + res.status);
                     const fileTpls = await res.json();
-                    // 确保包含 type 与 caller 字段
                     promptTemplates = (Array.isArray(fileTpls) ? fileTpls : []).map(t => ({
                         name: t.name || '',
                         description: t.description || '',
@@ -2249,9 +2480,21 @@
                         content: t.content || ''
                     }));
                     saveTemplatesToStorage(promptTemplates);
+                    loaded = true;
                 } catch (e) {
-                    console.warn('加载初始模板失败:', e);
-                    promptTemplates = [];
+                    console.warn('加载初始模板失败（可能是直接 file:// 打开导致 fetch 受限）:', e);
+                }
+
+                // 3) 兜底：提供一个“默认模板”
+                if (!loaded || !Array.isArray(promptTemplates) || promptTemplates.length === 0) {
+                    promptTemplates = [{
+                        name: '默认模板',
+                        description: '基础提示词模板（兜底）',
+                        type: '默认',
+                        caller: 'AI应用',
+                        params: ['name'],
+                        content: '你是一个MindWord产品中的AI助手，请根据用户的需求，提供相应的帮助。当前节点：{{name}}'
+                    }];
                     saveTemplatesToStorage(promptTemplates);
                 }
             }
@@ -2263,7 +2506,7 @@
                 tplSelect.innerHTML = '';
                 const defaultOpt = document.createElement('option');
                 defaultOpt.value = '';
-                defaultOpt.textContent = '无模板';
+                defaultOpt.textContent = '默认模板';
                 tplSelect.appendChild(defaultOpt);
 
                 promptTemplates.forEach((t, idx) => {
@@ -2319,6 +2562,10 @@
                         updateUsageSubmitButtonState();
                     });
                 }
+
+                // 移除使用界面底部按钮（避免重复发送按钮）
+                const usageFooter = document.getElementById('usageViewFooter');
+                if (usageFooter) usageFooter.remove();
             })();
 
             // 模板配置界面逻辑
@@ -2337,6 +2584,12 @@
             const tplContentInput = document.getElementById('tplContentInput');
             const tplSaveBtn = document.getElementById('tplSaveBtn');
             const tplBackBtn = document.getElementById('tplBackBtn');
+            if (tplBackBtn) {
+                tplBackBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    switchToUsageView();
+                });
+            }
 
             let editingTplIndex = -1;
 
@@ -2360,17 +2613,26 @@
 
             function addParamRow(p = { name: '', description: '' }) {
                 const row = document.createElement('div');
-                row.className = 'grid grid-cols-5 gap-2';
+                row.className = 'flex items-start gap-2';
                 const name = document.createElement('input');
-                name.className = 'form-control col-span-2';
+                name.className = 'form-control w-28';
                 name.placeholder = '参数名';
                 name.value = p.name || '';
-                const desc = document.createElement('input');
-                desc.className = 'form-control col-span-3';
+                const desc = document.createElement('textarea');
+                desc.className = 'form-control min-h-[40px] max-h-[72px] resize-none overflow-y-auto';
                 desc.placeholder = '参数描述';
                 desc.value = p.description || '';
+                // 自适应高度，最多三行
+                const autoResize = () => {
+                    desc.style.height = 'auto';
+                    const maxH = 72; // px，约三行
+                    const needed = desc.scrollHeight;
+                    desc.style.height = Math.min(needed, maxH) + 'px';
+                };
+                desc.addEventListener('input', autoResize);
+                setTimeout(autoResize, 0);
                 const del = document.createElement('button');
-                del.className = 'btn btn-outline text-[12px] px-2 py-1 mt-2';
+                del.className = 'btn btn-outline text-[12px] px-2 py-1 whitespace-nowrap';
                 del.textContent = '删除';
                 del.addEventListener('click', () => row.remove());
                 row.appendChild(name);
@@ -2382,8 +2644,12 @@
             function collectParams() {
                 const rows = Array.from(tplParamsContainer.children);
                 return rows.map(r => {
-                    const inputs = r.querySelectorAll('input');
-                    return { name: inputs[0]?.value?.trim() || '', description: inputs[1]?.value?.trim() || '' };
+                    const nameInput = r.querySelector('input');
+                    const descArea = r.querySelector('textarea');
+                    return {
+                        name: nameInput?.value?.trim() || '',
+                        description: descArea?.value?.trim() || ''
+                    };
                 }).filter(p => p.name);
             }
 
@@ -2420,28 +2686,24 @@
                     const row = document.createElement('div');
                     row.className = 'px-2 py-1 rounded-md hover:bg-gray-100 flex justify-between items-center';
                     const left = document.createElement('div');
-                    left.className = 'flex-1 min-w-0 cursor-pointer';
+                    left.className = 'flex-1 min-w-0';
                     const span = document.createElement('span');
-                    span.className = 'text-sm truncate';
+                    span.className = 'text-sm truncate cursor-pointer';
                     span.textContent = t.name || `模板 ${idx + 1}`;
                     left.appendChild(span);
                     const right = document.createElement('div');
-                    const editBtn = document.createElement('button');
-                    editBtn.className = 'btn btn-outline text-[11px] px-2 py-0.5 mr-2';
-                    editBtn.textContent = '编辑';
                     const delBtn = document.createElement('button');
                     delBtn.className = 'btn btn-outline text-[11px] px-2 py-0.5';
                     delBtn.textContent = '删除';
 
-                    left.addEventListener('click', () => {
+                    // 点击整条 row 进行选中与回显，确保高亮区域与点击区域一致
+                    row.addEventListener('click', () => {
+                        Array.from(templateList.children).forEach(c => c.classList.remove('bg-primary/10'));
+                        row.classList.add('bg-primary/10');
                         editingTplIndex = idx;
                         fillTplForm(promptTemplates[idx]);
                     });
-                    editBtn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        editingTplIndex = idx;
-                        fillTplForm(promptTemplates[idx]);
-                    });
+
                     delBtn.addEventListener('click', (e) => {
                         e.stopPropagation();
                         promptTemplates.splice(idx, 1);
@@ -2452,7 +2714,11 @@
                         if (editingTplIndex === idx) clearTplForm();
                     });
 
-                    right.appendChild(editBtn);
+                    // 默认高亮当前编辑项
+                    if (idx === editingTplIndex) {
+                        row.classList.add('bg-primary/10');
+                    }
+
                     right.appendChild(delBtn);
                     row.appendChild(left);
                     row.appendChild(right);
@@ -2465,11 +2731,23 @@
                 aiConfigView.classList.add('hidden');
                 const v = document.getElementById('templateConfigView');
                 if (v) v.classList.remove('hidden');
-                const usageFooter = document.getElementById('usageViewFooter');
-                if (usageFooter) usageFooter.classList.add('hidden');
+                // 设置弹窗高度（模板配置界面更高）
+                const modalContainer = document.querySelector('.modal-container');
+                if (modalContainer) modalContainer.style.height = '90vh';
+                // 弹窗主体内部滚动，底部按钮固定可见
+                const modalBodyEl = document.querySelector('.modal-body');
+                if (modalBodyEl) modalBodyEl.style.overflowY = 'auto';
+
                 currentView = 'template';
                 ensureTemplatesLoaded().then(() => {
                     renderTemplateList();
+                    // 默认选中第一个并右侧回显
+                    if (Array.isArray(promptTemplates) && promptTemplates.length > 0) {
+                        editingTplIndex = 0;
+                        fillTplForm(promptTemplates[0]);
+                    } else {
+                        clearTplForm();
+                    }
                 });
             }
 
@@ -2489,21 +2767,32 @@
                     showTplStatus('请填写模板名称', 'error');
                     return;
                 }
+                // 校验名称不能重复（除当前编辑项外）
+                const existsIndex = (promptTemplates || []).findIndex((t, i) => (t.name || '') === obj.name && i !== editingTplIndex);
+                if (existsIndex !== -1) {
+                    showTplStatus('名称重复，请更换', 'error');
+                    return;
+                }
                 if (editingTplIndex >= 0 && editingTplIndex < promptTemplates.length) {
                     promptTemplates[editingTplIndex] = obj;
                 } else {
                     promptTemplates.push(obj);
+                    editingTplIndex = promptTemplates.length - 1;
                 }
                 saveTemplatesToStorage(promptTemplates);
                 renderTemplateList();
                 populateTemplateSelect();
                 showTplStatus('模板已保存', 'success');
+                // 清除脏状态并派发保存事件
+                setDirty(false);
+                emitEvent('save', { scope: 'templates', data: obj });
             });
 
-            if (tplBackBtn) tplBackBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                switchToUsageView();
-            });
+            // 底部固定按钮事件绑定
+            const tplBackBtnFooter = document.getElementById('tplBackBtnFooter');
+            const tplSaveBtnFooter = document.getElementById('tplSaveBtnFooter');
+            if (tplBackBtnFooter) tplBackBtnFooter.addEventListener('click', (e) => { e.preventDefault(); switchToUsageView(); });
+            if (tplSaveBtnFooter) tplSaveBtnFooter.addEventListener('click', (e) => { e.preventDefault(); tplSaveBtn?.click(); });
 
             if (addTemplateBtn) addTemplateBtn.addEventListener('click', () => {
                 clearTplForm();
@@ -2780,7 +3069,161 @@
             // 提供一个公开方法，允许从外部设置提示词并打开弹窗
             window.setAIPromptAndOpenModal = function (prompt) {
                 if (modal) modal.dataset.presetPrompt = prompt;
-                openModal();
+                if (window.AIServiceModalAutoOpen === true) openModal();
+            };
+
+            // 解析模板占位符：支持 {{name}} / ${name} / %name%
+            function resolveTemplatePlaceholders(templateText, placeholders = {}, placeholderFormat = '{{name}}', options = {}) {
+                const { missingPolicy = 'error', defaultPlaceholderValue = '' } = options || {};
+                const text = String(templateText || '');
+                const usedPlaceholders = [];
+                const missingPlaceholders = [];
+
+                // 选择正则模式
+                let regex;
+                if (placeholderFormat === '{{name}}') {
+                    regex = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g;
+                } else if (placeholderFormat === '${name}') {
+                    regex = /\$\{\s*([a-zA-Z0-9_]+)\s*\}/g;
+                } else if (placeholderFormat === '%name%') {
+                    regex = /%\s*([a-zA-Z0-9_]+)\s*%/g;
+                } else {
+                    // 自定义格式：用 'name' 作为占位符关键字，推断前后缀
+                    const idx = placeholderFormat.indexOf('name');
+                    const prefix = idx >= 0 ? placeholderFormat.slice(0, idx) : '';
+                    const suffix = idx >= 0 ? placeholderFormat.slice(idx + 4) : '';
+                    const esc = s => s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+                    regex = new RegExp(`${esc(prefix)}\\s*([a-zA-Z0-9_]+)\\s*${esc(suffix)}`, 'g');
+                }
+
+                let resolved = text.replace(regex, (_, key) => {
+                    usedPlaceholders.push(key);
+                    const has = Object.prototype.hasOwnProperty.call(placeholders, key);
+                    if (has) return String(placeholders[key]);
+                    // 缺失策略处理
+                    if (missingPolicy === 'keep') return _;
+                    if (missingPolicy === 'default') return String(defaultPlaceholderValue || '');
+                    missingPlaceholders.push(key);
+                    return _;
+                });
+
+                // 严格校验：任何缺失都报错
+                if (options.validateStrict && missingPlaceholders.length > 0) {
+                    const msg = `缺少占位符值: ${missingPlaceholders.join(', ')}`;
+                    const error = { code: 'MISSING_PLACEHOLDER', message: msg, detail: { missingPlaceholders } };
+                    throw error;
+                }
+
+                return { resolvedText: resolved, usedPlaceholders, missingPlaceholders };
+            }
+
+            // 仅预览解析结果（不发送）
+            window.previewResolvedTemplate = function ({ templateData = {}, options = {} } = {}) {
+                const { templateText = '', placeholders = {}, placeholderFormat = '{{name}}' } = templateData || {};
+                if (!templateText) {
+                    throw { code: 'MISSING_TEMPLATE', message: '未提供模板文本或模板ID', detail: {} };
+                }
+                return resolveTemplatePlaceholders(templateText, placeholders, placeholderFormat, options);
+            };
+
+            // headless 直连：不渲染UI，直接替换并调用 AI
+            window.runAIHeadless = async function ({
+                platformConfig = {},
+                modelConfig = {},
+                templateData = {},
+                options = {}
+            } = {}) {
+                const { provider, endpoint, apiKey, extra = {} } = platformConfig || {};
+                const { model, temperature = 0.7, max_tokens = 1000, top_p, stop, extra: modelExtra = {} } = modelConfig || {};
+                const { templateText = '', placeholders = {}, placeholderFormat = '{{name}}', templateId } = templateData || {};
+                const { validateStrict = true, missingPolicy = 'error', defaultPlaceholderValue = '', dryRun = false } = options || {};
+
+                // 基础校验
+                if (!provider) throw { code: 'INVALID_CONFIG', message: '缺少 provider', detail: {} };
+                if (!apiKey) throw { code: 'INVALID_CONFIG', message: '缺少 apiKey', detail: {} };
+                if (!model && provider !== 'anthropic') throw { code: 'INVALID_CONFIG', message: '缺少模型名', detail: {} };
+                if (!templateText) throw { code: 'MISSING_TEMPLATE', message: '未提供模板文本', detail: { templateId } };
+
+                // 平台特定校验
+                if (provider === 'azure' && !endpoint) {
+                    throw { code: 'INVALID_CONFIG', message: 'Azure 需要 endpoint', detail: {} };
+                }
+                if (provider === 'cloudflare' && !extra?.cloudflareAccountId) {
+                    throw { code: 'INVALID_CONFIG', message: 'Cloudflare 需要账户ID', detail: {} };
+                }
+
+                // 解析模板
+                const { resolvedText, usedPlaceholders, missingPlaceholders } =
+                    resolveTemplatePlaceholders(templateText, placeholders, placeholderFormat, {
+                        validateStrict,
+                        missingPolicy,
+                        defaultPlaceholderValue
+                    });
+
+                // dryRun：仅返回解析结果
+                if (dryRun) {
+                    return {
+                        platformConfig,
+                        modelConfig,
+                        resolvedText,
+                        usedPlaceholders,
+                        missingPlaceholders,
+                        templateMeta: { templateId }
+                    };
+                }
+
+                // 配置 aiService
+                aiService.configure({
+                    platform: provider,
+                    model: model || '', // anthropic 情况下允许空，方法内处理
+                    apiKey,
+                    azureEndpoint: provider === 'azure' ? endpoint : null,
+                    cloudflareAccountId: provider === 'cloudflare' ? extra?.cloudflareAccountId : null
+                });
+
+                // 发送
+                try {
+                    const result = await aiService.generate({
+                        prompt: resolvedText,
+                        temperature,
+                        maxTokens: typeof max_tokens === 'number' ? max_tokens : 1000
+                    });
+
+                    return {
+                        platformConfig,
+                        modelConfig,
+                        resolvedText,
+                        usedPlaceholders,
+                        missingPlaceholders,
+                        templateMeta: { templateId },
+                        result
+                    };
+                } catch (e) {
+                    throw { code: 'SEND_FAILED', message: e?.message || String(e), detail: e };
+                }
+            };
+
+            // 新：统一的壳调用接口，允许设置标题与初始面板
+            window.openAIServiceModal = function (options = {}) {
+                const { title, initialView, presetPrompt } = options;
+
+                // 设置标题
+                const titleEl = document.getElementById('modalTitle');
+                if (titleEl && typeof title === 'string' && title.trim()) {
+                    titleEl.textContent = title.trim();
+                }
+
+                // 传入初始视图与预设提示词
+                if (typeof initialView === 'string') {
+                    modal.dataset.initialView = initialView;
+                } else {
+                    delete modal.dataset.initialView;
+                }
+                if (typeof presetPrompt === 'string') {
+                    modal.dataset.presetPrompt = presetPrompt;
+                }
+
+                if (window.AIServiceModalAutoOpen === true) openModal();
             };
         </script>
 </body>

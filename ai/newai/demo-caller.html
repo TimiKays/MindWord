@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>AI 弹窗调用方 Demo</title>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: system-ui, Arial, sans-serif;
+            padding: 20px;
+        }
+
+        .row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .btn {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: #3B82F6;
+            color: #fff;
+            border-color: #3B82F6;
+        }
+
+        .btn-outline {
+            background: #fff;
+            color: #333;
+        }
+
+        iframe {
+            width: 100%;
+            height: 640px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+
+        .form {
+            max-width: 900px;
+            margin-bottom: 12px;
+            padding: 12px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+
+        .form label {
+            display: block;
+            font-size: 13px;
+            margin-bottom: 6px;
+            color: #333;
+        }
+
+        .form input[type="text"],
+        .form select,
+        .form textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        pre {
+            background: #f7f7f7;
+            padding: 12px;
+            border-radius: 6px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>AI 弹窗调用方 Demo（可填写参数并调用）</h2>
+
+    <div class="form">
+        <div class="grid">
+            <div>
+                <label for="demoTitle">弹窗标题</label>
+                <input id="demoTitle" type="text" placeholder="例如：AI 弹窗 Demo（可留空使用默认）" />
+            </div>
+            <div>
+                <label for="demoView">初始视图</label>
+                <select id="demoView">
+                    <option value="usage">usage（使用）</option>
+                    <option value="config">config（配置）</option>
+                    <option value="template">template（模板配置）</option>
+                </select>
+            </div>
+        </div>
+
+        <div style="margin-top:12px">
+            <label for="demoPrompt">预设提示词（presetPrompt）</label>
+            <textarea id="demoPrompt" rows="3" placeholder="填写预设提示词，打开弹窗时会填入输入框"></textarea>
+        </div>
+
+        <div style="margin-top:12px" class="row">
+            <button id="openVisualBtn" class="btn btn-primary"><i class="fa fa-window-restore"></i>
+                打开弹窗（visual）</button>
+            <button id="openVisualWithTemplateBtn" class="btn btn-outline">打开并选择默认模板</button>
+            <button id="runHeadlessBtn" class="btn btn-outline"><i class="fa fa-terminal"></i> 直接调用（headless
+                dryRun）</button>
+            <span id="demoNote" style="color:#666;font-size:13px;margin-left:8px">注意：iframe
+                页面需加载完成并且在同一域/本地启动以支持调用。</span>
+        </div>
+    </div>
+
+    <iframe id="modalFrame" src="./AIServiceModal.html"></iframe>
+
+    <h3>Headless 返回结果</h3>
+    <pre id="headlessOutput">尚未调用</pre>
+
+    <script>
+        const frame = document.getElementById('modalFrame');
+        const openBtn = document.getElementById('openVisualBtn');
+        const openWithTplBtn = document.getElementById('openVisualWithTemplateBtn');
+        const runBtn = document.getElementById('runHeadlessBtn');
+        const out = document.getElementById('headlessOutput');
+
+        function getFrameWindow() {
+            return frame.contentWindow;
+        }
+
+        function ensureLoaded(w) {
+            return !!(w && (typeof w.openAIServiceModal === 'function' || typeof w.runAIHeadless === 'function'));
+        }
+
+        openBtn.addEventListener('click', () => {
+            const w = getFrameWindow();
+            if (!ensureLoaded(w)) {
+                alert('弹窗页面尚未加载完成，请稍后再试');
+                return;
+            }
+            const title = document.getElementById('demoTitle').value.trim();
+            const initialView = document.getElementById('demoView').value;
+            const presetPrompt = document.getElementById('demoPrompt').value;
+
+            w.openAIServiceModal({
+                title: title || undefined,
+                initialView: initialView || 'usage',
+                presetPrompt: presetPrompt || undefined
+            });
+        });
+
+        // 方便测试：打开并自动选择模板（如果存在）
+        openWithTplBtn.addEventListener('click', () => {
+            const w = getFrameWindow();
+            if (!ensureLoaded(w)) {
+                alert('弹窗页面尚未加载完成，请稍后再试');
+                return;
+            }
+            // 打开到 template 视图，等待片刻让模板加载完成再尝试选中第一个模板（iframe 页的 populateTemplateSelect/ensureTemplatesLoaded 负责）
+            w.openAIServiceModal({ title: '模板配置演示', initialView: 'template' });
+            // 在 iframe 内部选中第一个模板（如果支持）
+            setTimeout(() => {
+                try {
+                    const doc = w.document;
+                    const tplSelect = doc.getElementById('promptTemplateSelect');
+                    if (tplSelect && tplSelect.options.length > 1) {
+                        tplSelect.selectedIndex = 1;
+                        tplSelect.dispatchEvent(new Event('change'));
+                    }
+                } catch (e) {
+                    console.warn('无法在 iframe 内部操作模板下拉（可能跨域或未加载）', e);
+                }
+            }, 600);
+        });
+
+        runBtn.addEventListener('click', async () => {
+            const w = getFrameWindow();
+            if (!ensureLoaded(w) || typeof w.runAIHeadless !== 'function') {
+                alert('弹窗页面尚未加载完成或不支持 headless 调用，请稍后再试');
+                return;
+            }
+            out.textContent = '调用中...';
+            try {
+                const result = await w.runAIHeadless({
+                    platformConfig: {
+                        provider: 'openrouter', // demo：替换为真实 provider 与 apiKey 后可直接调用
+                        apiKey: '' // 请在本地替换为真实 apiKey 或先使用 dryRun: true
+                    },
+                    modelConfig: {
+                        model: 'gpt-5-mini',
+                        temperature: 0.7,
+                        max_tokens: 300
+                    },
+                    templateData: {
+                        templateText: '请围绕主题 {{topic}} 给出 3 条建议。',
+                        placeholders: { topic: '工作效率' },
+                        placeholderFormat: '{{name}}'
+                    },
+                    options: { validateStrict: false, dryRun: true }
+                });
+                out.textContent = JSON.stringify(result, null, 2);
+            } catch (e) {
+                out.textContent = '调用失败：' + (e?.message || String(e));
+            }
+        });
+    </script>
+</body>
+
+</html>

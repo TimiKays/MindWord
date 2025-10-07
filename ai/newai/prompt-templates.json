@@ -1,5 +1,13 @@
 [
     {
+        "name": "默认模板",
+        "description": "默认提示词模板",
+        "type": "默认",
+        "caller": "all",
+        "params": [],
+        "content": "你是一个MindWord产品中的AI助手，请根据用户的需求，提供相应的帮助。"
+    },
+    {
         "name": "扩展子节点",
         "description": "为当前节点生成若干子节点（保持Markdown标题结构）",
         "type": "扩展",
