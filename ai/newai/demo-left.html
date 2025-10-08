@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Demo Left - 参数表单（支持 name/desc/value）</title>
+    <style>
+        body {
+            font-family: system-ui, Arial, sans-serif;
+            padding: 12px
+        }
+
+        label {
+            display: block;
+            margin-top: 8px;
+            font-weight: 600
+        }
+
+        .params {
+            margin: 8px 0
+        }
+
+        .param-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 6px
+        }
+
+        .param-row input {
+            flex: 1;
+            padding: 6px
+        }
+
+        button {
+            margin-top: 8px;
+            padding: 6px 10px
+        }
+
+        .result {
+            margin-top: 12px;
+            padding: 8px;
+            border: 1px solid #eee;
+            background: #fafafa
+        }
+    </style>
+</head>
+
+<body>
+    <h4>左侧：参数编辑器</h4>
+    <p>可添加多组参数（参数名 name / 说明 desc / 值 value）。提交时可选择 modal（父页面弹窗）或 direct（直接返回）。</p>
+
+    <div id="params" class="params"></div>
+    <button id="add">添加参数</button>
+    <div>
+        <label>模式（mode）：
+            <select id="mode">
+                <option value="modal">modal（弹窗，父页托管）</option>
+                <option value="direct">direct（直接在页面获取响应）</option>
+            </select>
+        </label>
+    </div>
+    <button id="submit">提交请求</button>
+
+    <div class="result"><strong>响应：</strong>
+        <pre id="resp">（空）</pre>
+    </div>
+
+    <script>
+        function createParamRow(name = '', desc = '', value = '') {
+            const row = document.createElement('div');
+            row.className = 'param-row';
+            row.innerHTML = `
+      <input class="p-name" placeholder="参数名 (name)" value="${name}">
+      <input class="p-desc" placeholder="说明 (desc)" value="${desc}">
+      <input class="p-value" placeholder="值 (value)" value="${value}">
+      <button class="rm">删</button>
+    `;
+            row.querySelector('.rm').addEventListener('click', () => row.remove());
+            return row;
+        }
+
+        const paramsDiv = document.getElementById('params');
+        document.getElementById('add').addEventListener('click', () => paramsDiv.appendChild(createParamRow()));
+        // 初始一行
+        paramsDiv.appendChild(createParamRow('text', '示例文本', 'hello'));
+
+        function collectParams() {
+            const rows = Array.from(paramsDiv.querySelectorAll('.param-row'));
+            const obj = {};
+            rows.forEach(r => {
+                const name = r.querySelector('.p-name').value.trim();
+                const desc = r.querySelector('.p-desc').value.trim();
+                const value = r.querySelector('.p-value').value;
+                if (!name) return;
+                obj[name] = { desc, value };
+            });
+            return obj;
+        }
+
+        // 生成请求 id
+        function genId() { return 'r_' + Math.random().toString(36).slice(2, 10); }
+
+        // 提交请求：通过 postMessage 到父页面，请求父页面代为处理/弹窗或直接返回
+        document.getElementById('submit').addEventListener('click', () => {
+            const requestId = genId();
+            const payload = {
+                mode: document.getElementById('mode').value,
+                params: collectParams()
+            };
+            // 监听返回
+            function onMsg(e) {
+                try {
+                    const msg = e.data;
+                    if (!msg || msg.requestId !== requestId) return;
+                    if (msg.type === 'AI_MODAL_RESULT') {
+                        document.getElementById('resp').textContent = JSON.stringify(msg.detail, null, 2);
+                        window.removeEventListener('message', onMsg);
+                    }
+                } catch (_) { }
+            }
+            window.addEventListener('message', onMsg, false);
+            // 发送打开请求到父页面
+            window.parent.postMessage({ type: 'AI_MODAL_OPEN_REQUEST', requestId, payload }, '*');
+        });
+    </script>
+</body>
+
+</html>

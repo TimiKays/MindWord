@@ -192,7 +192,7 @@
                                         <input type="checkbox" id="toggleTemplateViewChk" class="mr-1">
                                         查看模板
                                     </label>
-                                    <span>显示：<span id="promptViewModeText">实际值</span></span>
+                                    <span>显示：<span id="promptViewModeText">模板</span></span>
                                 </div>
                                 <textarea id="usagePromptInput" class="form-control h-52" placeholder="请输入提示词..."
                                     required></textarea>
@@ -1859,6 +1859,44 @@
 
                 // 读取初始视图：usage/config/template
                 const initialView = modal.dataset.initialView || 'usage';
+
+                // 在打开时尽早缓存 template（若 dataset.template 为空且 textarea 有可用内容）
+                try {
+                    if (usagePromptInput) {
+                        if (!(usagePromptInput.dataset && usagePromptInput.dataset.template)) {
+                            const candidate = (usagePromptInput.value && String(usagePromptInput.value).trim()) || '';
+                            if (candidate) {
+                                usagePromptInput.dataset.template = candidate;
+                                console.debug('[aiModal][dbg] cached template early on open:', String(candidate).slice(0, 200));
+                            } else {
+                                // 尝试从 promptTemplateSelect 取回内容（兜底）
+                                const sel = promptTemplateSelect?.options[promptTemplateSelect.selectedIndex];
+                                const tplContent = sel?.dataset?.content || sel?.value || '';
+                                if (tplContent && String(tplContent).trim() !== '') {
+                                    usagePromptInput.dataset.template = tplContent;
+                                    console.debug('[aiModal][dbg] cached template from promptTemplateSelect on open');
+                                } else {
+                                    console.debug('[aiModal][dbg] no template available to cache on open');
+                                }
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[aiModal] cache template on open early failed', e);
+                }
+
+                // 默认首次打开时使用“模板视图”（便于用户编辑模板占位符）
+                try {
+                    const toggleChkEl = document.getElementById('toggleTemplateViewChk');
+                    if (toggleChkEl) {
+                        toggleChkEl.checked = true;
+                    }
+                    // 触发一次 applyView，确保界面与切换状态同步
+                    if (typeof applyView === 'function') {
+                        applyView();
+                    }
+                } catch (e) { /* ignore */ }
+
                 if (initialView === 'config') {
                     switchToConfigView();
                 } else if (initialView === 'template') {
@@ -2136,7 +2174,22 @@
             if (apiKeyInput) apiKeyInput.addEventListener('input', () => {
                 updateConfigStatus();
             });
-            if (usagePromptInput) usagePromptInput.addEventListener('input', updateUsageSubmitButtonState);
+            if (usagePromptInput) {
+                usagePromptInput.addEventListener('input', updateUsageSubmitButtonState);
+                // 根据当前视图保存 textarea 内容到不同缓存：模板视图保存到 dataset.template，实际值视图保存到 dataset.resolved
+                usagePromptInput.addEventListener('input', () => {
+                    try {
+                        const toggleChk = document.getElementById('toggleTemplateViewChk');
+                        const isTemplate = !!(toggleChk && toggleChk.checked);
+                        if (!usagePromptInput.dataset) usagePromptInput.dataset = {};
+                        if (isTemplate) {
+                            usagePromptInput.dataset.template = usagePromptInput.value || '';
+                        } else {
+                            usagePromptInput.dataset.resolved = usagePromptInput.value || '';
+                        }
+                    } catch (e) { /* ignore */ }
+                });
+            }
             if (usageModelSelect) usageModelSelect.addEventListener('change', () => {
                 // 记忆模型选择（按平台维度存储）
                 if (platformSelect && usageModelSelect.value) {
@@ -2292,7 +2345,7 @@
                 });
             })();
 
-            // 输入框视图切换：模板/实际值
+             // 输入框视图切换：模板/实际值
             (function attachPromptViewToggle() {
                 const toggleChk = document.getElementById('toggleTemplateViewChk');
                 const modeText = document.getElementById('promptViewModeText');
@@ -2300,44 +2353,277 @@
                 function computeResolvedFromSelection() {
                     const sel = promptTemplateSelect?.options[promptTemplateSelect.selectedIndex];
                     const tpl = sel?.dataset?.content || sel?.value || '';
-                    if (!tpl) return '';
+                    // 如果没有模板来源，尝试从 textarea 的缓存模板取值（防止模板被意外清空）
+                    if (!tpl) {
+                        try {
+                            if (usagePromptInput && usagePromptInput.dataset && usagePromptInput.dataset.template) {
+                                // 返回缓存的模板作为 tpl 来源，以便后续替换使用
+                                // 注意：此处不修改 textarea.value，仅作为解析来源
+                                // 继续执行后面的解析流程
+                            } else {
+                                return usagePromptInput?.value || '';
+                            }
+                        } catch (e) { /* ignore */ }
+                    }
                     const params = sel?.dataset?.params ? JSON.parse(sel.dataset.params) : [];
                     const placeholders = {};
+                    // 优先使用父页面传入的 presetParams（存在时使用其 value），否则使用选中参数名作为示例值
+                    let presetMap = null;
+                    try {
+                        if (modal && modal.dataset && modal.dataset.presetParams) {
+                            presetMap = JSON.parse(modal.dataset.presetParams);
+                        }
+                    } catch (e) { presetMap = null; }
                     const chosenKey = (promptParamsSelect?.value || '').trim();
-                    if (Array.isArray(params)) {
+
+                    // 如果模板下拉未提供 params，则从模板文本本身提取占位符列表作为兜底
+                    let keysFromTpl = [];
+                    try {
+                        if ((!params || (Array.isArray(params) && params.length === 0)) && (templateSource || tpl)) {
+                            const txtForScan = String(templateSource || tpl || '');
+                            const re = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g;
+                            const found = new Set();
+                            let m;
+                            while ((m = re.exec(txtForScan)) !== null) {
+                                if (m[1]) found.add(m[1]);
+                            }
+                            keysFromTpl = Array.from(found);
+                        }
+                    } catch (e) { keysFromTpl = []; }
+
+                    if (Array.isArray(params) && params.length > 0) {
                         params.forEach(p => {
                             const key = typeof p === 'string' ? p : (p?.name || '');
                             if (!key) return;
-                            placeholders[key] = (key === chosenKey && chosenKey) ? chosenKey : '';
+                            if (presetMap && Object.prototype.hasOwnProperty.call(presetMap, key)) {
+                                const v = presetMap[key];
+                                // 支持对象和值两种形式：{desc, value} 或 直接值
+                                placeholders[key] = (v && typeof v === 'object') ? (v.value ?? '') : String(v ?? '');
+                            } else {
+                                // 回退：如果是用户在参数下拉选择了某个 key，则把该 key 作为示例值；否则留空以保留占位符
+                                placeholders[key] = (key === chosenKey && chosenKey) ? chosenKey : '';
+                            }
+                        });
+                    } else if (Array.isArray(keysFromTpl) && keysFromTpl.length > 0) {
+                        // 兜底：根据模板中出现的占位符，从 presetMap 填充值或使用回退策略
+                        keysFromTpl.forEach(key => {
+                            if (presetMap && Object.prototype.hasOwnProperty.call(presetMap, key)) {
+                                const v = presetMap[key];
+                                placeholders[key] = (v && typeof v === 'object') ? (v.value ?? '') : String(v ?? '');
+                            } else {
+                                placeholders[key] = (key === chosenKey && chosenKey) ? chosenKey : '';
+                            }
+                        });
+                    } else if (presetMap) {
+                        // 当模板没有 params 定义但父页面传入了参数映射时，使用映射填充
+                        Object.entries(presetMap).forEach(([k, v]) => {
+                            placeholders[k] = (v && typeof v === 'object') ? (v.value ?? '') : String(v ?? '');
                         });
                     }
+                    // 如果 tpl 为空但 textarea 有缓存模板，则使用缓存模板作为模板来源
+                    let templateSource = tpl;
+                    try {
+                        if ((!templateSource || templateSource.trim() === '') && usagePromptInput && usagePromptInput.dataset && usagePromptInput.dataset.template) {
+                            templateSource = usagePromptInput.dataset.template;
+                        }
+                    } catch (e) { /* ignore */ }
+
+                    // 调试日志：打印模板来源、presetMap 与占位符映射，便于定位替换失败原因
+                    try {
+                        console.debug('[aiModal][dbg] computeResolvedFromSelection:', {
+                            templateSourcePreview: String(templateSource || '').slice(0, 200),
+                            presetParamsRaw: modal?.dataset?.presetParams || null,
+                            placeholdersPreview: Object.keys(placeholders).length ? Object.fromEntries(Object.entries(placeholders).slice(0, 10)) : placeholders
+                        });
+                    } catch (dbgErr) { /* noop */ }
+
                     const { resolvedText } = resolveTemplatePlaceholders(
-                        tpl,
+                        templateSource,
                         placeholders,
                         '{{name}}',
                         { missingPolicy: 'keep' }
                     );
+
+                    // 调试日志：resolvedText 与缺失占位符信息
+                    try {
+                        const preview = String(resolvedText || '').slice(0, 300);
+                        console.debug('[aiModal][dbg] resolvedText preview:', preview);
+                    } catch (dbgErr) { /* noop */ }
+
+                    // 若解析出空结果，则回退为缓存的模板（避免清空 textarea）
+                    if (!resolvedText || String(resolvedText).trim() === '') {
+                        return usagePromptInput?.dataset?.template || usagePromptInput?.value || '';
+                    }
                     return String(resolvedText || '');
                 }
 
                 function computeTemplateFromSelection() {
                     const sel = promptTemplateSelect?.options[promptTemplateSelect.selectedIndex];
-                    return (sel?.dataset?.content || sel?.value || '') || '';
+                    // 优先返回选中模板的内容；若不存在选中模板，则尝试返回缓存的 template（usagePromptInput.dataset.template）
+                    const tpl = (sel?.dataset?.content || sel?.value || '') || '';
+                    if (tpl && String(tpl).trim() !== '') return tpl;
+                    try {
+                        if (usagePromptInput && usagePromptInput.dataset && usagePromptInput.dataset.template) {
+                            return usagePromptInput.dataset.template || '';
+                        }
+                    } catch (e) { /* ignore */ }
+                    return '';
+                }
+
+                // 构建占位符映射（优先使用 modal.dataset.presetParams，其次使用选中模板的 params）
+                function buildPlaceholdersMap() {
+                    const placeholders = {};
+                    let presetMap = null;
+                    try {
+                        if (modal && modal.dataset && modal.dataset.presetParams) {
+                            presetMap = JSON.parse(modal.dataset.presetParams);
+                        }
+                    } catch (e) { presetMap = null; }
+
+                    // 从选中模板的 params 列表构建初始 keys
+                    const sel = promptTemplateSelect?.options[promptTemplateSelect.selectedIndex];
+                    const params = sel?.dataset?.params ? JSON.parse(sel.dataset.params) : [];
+
+                    const chosenKey = (promptParamsSelect?.value || '').trim();
+
+                    if (Array.isArray(params) && params.length > 0) {
+                        params.forEach(p => {
+                            const key = typeof p === 'string' ? p : (p?.name || '');
+                            if (!key) return;
+                            if (presetMap && Object.prototype.hasOwnProperty.call(presetMap, key)) {
+                                const v = presetMap[key];
+                                placeholders[key] = (v && typeof v === 'object') ? (v.value ?? '') : String(v ?? '');
+                            } else {
+                                placeholders[key] = (key === chosenKey && chosenKey) ? chosenKey : '';
+                            }
+                        });
+                    } else if (presetMap) {
+                        // 当没有模板 params 时，使用 presetMap 中的所有键作为占位符
+                        Object.entries(presetMap).forEach(([k, v]) => {
+                            placeholders[k] = (v && typeof v === 'object') ? (v.value ?? '') : String(v ?? '');
+                        });
+                    } else {
+                        // 兜底：从当前缓存的模板或 textarea 中提取占位符名
+                        try {
+                            const templateSource = (usagePromptInput && usagePromptInput.dataset && usagePromptInput.dataset.template) ? usagePromptInput.dataset.template : (usagePromptInput ? usagePromptInput.value : '');
+                            const re = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g;
+                            let m;
+                            const found = new Set();
+                            while ((m = re.exec(String(templateSource || ''))) !== null) {
+                                if (m[1]) found.add(m[1]);
+                            }
+                            Array.from(found).forEach(k => {
+                                placeholders[k] = (k === chosenKey && chosenKey) ? chosenKey : '';
+                            });
+                        } catch (e) { /* ignore */ }
+                    }
+                    return placeholders;
+                }
+
+                // 在文本中替换占位符，仅替换匹配的 {{key}} 部分，保留其他文本不变
+                function replacePlaceholdersInText(text, placeholders) {
+                    if (!text) return '';
+                    return String(text).replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, function (_, key) {
+                        if (Object.prototype.hasOwnProperty.call(placeholders, key)) {
+                            return placeholders[key];
+                        }
+                        return _;
+                    });
                 }
 
                 function applyView() {
                     const isTemplate = !!(toggleChk && toggleChk.checked);
-                    const text = isTemplate ? computeTemplateFromSelection() : computeResolvedFromSelection();
-                    usagePromptInput.value = String(text).replace(/\r\n/g, "\n");
-                    if (modeText) modeText.textContent = isTemplate ? '模板' : '实际值';
+
+                    // 首次进入如果没有缓存 template，则优先缓存当前 textarea 内容或选中模板
+                    try {
+                        if (usagePromptInput && !(usagePromptInput.dataset && usagePromptInput.dataset.template)) {
+                            const curCandidate = computeTemplateFromSelection() || usagePromptInput.value || '';
+                            if (curCandidate && String(curCandidate).trim() !== '') {
+                                usagePromptInput.dataset.template = curCandidate;
+                                console.debug('[aiModal] cached template on open/init:', String(curCandidate).slice(0, 200));
+                            }
+                        }
+                    } catch (e) { console.warn('[aiModal] cache template on init failed', e); }
+
+                    if (isTemplate) {
+                        // 恢复模板视图：总是从缓存的 template 中恢复（若不存在则从选中模板）
+                        const tpl = (usagePromptInput.dataset && usagePromptInput.dataset.template) ? usagePromptInput.dataset.template : computeTemplateFromSelection() || '';
+                        // 在恢复模板视图时，先保存当前 textarea 到 dataset.resolved（如果看起来像解析后的实际值）
+                        try {
+                            if (usagePromptInput && usagePromptInput.value && String(usagePromptInput.value || '').trim() !== '') {
+                                const looksLikeResolved = !String(usagePromptInput.dataset?.template || '').trim() || String(usagePromptInput.value || '').includes('{{') === false;
+                                // 如果当前文本不是模板（没有 {{ }}），我们把它缓存为 resolved
+                                if (looksLikeResolved) {
+                                    usagePromptInput.dataset.resolved = usagePromptInput.value;
+                                }
+                            }
+                        } catch (e) { /* ignore */ }
+
+                        usagePromptInput.value = String(tpl).replace(/\r\n/g, "\n");
+                        if (modeText) modeText.textContent = '模板';
+                    } else {
+                        // 查看实际值：优先恢复已缓存的 resolved（若存在），否则基于模板或当前文本生成并缓存 resolved
+                        const placeholders = buildPlaceholdersMap();
+
+                        // 如果存在已缓存的 resolved，直接恢复它（保留用户在实际值视图的编辑）
+                        const cachedResolved = (usagePromptInput && usagePromptInput.dataset && usagePromptInput.dataset.resolved) ? usagePromptInput.dataset.resolved : null;
+                        if (cachedResolved && String(cachedResolved).trim() !== '') {
+                            usagePromptInput.value = String(cachedResolved).replace(/\r\n/g, "\n");
+                            if (modeText) modeText.textContent = '实际值';
+                            updateUsageSubmitButtonState();
+                            return;
+                        }
+
+                        // 否则，按现有逻辑选择替换基准：优先当前 textarea 内容（保留用户其他文字），为空则使用缓存的 template
+                        const currentText = usagePromptInput ? (usagePromptInput.value || '') : '';
+                        const cachedTpl = (usagePromptInput && usagePromptInput.dataset && usagePromptInput.dataset.template) ? usagePromptInput.dataset.template : '';
+                        const base = (currentText && String(currentText).trim() !== '') ? currentText : cachedTpl;
+
+                        try {
+                            if (!base || String(base).trim() === '') {
+                                console.warn('[aiModal][dbg] applyView skip replace: empty base', { basePreview: base });
+                                // 保持当前 textarea.value 不变
+                            } else {
+                                console.debug('[aiModal][dbg] applyView using base length', { baseLen: String(base).length, placeholdersPreview: Object.keys(placeholders).slice(0, 10) });
+                                const replaced = replacePlaceholdersInText(base, placeholders);
+                                usagePromptInput.value = String(replaced).replace(/\r\n/g, "\n");
+                                // 缓存解析结果，方便切换回来恢复用户在“实际值”视图中的修改
+                                try {
+                                    usagePromptInput.dataset.resolved = usagePromptInput.value;
+                                } catch (e) { /* ignore */ }
+                                console.debug('[aiModal][dbg] applyView resolved length', usagePromptInput.value.length);
+                            }
+                        } catch (e) {
+                            console.error
+                        }
+                        if (modeText) modeText.textContent = '实际值';
+                    }
                     updateUsageSubmitButtonState();
                 }
-
                 // 开关切换
                 if (toggleChk) toggleChk.addEventListener('change', applyView);
                 // 模板或参数选择变化时，自动刷新输入框展示
                 if (promptTemplateSelect) promptTemplateSelect.addEventListener('change', applyView);
                 if (promptParamsSelect) promptParamsSelect.addEventListener('change', applyView);
+
+                // 当用户在 textarea 编辑时，根据当前视图保存到对应的 dataset（template 或 resolved），避免切换丢失
+                try {
+                    if (usagePromptInput) {
+                        usagePromptInput.addEventListener('input', () => {
+                            try {
+                                const isTemplate = !!(toggleChk && toggleChk.checked);
+                                if (isTemplate) {
+                                    // 编辑模板视图：更新 dataset.template
+                                    usagePromptInput.dataset.template = usagePromptInput.value || '';
+                                } else {
+                                    // 编辑实际值视图：更新 dataset.resolved
+                                    usagePromptInput.dataset.resolved = usagePromptInput.value || '';
+                                }
+                            } catch (e) { /* ignore */ }
+                            updateUsageSubmitButtonState();
+                        });
+                    }
+                } catch (e) { /* ignore */ }
 
                 // 初始化一次（默认实际值）
                 applyView();
@@ -2405,22 +2691,36 @@
                 });
             }
 
-            // insertParamBtn：在光标位置插入参数文本
+            // insertParamBtn：在光标位置插入参数占位符（{{paramName}}）
             if (insertParamBtn && promptParamsSelect && usagePromptInput) {
                 insertParamBtn.addEventListener('click', () => {
-                    const val = promptParamsSelect.value || (promptParamsSelect.options[promptParamsSelect.selectedIndex]?.value) || '';
-                    if (!val) return;
+                    const name = promptParamsSelect.value || (promptParamsSelect.options[promptParamsSelect.selectedIndex]?.value) || '';
+                    if (!name) return;
+                    const placeholder = `{{${name}}}`; // 双花括号包裹参数名
                     const textarea = usagePromptInput;
                     const start = textarea.selectionStart || 0;
                     const end = textarea.selectionEnd || 0;
                     const before = textarea.value.substring(0, start);
                     const after = textarea.value.substring(end);
-                    textarea.value = before + val + after;
+                    textarea.value = before + placeholder + after;
                     // 将光标移到插入后面
-                    const pos = start + val.length;
+                    const pos = start + placeholder.length;
                     textarea.selectionStart = textarea.selectionEnd = pos;
                     textarea.focus();
                     updateUsageSubmitButtonState();
+                    // 缓存当前模板文本（仅当看起来像模板且未缓存时），防止把“插入后”的文本误保存为原始模板
+                    try {
+                        if (textarea) {
+                            const hasTemplateFlag = textarea.dataset && textarea.dataset.template;
+                            const looksLikeTemplate = String(textarea.value || '').includes('{{');
+                            if (!hasTemplateFlag && looksLikeTemplate) {
+                                textarea.dataset.template = textarea.value || '';
+                                console.debug('[aiModal][dbg] cached template on insert (looksLikeTemplate)');
+                            } else {
+                                console.debug('[aiModal][dbg] skip caching on insert; hasTemplateFlag=', !!hasTemplateFlag, 'looksLikeTemplate=', looksLikeTemplate);
+                            }
+                        }
+                    } catch (e) { console.warn('[aiModal] cache template on insert failed', e); }
                 });
             }
 
@@ -3275,16 +3575,159 @@
                 openModal();
             };
 
+            // 根据父页面传入的 params 填充 promptParamsSelect（支持数组或对象）
+            function populatePromptParamsFromPayload(params) {
+                try {
+                    if (!promptParamsSelect) return;
+                    promptParamsSelect.innerHTML = '';
+                    if (!params) return;
+                    // 参数可能是数组 ['name','title'] 或 对象 { name: { desc, value }, title: {...} }
+                    if (Array.isArray(params)) {
+                        params.forEach(p => {
+                            const name = typeof p === 'string' ? p : (p.name || '');
+                            const desc = (typeof p === 'object' && (p.description || p.desc)) ? (p.description || p.desc) : '';
+                            const opt = document.createElement('option');
+                            opt.value = name;
+                            opt.textContent = name; // 显示参数名
+                            opt.title = desc;
+                            promptParamsSelect.appendChild(opt);
+                        });
+                    } else if (typeof params === 'object') {
+                        Object.entries(params).forEach(([k, v]) => {
+                            const opt = document.createElement('option');
+                            opt.value = k;
+                            // 文本显示为参数名 k，title 显示描述（优先 description/desc），便于鼠标悬停查看
+                            if (v && typeof v === 'object') {
+                                opt.textContent = k;
+                                opt.title = v.description || v.desc || '';
+                            } else {
+                                opt.textContent = k;
+                                opt.title = '';
+                            }
+                            promptParamsSelect.appendChild(opt);
+                        });
+                    }
+                    // 触发一次视图刷新，确保 toggle/preview 使用新参数
+                    promptParamsSelect.dispatchEvent(new Event('change'));
+                } catch (err) {
+                    console.warn('populatePromptParamsFromPayload error', err);
+                }
+            }
+
             // 监听父页面转发的打开请求（来自 demo 父页面）
             window.addEventListener('message', (e) => {
                 try {
                     const msg = e?.data;
                     if (!msg || typeof msg !== 'object') return;
+                    // 仅处理 AI_MODAL_OPEN 指令
                     if (msg.type === 'AI_MODAL_OPEN' && msg.payload) {
-                        const { title, initialView, presetPrompt, requestId } = msg.payload;
-                        window.openAIServiceModal({ title, initialView, presetPrompt, requestId });
+                        const { title, initialView, presetPrompt, requestId, params } = msg.payload;
+                        console.debug('[aiModal] received AI_MODAL_OPEN', { requestId, title, initialView, params });
+                        // 验证 params 是否为可用的对象或数组
+                        let parsedParams = null;
+                        try {
+                            if (params === undefined || params === null) {
+                                parsedParams = null;
+                            } else if (typeof params === 'string') {
+                                // 尝试解析 JSON 字符串
+                                parsedParams = JSON.parse(params);
+                            } else if (typeof params === 'object') {
+                                parsedParams = params;
+                            } else {
+                                throw new Error('params 类型无效，期望 object 或 array 或 JSON 字符串');
+                            }
+                        } catch (err) {
+                            const msgText = '[aiModal] 解析 params 失败: ' + (err && err.message ? err.message : String(err));
+                            console.error(msgText, { rawParams: params });
+                            // 回传错误给父窗口，便于上游定位错误
+                            try {
+                                window.parent?.postMessage({
+                                    type: 'AI_MODAL_RESULT',
+                                    requestId: requestId || null,
+                                    status: 'error',
+                                    detail: { message: msgText, phase: 'open', rawParams: params }
+                                }, '*');
+                            } catch (postErr) { console.warn('[aiModal] postMessage send error failed', postErr); }
+                            return;
+                        }
+
+                        // 若解析后存在 parsedParams，但不是对象或数组，则视为无效
+                        if (parsedParams !== null && typeof parsedParams !== 'object') {
+                            const msgText = '[aiModal] params 解析后类型非法，应为 object 或 array';
+                            console.error(msgText, { parsedParams });
+                            try {
+                                window.parent?.postMessage({
+                                    type: 'AI_MODAL_RESULT',
+                                    requestId: requestId || null,
+                                    status: 'error',
+                                    detail: { message: msgText, phase: 'open', rawParams: params }
+                                }, '*');
+                            } catch (postErr) { console.warn('[aiModal] postMessage send error failed', postErr); }
+                            return;
+                        }
+
+                        // 缓存到 dataset（始终存入 JSON 字符串或删除字段）
+                        try {
+                            if (parsedParams) {
+                                modal.dataset.presetParams = JSON.stringify(parsedParams);
+                            } else {
+                                delete modal.dataset.presetParams;
+                            }
+                        } catch (err) {
+                            console.warn('[aiModal] 设置 dataset.presetParams 失败', err);
+                        }
+
+                        // 填充参数下拉（若 parsedParams 为 null 则清空）
+                        try {
+                            populatePromptParamsFromPayload(parsedParams || {});
+                        } catch (err) {
+                            console.warn('[aiModal] populatePromptParamsFromPayload 失败', err);
+                        }
+
+                        // 最终打开 modal（带 requestId / presetPrompt）
+                        try {
+                            window.openAIServiceModal({ title, initialView, presetPrompt, requestId });
+                            // 额外容错：打开后确保有可用于解析的模板缓存（usagePromptInput.dataset.template）
+                            try {
+                                if (usagePromptInput) {
+                                    // 优先使用当前 textarea 值，其次使用选中模板的内容，再回退到空字符串
+                                    const cur = usagePromptInput.value && String(usagePromptInput.value).trim();
+                                    if (!usagePromptInput.dataset.template || String(usagePromptInput.dataset.template).trim() === '') {
+                                        if (cur && cur.length > 0) {
+                                            usagePromptInput.dataset.template = usagePromptInput.value;
+                                            console.debug('[aiModal] cached template from textarea');
+                                        } else {
+                                            // 尝试从模板下拉获取内容
+                                            const sel = promptTemplateSelect?.options[promptTemplateSelect.selectedIndex];
+                                            const tplContent = sel?.dataset?.content || sel?.value || '';
+                                            if (tplContent && String(tplContent).trim() !== '') {
+                                                usagePromptInput.dataset.template = tplContent;
+                                                console.debug('[aiModal] cached template from promptTemplateSelect');
+                                            } else {
+                                                // 最后回退为空字符串，保持不覆盖已有 dataset.template
+                                                console.debug('[aiModal] no template to cache on open');
+                                            }
+                                        }
+                                    }
+                                }
+                            } catch (cacheErr) {
+                                console.warn('[aiModal] cache template after open failed', cacheErr);
+                            }
+                        } catch (err) {
+                            console.error('[aiModal] openAIServiceModal 调用失败', err);
+                            try {
+                                window.parent?.postMessage({
+                                    type: 'AI_MODAL_RESULT',
+                                    requestId: requestId || null,
+                                    status: 'error',
+                                    detail: { message: '[aiModal] open fail: ' + (err.message || String(err)), phase: 'open' }
+                                }, '*');
+                            } catch (_) { /* noop */ }
+                        }
                     }
-                } catch (_) { /* noop */ }
+                } catch (err) {
+                    console.error('[aiModal] message handler unexpected error', err);
+                }
             }, false);
         </script>
 </body>
