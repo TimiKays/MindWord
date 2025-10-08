@@ -2345,7 +2345,7 @@
                 });
             })();
 
-             // 输入框视图切换：模板/实际值
+            // 输入框视图切换：模板/实际值
             (function attachPromptViewToggle() {
                 const toggleChk = document.getElementById('toggleTemplateViewChk');
                 const modeText = document.getElementById('promptViewModeText');
@@ -2379,8 +2379,10 @@
                     // 如果模板下拉未提供 params，则从模板文本本身提取占位符列表作为兜底
                     let keysFromTpl = [];
                     try {
-                        if ((!params || (Array.isArray(params) && params.length === 0)) && (templateSource || tpl)) {
-                            const txtForScan = String(templateSource || tpl || '');
+                        // 使用 tpl 作为扫描源（tpl 来源于选中模板内容或 option.value），
+                        // 避免引用尚未声明的 templateSource 变量导致异常或返回空结果。
+                        if ((!params || (Array.isArray(params) && params.length === 0)) && tpl) {
+                            const txtForScan = String(tpl || '');
                             const re = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g;
                             const found = new Set();
                             let m;
@@ -2574,10 +2576,12 @@
                             return;
                         }
 
-                        // 否则，按现有逻辑选择替换基准：优先当前 textarea 内容（保留用户其他文字），为空则使用缓存的 template
+                        // 否则，按现有逻辑选择替换基准：
+                        // 优先使用缓存的模板（usagePromptInput.dataset.template）作为替换基准，
+                        // 若无缓存模板才退回到当前 textarea 内容。这样可以确保模板中的所有 {{...}} 占位符不会因 textarea 临时修改而丢失。
                         const currentText = usagePromptInput ? (usagePromptInput.value || '') : '';
                         const cachedTpl = (usagePromptInput && usagePromptInput.dataset && usagePromptInput.dataset.template) ? usagePromptInput.dataset.template : '';
-                        const base = (currentText && String(currentText).trim() !== '') ? currentText : cachedTpl;
+                        const base = (cachedTpl && String(cachedTpl).trim() !== '') ? cachedTpl : currentText;
 
                         try {
                             if (!base || String(base).trim() === '') {
@@ -3478,6 +3482,78 @@
                 templateData = {},
                 options = {}
             } = {}) {
+                // 自动补齐：若调用方未提供 provider 或 model，优先从组件自身存储（localStorage）中选取第一个已保存且完整的平台与对应模型。
+                try {
+                    // 确保 platformConfig 是对象副本，避免修改外部引用
+                    platformConfig = Object.assign({}, platformConfig || {});
+                    modelConfig = Object.assign({}, modelConfig || {});
+                    // 1) 若没有 provider，尝试从本组件 localStorage 中读取 allAIPlatformConfigs（同源场景）
+                    if (!platformConfig.provider) {
+                        try {
+                            const s = localStorage.getItem('allAIPlatformConfigs');
+                            if (s) {
+                                const all = JSON.parse(s || '{}') || {};
+                                const keys = Object.keys(all || {});
+                                for (const k of keys) {
+                                    const c = all[k] || {};
+                                    const hasApiKey = c.apiKey && String(c.apiKey).trim() !== '';
+                                    const okCloudflare = (k !== 'cloudflare') || (c.cloudflareAccountId && String(c.cloudflareAccountId).trim() !== '');
+                                    const okAzure = (k !== 'azure') || (c.azureEndpoint && String(c.azureEndpoint).trim() !== '');
+                                    if (hasApiKey && okCloudflare && okAzure) {
+                                        platformConfig.provider = k;
+                                        platformConfig.apiKey = platformConfig.apiKey || c.apiKey || '';
+                                        if (c.azureEndpoint) platformConfig.azureEndpoint = platformConfig.azureEndpoint || c.azureEndpoint;
+                                        if (c.cloudflareAccountId) platformConfig.cloudflareAccountId = platformConfig.cloudflareAccountId || c.cloudflareAccountId;
+                                        console.debug('[aiModal][runAIHeadless] auto-selected provider from localStorage:', k);
+                                        break;
+                                    }
+                                }
+                            }
+                        } catch (e) {
+                            console.debug('[aiModal][runAIHeadless] read allAIPlatformConfigs failed:', e);
+                        }
+                    }
+                    // 2) 若仍无 provider，则保留原有流程（后续会报错）
+                    // 3) 若没有 model，尝试从 lastUsedModel_{provider} 或 aiService.getModels(provider) 中补齐
+                    if (!modelConfig.model) {
+                        try {
+                            const prov = platformConfig.provider;
+                            if (prov) {
+                                try {
+                                    const lastKey = `lastUsedModel_${prov}`;
+                                    const lastModel = localStorage.getItem(lastKey);
+                                    if (lastModel) {
+                                        modelConfig.model = lastModel;
+                                        console.debug('[aiModal][runAIHeadless] auto-selected model from lastUsedModel:', lastModel);
+                                    }
+                                } catch (_) { /* ignore */ }
+                                if (!modelConfig.model) {
+                                    try {
+                                        const fav = (window.favoriteModels && window.favoriteModels[prov]) || [];
+                                        if (Array.isArray(fav) && fav.length > 0) {
+                                            modelConfig.model = fav[0];
+                                            console.debug('[aiModal][runAIHeadless] auto-selected model from favoriteModels:', modelConfig.model);
+                                        }
+                                    } catch (_) { /* ignore */ }
+                                }
+                                if (!modelConfig.model) {
+                                    try {
+                                        const ms = aiService.getModels(prov) || [];
+                                        if (Array.isArray(ms) && ms.length > 0) {
+                                            modelConfig.model = ms[0];
+                                            console.debug('[aiModal][runAIHeadless] auto-selected model from aiService.getModels:', modelConfig.model);
+                                        }
+                                    } catch (_) { /* ignore */ }
+                                }
+                            }
+                        } catch (e) {
+                            console.debug('[aiModal][runAIHeadless] auto-select model failed:', e);
+                        }
+                    }
+                } catch (err) {
+                    console.debug('[aiModal][runAIHeadless] preparatory auto-fill failed:', err);
+                }
+
                 const { provider, endpoint, apiKey, extra = {} } = platformConfig || {};
                 const { model, temperature = 0.7, max_tokens = 1000, top_p, stop, extra: modelExtra = {} } = modelConfig || {};
                 const { templateText = '', placeholders = {}, placeholderFormat = '{{name}}', templateId } = templateData || {};
@@ -3727,6 +3803,35 @@
                     }
                 } catch (err) {
                     console.error('[aiModal] message handler unexpected error', err);
+                }
+            }, false);
+
+            // 远程调用（无弹窗，headless 模式）监听器
+            // 接收消息格式：{ type: 'AI_MODAL_RUN_HEADLESS', requestId, payload: { platformConfig, modelConfig, templateData, options } }
+            // 返回消息：{ type: 'AI_MODAL_RUN_RESULT', requestId, status: 'ok'|'error', detail }
+            window.addEventListener('message', async (e) => {
+                try {
+                    const msg = e?.data;
+                    if (!msg || typeof msg !== 'object') return;
+                    if (msg.type !== 'AI_MODAL_RUN_HEADLESS' || !msg.requestId) return;
+
+                    const payload = msg.payload || {};
+                    try {
+                        // 调用已存在的 runAIHeadless 接口（在同一 iframe 内）
+                        const result = await window.runAIHeadless({
+                            platformConfig: payload.platformConfig || {},
+                            modelConfig: payload.modelConfig || {},
+                            templateData: payload.templateData || {},
+                            options: payload.options || {}
+                        });
+                        // 成功回传
+                        try { e.source.postMessage({ type: 'AI_MODAL_RUN_RESULT', requestId: msg.requestId, status: 'ok', detail: result }, '*'); } catch (_) { /* noop */ }
+                    } catch (err) {
+                        const msgText = err && err.message ? err.message : String(err);
+                        try { e.source.postMessage({ type: 'AI_MODAL_RUN_RESULT', requestId: msg.requestId, status: 'error', detail: { message: msgText } }, '*'); } catch (_) { /* noop */ }
+                    }
+                } catch (err) {
+                    console.warn('AI_MODAL_RUN_HEADLESS listener error', err);
                 }
             }, false);
         </script>
