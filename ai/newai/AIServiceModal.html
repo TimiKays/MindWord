@@ -115,7 +115,8 @@
                 <form id="aiServiceForm">
                     <!-- AI使用界面 -->
                     <div id="aiUsageView" class="view-container">
-                        <div id="usageConfigStatusBar" class="mb-2 p-3 rounded-md text-sm hidden">
+                        <div id="usageConfigStatusBar"
+                            class="absolute left-1/2 -translate-x-1/2 w-auto max-w-[760px] top-40 z-20 p-3 rounded-md text-sm hidden">
                             <!-- 配置状态将动态更新 -->
                         </div>
                         <!-- 使用态状态提示条：始终保留，在操作时显示提示/成功/失败 -->
@@ -190,11 +191,11 @@
                                 <div class="flex justify-end items-center gap-2 text-xs text-gray-600 mt-1">
                                     <label class="inline-flex items-center cursor-pointer">
                                         <input type="checkbox" id="toggleTemplateViewChk" class="mr-1">
-                                        查看模板
+
                                     </label>
-                                    <span>显示：<span id="promptViewModeText">模板</span></span>
+                                    <span>当前模式：<span id="promptViewModeText">占位符</span></span>
                                 </div>
-                                <textarea id="usagePromptInput" class="form-control h-52" placeholder="请输入提示词..."
+                                <textarea id="usagePromptInput" class="form-control h-52 " placeholder="请输入提示词..."
                                     required></textarea>
 
                                 <div class="flex justify-end mt-3">
@@ -211,13 +212,19 @@
                                     class="bg-neutral-light p-3 rounded-md h-52 overflow-y-auto">
                                     <div id="usageResultContent" class="whitespace-pre-wrap break-words"></div>
                                 </div>
+                                <div class="flex justify-end mt-3">
+                                    <button id="saveApplyOutputBtn" type="button" class="btn btn-primary">
+                                        保存并应用
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- AI配置界面：左侧已配置平台列表 + 右侧单平台配置 -->
                     <div id="aiConfigView" class="view-container hidden">
-                        <div class="mb-4 p-3 rounded-md text-sm" id="configStatusBar">
+                        <div id="configStatusBar"
+                            class="absolute left-1/2 -translate-x-1/2 w-auto max-w-[760px] top-12 z-20 p-3 rounded-md text-sm hidden">
                             <i class="fa fa-info-circle text-blue-600 mr-2"></i>请选择平台并填写必要信息，完成后点击“保存配置”。
                         </div>
 
@@ -356,15 +363,17 @@
                                             </details>
                                         </div>
 
-                                        <!-- 底部操作 -->
-                                        <div class="flex justify-end gap-3 mt-4">
 
-                                            <button id="configBackBtn" type="button" class="btn btn-outline">返回</button>
-                                            <button id="configSaveBtn" type="button" class="btn btn-primary">
-                                                <i class="fa fa-save mr-2"></i>保存配置
-                                            </button>
-                                        </div>
                                     </div>
+
+                                </div>
+                                <!-- 底部操作 -->
+                                <div class="flex justify-end gap-3 mt-4">
+
+                                    <button id="configBackBtn" type="button" class="btn btn-outline">返回</button>
+                                    <button id="configSaveBtn" type="button" class="btn btn-primary">
+                                        <i class="fa fa-save mr-2"></i>保存配置
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -372,7 +381,8 @@
 
                     <!-- 模板配置界面：左侧模板列表 + 右侧编辑 -->
                     <div id="templateConfigView" class="view-container hidden">
-                        <div class="mb-4 p-3 rounded-md text-sm bg-blue-100 text-blue-800" id="templateStatusBar">
+                        <div id="templateStatusBar"
+                            class="absolute left-1/2 -translate-x-1/2 w-auto max-w-[760px] top-12 z-20 p-3 rounded-md text-sm bg-blue-100 text-blue-800">
                             <i
                                 class="fa fa-info-circle text-blue-600 mr-2"></i>管理提示词模板：支持新增、编辑、删除、导入、导出。保存后将更新使用界面的模板下拉。
                         </div>
@@ -444,8 +454,7 @@
                         </div>
                     </div>
 
-                    <!-- 弹窗底部（移除固定底部，改为由各面板自带操作区） -->
-                    <div class="modal-footer hidden"></div>
+
             </div>
         </div>
 
@@ -704,66 +713,6 @@
                     }
                 }
 
-                /**
-                 * 验证与AI平台的连接是否有效
-                 */
-                async verifyConnection() {
-                    if (!this.isConfigured()) {
-                        throw new Error('AI服务尚未配置完整，请检查配置');
-                    }
-
-                    try {
-                        // 不同平台使用不同的验证方法
-                        switch (this.config.selectedPlatform) {
-                            case 'openai':
-                                // 调用模型列表API验证
-                                const models = await this.fetchModels(this.config.selectedPlatform, this.config.apiKey);
-                                return models.length > 0;
-
-                            case 'anthropic':
-                                // 发送一个简单的测试请求
-                                const testPrompt = "请返回'连接成功'以验证API可用";
-                                const response = await this._callAnthropic(testPrompt, 0, 10);
-                                return response.includes('连接成功');
-
-                            case 'google':
-                                // 调用模型列表API验证
-                                const googleModels = await this.fetchModels(this.config.selectedPlatform, this.config.apiKey);
-                                return googleModels.length > 0;
-
-                            case 'azure':
-                                // 发送一个简单的测试请求
-                                const azureTestPrompt = "请返回'连接成功'以验证API可用";
-                                const azureResponse = await this._callAzure(azureTestPrompt, 0, 10);
-                                return azureResponse.includes('连接成功');
-
-                            case 'openrouter':
-                                // 调用模型列表API验证
-                                const orModels = await this.fetchModels(this.config.selectedPlatform, this.config.apiKey);
-                                return orModels.length > 0;
-
-                            case 'cloudflare':
-                                // 调用模型列表API验证
-                                const cfModels = await this.fetchModels(
-                                    this.config.selectedPlatform,
-                                    this.config.apiKey,
-                                    { cloudflareAccountId: this.config.cloudflareAccountId }
-                                );
-                                return cfModels.length > 0;
-
-                            case 'silibase':
-                                // 调用模型列表API验证
-                                const sbModels = await this.fetchModels(this.config.selectedPlatform, this.config.apiKey);
-                                return sbModels.length > 0;
-
-                            default:
-                                throw new Error(`不支持的AI平台: ${this.config.selectedPlatform}`);
-                        }
-                    } catch (error) {
-                        console.error("连接验证失败:", error);
-                        throw error;
-                    }
-                }
 
                 async _callOpenAI(prompt, temperature, maxTokens) {
                     const url = `${this.platforms.openai.baseUrl}/chat/completions`;
@@ -1347,8 +1296,6 @@
                 // 保存配置
                 saveCurrentPlatformConfig();
 
-                // 更新快速切换按钮状态
-                updateQuickModelSwitchButton();
 
                 // 若在使用界面，刷新模型下拉
                 if (typeof updateUsageModelSelect === 'function') {
@@ -1412,47 +1359,6 @@
                 }
             }
 
-            // 显示常用模型下拉菜单
-            function showFavoriteModelsDropdown() {
-                // 确保元素存在再操作
-                const favoriteModelsDropdown = document.getElementById('favoriteModelsDropdown');
-                if (!favoriteModelsDropdown) return;
-
-                const selectedPlatform = platformSelect.value;
-                if (!selectedPlatform) return;
-
-                const platformFavoriteModels = favoriteModels[selectedPlatform] || [];
-                if (platformFavoriteModels.length === 0) return;
-
-                // 清空下拉菜单
-                favoriteModelsDropdown.innerHTML = '';
-
-                // 为每个常用模型创建选项
-                platformFavoriteModels.forEach(model => {
-                    const div = document.createElement('div');
-                    div.className = 'px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer';
-                    div.textContent = model;
-
-                    // 添加点击事件
-                    div.addEventListener('click', () => {
-                        // 隐藏下拉菜单
-                        favoriteModelsDropdown.classList.add('hidden');
-                    });
-
-                    favoriteModelsDropdown.appendChild(div);
-                });
-
-                // 显示下拉菜单
-                favoriteModelsDropdown.classList.remove('hidden');
-            }
-
-            // 隐藏常用模型下拉菜单
-            function hideFavoriteModelsDropdown() {
-                const favoriteModelsDropdown = document.getElementById('favoriteModelsDropdown');
-                if (favoriteModelsDropdown) {
-                    favoriteModelsDropdown.classList.add('hidden');
-                }
-            }
 
             // 处理平台选择变化
             function onPlatformChange() {
@@ -1639,30 +1545,9 @@
                 updateConfigStatus();
             }
 
-            // 展开配置区域
-            function expandConfig() {
-                // 始终展开（去掉图标切换）
-                if (configContent) {
-                    configContent.classList.remove('hidden', 'h-0', 'opacity-0', 'overflow-hidden');
-                }
-            }
 
-            // 折叠配置区域
-            function collapseConfig() {
-                // 不再折叠，保持展开
-            }
 
-            // 切换配置区域显示/隐藏
-            function toggleConfig() {
-                // 取消折叠/展开切换
-                expandConfig();
-            }
 
-            // 更新提交按钮状态
-            function updateSubmitButtonState() {
-                const isReady = checkIfConfigured() && usagePromptInput.value; // 修复引用错误
-                usageSubmitBtn.disabled = !isReady; // 修复引用错误
-            }
 
             // 切换API密钥可见性
             function toggleKeyVisibilityHandler() {
@@ -1673,48 +1558,7 @@
                     '<i class="fa fa-eye"></i>';
             }
 
-            // 验证连接
-            async function verifyConnection() {
-                const selectedPlatform = platformSelect.value;
-                const apiKey = apiKeyInput.value;
 
-                if (!selectedPlatform || !apiKey) {
-                    showStatus('请先选择平台并输入API密钥', 'error');
-                    return;
-                }
-
-                try {
-                    // 保存当前配置
-                    saveCurrentPlatformConfig();
-
-                    // 配置AI服务
-                    aiService.configure({
-                        platform: selectedPlatform,
-                        model: '', // 模型将在实际调用时指定
-                        apiKey: apiKey,
-                        azureEndpoint: azureEndpoint.value,
-                        cloudflareAccountId: cloudflareAccountId.value
-                    });
-
-                    // 显示验证中状态
-                    showStatus('正在验证与AI平台的连接...', 'info');
-
-                    // 执行验证
-                    const isConnected = await aiService.verifyConnection();
-
-                    if (isConnected) {
-                        showStatus('连接验证成功！可以使用AI服务', 'success');
-                        updateConfigVisibility();
-
-                        // 更新常用模型列表
-                        updateFavoriteModelsList();
-                    } else {
-                        showStatus('连接验证失败，无法确认API是否可用', 'error');
-                    }
-                } catch (error) {
-                    showStatus(`连接验证失败: ${error.message}`, 'error');
-                }
-            }
 
             // 发送AI请求
             async function sendAIRequest() {
@@ -1850,9 +1694,9 @@
             function openModal() {
                 modal.classList.remove('hidden');
 
-                // 读取预设提示词
+                // 读取预设提示词（信任调用方已传入真实换行）
                 const presetPrompt = modal.dataset.presetPrompt;
-                if (presetPrompt) {
+                if (typeof presetPrompt === 'string') {
                     usagePromptInput.value = presetPrompt;
                     delete modal.dataset.presetPrompt;
                 }
@@ -1888,15 +1732,24 @@
                 // 默认首次打开时使用“模板视图”（便于用户编辑模板占位符）
                 try {
                     const toggleChkEl = document.getElementById('toggleTemplateViewChk');
+                    const modeTextEl = document.getElementById('promptViewModeText');
                     if (toggleChkEl) {
+                        // 默认选中：打开时显示为“占位符/模板模式”
                         toggleChkEl.checked = true;
                     }
+                    // 明确修正展示文本与输入框状态（确保不会被其它初始化覆盖）
+                    try {
+                        if (modeTextEl) modeTextEl.textContent = '占位符';
+                        if (usagePromptInput) {
+                            usagePromptInput.readOnly = false;
+                            usagePromptInput.classList.remove('bg-gray-100');
+                        }
+                    } catch (_) { /* noop */ }
                     // 触发一次 applyView，确保界面与切换状态同步
                     if (typeof applyView === 'function') {
                         applyView();
                     }
                 } catch (e) { /* ignore */ }
-
                 if (initialView === 'config') {
                     switchToConfigView();
                 } else if (initialView === 'template') {
@@ -1939,7 +1792,7 @@
                 if (tplView) tplView.classList.add('hidden');
                 // 设置弹窗高度（使用界面较低）
                 const modalContainer = document.querySelector('.modal-container');
-                if (modalContainer) modalContainer.style.height = '65vh';
+                if (modalContainer) modalContainer.style.height = '40vh';
                 // 弹窗主体不滚动
                 const modalBodyEl = document.querySelector('.modal-body');
                 if (modalBodyEl) modalBodyEl.style.overflowY = 'hidden';
@@ -1962,10 +1815,10 @@
                 if (tplView) tplView.classList.add('hidden');
                 // 设置弹窗高度（配置界面更高）
                 const modalContainer = document.querySelector('.modal-container');
-                if (modalContainer) modalContainer.style.height = '90vh';
+                if (modalContainer) modalContainer.style.height = '60vh';
                 // 弹窗主体内部滚动，底部按钮固定可见
                 const modalBodyEl = document.querySelector('.modal-body');
-                if (modalBodyEl) modalBodyEl.style.overflowY = 'auto';
+                if (modalBodyEl) modalBodyEl.style.overflowY = 'none';
 
                 currentView = 'config';
 
@@ -2090,6 +1943,27 @@
             if (configBackBtn) configBackBtn.addEventListener('click', (e) => { e.preventDefault(); switchToUsageView(); });
             if (usageSubmitBtn) usageSubmitBtn.addEventListener('click', (e) => { e.preventDefault(); sendAIRequest(); });
             if (configSaveBtn) configSaveBtn.addEventListener('click', (e) => { e.preventDefault(); saveConfigAndReturn(); showStatus('配置已保存', 'success'); populateSavedPlatformsList(); populateUsagePlatforms(); updateUsageModelSelect(); });
+
+            // 保存并应用：将输出通过 postMessage 发给父窗口并关闭 modal
+            const saveApplyOutputBtn = document.getElementById('saveApplyOutputBtn');
+            if (saveApplyOutputBtn) {
+                saveApplyOutputBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    try {
+                        const output = (usageResultContent && usageResultContent.textContent) ? usageResultContent.textContent : '';
+                        const rid = modal?.dataset?.requestId || null;
+                        window.parent?.postMessage({
+                            type: 'AI_MODAL_SAVE_OUTPUT',
+                            requestId: rid,
+                            output
+                        }, '*');
+                    } catch (err) {
+                        console.warn('[aiModal] saveApply postMessage failed', err);
+                    }
+                    // 关闭 modal
+                    try { closeModal(); } catch (_) { /* noop */ }
+                });
+            }
             if (openConfigViewBtn) openConfigViewBtn.addEventListener('click', (e) => { e.preventDefault(); switchToConfigView(); });
             if (platformSelect) platformSelect.addEventListener('change', onPlatformChange);
             if (refreshFavoriteModelsBtn) refreshFavoriteModelsBtn.addEventListener('click', refreshFavoriteModels);
@@ -2320,7 +2194,8 @@
                         const modeText = document.getElementById('promptViewModeText');
                         const toggleChk = document.getElementById('toggleTemplateViewChk');
                         if (modeText) modeText.textContent = '实际值';
-                        if (toggleChk) toggleChk.checked = false;
+                        try { usagePromptInput.readOnly = true; usagePromptInput.classList.add('bg-gray-100'); } catch (_) { /* noop */ }
+                        updateUsageSubmitButtonState();
                         showUsageStatus('已生成预览（输入框）', 'info');
                         updateUsageSubmitButtonState();
                     } catch (e) {
@@ -2519,6 +2394,14 @@
                             });
                         } catch (e) { /* ignore */ }
                     }
+                    // 合并 presetMap 中未在 params 声明的键，确保替换完整
+                    if (presetMap && typeof presetMap === 'object') {
+                        Object.entries(presetMap).forEach(([k, v]) => {
+                            if (!Object.prototype.hasOwnProperty.call(placeholders, k)) {
+                                placeholders[k] = (v && typeof v === 'object') ? (v.value ?? '') : String(v ?? '');
+                            }
+                        });
+                    }
                     return placeholders;
                 }
 
@@ -2562,7 +2445,10 @@
                         } catch (e) { /* ignore */ }
 
                         usagePromptInput.value = String(tpl).replace(/\r\n/g, "\n");
-                        if (modeText) modeText.textContent = '模板';
+                        if (modeText) modeText.textContent = '占位符';
+                        try { usagePromptInput.readOnly = false; } catch (_) { /* noop */ }
+                        try { usagePromptInput.classList.remove('bg-gray-100'); } catch (_) { /* noop */ }
+
                     } else {
                         // 查看实际值：优先恢复已缓存的 resolved（若存在），否则基于模板或当前文本生成并缓存 resolved
                         const placeholders = buildPlaceholdersMap();
@@ -2572,6 +2458,7 @@
                         if (cachedResolved && String(cachedResolved).trim() !== '') {
                             usagePromptInput.value = String(cachedResolved).replace(/\r\n/g, "\n");
                             if (modeText) modeText.textContent = '实际值';
+                            try { usagePromptInput.readOnly = true; } catch (_) { /* noop */ }
                             updateUsageSubmitButtonState();
                             return;
                         }
@@ -2601,6 +2488,7 @@
                             console.error
                         }
                         if (modeText) modeText.textContent = '实际值';
+                        try { usagePromptInput.readOnly = true; } catch (_) { /* noop */ }
                     }
                     updateUsageSubmitButtonState();
                 }
@@ -2629,8 +2517,10 @@
                     }
                 } catch (e) { /* ignore */ }
 
-                // 初始化一次（默认实际值）
-                applyView();
+                // 初始化一次（仅在 modal 可见时应用视图）
+                if (modal && !modal.classList.contains('hidden')) {
+                    applyView();
+                }
             })();
 
             // 扩展 initPlatformSelect：同时填充使用界面的平台下拉
@@ -2712,6 +2602,15 @@
                     textarea.selectionStart = textarea.selectionEnd = pos;
                     textarea.focus();
                     updateUsageSubmitButtonState();
+                    // 若当前为“模板视图”，同步把最新文本作为缓存模板，确保切到“实际值”用的是最新文本
+                    try {
+                        const toggleChk = document.getElementById('toggleTemplateViewChk');
+                        const isTemplate = !!(toggleChk && toggleChk.checked);
+                        if (isTemplate && textarea) {
+                            if (!textarea.dataset) textarea.dataset = {};
+                            textarea.dataset.template = textarea.value || '';
+                        }
+                    } catch (e) { /* ignore */ }
                     // 缓存当前模板文本（仅当看起来像模板且未缓存时），防止把“插入后”的文本误保存为原始模板
                     try {
                         if (textarea) {
@@ -2820,14 +2719,19 @@
                     const res = await fetch('./prompt-templates.json', { cache: 'no-cache' });
                     if (!res.ok) throw new Error('加载提示词模板失败: ' + res.status);
                     const fileTpls = await res.json();
-                    promptTemplates = (Array.isArray(fileTpls) ? fileTpls : []).map(t => ({
-                        name: t.name || '',
-                        description: t.description || '',
-                        type: t.type || '',
-                        caller: t.caller || '',
-                        params: Array.isArray(t.params) ? t.params : [],
-                        content: t.content || ''
-                    }));
+                    // 直接使用文件中的 content（模板由团队维护，内容应包含真实换行），不做多重转义解码
+                    promptTemplates = (Array.isArray(fileTpls) ? fileTpls : []).map(t => {
+                        const contentRaw = t.content || '';
+                        const contentDecoded = String(contentRaw); // 直接使用，不做额外反转义
+                        return {
+                            name: t.name || '',
+                            description: t.description || '',
+                            type: t.type || '',
+                            caller: t.caller || '',
+                            params: Array.isArray(t.params) ? t.params : [],
+                            content: contentDecoded
+                        };
+                    });
                     saveTemplatesToStorage(promptTemplates);
                     loaded = true;
                 } catch (e) {
@@ -3082,7 +2986,7 @@
                 if (v) v.classList.remove('hidden');
                 // 设置弹窗高度（模板配置界面更高）
                 const modalContainer = document.querySelector('.modal-container');
-                if (modalContainer) modalContainer.style.height = '90vh';
+                if (modalContainer) modalContainer.style.height = 'auto';
                 // 弹窗主体内部滚动，底部按钮固定可见
                 const modalBodyEl = document.querySelector('.modal-body');
                 if (modalBodyEl) modalBodyEl.style.overflowY = 'auto';
@@ -3651,7 +3555,6 @@
                 openModal();
             };
 
-            // 根据父页面传入的 params 填充 promptParamsSelect（支持数组或对象）
             function populatePromptParamsFromPayload(params) {
                 try {
                     if (!promptParamsSelect) return;
@@ -3662,10 +3565,14 @@
                         params.forEach(p => {
                             const name = typeof p === 'string' ? p : (p.name || '');
                             const desc = (typeof p === 'object' && (p.description || p.desc)) ? (p.description || p.desc) : '';
+                            const val = (typeof p === 'object' && (p.value !== undefined)) ? String(p.value) : '';
                             const opt = document.createElement('option');
                             opt.value = name;
                             opt.textContent = name; // 显示参数名
                             opt.title = desc;
+                            // 将描述与真实值保存在 dataset 中，便于在实际值视图读取
+                            if (desc) opt.dataset.desc = desc;
+                            if (val) opt.dataset.value = val;
                             promptParamsSelect.appendChild(opt);
                         });
                     } else if (typeof params === 'object') {
@@ -3676,6 +3583,8 @@
                             if (v && typeof v === 'object') {
                                 opt.textContent = k;
                                 opt.title = v.description || v.desc || '';
+                                if (v.description || v.desc) opt.dataset.desc = v.description || v.desc || '';
+                                if (v.value !== undefined) opt.dataset.value = String(v.value);
                             } else {
                                 opt.textContent = k;
                                 opt.title = '';
@@ -3760,9 +3669,119 @@
                             console.warn('[aiModal] populatePromptParamsFromPayload 失败', err);
                         }
 
-                        // 最终打开 modal（带 requestId / presetPrompt）
+                        // 如果父页面传入了 templateData，则优先处理：选中模板、填充 usagePromptInput.dataset.template、并把 placeholders 的真实值放入 presetParams 以供参数下拉查看
+                        try {
+                            if (msg.payload && msg.payload.templateData) {
+                                try {
+                                    const td = msg.payload.templateData || {};
+                                    // 如果 templateData 是字符串容错：支持 templateData.templateText 或 templateData.templateKey/templateId
+                                    const providedTemplateText = (td.templateText && String(td.templateText).trim()) ? td.templateText : '';
+                                    const providedPlaceholders = td.placeholders || {};
+
+                                    // 将 placeholders 的值规范化为 { key: {desc, value} } 形式便于 UI 展示
+                                    let presetObj = parsedParams || {};
+                                    try {
+                                        presetObj = presetObj || {};
+                                    } catch (_) { presetObj = {}; }
+
+                                    // 把 templateData.placeholders 的真实值注入到 presetObj（不覆盖已有描述，仅设置 value）
+                                    Object.keys(providedPlaceholders || {}).forEach(function (k) {
+                                        try {
+                                            const v = providedPlaceholders[k];
+                                            if (v && typeof v === 'object' && Object.prototype.hasOwnProperty.call(v, 'value')) {
+                                                // 保留 desc（若存在）并写入 value
+                                                const desc = v.desc || v.description || '';
+                                                presetObj[k] = { desc: desc, value: String(v.value ?? '') };
+                                            } else {
+                                                // 简单值或字符串
+                                                presetObj[k] = { desc: '', value: String(v ?? '') };
+                                            }
+                                        } catch (e) { /* noop */ }
+                                    });
+
+                                    // 把 templateData 本身也缓存到 dataset 以便后续预览/发送使用
+                                    try {
+                                        modal.dataset.presetTemplateData = JSON.stringify(td);
+                                    } catch (_) { /* noop */ }
+
+                                    // 如果提供了 templateText 且看起来像模板（包含 {{}}）则把它缓存为 textarea 的 template
+                                    try {
+                                        if (usagePromptInput) {
+                                            if (providedTemplateText && providedTemplateText.indexOf('{{') >= 0) {
+                                                usagePromptInput.dataset.template = providedTemplateText;
+                                            } else if (td.templateKey || td.templateId) {
+                                                // 若给出模板 key/id，尝试从已加载的模板列表中匹配并选中
+                                                const keyCandidate = td.templateKey || td.templateId || '';
+                                                if (keyCandidate) {
+                                                    // 在 promptTemplates 中寻找 name 匹配项并选中
+                                                    for (var ii = 0; ii < promptTemplates.length; ii++) {
+                                                        if ((promptTemplates[ii].name || '') === keyCandidate) {
+                                                            promptTemplateSelect.selectedIndex = ii + 1; // +1 因为第一个是默认项
+                                                            // 设置 textarea 的 cached template 为该模板内容
+                                                            usagePromptInput.dataset.template = promptTemplates[ii].content || '';
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                            } else if (!usagePromptInput.dataset.template || String(usagePromptInput.dataset.template).trim() === '') {
+                                                // 回退到把第一个模板或空字符串缓存为 template（不覆盖用户已存在的值）
+                                                const sel = promptTemplateSelect?.options[promptTemplateSelect.selectedIndex];
+                                                const tplContent = sel?.dataset?.content || sel?.value || '';
+                                                if (tplContent && String(tplContent).trim() !== '') {
+                                                    usagePromptInput.dataset.template = tplContent;
+                                                }
+                                            }
+                                        }
+                                    } catch (err) { /* ignore */ }
+
+                                    // 更新 presetParams（合并并写回 dataset）
+                                    try {
+                                        modal.dataset.presetParams = JSON.stringify(presetObj);
+                                    } catch (err) { /* ignore */ }
+
+                                    // 重新填充参数下拉并保持当前选项（优先展示传入的占位符）
+                                    try {
+                                        populatePromptParamsFromPayload(presetObj || {});
+                                    } catch (err) {
+                                        console.warn('[aiModal] populatePromptParamsFromPayload after templateData failed', err);
+                                    }
+                                } catch (err) {
+                                    console.warn('[aiModal] process payload.templateData failed', err);
+                                }
+                            }
+                        } catch (err) {
+                            console.warn('[aiModal] handle templateData on open failed', err);
+                        }
+
+                        // 最终打开 modal（带 requestId / presetPrompt），注意：modal 打开时不自动发送请求（除非 payload 指定 autoRun 或 mode==='direct'）
                         try {
                             window.openAIServiceModal({ title, initialView, presetPrompt, requestId });
+
+                            // 如果父 payload 指定要自动运行（兼容 headless 或 autoRun），仅在明确标记时触发
+                            try {
+                                const shouldAutoRun = !!(msg.payload && msg.payload.mode === 'direct');
+                                if (shouldAutoRun) {
+                                    // 若 autoRun 或 direct，则触发一次预览或发送（dryRun:false 表示真正发送）
+                                    // 但为了安全，优先触发组件内的 runAIHeadless（若 mode==='direct'）或直接点击发送按钮（模拟用户交互）
+                                    if (msg.payload.mode === 'direct') {
+                                        // headless path: instruct parent to run headless via runAIHeadless inside iframe
+                                        // 这里不自动调用 usageSubmitBtn.click()，而是触发组件内的 headless path if available
+                                        try {
+                                            // runAIHeadless 路径将由父页面的 headless 请求走，不在 modal 中自动执行
+                                        } catch (_) { /* noop */ }
+                                    } else {
+                                        // 若 autoRun 且 modal 打开，则模拟用户点击发送（谨慎）
+                                        try {
+                                            // 将 textarea 的 current resolved 文本更新到视图再触发发送
+                                            try { applyView(); } catch (_) { /* noop */ }
+                                            if (usageSubmitBtn && !usageSubmitBtn.disabled) {
+                                                usageSubmitBtn.click();
+                                            }
+                                        } catch (err) { console.warn('[aiModal] autoRun send failed', err); }
+                                    }
+                                }
+                            } catch (arErr) { /* noop */ }
+
                             // 额外容错：打开后确保有可用于解析的模板缓存（usagePromptInput.dataset.template）
                             try {
                                 if (usagePromptInput) {

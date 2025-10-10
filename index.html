@@ -1021,6 +1021,190 @@
         // 页面加载完成后初始化
         document.addEventListener('DOMContentLoaded', initApp);
 
+        // 预加载 AI prompt 模板到全局，供子 iframe（如 mindmap）同步读取
+        (function preloadAIPromptTemplates() {
+            try {
+                if (window.__prompt_templates) return;
+                var url = 'ai/newai/prompt-templates.json';
+                fetch(url, { cache: 'no-cache' }).then(function (resp) {
+                    if (!resp.ok) throw new Error('fetch failed ' + resp.status);
+                    return resp.json();
+                }).then(function (json) {
+                    try { window.__prompt_templates = json; console.log('[INDEX] loaded prompt-templates.json', Array.isArray(json) ? json.length : 0); } catch (e) { }
+                }).catch(function (err) {
+                    console.warn('[INDEX] preload prompt-templates.json failed', err);
+                    try { window.__prompt_templates = window.__prompt_templates || null; } catch (e) { }
+                });
+            } catch (e) { console.warn('[INDEX] preloadAIPromptTemplates error', e); }
+        })();
+
+        /* ==== AI 弹窗父层托管注入（来自 ai/newai/demo-caller.html 的适配实现） ====
+           子 iframe 通过 postMessage({ type:'AI_MODAL_OPEN_REQUEST', requestId, payload }, '*')
+           调用位于 ai/newai/AIServiceModal.html 的 AIServiceModal。支持 modal 与 headless（direct）。
+        */
+        (function injectAiModalHost() {
+            try {
+                var existing = document.getElementById('aiModalFrame');
+                if (!existing) {
+                    var frame = document.createElement('iframe');
+                    frame.id = 'aiModalFrame';
+                    frame.src = 'ai/newai/AIServiceModal.html';
+                    frame.style.position = 'fixed';
+                    frame.style.inset = '0';
+                    frame.style.width = '100%';
+                    frame.style.height = '100%';
+                    frame.style.border = '0';
+                    frame.style.display = 'none';
+                    frame.setAttribute('aria-hidden', 'true');
+                    frame.style.zIndex = '9999';
+                    frame.style.background = 'transparent';
+                    document.body.appendChild(frame);
+                }
+            } catch (e) {
+                console.warn('[INDEX][AI] inject aiModalFrame failed', e);
+            }
+
+            window.__ai_req_map = window.__ai_req_map || new Map();
+            window._headlessTimeouts = window._headlessTimeouts || new Map();
+
+            window.addEventListener('message', function (e) {
+                try {
+                    var msg = e && e.data;
+                    if (!msg || typeof msg !== 'object') return;
+
+                    if (msg.type === 'AI_MODAL_OPEN_REQUEST' && msg.requestId) {
+                        console.log('[INDEX] AI_MODAL_OPEN_REQUEST', msg.requestId, msg.payload);
+                        window.__ai_req_map.set(msg.requestId, e.source);
+                        var aiFrame = document.getElementById('aiModalFrame');
+
+                        if (msg.payload && msg.payload.mode === 'direct') {
+                            // headless handling (kept for compatibility)
+                            var platformCfgRaw = msg.payload.platformConfig || msg.payload.platform || {};
+                            var platformConfig = Object.assign({}, platformCfgRaw);
+
+                            try {
+                                var storageStr = aiFrame && aiFrame.contentWindow && aiFrame.contentWindow.localStorage
+                                    ? aiFrame.contentWindow.localStorage.getItem('allAIPlatformConfigs')
+                                    : null;
+                                if (!platformConfig.provider && storageStr) {
+                                    try {
+                                        var allCfgs = JSON.parse(storageStr || '{}') || {};
+                                        var keys = Object.keys(allCfgs || {});
+                                        var chosen = null;
+                                        for (var i = 0; i < keys.length; i++) {
+                                            var k = keys[i];
+                                            var c = allCfgs[k] || {};
+                                            var hasApiKey = c.apiKey && String(c.apiKey).trim() !== '';
+                                            var okCloudflare = (k !== 'cloudflare') || (c.cloudflareAccountId && String(c.cloudflareAccountId).trim() !== '');
+                                            var okAzure = (k !== 'azure') || (c.azureEndpoint && String(c.azureEndpoint).trim() !== '');
+                                            if (hasApiKey && okCloudflare && okAzure) {
+                                                chosen = { key: k, cfg: c };
+                                                break;
+                                            }
+                                        }
+                                        if (chosen) {
+                                            platformConfig.provider = platformConfig.provider || chosen.key;
+                                            platformConfig.apiKey = platformConfig.apiKey || chosen.cfg.apiKey || '';
+                                            if (chosen.cfg.azureEndpoint) platformConfig.azureEndpoint = platformConfig.azureEndpoint || chosen.cfg.azureEndpoint;
+                                            if (chosen.cfg.cloudflareAccountId) platformConfig.cloudflareAccountId = platformConfig.cloudflareAccountId || chosen.cfg.cloudflareAccountId;
+                                            console.log('[INDEX] selected saved platform from aiModalFrame.localStorage:', chosen.key);
+                                        }
+                                    } catch (err) { console.warn('[INDEX] parse aiModalFrame.localStorage failed', err); }
+                                }
+                            } catch (err) { console.warn('[INDEX] read aiFrame localStorage failed', err); }
+
+                            var _tplRaw = msg.payload.templateData || {
+                                templateText: msg.payload.template || '',
+                                placeholders: msg.payload.params || {}
+                            };
+                            try {
+                                if (!(_tplRaw && typeof _tplRaw.templateText === 'string' && _tplRaw.templateText.trim())) {
+                                    var ph = (_tplRaw && _tplRaw.placeholders) ? _tplRaw.placeholders : (msg.payload.placeholders || msg.payload.params || {});
+                                    var candidate = '';
+                                    if (ph) {
+                                        if (ph.input && typeof ph.input === 'object' && typeof ph.input.value === 'string') candidate = ph.input.value;
+                                        else if (typeof ph.input === 'string') candidate = ph.input;
+                                    }
+                                    if (!candidate && typeof msg.payload.template === 'string') candidate = msg.payload.template;
+                                    if (candidate && String(candidate).trim()) { _tplRaw.templateText = String(candidate); }
+                                }
+                            } catch (err) { console.warn('[INDEX] fill templateText failed', err); }
+
+                            var headlessPayload = {
+                                platformConfig: platformConfig,
+                                modelConfig: msg.payload.modelConfig || msg.payload.model || {},
+                                templateData: _tplRaw,
+                                options: msg.payload.options || {}
+                            };
+
+                            try {
+                                aiFrame.contentWindow.postMessage({
+                                    type: 'AI_MODAL_RUN_HEADLESS',
+                                    requestId: msg.requestId,
+                                    payload: headlessPayload
+                                }, '*');
+                                var HEADLESS_TIMEOUT_MS = 15000;
+                                var t = setTimeout(function () {
+                                    try {
+                                        var src = window.__ai_req_map.get(msg.requestId);
+                                        if (src) {
+                                            src.postMessage({
+                                                type: 'AI_MODAL_RESULT',
+                                                requestId: msg.requestId,
+                                                status: 'error',
+                                                detail: { message: 'headless call timeout' }
+                                            }, '*');
+                                        }
+                                    } catch (e) { }
+                                    window._headlessTimeouts.delete(msg.requestId);
+                                    window.__ai_req_map.delete(msg.requestId);
+                                }, HEADLESS_TIMEOUT_MS);
+                                window._headlessTimeouts.set(msg.requestId, { timer: t, source: e.source });
+                            } catch (err) {
+                                console.error('[INDEX] post to aiModalFrame failed', err);
+                                try { e.source.postMessage({ type: 'AI_MODAL_RESULT', requestId: msg.requestId, status: 'error', detail: { message: 'failed to post to aiModalFrame: ' + (err && err.message ? err.message : String(err)) } }, '*'); } catch (_) { }
+                                window.__ai_req_map.delete(msg.requestId);
+                            }
+                            return;
+                        }
+
+                        // modal path: show frame and forward
+                        try { if (aiFrame) { aiFrame.style.display = 'block'; aiFrame.focus && aiFrame.focus(); } } catch (_) { }
+                        try {
+                            aiFrame.contentWindow.postMessage({
+                                type: 'AI_MODAL_OPEN',
+                                payload: Object.assign({}, msg.payload || {}, { requestId: msg.requestId })
+                            }, '*');
+                            console.log('[INDEX] forwarded AI_MODAL_OPEN to aiModalFrame', msg.requestId);
+                        } catch (err) {
+                            console.error('[INDEX] forward AI_MODAL_OPEN failed', err);
+                            try { e.source.postMessage({ type: 'AI_MODAL_RESULT', requestId: msg.requestId, status: 'error', detail: { message: 'failed to forward to aiModalFrame' } }, '*'); } catch (_) { }
+                            window.__ai_req_map.delete(msg.requestId);
+                        }
+                    }
+
+                    // modal result
+                    if (msg.type === 'AI_MODAL_RESULT' && msg.requestId) {
+                        console.log('[INDEX] AI_MODAL_RESULT', msg.requestId, msg.status);
+                        var srcWin = window.__ai_req_map.get(msg.requestId);
+                        try { var f = document.getElementById('aiModalFrame'); if (f) f.style.display = 'none'; } catch (_) { }
+                        if (srcWin) { try { srcWin.postMessage(msg, '*'); } catch (e) { console.warn('[INDEX] forward result failed', e); } window.__ai_req_map.delete(msg.requestId); } else { console.warn('[INDEX] source not found for', msg.requestId); }
+                    }
+
+                    // headless run result
+                    if (msg.type === 'AI_MODAL_RUN_RESULT' && msg.requestId) {
+                        console.log('[INDEX] AI_MODAL_RUN_RESULT', msg.requestId, msg.status);
+                        var srcWin2 = window.__ai_req_map.get(msg.requestId);
+                        try { var f2 = document.getElementById('aiModalFrame'); if (f2) f2.style.display = 'none'; } catch (_) { }
+                        var outMsg = { type: 'AI_MODAL_RESULT', requestId: msg.requestId, status: msg.status === 'ok' ? 'ok' : 'error', detail: msg.detail };
+                        if (srcWin2) { try { srcWin2.postMessage(outMsg, '*'); } catch (e) { console.warn('[INDEX] forward headless result failed', e); } window.__ai_req_map.delete(msg.requestId); } else { console.warn('[INDEX] source not found for headless', msg.requestId); }
+                    }
+                } catch (err) {
+                    console.warn('[INDEX] ai message handler error', err);
+                }
+            }, false);
+        })();
+
         // 在移动端创建底部 tabs：克隆 header .tabs 到 mobile-tabs（保持事件绑定）
         function createMobileTabs() {
             try {

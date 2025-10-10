@@ -181,7 +181,7 @@
 
 
     // --- extracted block from original HTML ---
-    // AI扩写函数（保留原逻辑）
+    // AI扩写函数（改为使用父层托管的 AI 弹窗组件，modal 模式）
     function expandWithAI() {
       try {
         const selectedNode = jm.get_selected_node();
@@ -190,11 +190,167 @@
           return;
         }
 
-        if (window.AIExpander) {
-          window.AIExpander.expandNode(selectedNode.id, jm);
-        } else {
-          showError('AI扩写模块未加载，请刷新页面重试');
+        // 构造 requestId
+        function genId() { return 'r_' + Math.random().toString(36).slice(2, 10); }
+        const requestId = genId();
+
+        // 准备 templateData：使用预设模板（扩展子节点），并注入真实上下文
+        var topic = selectedNode.topic || '';
+        var notes = (selectedNode.data && selectedNode.data.notes) ? selectedNode.data.notes : (document.getElementById('nodeNotes') ? document.getElementById('nodeNotes').value : '');
+        // 计算 fullPath 与 siblingNodes（若可用）
+        var fullPath = (typeof window.getNodeFullPath === 'function') ? window.getNodeFullPath(selectedNode) : (selectedNode.topic || '');
+        var siblingNodes = '';
+        try {
+          var parent = jm.get_parent(selectedNode.id);
+          if (parent && parent.children) {
+            siblingNodes = (parent.children || []).filter(function (n) { return n.id !== selectedNode.id; }).map(function (n) { return n.topic || ''; }).join(', ');
+          }
+        } catch (e) { siblingNodes = ''; }
+
+        // 从 prompt-templates.json 中读取“扩展子节点”模板内容（若无法访问则回退）
+        var templateText = '';
+        try {
+          var tplList = window.__prompt_templates || null;
+          if (!tplList) {
+            // lazy load from ai/newai/prompt-templates.json if available via fetch (silent)
+            try {
+              // sync attempt may fail in file://; fallback to default string
+              // we will try to read from a global if demo pages preloaded templates
+              tplList = window.__prompt_templates || tplList;
+            } catch (err) { tplList = tplList || null; }
+          }
+          if (Array.isArray(tplList)) {
+            for (var ti = 0; ti < tplList.length; ti++) {
+              var t = tplList[ti];
+              if (t && t.name === '扩展子节点') { templateText = t.content || ''; break; }
+            }
+          }
+        } catch (e) { templateText = ''; }
+
+        // 最终回退策略：如果没有模板则使用 topic 或简单占位符
+        if (!templateText || !String(templateText).trim()) {
+          templateText = topic || '{{input}}';
         }
+
+        var payload = {
+          // modal 模式：不设置 mode 或确保不是 'direct'
+          platformConfig: {}, // 可选：留空由父页面选择已保存平台或打开配置
+          modelConfig: {},
+          templateData: {
+            templateText: templateText,
+            placeholders: {
+              input: { desc: '节点主题', value: topic },
+              notes: { desc: '节点备注', value: notes },
+              fullPath: { desc: '节点完整路径', value: fullPath },
+              siblingNodes: { desc: '同级兄弟节点', value: siblingNodes },
+              nodeId: { desc: '节点ID', value: selectedNode.id }
+            }
+          },
+          options: {}
+        };
+
+        // 指定预置模板 key 与参数映射，便于弹窗自动选中模板和展示参数
+        try { payload.templateData.templateKey = '扩展子节点'; } catch (e) { }
+        try { payload.params = payload.templateData.placeholders; } catch (e) { }
+
+        // 临时消息处理器：等待 AI_MODAL_RESULT 回来
+        const onMessage = function (e) {
+          try {
+            const msg = e && e.data;
+            if (!msg || msg.type !== 'AI_MODAL_RESULT' || msg.requestId !== requestId) return;
+            // 清理
+            window.removeEventListener('message', onMessage);
+            clearTimeout(timeoutT);
+
+            if (msg.status === 'ok') {
+              try {
+                const detail = msg.detail || {};
+                // 期望 detail 中包含生成的内容（例如 detail.output 或 detail.text）
+                // 支持两种常见格式：detail.output（带 [OUTPUT] 包裹）或 detail.text
+                const outText = detail.output || detail.text || (detail.result && detail.result.text) || '';
+                if (!outText) {
+                  showWarning('AI 未返回有效内容');
+                  return;
+                }
+
+                // 将 AI 返回的文本解析为若干子节点（简单按换行分割标题行或 Markdown 标题）
+                // 若返回结构化 [OUTPUT] 标签，尝试提取标签内内容
+                let parsed = outText;
+                const m = /\[OUTPUT\]([\s\S]*)\[\/OUTPUT\]/i.exec(outText);
+                if (m && m[1]) parsed = m[1].trim();
+
+                // 简单解析策略：按行取以 '#' 开头的标题或非空行作为子节点标题
+                // 处理兼容性：先去除 \r 再按 '\n' 分割，避免正则字面量被格式化器拆行
+                var normalized = (parsed || '').replace(/\r/g, '');
+                var lines = normalized.split('\n').map(function (s) { return (s || '').trim(); }).filter(function (s) { return !!s; });
+                var childTitles = [];
+                lines.forEach(function (line) {
+                  var h = (line || '').replace(/^#+\s*/, '').trim();
+                  if (h) childTitles.push(h);
+                });
+                if (childTitles.length === 0) {
+                  // 退回到按段落分割：按连续空行（'\n\n' 或 更多）分割
+                  var paras = normalized.split(/\n{2,}/).map(function (s) { return (s || '').trim(); }).filter(function (s) { return !!s; });
+                  paras.forEach(function (p) {
+                    var firstLine = (p.split('\n')[0] || '').trim();
+                    if (firstLine) childTitles.push(firstLine);
+                  });
+                }
+
+                if (childTitles.length === 0) {
+                  showWarning('无法从 AI 输出解析出子节点，请检查输出格式');
+                  return;
+                }
+
+                // 插入子节点（使用 jm API，插入到 selectedNode 下）
+                childTitles.forEach(function (title) {
+                  try {
+                    // 使用 jm.add_node(parentid, nodeid, topic)
+                    const nid = 'n_' + Math.random().toString(36).slice(2, 9);
+                    jm.add_node(selectedNode.id, nid, title);
+                  } catch (e) {
+                    console.warn('插入子节点失败', e);
+                  }
+                });
+
+                // 保存 / 提示
+                try { if (typeof debouncedSave === 'function') debouncedSave(); } catch (e) { }
+                try { showSuccess && showSuccess('已为该节点生成 ' + childTitles.length + ' 个子节点'); } catch (e) { }
+              } catch (err) {
+                console.error('处理 AI 结果失败', err);
+                showError('处理 AI 结果失败: ' + (err && err.message ? err.message : String(err)));
+              }
+            } else {
+              // error
+              const detailMsg = (msg.detail && msg.detail.message) ? msg.detail.message : 'AI 返回错误';
+              showError('AI 生成失败: ' + detailMsg);
+            }
+          } catch (e) {
+            console.warn('expandWithAI onMessage error', e);
+          }
+        };
+
+        window.addEventListener('message', onMessage);
+
+        // 超时保护（30s）
+        const timeoutT = setTimeout(function () {
+          try {
+            window.removeEventListener('message', onMessage);
+            showError('AI 响应超时（30s）');
+          } catch (e) { }
+        }, 30000);
+
+        // 发送请求给父页面
+        try {
+          console.log('[MW][AI] send AI_MODAL_OPEN_REQUEST', requestId, payload);
+          window.parent.postMessage({ type: 'AI_MODAL_OPEN_REQUEST', requestId: requestId, payload: payload }, '*');
+        } catch (e) {
+          clearTimeout(timeoutT);
+          window.removeEventListener('message', onMessage);
+          console.error('发送 AI 请求失败', e);
+          showError('发送 AI 请求失败: ' + e.message);
+        }
+
       } catch (e) {
         console.error('AI扩写出错:', e);
         showError('AI扩写出错: ' + e.message);
