@@ -1749,6 +1749,7 @@
                     if (typeof applyView === 'function') {
                         applyView();
                     }
+                    syncTemplateAndResolved();
                 } catch (e) { /* ignore */ }
                 if (initialView === 'config') {
                     switchToConfigView();
@@ -2048,22 +2049,17 @@
             if (apiKeyInput) apiKeyInput.addEventListener('input', () => {
                 updateConfigStatus();
             });
-            if (usagePromptInput) {
-                usagePromptInput.addEventListener('input', updateUsageSubmitButtonState);
-                // 根据当前视图保存 textarea 内容到不同缓存：模板视图保存到 dataset.template，实际值视图保存到 dataset.resolved
-                usagePromptInput.addEventListener('input', () => {
-                    try {
-                        const toggleChk = document.getElementById('toggleTemplateViewChk');
-                        const isTemplate = !!(toggleChk && toggleChk.checked);
-                        if (!usagePromptInput.dataset) usagePromptInput.dataset = {};
-                        if (isTemplate) {
-                            usagePromptInput.dataset.template = usagePromptInput.value || '';
-                        } else {
-                            usagePromptInput.dataset.resolved = usagePromptInput.value || '';
-                        }
-                    } catch (e) { /* ignore */ }
-                });
-            }
+            try {
+                if (usagePromptInput) {
+                    usagePromptInput.addEventListener('input', () => {
+                        try {
+                            // 统一同步到 template/resolved（避免重复逻辑）
+                            syncTemplateAndResolved();
+                        } catch (e) { /* ignore */ }
+                        updateUsageSubmitButtonState();
+                    });
+                }
+            } catch (e) { /* ignore */ }
             if (usageModelSelect) usageModelSelect.addEventListener('change', () => {
                 // 记忆模型选择（按平台维度存储）
                 if (platformSelect && usageModelSelect.value) {
@@ -2154,6 +2150,7 @@
             const promptParamsSelect = document.getElementById('promptParamsSelect');
             const insertParamBtn = document.getElementById('insertParamBtn');
             const quickConfigBtn = document.getElementById('quickConfigBtn');
+
 
             // 预览按钮：解析占位符并在右侧输出区域展示预览
             (function attachTemplatePreviewHandler() {
@@ -2416,6 +2413,34 @@
                     });
                 }
 
+
+                // 统一同步：在模板（占位符）视图编辑时同时更新 dataset.template 与 dataset.resolved（实时解析），
+                // 在实际值视图编辑时更新 dataset.resolved。
+                function syncTemplateAndResolved() {
+                    // 统一使用全局 usagePromptInput，外部无需传入元素
+                    try {
+                        if (!usagePromptInput) return;
+                        if (!usagePromptInput.dataset) usagePromptInput.dataset = {};
+
+                        // 保存当前模板文本（基于 textarea 的当前值）
+                        usagePromptInput.dataset.template = usagePromptInput.value || '';
+
+                        // 实时解析并缓存 resolved（不覆盖 textarea）
+                        try {
+                            const placeholders = buildPlaceholdersMap();
+                            const res = resolveTemplatePlaceholders(usagePromptInput.dataset.template || '', placeholders, '{{name}}', { missingPolicy: 'keep' });
+                            usagePromptInput.dataset.resolved = (res && res.resolvedText) ? String(res.resolvedText) : '';
+
+                        } catch (e) {
+                            // ignore parse errors but keep template cached
+                            console.warn('[aiModal] syncTemplateAndResolved parse failed', e);
+                        }
+                    } catch (e) { /* ignore */ }
+                }
+
+                // 将函数暴露到全局，保证外部调用（例如 openModal）可成功执行
+                try { window.syncTemplateAndResolved = syncTemplateAndResolved; } catch (e) { /* ignore */ }
+
                 function applyView() {
                     const isTemplate = !!(toggleChk && toggleChk.checked);
 
@@ -2503,13 +2528,14 @@
                     if (usagePromptInput) {
                         usagePromptInput.addEventListener('input', () => {
                             try {
-                                const isTemplate = !!(toggleChk && toggleChk.checked);
-                                if (isTemplate) {
-                                    // 编辑模板视图：更新 dataset.template
-                                    usagePromptInput.dataset.template = usagePromptInput.value || '';
-                                } else {
-                                    // 编辑实际值视图：更新 dataset.resolved
-                                    usagePromptInput.dataset.resolved = usagePromptInput.value || '';
+                                if (usagePromptInput) {
+                                    usagePromptInput.addEventListener('input', () => {
+                                        try {
+                                            // 统一同步到 template/resolved（避免重复逻辑）
+                                            syncTemplateAndResolved();
+                                        } catch (e) { /* ignore */ }
+
+                                    });
                                 }
                             } catch (e) { /* ignore */ }
                             updateUsageSubmitButtonState();
@@ -2582,11 +2608,16 @@
                     usagePromptInput.value = cur ? (cur + "\n\n" + tpl) : tpl;
                     usagePromptInput.focus();
                     updateUsageSubmitButtonState();
+
+                    // 同步缓存： dataset.template和 dataset.resolved
+                    try {
+                        syncTemplateAndResolved();
+                    } catch (e) { /* ignore */ }
                 });
             }
 
             // insertParamBtn：在光标位置插入参数占位符（{{paramName}}）
-            if (insertParamBtn && promptParamsSelect && usagePromptInput) {
+            if (insertParamBtn && usagePromptInput) {
                 insertParamBtn.addEventListener('click', () => {
                     const name = promptParamsSelect.value || (promptParamsSelect.options[promptParamsSelect.selectedIndex]?.value) || '';
                     if (!name) return;
@@ -2602,28 +2633,13 @@
                     textarea.selectionStart = textarea.selectionEnd = pos;
                     textarea.focus();
                     updateUsageSubmitButtonState();
-                    // 若当前为“模板视图”，同步把最新文本作为缓存模板，确保切到“实际值”用的是最新文本
-                    try {
-                        const toggleChk = document.getElementById('toggleTemplateViewChk');
-                        const isTemplate = !!(toggleChk && toggleChk.checked);
-                        if (isTemplate && textarea) {
-                            if (!textarea.dataset) textarea.dataset = {};
-                            textarea.dataset.template = textarea.value || '';
-                        }
-                    } catch (e) { /* ignore */ }
-                    // 缓存当前模板文本（仅当看起来像模板且未缓存时），防止把“插入后”的文本误保存为原始模板
-                    try {
-                        if (textarea) {
-                            const hasTemplateFlag = textarea.dataset && textarea.dataset.template;
-                            const looksLikeTemplate = String(textarea.value || '').includes('{{');
-                            if (!hasTemplateFlag && looksLikeTemplate) {
-                                textarea.dataset.template = textarea.value || '';
-                                console.debug('[aiModal][dbg] cached template on insert (looksLikeTemplate)');
-                            } else {
-                                console.debug('[aiModal][dbg] skip caching on insert; hasTemplateFlag=', !!hasTemplateFlag, 'looksLikeTemplate=', looksLikeTemplate);
-                            }
-                        }
-                    } catch (e) { console.warn('[aiModal] cache template on insert failed', e); }
+
+                    // 更新缓存
+
+                    syncTemplateAndResolved();
+
+
+
                 });
             }
 

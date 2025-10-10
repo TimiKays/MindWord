@@ -196,14 +196,64 @@
 
         // 准备 templateData：使用预设模板（扩展子节点），并注入真实上下文
         var topic = selectedNode.topic || '';
-        var notes = (selectedNode.data && selectedNode.data.notes) ? selectedNode.data.notes : (document.getElementById('nodeNotes') ? document.getElementById('nodeNotes').value : '');
+        // 优先从最新节点数据读取备注；回退到详情面板输入
+        var _nodeLatest = null;
+        try { _nodeLatest = jm.get_node ? jm.get_node(selectedNode.id) : selectedNode; } catch (_) { _nodeLatest = selectedNode; }
+        var notes = (_nodeLatest && _nodeLatest.data && _nodeLatest.data.notes) ? _nodeLatest.data.notes
+          : (document.getElementById('nodeNotes') ? document.getElementById('nodeNotes').value : '');
+
         // 计算 fullPath 与 siblingNodes（若可用）
-        var fullPath = (typeof window.getNodeFullPath === 'function') ? window.getNodeFullPath(selectedNode) : (selectedNode.topic || '');
+        function _computeFullPath(n) {
+          try {
+            if (typeof window.getNodeFullPath === 'function') return window.getNodeFullPath(n);
+          } catch (_) { /* ignore */ }
+          try {
+            var path = [];
+            var cur = n;
+            while (cur) {
+              path.unshift(cur.topic || '');
+              var p = jm.get_parent ? jm.get_parent(cur.id) : null;
+              if (!p) break;
+              cur = p;
+            }
+            return path.join(' / ');
+          } catch (e) {
+            return n.topic || '';
+          }
+        }
+        // 统一使用真实节点对象，避免轻量对象丢失父链/children
+        var realSel = null;
+        try { realSel = jm.get_node ? jm.get_node(selectedNode.id) : selectedNode; } catch (_) { realSel = selectedNode; }
+
+        // 完整路径：从根到当前节点
+        function _computeFullPathStrict(n) {
+          try {
+            // 若有外部工具函数则优先
+            if (typeof window.getNodeFullPath === 'function') return window.getNodeFullPath(n);
+          } catch (_) { /* ignore */ }
+          try {
+            var path = [];
+            var cur = n;
+            while (cur) {
+              path.unshift(cur.topic || '');
+              cur = (jm.get_parent && cur.id) ? jm.get_parent(cur.id) : null;
+            }
+            return path.join(' / ');
+          } catch (e) { return n && (n.topic || ''); }
+        }
+        var fullPath = _computeFullPathStrict(realSel);
+
+        // 兄弟节点：同一父级下除当前节点外的所有节点主题
         var siblingNodes = '';
+        var parent = null;
         try {
-          var parent = jm.get_parent(selectedNode.id);
-          if (parent && parent.children) {
-            siblingNodes = (parent.children || []).filter(function (n) { return n.id !== selectedNode.id; }).map(function (n) { return n.topic || ''; }).join(', ');
+          parent = jm.get_parent(realSel.id);
+          if (parent && Array.isArray(parent.children)) {
+            siblingNodes = parent.children
+              .filter(function (n) { return n && n.id !== realSel.id; })
+              .map(function (n) { return n.topic || ''; })
+              .filter(Boolean)
+              .join(', ');
           }
         } catch (e) { siblingNodes = ''; }
 
@@ -229,7 +279,7 @@
 
         // 最终回退策略：如果没有模板则使用 topic 或简单占位符
         if (!templateText || !String(templateText).trim()) {
-          templateText = topic || '{{input}}';
+          templateText = topic || '{{name}}';
         }
 
         var payload = {
@@ -239,11 +289,31 @@
           templateData: {
             templateText: templateText,
             placeholders: {
-              input: { desc: '节点主题', value: topic },
+              // 对齐新组件默认占位符格式 {{name}}
+              name: { desc: '节点主题', value: topic },
               notes: { desc: '节点备注', value: notes },
               fullPath: { desc: '节点完整路径', value: fullPath },
-              siblingNodes: { desc: '同级兄弟节点', value: siblingNodes },
-              nodeId: { desc: '节点ID', value: selectedNode.id }
+              siblingNodes: { desc: '同级兄弟节点（以逗号分隔）', value: siblingNodes },
+              nodeId: { desc: '节点ID', value: selectedNode.id },
+              // 补充上下文摘要，复用旧逻辑思想：提供可读文本，便于模板直接引用 {{context}}
+              context: {
+                desc: '节点上下文摘要',
+                value: (function () {
+                  try {
+                    var lines = [];
+                    lines.push('节点: ' + (topic || ''));
+                    lines.push('路径: ' + (fullPath || ''));
+                    if (notes) lines.push('备注: ' + notes);
+                    if (parent && (parent.topic || '')) lines.push('父节点: ' + (parent.topic || ''));
+                    if (siblingNodes) lines.push('同级兄弟: ' + siblingNodes);
+                    var childTitles = (selectedNode.children || []).map(function (c) { return c.topic || ''; }).filter(Boolean).join(', ');
+                    if (childTitles) lines.push('已有子节点: ' + childTitles);
+                    return lines.join('\\n');
+                  } catch (e) {
+                    return (topic || '') + '\\n' + (fullPath || '');
+                  }
+                })()
+              }
             }
           },
           options: {}
