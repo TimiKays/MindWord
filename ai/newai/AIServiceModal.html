@@ -2434,18 +2434,13 @@
                         const isTemplateMode = !!document.getElementById('toggleTemplateViewChk')?.checked;
 
                         if (isTemplateMode) {
-                            // 仅在“占位符模式”下更新模板缓存
-                            usagePromptInput.dataset.template = usagePromptInput.value || '';
+                            // 仅在“占位符模式”下更新模板缓存：以当前 textarea 的值为权威数据源，避免使用落后的 dataset.template
+                            const baseSource = String(usagePromptInput.value || '');
+                            usagePromptInput.dataset.template = baseSource;
 
-                            // 实时解析并缓存 resolved（不覆盖 textarea）
-                            try {
-                                const placeholders = buildPlaceholdersMap();
-                                const res = resolveTemplatePlaceholders(usagePromptInput.dataset.template || '', placeholders, '{{name}}', { missingPolicy: 'keep' });
-                                usagePromptInput.dataset.resolved = (res && res.resolvedText) ? String(res.resolvedText) : '';
-                            } catch (e) {
-                                console.warn('[aiModal] syncTemplateAndResolved parse failed', e);
-                            }
-                        } else {
+                            const placeholders = buildPlaceholdersMap();
+                            const res = resolveTemplatePlaceholders(baseSource, placeholders, '{{name}}', { missingPolicy: 'keep' });
+                            usagePromptInput.dataset.resolved = (res && res.resolvedText) ? String(res.resolvedText) : '';
                             // 实际值模式：只缓存 resolved，避免误写覆盖真正的模板
                             usagePromptInput.dataset.resolved = usagePromptInput.value || '';
                         }
@@ -2489,22 +2484,8 @@
                         try { usagePromptInput.classList.remove('bg-gray-100'); } catch (_) { /* noop */ }
 
                     } else {
-                        // 查看实际值：优先恢复已缓存的 resolved（若存在），否则基于模板或当前文本生成并缓存 resolved
+                        // 实际值视图：始终基于当前模板与参数重新解析，避免使用过期的 cachedResolved
                         const placeholders = buildPlaceholdersMap();
-
-                        // 如果存在已缓存的 resolved，直接恢复它（保留用户在实际值视图的编辑）
-                        const cachedResolved = (usagePromptInput && usagePromptInput.dataset && usagePromptInput.dataset.resolved) ? usagePromptInput.dataset.resolved : null;
-                        if (cachedResolved && String(cachedResolved).trim() !== '') {
-                            usagePromptInput.value = String(cachedResolved).replace(/\r\n/g, "\n");
-                            if (modeText) modeText.textContent = '实际值';
-                            try { usagePromptInput.readOnly = true; } catch (_) { /* noop */ }
-                            updateUsageSubmitButtonState();
-                            return;
-                        }
-
-                        // 否则，按现有逻辑选择替换基准：
-                        // 优先使用缓存的模板（usagePromptInput.dataset.template）作为替换基准，
-                        // 若无缓存模板才退回到当前 textarea 内容。这样可以确保模板中的所有 {{...}} 占位符不会因 textarea 临时修改而丢失。
                         const currentText = usagePromptInput ? (usagePromptInput.value || '') : '';
                         const cachedTpl = (usagePromptInput && usagePromptInput.dataset && usagePromptInput.dataset.template) ? usagePromptInput.dataset.template : '';
                         const base = (cachedTpl && String(cachedTpl).trim() !== '') ? cachedTpl : currentText;
@@ -2512,19 +2493,16 @@
                         try {
                             if (!base || String(base).trim() === '') {
                                 console.warn('[aiModal][dbg] applyView skip replace: empty base', { basePreview: base });
-                                // 保持当前 textarea.value 不变
                             } else {
-                                console.debug('[aiModal][dbg] applyView using base length', { baseLen: String(base).length, placeholdersPreview: Object.keys(placeholders).slice(0, 10) });
                                 const replaced = replacePlaceholdersInText(base, placeholders);
                                 usagePromptInput.value = String(replaced).replace(/\r\n/g, "\n");
-                                // 缓存解析结果，方便切换回来恢复用户在“实际值”视图中的修改
-                                try {
+                                // 覆盖缓存解析结果，确保与当前模板一致
+                                if (usagePromptInput && usagePromptInput.dataset) {
                                     usagePromptInput.dataset.resolved = usagePromptInput.value;
-                                } catch (e) { /* ignore */ }
-                                console.debug('[aiModal][dbg] applyView resolved length', usagePromptInput.value.length);
+                                }
                             }
                         } catch (e) {
-                            console.error
+                            console.error('[aiModal] applyView resolve failed', e);
                         }
                         if (modeText) modeText.textContent = '实际值';
                         try { usagePromptInput.readOnly = true; } catch (_) { /* noop */ }
@@ -2611,24 +2589,39 @@
             }
 
             // promptTemplateApplyBtn：将选中模板插入输入区域（追加）
-            if (promptTemplateApplyBtn && promptTemplateSelect && usagePromptInput) {
-                promptTemplateApplyBtn.addEventListener('click', () => {
-                    const opt = promptTemplateSelect.options[promptTemplateSelect.selectedIndex];
-                    // 优先使用 option dataset.content，否则使用 option.value 或文本
-                    const tpl = (opt && (opt.dataset?.content || opt.value || opt.text)) || '';
-                    if (!tpl) return;
-                    // 如果输入框已有内容，添加分隔换行
-                    const cur = usagePromptInput.value || '';
-                    usagePromptInput.value = cur ? (cur + "\n\n" + tpl) : tpl;
-                    usagePromptInput.focus();
-                    updateUsageSubmitButtonState();
-
-                    // 同步缓存： dataset.template和 dataset.resolved
-                    try {
-                        syncTemplateAndResolved();
-                    } catch (e) { /* ignore */ }
-                });
-            }
+            // if (promptTemplateApplyBtn && promptTemplateSelect && usagePromptInput) {
+            //     promptTemplateApplyBtn.addEventListener('click', () => {
+            //         const opt = promptTemplateSelect.options[promptTemplateSelect.selectedIndex];
+            //         // 优先使用 option dataset.content，否则使用 option.value 或文本
+            //         const tpl = (opt && (opt.dataset?.content || opt.value || opt.text)) || '';
+            //         if (!tpl) return;
+            //         // 如果输入框已有内容，添加分隔换行
+            //         const cur = usagePromptInput.value || '';
+            //         usagePromptInput.value = cur ? (cur + "\n\n" + tpl) : tpl;
+            //         usagePromptInput.focus();
+            //         updateUsageSubmitButtonState();
+            //         // 追加：应用模板时清空输入并切到占位符模式，然后写入模板并同步
+            //         try {
+            //             const toggleChk = document.getElementById('toggleTemplateViewChk');
+            //             const modeText = document.getElementById('promptViewModeText');
+            //             // 清空并切换模式
+            //             usagePromptInput.value = '';
+            //             if (toggleChk) toggleChk.checked = true;
+            //             if (modeText) modeText.textContent = '占位符';
+            //             try { usagePromptInput.readOnly = false; usagePromptInput.classList.remove('bg-gray-100'); } catch (_) { /* noop */ }
+            //             // 写入模板并缓存
+            //             if (!usagePromptInput.dataset) usagePromptInput.dataset = {};
+            //             usagePromptInput.dataset.template = tpl;
+            //             // 清空过期的实际值缓存，防止切换到“实际值”视图时显示旧内容
+            //             usagePromptInput.dataset.resolved = '';
+            //             usagePromptInput.value = String(tpl).replace(/\r\n/g, "\n");
+            //             // 同步视图
+            //             try { syncTemplateAndResolved(); } catch (_) { /* ignore */ }
+            //             try { if (typeof applyView === 'function') applyView(); } catch (_) { /* noop */ }
+            //             try { showUsageStatus('已应用模板并切换到占位符模式', 'success'); } catch (_) { /* noop */ }
+            //         } catch (_) { /* noop */ }
+            //     });
+            // }
 
             // insertParamBtn：在光标位置插入参数占位符（{{paramName}}）
             if (insertParamBtn && usagePromptInput) {
@@ -2860,15 +2853,41 @@
                 });
 
                 if (applyBtn) {
-                    applyBtn.addEventListener('click', () => {
-                        const tplSelect = document.getElementById('promptTemplateSelect');
-                        const sel = tplSelect?.options[tplSelect.selectedIndex];
-                        const tpl = sel?.dataset?.content || sel?.value || '';
-                        if (!tpl) return;
-                        const cur = usagePromptInput.value || '';
-                        usagePromptInput.value = cur ? (cur + "\n\n" + tpl) : tpl;
-                        usagePromptInput.focus();
-                        updateUsageSubmitButtonState();
+
+                    applyBtn.addEventListener('click', () => { // 绑定点击事件，应用选中的模板
+
+                        try {
+                            const toggleChk = document.getElementById('toggleTemplateViewChk');
+                            const modeText = document.getElementById('promptViewModeText');
+                            // 清空并切换模式
+                            usagePromptInput.value = '';
+                            if (toggleChk) toggleChk.checked = true;
+                            if (modeText) modeText.textContent = '占位符';
+                            try { usagePromptInput.readOnly = false; usagePromptInput.classList.remove('bg-gray-100'); } catch (_) { /* noop */ }
+                            // 写入模板并缓存
+                            if (!usagePromptInput.dataset) usagePromptInput.dataset = {};
+                            usagePromptInput.dataset.template = tpl;
+                            // 清空过期的实际值缓存，防止切换到“实际值”视图时显示旧内容
+                            usagePromptInput.dataset.resolved = '';
+                            usagePromptInput.value = String(tpl).replace(/\r\n/g, "\n");
+                            // 同步视图
+                            try { syncTemplateAndResolved(); } catch (_) { /* ignore */ }
+                            try { if (typeof applyView === 'function') applyView(); } catch (_) { /* noop */ }
+                            try { showUsageStatus('已应用模板并切换到占位符模式', 'success'); } catch (_) { /* noop */ }
+                        } catch (_) { /* noop */ }
+
+                        const tplSelect = document.getElementById('promptTemplateSelect'); // 获取模板选择下拉框
+                        const sel = tplSelect?.options[tplSelect.selectedIndex]; // 获取当前选中的选项
+                        const tpl = sel.dataset.content; // 读取data-content
+                        if (!tpl) return; // 若模板内容为空则直接返回
+                        usagePromptInput.value = tpl; // 把模板内容应用到输入框
+
+
+                        usagePromptInput.focus(); // 聚焦输入框
+                        updateUsageSubmitButtonState(); // 更新提交按钮的可用状态
+
+                        syncTemplateAndResolved();
+
                     });
                 }
 
@@ -3405,15 +3424,16 @@
                     regex = new RegExp(`${esc(prefix)}\\s*([a-zA-Z0-9_]+)\\s*${esc(suffix)}`, 'g');
                 }
 
-                let resolved = text.replace(regex, (_, key) => {
+                // 固定仅基于传入的 templateText 进行替换：有值就替换，无值保留原样
+                let resolved = String(templateText || '').replace(regex, (match, key) => {
                     usedPlaceholders.push(key);
-                    const has = Object.prototype.hasOwnProperty.call(placeholders, key);
-                    if (has) return String(placeholders[key]);
-                    // 缺失策略处理
-                    if (missingPolicy === 'keep') return _;
-                    if (missingPolicy === 'default') return String(defaultPlaceholderValue || '');
-                    missingPlaceholders.push(key);
-                    return _;
+                    const has = Object.prototype.hasOwnProperty.call(placeholders || {}, key);
+                    if (has && placeholders[key] !== undefined && placeholders[key] !== null) {
+                        return String(placeholders[key]);
+                    } else {
+                        missingPlaceholders.push(key);
+                        return match; // 无值则保持占位符原样
+                    }
                 });
 
                 // 严格校验：任何缺失都报错

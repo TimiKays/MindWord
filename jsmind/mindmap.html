@@ -404,10 +404,20 @@
 
         window.addEventListener('message', onMessage);
 
-        // 超时保护（30s）
+        // 超时保护（30s）：仅在非嵌入（非 modal）场景显示全局错误；嵌入场景由父页面/modal 处理超时
         const timeoutT = setTimeout(function () {
           try {
+            // 先移除监听，避免后续重复触发
             window.removeEventListener('message', onMessage);
+            // 若当前页面被嵌入到父页面（通常表示会由父页面显示 modal），则跳过本地的错误提示
+            const isEmbedded = (window.parent && window.parent !== window);
+            if (isEmbedded) {
+              console.debug('[MW][AI] timeout skipped: parent/modal should handle it', requestId);
+              // 可选：通知父窗口超时（注释掉以避免多余消息）
+              // try { window.parent.postMessage({ type: 'AI_MODAL_TIMEOUT', requestId: requestId }, '*'); } catch (_) {}
+              return;
+            }
+            // 非嵌入（headless）场景显示本地错误
             showError('AI 响应超时（30s）');
           } catch (e) { }
         }, 30000);
