@@ -241,19 +241,21 @@
             return path.join(' / ');
           } catch (e) { return n && (n.topic || ''); }
         }
-        var fullPath = _computeFullPathStrict(realSel);
-
-        // 兄弟节点：同一父级下除当前节点外的所有节点主题
-        var siblingNodes = '';
-        var parent = null;
+        var fullPath = '';
         try {
-          parent = jm.get_parent(realSel.id);
-          if (parent && Array.isArray(parent.children)) {
-            siblingNodes = parent.children
-              .filter(function (n) { return n && n.id !== realSel.id; })
-              .map(function (n) { return n.topic || ''; })
-              .filter(Boolean)
-              .join(', ');
+          fullPath = (realSel && realSel.data && (realSel.data.fullPath || (realSel.data.data && realSel.data.data.fullPath))) || '';
+        } catch (e) {
+          fullPath = (realSel && realSel.topic) ? realSel.topic : '';
+        }
+
+        // 兄弟节点：直接从节点数据中读取（优先使用 data.siblingNodes）
+        var siblingNodes = '';
+        try {
+          var sib = (realSel && realSel.data && (realSel.data.siblingNodes || (realSel.data.data && realSel.data.data.siblingNodes))) || [];
+          if (Array.isArray(sib)) {
+            siblingNodes = sib.filter(Boolean).join(', ');
+          } else if (typeof sib === 'string') {
+            siblingNodes = sib;
           }
         } catch (e) { siblingNodes = ''; }
 
