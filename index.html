@@ -1183,6 +1183,31 @@
                         }
                     }
 
+                    // handle AI_MODAL_SAVE_OUTPUT: when modal's "保存并应用" sends output, forward it as a RESULT to the original requester
+                    if (msg.type === 'AI_MODAL_SAVE_OUTPUT' && msg.requestId) {
+                        console.log('[INDEX] AI_MODAL_SAVE_OUTPUT', msg.requestId);
+                        var srcWinSave = window.__ai_req_map.get(msg.requestId);
+                        try { var fsave = document.getElementById('aiModalFrame'); if (fsave) fsave.style.display = 'none'; } catch (_) { }
+                        var outMsgSave = {
+                            type: 'AI_MODAL_RESULT',
+                            requestId: msg.requestId,
+                            status: 'ok',
+                            detail: { output: msg.output }
+                        };
+                        if (srcWinSave) {
+                            try {
+                                srcWinSave.postMessage(outMsgSave, '*');
+                                window.__ai_req_map.delete(msg.requestId);
+                                console.log('[INDEX] forwarded AI_MODAL_SAVE_OUTPUT as RESULT to source', msg.requestId);
+                            } catch (e) {
+                                console.warn('[INDEX] forward save output failed', e);
+                            }
+                        } else {
+                            console.warn('[INDEX] source not found for AI_MODAL_SAVE_OUTPUT', msg.requestId);
+                        }
+                        return;
+                    }
+
                     // modal result
                     if (msg.type === 'AI_MODAL_RESULT' && msg.requestId) {
                         console.log('[INDEX] AI_MODAL_RESULT', msg.requestId, msg.status);

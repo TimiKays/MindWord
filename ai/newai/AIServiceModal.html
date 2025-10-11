@@ -1565,7 +1565,12 @@
                 const selectedPlatform = platformSelect.value;
                 const selectedModel = usageModelSelect.value;
                 const apiKey = apiKeyInput.value;
-                const prompt = usagePromptInput.value;
+                // 优先发送“实际值”：
+                // - 若输入框有 dataset.resolved（解析后的实际值），优先使用它；
+                // - 否则使用 textarea.value 作为降级方案。
+                const prompt = (usagePromptInput && usagePromptInput.dataset && usagePromptInput.dataset.resolved)
+                    ? String(usagePromptInput.dataset.resolved)
+                    : (usagePromptInput ? usagePromptInput.value : '');
                 const temperature = parseFloat(temperatureInput.value);
                 const maxTokens = parseInt(maxTokensInput.value);
 
@@ -1600,7 +1605,7 @@
                     usageResultContent.textContent = result;
                     usageResultContainer.classList.remove('hidden');
 
-                    // 派发提交事件
+                    // 派发提交事件（供内部监听）
                     emitEvent('onSubmit', {
                         platformConfig: {
                             provider: selectedPlatform,
@@ -1618,16 +1623,9 @@
                         missingPlaceholders: [],
                         result
                     });
-                    // 回传给父窗口（供 demo 父页面或调用方转发给子 iframe）
-                    try {
-                        const rid = modal?.dataset?.requestId || null;
-                        window.parent?.postMessage({
-                            type: 'AI_MODAL_RESULT',
-                            requestId: rid,
-                            status: 'success',
-                            detail: { platform: selectedPlatform, model: selectedModel, resolvedText: prompt, result }
-                        }, '*');
-                    } catch (_) { /* noop */ }
+                    // 注意：为避免父页面收到自动成功消息后关闭弹窗，
+                    // 这里不再自动发送 AI_MODAL_RESULT status:'success' 给父窗口。
+                    // 如果需要由父页面得到结果并关闭弹窗，应由保存/应用按钮或外部调用方显式触发。
 
                     // 滚动到结果区域
                     usageResultContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1971,6 +1969,14 @@
                     } catch (err) {
                         console.warn('[aiModal] saveApply postMessage failed', err);
                     }
+                    // 标记此次关闭为“save/apply”触发，避免 closeModal 向父窗口再次发送 cancel
+                    try {
+                        if (modal && modal.dataset) {
+                            modal.dataset.suppressCancelOnClose = '1';
+                        } else {
+                            window._suppressAICancel = true;
+                        }
+                    } catch (_) { /* noop */ }
                     // 关闭 modal
                     try { closeModal(); } catch (_) { /* noop */ }
                 });
@@ -2441,8 +2447,6 @@
                             const placeholders = buildPlaceholdersMap();
                             const res = resolveTemplatePlaceholders(baseSource, placeholders, '{{name}}', { missingPolicy: 'keep' });
                             usagePromptInput.dataset.resolved = (res && res.resolvedText) ? String(res.resolvedText) : '';
-                            // 实际值模式：只缓存 resolved，避免误写覆盖真正的模板
-                            usagePromptInput.dataset.resolved = usagePromptInput.value || '';
                         }
                     } catch (e) { /* ignore */ }
                 }

@@ -351,15 +351,81 @@
                 const m = /\[OUTPUT\]([\s\S]*)\[\/OUTPUT\]/i.exec(outText);
                 if (m && m[1]) parsed = m[1].trim();
 
-                // 简单解析策略：按行取以 '#' 开头的标题或非空行作为子节点标题
-                // 处理兼容性：先去除 \r 再按 '\n' 分割，避免正则字面量被格式化器拆行
+                // 解析策略升级：
+                // - 仅把以 '#' 或以列表符（'-' '*' '+' 或 数字序号）开头的行作为节点
+                // - 支持多层级：markdown 标题以 '#' 个数为层级；列表项根据前导空格数推断层级（每2个空格升一层）
+                // - 返回 childTitles 为对象数组：{ topic: '文本', level: N }
+                // 处理兼容性：先去除 \r 再按 '\n' 分割
                 var normalized = (parsed || '').replace(/\r/g, '');
-                var lines = normalized.split('\n').map(function (s) { return (s || '').trim(); }).filter(function (s) { return !!s; });
+                var rawLines = normalized.split('\n');
+                var childNodes = [];
                 var childTitles = [];
-                lines.forEach(function (line) {
-                  var h = (line || '').replace(/^#+\s*/, '').trim();
-                  if (h) childTitles.push(h);
+                var lastNode = null;
+
+                rawLines.forEach(function (raw) {
+                  if (!raw || !raw.trim()) return;
+                  var line = raw.replace(/\t/g, '  '); // 把 tab 视作两个空格
+                  var trimmed = line.trim();
+
+                  // 检查 markdown 标题，如: "# Title" 或 "## Title"
+                  var headerMatch = trimmed.match(/^(#{1,6})\s+(.*)$/);
+                  if (headerMatch) {
+                    var level = headerMatch[1].length;
+                    var topic = headerMatch[2].trim();
+                    if (topic) {
+                      var nodeObj = { topic: topic, level: level, notes: '' };
+                      childNodes.push(nodeObj);
+                      childTitles.push(topic);
+                      lastNode = nodeObj;
+                    }
+                    return;
+                  }
+
+                  // 检查 markdown 列表项，支持 "-","*","+","1.","1、" 等
+                  var listMatch = line.match(/^(\s*)(?:[-\*\+]|(\d+)[\.、])\s+(.*)$/);
+                  if (listMatch) {
+                    var indent = listMatch[1].length;
+                    // 每2个空格为一级（与 ai-config.js 的策略类似），基础层级从1开始
+                    var levelFromIndent = Math.floor(indent / 2) + 1;
+                    var topic = (listMatch[3] || '').trim();
+                    if (topic) {
+                      var nodeObj = { topic: topic, level: levelFromIndent, notes: '' };
+                      childNodes.push(nodeObj);
+                      childTitles.push(topic);
+                      lastNode = nodeObj;
+                    }
+                    return;
+                  }
+
+                  // 其他行：将文本合并到最近一个解析出的节点的 notes 中
+                  // 逻辑：
+                  //  - 如果 lastNode 存在，直接追加到 lastNode.notes（保留换行）
+                  //  - 否则如果已有 childNodes，则附加到最后一个 childNodes 元素的 notes
+                  //  - 若没有任何解析出的节点（极端情况），把该行作为一个新的一级节点的标题（降级处理）
+                  var nonTitleText = trimmed;
+                  if (nonTitleText) {
+                    if (lastNode) {
+                      lastNode.notes = lastNode.notes ? (lastNode.notes + '\\n' + nonTitleText) : nonTitleText;
+                    } else if (childNodes.length > 0) {
+                      var prev = childNodes[childNodes.length - 1];
+                      if (prev) {
+                        prev.notes = prev.notes ? (prev.notes + '\\n' + nonTitleText) : nonTitleText;
+                        lastNode = prev;
+                      }
+                    } else {
+                      // 回退：将此文本作为新节点标题，保证不会完全丢失内容
+                      var nodeObj = { topic: nonTitleText, level: 1, notes: '' };
+                      childNodes.push(nodeObj);
+                      childTitles.push(nonTitleText);
+                      lastNode = nodeObj;
+                    }
+                  }
+                  return;
                 });
+
+
+
+
                 if (childTitles.length === 0) {
                   // 退回到按段落分割：按连续空行（'\n\n' 或 更多）分割
                   var paras = normalized.split(/\n{2,}/).map(function (s) { return (s || '').trim(); }).filter(function (s) { return !!s; });
@@ -375,11 +441,43 @@
                 }
 
                 // 插入子节点（使用 jm API，插入到 selectedNode 下）
-                childTitles.forEach(function (title) {
+                // 兼容 childNodes（[{topic, level}...]）和旧的 childTitles（['t1','t2']）
+                var itemsToInsert = (typeof childNodes !== 'undefined' && Array.isArray(childNodes) && childNodes.length > 0) ? childNodes : childTitles;
+                itemsToInsert.forEach(function (item, idx) {
                   try {
-                    // 使用 jm.add_node(parentid, nodeid, topic)
+                    // 规范化 topicStr 与 nodeData
+                    var topicStr = '';
+                    var nodeData = {};
+                    if (typeof item === 'string') {
+                      topicStr = item;
+                    } else if (item && typeof item === 'object') {
+                      topicStr = (item.topic !== undefined) ? String(item.topic) : '';
+                      if (item.level !== undefined && item.level !== null) {
+                        nodeData.level = item.level;
+                      }
+                      // 保留原始 raw 文本以便调试/回写（如果需要）
+                      if (item.raw) nodeData.raw = item.raw;
+                      // 如果解析到了 notes，则传入以便新节点带上备注
+                      if (item.notes) nodeData.notes = item.notes;
+                    } else {
+                      topicStr = String(item);
+                    }
+
+                    if (!topicStr) return; // 跳过空项
+
+                    // 使用 jm.add_node(parentid, nodeid, topic, data)
                     const nid = 'n_' + Math.random().toString(36).slice(2, 9);
-                    jm.add_node(selectedNode.id, nid, title);
+                    // 如果 jm.add_node 接受第四个参数 data，则传入 nodeData；若不接受也不会报错（安全尝试）
+                    try {
+                      if (Object.keys(nodeData).length > 0) {
+                        jm.add_node(selectedNode.id, nid, topicStr, nodeData);
+                      } else {
+                        jm.add_node(selectedNode.id, nid, topicStr);
+                      }
+                    } catch (innerErr) {
+                      // 兼容性回退：仅传 topic
+                      jm.add_node(selectedNode.id, nid, topicStr);
+                    }
                   } catch (e) {
                     console.warn('插入子节点失败', e);
                   }
