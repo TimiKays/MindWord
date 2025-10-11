@@ -29,6 +29,16 @@
     <span class="ico-btn" role="button" onclick="exportData()" tabindex="0" title="查看JSON"
       style="--ico: url('res/code.svg'); "></span>
 
+    <!-- AI 快捷操作 -->
+    <div id="aiQuickActions" style="display:inline-flex;gap:8px;margin-left:8px;align-items:center;">
+      <button class="btn btn-sm" onclick="aiCreateChild()" title="创建子级">创建子级</button>
+      <button class="btn btn-sm" onclick="aiCreateSibling()" title="创建同级">创建同级</button>
+      <button class="btn btn-sm" onclick="aiExpandNotes()" title="扩写备注">扩写备注</button>
+      <button class="btn btn-sm" onclick="quickModifyNode()" title="修改主题">修改</button>
+      <button class="btn btn-sm" onclick="quickDeleteNode()" title="删除节点">删除</button>
+      <button class="btn btn-sm" onclick="aiGenerateInitialTree()" title="生成初始树">生成初始树</button>
+    </div>
+
 
     <!-- 图标选择器下拉菜单（已定制：隐藏默认 caret、只保留网格内第一个“清除”按钮） -->
     <style>
@@ -142,8 +152,9 @@
         <div style="margin-bottom: 15px; display: flex; gap: 10px;">
           <button class="btn" onclick="expandWithAI()"
             style="flex: 1; background: linear-gradient(135deg, #6da8e7, #6adbc8); color: white;">AI扩写</button>
-          <button class="btn" onclick="AIExpander.showConfig()" style="flex: 0 0 40px; background: #ffffff;"
-            title="AI配置">⚙️</button>
+          <button class="btn"
+            onclick="(function(){try{function genId(){return 'r_'+Math.random().toString(36).slice(2,10);}var requestId=genId();var payload={initialView:'config',platformConfig:{},modelConfig:{},options:{}};if(typeof window.openAIServiceModal==='function'){try{window.openAIServiceModal(Object.assign({},payload,{requestId:requestId}));return;}catch(e){console.warn('openAIServiceModal failed',e);} }try{window.parent.postMessage({type:'AI_MODAL_OPEN_REQUEST',requestId:requestId,payload:payload},'*');}catch(e){console.error('send AI config open request failed',e);} }catch(e){console.warn(e);} })()"
+            style="flex: 0 0 40px; background: #ffffff;" title="AI配置">⚙️</button>
         </div>
 
         <!-- 自动更新提示 -->
@@ -179,8 +190,229 @@
 
     /* mindmap-ui.js - UI related extracted scripts */
 
+    // 动作分发器：根据 actionType 处理不同入口
+    // ctx: { selectedNode, itemsToInsert, childNodes, childTitles, parsedText }
+    function applyAIAction(actionType, ctx) {
+      try {
+        const sel = ctx.selectedNode;
+        if (!sel) {
+          showWarning && showWarning('请先选择一个节点');
+          return;
+        }
+        const items = Array.isArray(ctx.itemsToInsert) ? ctx.itemsToInsert : [];
+        const addMany = function (parentId) {
+          items.forEach(function (item) {
+            try {
+              var topicStr = '';
+              var nodeData = {};
+              if (typeof item === 'string') {
+                topicStr = item;
+              } else if (item && typeof item === 'object') {
+                topicStr = (item.topic !== undefined) ? String(item.topic) : '';
+                if (item.level !== undefined && item.level !== null) nodeData.level = item.level;
+                if (item.raw) nodeData.raw = item.raw;
+                if (item.notes) nodeData.notes = item.notes;
+              } else {
+                topicStr = String(item);
+              }
+              if (!topicStr) return;
+              const nid = 'n_' + Math.random().toString(36).slice(2, 9);
+              try {
+                if (Object.keys(nodeData).length > 0) {
+                  jm.add_node(parentId, nid, topicStr, nodeData);
+                } else {
+                  jm.add_node(parentId, nid, topicStr);
+                }
+              } catch (_err) {
+                jm.add_node(parentId, nid, topicStr);
+              }
+            } catch (e) { console.warn('批量插入节点项失败', e); }
+          });
+        };
+
+        switch (actionType) {
+          case 'create_sibling': {
+            // 插入同级：优先通过真实节点对象的 parent，兼容回退到 jm.get_parent(id)
+            var nodeObj = null, parent = null;
+            try { nodeObj = jm.get_node ? jm.get_node(sel.id) : sel; } catch (_) { nodeObj = sel; }
+            try { parent = (nodeObj && nodeObj.parent) ? nodeObj.parent : null; } catch (_) { parent = null; }
+            if (!parent) {
+              try { parent = (jm.get_parent && sel && sel.id) ? jm.get_parent(sel.id) : null; } catch (_) { parent = null; }
+            }
+            if (parent && parent.id) {
+              addMany(parent.id);
+            } else {
+              // 根节点无同级：降级为添加子级并提示
+              addMany(sel.id);
+              try { showWarning && showWarning('根节点无法添加同级，已改为添加子级'); } catch (_) { }
+            }
+            break;
+          }
+          case 'expand_notes': {
+            // 扩写备注：将解析文本写入选中节点备注
+            try {
+              var node = jm.get_node ? jm.get_node(sel.id) : sel;
+              if (node) {
+                node.data = node.data || {};
+                node.data.notes = String(ctx.parsedText || '').replace(/\r/g, '');
+                jm.update_node(node.id, node.topic || '');
+                showSuccess && showSuccess('已更新备注内容');
+              }
+            } catch (e) {
+              console.warn('更新备注失败', e);
+              showError && showError('更新备注失败');
+            }
+            break;
+          }
+          case 'generate_initial_tree': {
+            // 生成初始树：清空并创建新的根节点，然后按 level 构造层级树
+            try {
+              // 1) 根主题：优先占位符 name，其次选中节点主题，最后兜底
+              var rootTitle = '';
+              try {
+                if (ctx.placeholders && ctx.placeholders.name) {
+                  var nv = ctx.placeholders.name;
+                  rootTitle = (nv && typeof nv === 'object') ? String(nv.value ?? '') : String(nv ?? '');
+                }
+              } catch (_) { }
+              if (!rootTitle) {
+                try { rootTitle = sel.topic || ''; } catch (_) { rootTitle = ''; }
+              }
+              if (!rootTitle) rootTitle = '新思维导图';
+
+              // 2) 清空当前图并创建新根
+              var rootId = 'root_' + Math.random().toString(36).slice(2, 9);
+              try {
+                var mind = {
+                  meta: { name: 'mindword', author: 'mindword' },
+                  format: 'node_array',
+                  data: [{ id: rootId, isroot: true, topic: rootTitle }]
+                };
+                jm.show(mind);
+              } catch (e) {
+                // 回退：若 show 失败，尝试直接添加根
+                try { jm.add_node(null, rootId, rootTitle); } catch (_) { }
+              }
+
+              // 3) 按 level 构造层级节点
+              var stack = [];
+              stack[1] = { id: rootId, level: 1 };
+              const itemsToBuild = Array.isArray(ctx.itemsToInsert) ? ctx.itemsToInsert : [];
+              itemsToBuild.forEach(function (item) {
+                try {
+                  var topicStr = '';
+                  var nodeData = {};
+                  var level = 1;
+                  var notes = '';
+
+                  if (typeof item === 'string') {
+                    topicStr = item;
+                  } else if (item && typeof item === 'object') {
+                    topicStr = (item.topic !== undefined) ? String(item.topic) : '';
+                    if (item.level !== undefined && item.level !== null) level = Math.max(1, parseInt(item.level, 10) || 1);
+                    if (item.raw) nodeData.raw = item.raw;
+                    if (item.notes) notes = item.notes;
+                  } else {
+                    topicStr = String(item);
+                  }
+                  if (!topicStr) return;
+
+                  if (level < 1) level = 1;
+                  var parentInfo = stack[level - 1] || stack[1];
+                  var parentId = parentInfo ? parentInfo.id : rootId;
+
+                  var nid = 'n_' + Math.random().toString(36).slice(2, 9);
+                  var data = {};
+                  if (notes) data.notes = notes;
+                  if (Object.keys(nodeData).length > 0) Object.assign(data, nodeData);
+
+                  try { jm.add_node(parentId, nid, topicStr, data); }
+                  catch (_) { jm.add_node(parentId, nid, topicStr); }
+
+                  stack[level] = { id: nid, level: level };
+                  var li = level + 1;
+                  while (stack[li]) { delete stack[li]; li++; }
+                } catch (e) { console.warn('初始树插入项失败', e); }
+              });
+
+              try { if (typeof debouncedSave === 'function') debouncedSave(); } catch (_) { }
+              showSuccess && showSuccess('已生成初始树：' + rootTitle + '（共 ' + (Array.isArray(itemsToBuild) ? itemsToBuild.length : 0) + ' 项）');
+            } catch (e) {
+              console.warn('生成初始树失败', e);
+              showError && showError('生成初始树失败');
+            }
+            break;
+          }
+          case 'create_child':
+          default: {
+            addMany(sel.id);
+            break;
+          }
+        }
+
+        try { if (typeof debouncedSave === 'function') debouncedSave(); } catch (e) { }
+      } catch (e) {
+        console.error('applyAIAction 处理失败', e);
+        showError && showError('处理 AI 动作失败: ' + (e && e.message ? e.message : String(e)));
+      }
+    }
+
 
     // --- extracted block from original HTML ---
+    // AI扩写函数（改为使用父层托管的 AI 弹窗组件，modal 模式）
+
+    // 入口快捷函数：通过 window.__mw_next_* 传递 actionType / 模板 / 占位符
+    function aiCreateChild() {
+      window.__mw_next_actionType = 'create_child';
+      window.__mw_next_templateKey = '扩展子节点';
+      expandWithAI();
+    }
+    function aiCreateSibling() {
+      window.__mw_next_actionType = 'create_sibling';
+      window.__mw_next_templateKey = '创建同级'; // 如有专用模板，可改为 '扩展同级'
+      expandWithAI();
+    }
+    function aiExpandNotes() {
+      window.__mw_next_actionType = 'expand_notes';
+      window.__mw_next_templateKey = '扩写备注';
+      expandWithAI();
+    }
+    function aiGenerateInitialTree() {
+      try {
+        var theme = prompt('请输入初始主题（根节点）');
+        if (!theme) { showWarning && showWarning('请输入主题'); return; }
+        // 若未选中节点，尝试选中根节点，便于插入
+        try {
+          var root = jm.get_root && jm.get_root();
+          if (root && root.id) jm.select_node(root.id);
+        } catch (_) { }
+        window.__mw_next_actionType = 'generate_initial_tree';
+        window.__mw_next_templateKey = '生成初始树';
+        window.__mw_next_placeholders = { name: { desc: '初始主题', value: theme } };
+        expandWithAI();
+      } catch (e) { showError && showError('生成初始树失败: ' + (e.message || e)); }
+    }
+    // 简易修改/删除（占位实现）
+    function quickModifyNode() {
+      try {
+        var sel = jm.get_selected_node && jm.get_selected_node();
+        if (!sel) { showWarning && showWarning('请先选择一个节点'); return; }
+        var newTitle = prompt('修改节点主题', sel.topic || '');
+        if (newTitle !== null && newTitle.trim()) jm.update_node(sel.id, newTitle.trim());
+        try { if (typeof debouncedSave === 'function') debouncedSave(); } catch (_) { }
+      } catch (e) { showError && showError('修改失败'); }
+    }
+    function quickDeleteNode() {
+      try {
+        var sel = jm.get_selected_node && jm.get_selected_node();
+        if (!sel) { showWarning && showWarning('请先选择一个节点'); return; }
+        if (confirm('确认删除该节点及其子节点？')) {
+          jm.remove_node(sel.id);
+          try { if (typeof debouncedSave === 'function') debouncedSave(); } catch (_) { }
+        }
+      } catch (e) { showError && showError('删除失败'); }
+    }
+
     // AI扩写函数（改为使用父层托管的 AI 弹窗组件，modal 模式）
     function expandWithAI() {
       try {
@@ -272,9 +504,10 @@
             } catch (err) { tplList = tplList || null; }
           }
           if (Array.isArray(tplList)) {
+            var key = (typeof window.__mw_next_templateKey === 'string' && window.__mw_next_templateKey) ? window.__mw_next_templateKey : '扩展子节点';
             for (var ti = 0; ti < tplList.length; ti++) {
               var t = tplList[ti];
-              if (t && t.name === '扩展子节点') { templateText = t.content || ''; break; }
+              if (t && t.name === key) { templateText = t.content || ''; break; }
             }
           }
         } catch (e) { templateText = ''; }
@@ -321,25 +554,36 @@
           options: {}
         };
 
-        // 指定预置模板 key 与参数映射，便于弹窗自动选中模板和展示参数
-        try { payload.templateData.templateKey = '扩展子节点'; } catch (e) { }
+        // 合并外部指定的占位符（如生成初始树传入主题）
+        try {
+          var extraPH = (window.__mw_next_placeholders && typeof window.__mw_next_placeholders === 'object') ? window.__mw_next_placeholders : null;
+          if (extraPH) {
+            Object.keys(extraPH).forEach(function (k) {
+              payload.templateData.placeholders[k] = extraPH[k];
+            });
+          }
+        } catch (_) { }
+
+        // 指定模板 key 与参数映射；actionType 支持外部预设
+        try { payload.templateData.templateKey = (window.__mw_next_templateKey || '扩展子节点'); } catch (e) { }
         try { payload.params = payload.templateData.placeholders; } catch (e) { }
+        try { payload.actionType = (window.__mw_next_actionType || 'create_child'); } catch (_) { }
 
         // 临时消息处理器：等待 AI_MODAL_RESULT 回来
         const onMessage = function (e) {
           try {
             const msg = e && e.data;
-            if (!msg || msg.type !== 'AI_MODAL_RESULT' || msg.requestId !== requestId) return;
+            if (!msg || (msg.type !== 'AI_MODAL_RESULT' && msg.type !== 'AI_MODAL_SAVE_OUTPUT') || msg.requestId !== requestId) return;
             // 清理
             window.removeEventListener('message', onMessage);
             clearTimeout(timeoutT);
 
-            if (msg.status === 'ok') {
+            if (msg.type === 'AI_MODAL_SAVE_OUTPUT' || msg.status === 'ok') {
               try {
                 const detail = msg.detail || {};
                 // 期望 detail 中包含生成的内容（例如 detail.output 或 detail.text）
                 // 支持两种常见格式：detail.output（带 [OUTPUT] 包裹）或 detail.text
-                const outText = detail.output || detail.text || (detail.result && detail.result.text) || '';
+                const outText = detail.output || detail.text || (detail.result && detail.result.text) || msg.output || '';
                 if (!outText) {
                   showWarning('AI 未返回有效内容');
                   return;
@@ -356,7 +600,7 @@
                 // - 支持多层级：markdown 标题以 '#' 个数为层级；列表项根据前导空格数推断层级（每2个空格升一层）
                 // - 返回 childTitles 为对象数组：{ topic: '文本', level: N }
                 // 处理兼容性：先去除 \r 再按 '\n' 分割
-                var normalized = (parsed || '').replace(/\r/g, '');
+                var normalized = (parsed || '').replace(/\r/g, '').replace(/\[OUTPUT\]|\[\/OUTPUT\]/gi, '');
                 var rawLines = normalized.split('\n');
                 var childNodes = [];
                 var childTitles = [];
@@ -437,6 +681,21 @@
 
                 if (childTitles.length === 0) {
                   showWarning('无法从 AI 输出解析出子节点，请检查输出格式');
+                  return;
+                }
+
+                // 根据 actionType 分发处理；非 create_child 则提前处理并返回
+                var itemsToInsert = (typeof childNodes !== 'undefined' && Array.isArray(childNodes) && childNodes.length > 0) ? childNodes : childTitles;
+                applyAIAction((payload && payload.actionType) ? payload.actionType : 'create_child', {
+                  selectedNode: selectedNode,
+                  itemsToInsert: itemsToInsert,
+                  childNodes: childNodes,
+                  childTitles: childTitles,
+                  parsedText: normalized,
+                  placeholders: (payload && payload.templateData && payload.templateData.placeholders) ? payload.templateData.placeholders : {}
+                });
+                if (true) {
+                  try { showSuccess && showSuccess('AI处理完成，解析到 ' + childTitles.length + ' 项'); } catch (e) { }
                   return;
                 }
 
@@ -524,6 +783,12 @@
         try {
           console.log('[MW][AI] send AI_MODAL_OPEN_REQUEST', requestId, payload);
           window.parent.postMessage({ type: 'AI_MODAL_OPEN_REQUEST', requestId: requestId, payload: payload }, '*');
+          // 清理一次性预设
+          try {
+            delete window.__mw_next_actionType;
+            delete window.__mw_next_templateKey;
+            delete window.__mw_next_placeholders;
+          } catch (_) { }
         } catch (e) {
           clearTimeout(timeoutT);
           window.removeEventListener('message', onMessage);
