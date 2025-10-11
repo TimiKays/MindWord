@@ -1709,7 +1709,8 @@
                     if (usagePromptInput) {
                         if (!(usagePromptInput.dataset && usagePromptInput.dataset.template)) {
                             const candidate = (usagePromptInput.value && String(usagePromptInput.value).trim()) || '';
-                            if (candidate) {
+                            // 仅当候选文本看起来像模板（包含 {{}}）时才缓存为模板；否则优先使用下拉模板
+                            if (candidate && candidate.includes('{{')) {
                                 usagePromptInput.dataset.template = candidate;
                                 console.debug('[aiModal][dbg] cached template early on open:', String(candidate).slice(0, 200));
                             } else {
@@ -1720,7 +1721,7 @@
                                     usagePromptInput.dataset.template = tplContent;
                                     console.debug('[aiModal][dbg] cached template from promptTemplateSelect on open');
                                 } else {
-                                    console.debug('[aiModal][dbg] no template available to cache on open');
+                                    console.debug('[aiModal][dbg] no valid template to cache on open (candidate is resolved text)');
                                 }
                             }
                         }
@@ -1768,8 +1769,17 @@
                 emitEvent('onClose', { reason: 'user' });
                 // 隐藏弹窗
                 modal.classList.add('hidden');
-                hideStatus();
-                showUsageStatus('', 'info'); // 清空使用界面状态
+                // 在关闭时恢复到“占位符模式”，并把输入框回写为真正模板，避免下次打开误把实际值缓存为模板
+
+                const chk = document.getElementById('toggleTemplateViewChk');
+                const modeTextEl = document.getElementById('promptViewModeText');
+                if (chk) chk.checked = true;
+                if (usagePromptInput && usagePromptInput.dataset && usagePromptInput.dataset.template) {
+                    usagePromptInput.value = String(usagePromptInput.dataset.template).replace(/\r\n/g, "\n");
+                    try { usagePromptInput.readOnly = false; usagePromptInput.classList.remove('bg-gray-100'); } catch (_) { /* noop */ }
+                }
+                if (modeTextEl) modeTextEl.textContent = '占位符';
+
                 // 通知父窗口此次为用户取消/关闭（以便父页隐藏顶层 aiFrame 并恢复焦点）
                 try {
                     const rid = modal?.dataset?.requestId || null;
@@ -2415,25 +2425,29 @@
 
 
                 // 统一同步：在模板（占位符）视图编辑时同时更新 dataset.template 与 dataset.resolved（实时解析），
-                // 在实际值视图编辑时更新 dataset.resolved。
+                // 在实际值视图编辑时仅更新 dataset.resolved，不覆盖 dataset.template。
                 function syncTemplateAndResolved() {
-                    // 统一使用全局 usagePromptInput，外部无需传入元素
                     try {
                         if (!usagePromptInput) return;
                         if (!usagePromptInput.dataset) usagePromptInput.dataset = {};
 
-                        // 保存当前模板文本（基于 textarea 的当前值）
-                        usagePromptInput.dataset.template = usagePromptInput.value || '';
+                        const isTemplateMode = !!document.getElementById('toggleTemplateViewChk')?.checked;
 
-                        // 实时解析并缓存 resolved（不覆盖 textarea）
-                        try {
-                            const placeholders = buildPlaceholdersMap();
-                            const res = resolveTemplatePlaceholders(usagePromptInput.dataset.template || '', placeholders, '{{name}}', { missingPolicy: 'keep' });
-                            usagePromptInput.dataset.resolved = (res && res.resolvedText) ? String(res.resolvedText) : '';
+                        if (isTemplateMode) {
+                            // 仅在“占位符模式”下更新模板缓存
+                            usagePromptInput.dataset.template = usagePromptInput.value || '';
 
-                        } catch (e) {
-                            // ignore parse errors but keep template cached
-                            console.warn('[aiModal] syncTemplateAndResolved parse failed', e);
+                            // 实时解析并缓存 resolved（不覆盖 textarea）
+                            try {
+                                const placeholders = buildPlaceholdersMap();
+                                const res = resolveTemplatePlaceholders(usagePromptInput.dataset.template || '', placeholders, '{{name}}', { missingPolicy: 'keep' });
+                                usagePromptInput.dataset.resolved = (res && res.resolvedText) ? String(res.resolvedText) : '';
+                            } catch (e) {
+                                console.warn('[aiModal] syncTemplateAndResolved parse failed', e);
+                            }
+                        } else {
+                            // 实际值模式：只缓存 resolved，避免误写覆盖真正的模板
+                            usagePromptInput.dataset.resolved = usagePromptInput.value || '';
                         }
                     } catch (e) { /* ignore */ }
                 }
@@ -2682,6 +2696,32 @@
             initPlatformSelect();
             loadAllConfigsFromStorage();
             populateUsagePlatforms();
+
+            // 强制初始化提示词视图默认状态：确保无论如何打开组件都会默认处于“占位符”模式并缓存 template
+            (function initPromptViewDefaults() {
+                try {
+                    const chk = document.getElementById('toggleTemplateViewChk');
+                    const modeText = document.getElementById('promptViewModeText');
+                    // 默认置为占位符视图
+                    if (chk) chk.checked = true;
+                    if (modeText) modeText.textContent = '占位符';
+
+                    // 若 textarea 没有缓存 template，则从选中模板或当前值缓存一个模板，避免切换时丢失
+                    if (usagePromptInput) {
+                        if (!usagePromptInput.dataset) usagePromptInput.dataset = {};
+                        if (!usagePromptInput.dataset.template || String(usagePromptInput.dataset.template).trim() === '') {
+                            const sel = promptTemplateSelect?.options[promptTemplateSelect.selectedIndex];
+                            const tpl = sel?.dataset?.content || sel?.value || (usagePromptInput.value || '');
+                            usagePromptInput.dataset.template = String(tpl || '');
+                        }
+                    }
+
+                    // 若 modal 当前可见，立刻应用视图以同步显示（安全兜底）
+                    if (modal && !modal.classList.contains('hidden') && typeof applyView === 'function') {
+                        try { applyView(); } catch (_) { /* noop */ }
+                    }
+                } catch (e) { console.warn('initPromptViewDefaults failed', e); }
+            })();
 
             // 统一脏状态监听（配置、模板与使用输入）
             (function attachDirtyListeners() {
