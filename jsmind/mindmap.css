@@ -435,9 +435,9 @@ body {
 
 /* 调整节点备注输入框大小，仅影响 id="nodeNotes" */
 #nodeNotes {
-  height: 600px;
+  height: 400px;
   /* 默认高度，可按需调整 */
-  min-height: 80px;
+  min-height: 100px;
   /* 最小高度 */
   resize: vertical;
   /* 允许用户垂直调整 */

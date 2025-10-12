@@ -145,7 +145,24 @@
         <strong>节点详情</strong>
         <button class="panel-close-btn" aria-label="关闭节点详情" onclick="hideNodeDetails()">✕</button>
       </div>
-
+      <div style="margin-bottom: 15px;margin-top: 10px; display: flex; gap: 10px;">
+        <span class="ico-btn requires-single-selection" role="button" onclick="aiCreateChild()" tabindex="0"
+          title="创建子级" style="--ico: url('../res/添加子级.svg');"></span>
+        <span class="ico-btn requires-single-selection" role="button" onclick="aiCreateSibling()" tabindex="0"
+          title="创建同级" style="--ico: url('../res/添加同级.svg');"></span>
+        <span class="ico-btn requires-single-selection" role="button" onclick="aiExpandNotes()" tabindex="0"
+          title="扩写备注" style="--ico: url('../res/扩写备注.svg');"></span>
+        <span class="ico-btn requires-single-selection" role="button" onclick="quickModifyNode()" tabindex="0"
+          title="修改主题" style="--ico: url('../res/edit.svg');"></span>
+        <span class="ico-btn" role="button" onclick="quickDeleteNode()" tabindex="0" title="删除节点"
+          style="--ico: url('../res/删除.svg');"></span>
+        <span class="ico-btn" role="button"
+          onclick="(function(){try{function genId(){return 'r_'+Math.random().toString(36).slice(2,10);}var requestId=genId();var payload={initialView:'config',platformConfig:{},modelConfig:{},options:{}};if(typeof window.openAIServiceModal==='function'){try{window.openAIServiceModal(Object.assign({},payload,{requestId:requestId}));return;}catch(e){console.warn('openAIServiceModal failed',e);} }try{window.parent.postMessage({type:'AI_MODAL_OPEN_REQUEST',requestId:requestId,payload:payload},'*');}catch(e){console.error('send AI config open request failed',e);} }catch(e){console.warn(e);} })()"
+          tabindex="0" title="AI配置" style="--ico: url('../res/setting.svg');"></span>
+        <!-- <button class="btn"
+            onclick="(function(){try{function genId(){return 'r_'+Math.random().toString(36).slice(2,10);}var requestId=genId();var payload={initialView:'config',platformConfig:{},modelConfig:{},options:{}};if(typeof window.openAIServiceModal==='function'){try{window.openAIServiceModal(Object.assign({},payload,{requestId:requestId}));return;}catch(e){console.warn('openAIServiceModal failed',e);} }try{window.parent.postMessage({type:'AI_MODAL_OPEN_REQUEST',requestId:requestId,payload:payload},'*');}catch(e){console.error('send AI config open request failed',e);} }catch(e){console.warn(e);} })()"
+            style="flex: 0 0 40px; background: #ffffff;" title="AI配置">⚙️</button> -->
+      </div>
       <div id="nodeDetailsEmpty" style="display:none; padding:24px; text-align:center; color:#64748b;">
         <img src="../res/empty.svg" alt="空状态" style="width:72px;height:72px;opacity:0.9;margin-bottom:12px;">
         <div>请选择一个节点</div>
@@ -165,19 +182,7 @@
           <textarea id="nodeNotes" placeholder="输入节点备注..."></textarea>
         </div>
 
-        <div style="margin-bottom: 15px; display: flex; gap: 10px;">
-          <button class="btn" onclick="aiCreateChild()"
-            style="flex: 1; background: linear-gradient(135deg, #6da8e7, #6adbc8); color: white;">创建子级</button>
-          <button class="btn" onclick="aiCreateSibling()"
-            style="flex: 1; background: linear-gradient(135deg, #6da8e7, #6adbc8); color: white;">创建同级</button>
-          <button class="btn" onclick="aiExpandNotes()"
-            style="flex: 1; background: linear-gradient(135deg, #6da8e7, #6adbc8); color: white;">扩写备注</button>
-          <button class="btn" onclick="quickDeleteNode()"
-            style="flex: 1; background: linear-gradient(135deg, #e76d6d, #db6a6a); color: white;">删除节点</button>
-          <button class="btn"
-            onclick="(function(){try{function genId(){return 'r_'+Math.random().toString(36).slice(2,10);}var requestId=genId();var payload={initialView:'config',platformConfig:{},modelConfig:{},options:{}};if(typeof window.openAIServiceModal==='function'){try{window.openAIServiceModal(Object.assign({},payload,{requestId:requestId}));return;}catch(e){console.warn('openAIServiceModal failed',e);} }try{window.parent.postMessage({type:'AI_MODAL_OPEN_REQUEST',requestId:requestId,payload:payload},'*');}catch(e){console.error('send AI config open request failed',e);} }catch(e){console.warn(e);} })()"
-            style="flex: 0 0 40px; background: #ffffff;" title="AI配置">⚙️</button>
-        </div>
+
 
         <!-- 自动更新提示 -->
         <div id="autoUpdateIndicator"
