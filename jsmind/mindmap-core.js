@@ -1449,6 +1449,7 @@ function updateTopicWithIcon() {
 
 // 显示自动更新提示
 function showAutoUpdateIndicator() {
+  console.log("进入函数：showAutoUpdateIndicator");
   const indicator = document.getElementById('autoUpdateIndicator');
   if (!indicator) return;
 
@@ -1460,6 +1461,25 @@ function showAutoUpdateIndicator() {
     indicator.style.display = 'none';
     indicator.classList.remove('auto-update-show');
   }, 2000);
+}
+try {
+  // 将模块内的关键方法暴露到 window，便于 mindmap.html 直接调用
+  if (typeof window !== 'undefined') {
+    window.refreshAllNotesDisplay = window.refreshAllNotesDisplay || (typeof refreshAllNotesDisplay === 'function' ? refreshAllNotesDisplay : undefined);
+    window.saveToLocalStorage = window.saveToLocalStorage || (typeof saveToLocalStorage === 'function' ? saveToLocalStorage : undefined);
+    window.showAutoUpdateIndicator = window.showAutoUpdateIndicator || (typeof showAutoUpdateIndicator === 'function' ? showAutoUpdateIndicator : undefined);
+    window.debouncedSave = window.debouncedSave || (typeof debouncedSave === 'function' ? debouncedSave : undefined);
+    try {
+      console.debug('[MW][core] expose funcs', {
+        refreshAllNotesDisplay: typeof window.refreshAllNotesDisplay,
+        saveToLocalStorage: typeof window.saveToLocalStorage,
+        showAutoUpdateIndicator: typeof window.showAutoUpdateIndicator,
+        debouncedSave: typeof window.debouncedSave
+      });
+    } catch (e) { /* ignore */ }
+  }
+} catch (e) {
+  try { console.warn('[MW][core] expose funcs failed', e); } catch (_) { }
 }
 
 // 更新节点备注
@@ -1519,6 +1539,7 @@ function updateNodeNotes() {
 
 // 刷新所有备注显示
 function refreshAllNotesDisplay() {
+  console.log("进入函数：refreshAllNotesDisplay");
   if (!jm) return;
 
   const notesList = document.getElementById('notesList');
@@ -2870,6 +2891,9 @@ function getDefaultNodeTree() {
 
 // 保存当前数据到localStorage
 function saveToLocalStorage() {
+  console.log('进入函数：saveToLocalStorage');
+
+
   if (!jm) return;
 
   // 如果处于过滤视图（只看标题），需要把过滤视图中的变更合并回原始快照再保存

@@ -150,8 +150,14 @@
         </div>
 
         <div style="margin-bottom: 15px; display: flex; gap: 10px;">
-          <button class="btn" onclick="expandWithAI()"
-            style="flex: 1; background: linear-gradient(135deg, #6da8e7, #6adbc8); color: white;">AI扩写</button>
+          <button class="btn" onclick="aiCreateChild()"
+            style="flex: 1; background: linear-gradient(135deg, #6da8e7, #6adbc8); color: white;">创建子级</button>
+          <button class="btn" onclick="aiCreateSibling()"
+            style="flex: 1; background: linear-gradient(135deg, #6da8e7, #6adbc8); color: white;">创建同级</button>
+          <button class="btn" onclick="aiExpandNotes()"
+            style="flex: 1; background: linear-gradient(135deg, #6da8e7, #6adbc8); color: white;">扩写备注</button>
+          <button class="btn" onclick="quickDeleteNode()"
+            style="flex: 1; background: linear-gradient(135deg, #e76d6d, #db6a6a); color: white;">删除节点</button>
           <button class="btn"
             onclick="(function(){try{function genId(){return 'r_'+Math.random().toString(36).slice(2,10);}var requestId=genId();var payload={initialView:'config',platformConfig:{},modelConfig:{},options:{}};if(typeof window.openAIServiceModal==='function'){try{window.openAIServiceModal(Object.assign({},payload,{requestId:requestId}));return;}catch(e){console.warn('openAIServiceModal failed',e);} }try{window.parent.postMessage({type:'AI_MODAL_OPEN_REQUEST',requestId:requestId,payload:payload},'*');}catch(e){console.error('send AI config open request failed',e);} }catch(e){console.warn(e);} })()"
             style="flex: 0 0 40px; background: #ffffff;" title="AI配置">⚙️</button>
@@ -249,14 +255,56 @@
             break;
           }
           case 'expand_notes': {
-            // 扩写备注：将解析文本写入选中节点备注
+            // 扩写备注：将解析文本追加到选中节点备注（用空行隔开），无备注则直接写入
             try {
               var node = jm.get_node ? jm.get_node(sel.id) : sel;
               if (node) {
                 node.data = node.data || {};
-                node.data.notes = String(ctx.parsedText || '').replace(/\r/g, '');
+                var newText = String(ctx.parsedText || '').replace(/\r/g, '').trim();
+                var oldText = '';
+                try { oldText = String((node.data && node.data.notes) || '').replace(/\r/g, ''); } catch (_) { oldText = ''; }
+                console.debug('[MW][AI][expand_notes] before', { id: node.id, oldLen: (oldText || '').length, appendLen: (newText || '').length });
+                node.data.notes = oldText ? (oldText.replace(/\\s+$/, '') + '\\n\\n' + newText) : newText;
+                try { node.notes = node.data.notes; } catch (_) { }
+                console.debug('[MW][AI][expand_notes] after', { id: node.id, totalLen: ((node.data && node.data.notes) ? node.data.notes.length : 0) });
                 jm.update_node(node.id, node.topic || '');
-                showSuccess && showSuccess('已更新备注内容');
+                // 同步详情面板 textarea 并触发输入事件，复用 handleAutoUpdate 的保存/同步流程
+                try {
+                  var ta = document.getElementById('nodeNotes');
+                  if (ta) {
+                    ta.value = node.data.notes || '';
+                    console.debug('[MW][AI][expand_notes] sync textarea#nodeNotes -> dispatch input');
+                    ta.dispatchEvent(new Event('input', { bubbles: true }));
+                  } else {
+                    console.debug('[MW][AI][expand_notes] textarea#nodeNotes not found');
+                  }
+                } catch (e) { console.warn('[MW][AI][expand_notes] textarea sync failed', e); }
+                console.debug('[MW][AI][expand_notes] funcs', {
+                  refreshAllNotesDisplay: typeof refreshAllNotesDisplay,
+                  saveToLocalStorage: typeof saveToLocalStorage,
+                  showAutoUpdateIndicator: typeof showAutoUpdateIndicator,
+                  debouncedSave: typeof debouncedSave,
+                  w_refreshAllNotesDisplay: typeof window.refreshAllNotesDisplay,
+                  w_saveToLocalStorage: typeof window.saveToLocalStorage,
+                  w_showAutoUpdateIndicator: typeof window.showAutoUpdateIndicator,
+                  w_debouncedSave: typeof window.debouncedSave
+                });
+                try {
+                  if (typeof refreshAllNotesDisplay === 'function') refreshAllNotesDisplay();
+                  else if (typeof window.refreshAllNotesDisplay === 'function') window.refreshAllNotesDisplay();
+                } catch (e1) { console.warn('[MW][AI][expand_notes] refreshAllNotesDisplay failed', e1); }
+                try {
+                  if (typeof saveToLocalStorage === 'function') saveToLocalStorage();
+                  else if (typeof window.saveToLocalStorage === 'function') window.saveToLocalStorage();
+                } catch (e2) { console.warn('[MW][AI][expand_notes] saveToLocalStorage failed', e2); }
+                try {
+                  if (typeof showAutoUpdateIndicator === 'function') showAutoUpdateIndicator();
+                  else if (typeof window.showAutoUpdateIndicator === 'function') window.showAutoUpdateIndicator();
+                } catch (e3) { console.warn('[MW][AI][expand_notes] showAutoUpdateIndicator failed', e3); }
+                try {
+                  if (typeof debouncedSave === 'function') debouncedSave();
+                  else if (typeof window.debouncedSave === 'function') window.debouncedSave();
+                } catch (e4) { console.warn('[MW][AI][expand_notes] debouncedSave failed', e4); }
               }
             } catch (e) {
               console.warn('更新备注失败', e);

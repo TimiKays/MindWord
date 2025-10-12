@@ -512,10 +512,15 @@
                         cloudflare: {
                             name: "Cloudflare Workers AI",
                             baseUrl: "https://api.cloudflare.com/client/v4/accounts/ACCOUNT_ID_PLACEHOLDER/ai/run",
-                            modelsUrl: "https0://api.cloudflare.com/client/v4/accounts/ACCOUNT_ID_PLACEHOLDER/ai/models",
+                            modelsUrl: null,
                             modelsFetched: false,
                             apiKeyUrl: "https://dash.cloudflare.com/profile/api-tokens",
-                            models: []
+                            models: [
+                                "@cf/meta/llama-3.1-8b-instruct",
+                                "@cf/meta/llama-3-8b-instruct",
+                                "@cf/qwen/qwen2.5-7b-instruct",
+                                "@cf/mistral/mistral-7b-instruct"
+                            ]
                         },
                         silibase: {
                             name: "硅基流动",
@@ -622,7 +627,11 @@
                                 models = data.data.map(model => model.id);
                                 break;
                             case 'cloudflare':
-                                models = data.result.map(model => model.name);
+                                // Cloudflare 返回的模型字段通常为 id（如 "@cf/meta/llama-3-8b-instruct"），兼容 name/id
+                                {
+                                    const arr = Array.isArray(data?.result) ? data.result : (Array.isArray(data?.models) ? data.models : []);
+                                    models = arr.map(m => m?.id || m?.name || m).filter(Boolean);
+                                }
                                 break;
                             case 'silibase':
                                 // 兼容不同返回结构：优先 data.data，其次 data.models
@@ -909,9 +918,21 @@
                 async _callCloudflare(prompt, temperature, maxTokens) {
                     const url = `https://api.cloudflare.com/client/v4/accounts/${this.config.cloudflareAccountId}/ai/run/${this.config.selectedModel}`;
 
-                    const input = Array.isArray(prompt)
-                        ? { messages: prompt }
-                        : { prompt: prompt };
+                    // 按官方用法：若是消息数组，使用顶层 messages；若是字符串，使用顶层 prompt
+                    let payload;
+                    if (Array.isArray(prompt)) {
+                        payload = {
+                            messages: prompt,
+                            temperature: temperature,
+                            max_tokens: maxTokens
+                        };
+                    } else {
+                        payload = {
+                            prompt: String(prompt ?? ''),
+                            temperature: temperature,
+                            max_tokens: maxTokens
+                        };
+                    }
 
                     try {
                         const response = await fetch(url, {
@@ -920,13 +941,7 @@
                                 "Content-Type": "application/json",
                                 "Authorization": `Bearer ${this.config.apiKey}`
                             },
-                            body: JSON.stringify({
-                                input: input,
-                                parameters: {
-                                    temperature: temperature,
-                                    max_tokens: maxTokens
-                                }
-                            })
+                            body: JSON.stringify(payload)
                         });
 
                         if (!response.ok) {
@@ -941,6 +956,20 @@
                     } catch (error) {
                         console.error("Cloudflare调用失败:", error);
                         throw error;
+                    }
+                }
+
+                // 轻量连接校验（不依赖模型拉取）
+                async verifyConnection() {
+                    try {
+                        // Cloudflare：只要提供了 Token 与 Account ID，即认为可用（真正错误在发送时返回）
+                        if (this.config?.selectedPlatform === 'cloudflare') {
+                            return !!(this.config?.apiKey && this.config?.cloudflareAccountId);
+                        }
+                        // 其他平台：简单返回 true，由实际调用阶段给出详细错误
+                        return true;
+                    } catch (_) {
+                        return false;
                     }
                 }
 
