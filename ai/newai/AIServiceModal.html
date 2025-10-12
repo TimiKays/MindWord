@@ -33,7 +33,7 @@
                 @apply fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center p-4;
             }
             .modal-container {
-                @apply bg-white rounded-lg shadow-2xl w-full max-w-4xl h-[65vh] flex flex-col;
+                @apply bg-white rounded-lg shadow-2xl w-full max-w-4xl h-auto flex flex-col;
             }
             .modal-header {
                 @apply px-6 py-4 border-b flex justify-between items-center;
@@ -1830,7 +1830,7 @@
                 if (tplView) tplView.classList.add('hidden');
                 // 设置弹窗高度（使用界面较低）
                 const modalContainer = document.querySelector('.modal-container');
-                if (modalContainer) modalContainer.style.height = '40vh';
+                if (modalContainer) modalContainer.style.height = 'auto'; //45vh也行
                 // 弹窗主体不滚动
                 const modalBodyEl = document.querySelector('.modal-body');
                 if (modalBodyEl) modalBodyEl.style.overflowY = 'hidden';
@@ -1853,7 +1853,7 @@
                 if (tplView) tplView.classList.add('hidden');
                 // 设置弹窗高度（配置界面更高）
                 const modalContainer = document.querySelector('.modal-container');
-                if (modalContainer) modalContainer.style.height = '60vh';
+                // if (modalContainer) modalContainer.style.height = '67vh';
                 // 弹窗主体内部滚动，底部按钮固定可见
                 const modalBodyEl = document.querySelector('.modal-body');
                 if (modalBodyEl) modalBodyEl.style.overflowY = 'none';
