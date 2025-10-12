@@ -35,14 +35,54 @@
             .modal-container {
                 @apply bg-white rounded-lg shadow-2xl w-full max-w-4xl h-auto flex flex-col;
             }
+            @media (max-width: 768px) {
+                .modal-container {
+                    @apply max-w-full mx-2 my-4 h-[95vh] rounded-lg;
+                }
+            }
+            @media (max-width: 640px) {
+                .modal-container {
+                    @apply mx-1 my-2 h-[98vh] rounded-lg;
+                }
+            }
             .modal-header {
                 @apply px-6 py-4 border-b flex justify-between items-center;
+            }
+            @media (max-width: 768px) {
+                .modal-header {
+                    @apply px-4 py-3;
+                }
+            }
+            @media (max-width: 640px) {
+                .modal-header {
+                    @apply px-3 py-2;
+                }
             }
             .modal-body {
                 @apply px-6 py-4 overflow-hidden flex-grow;
             }
+            @media (max-width: 768px) {
+                .modal-body {
+                    @apply px-4 py-3;
+                }
+            }
+            @media (max-width: 640px) {
+                .modal-body {
+                    @apply px-3 py-2;
+                }
+            }
             .modal-footer {
                 @apply px-6 py-4 border-t flex justify-end gap-3;
+            }
+            @media (max-width: 768px) {
+                .modal-footer {
+                    @apply px-4 py-3 flex-wrap gap-2;
+                }
+            }
+            @media (max-width: 640px) {
+                .modal-footer {
+                    @apply px-3 py-2 flex-wrap gap-1;
+                }
             }
             .form-group {
                 @apply mb-4;
@@ -53,8 +93,18 @@
             .form-control {
                 @apply w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary;
             }
+            @media (max-width: 640px) {
+                .form-control {
+                    @apply px-2 py-1.5 text-sm;
+                }
+            }
             .btn {
                 @apply px-4 py-2 rounded-md font-medium cursor-pointer transition-colors;
+            }
+            @media (max-width: 640px) {
+                .btn {
+                    @apply px-3 py-1.5 text-sm;
+                }
             }
             .btn-primary {
                 @apply bg-primary text-white hover:bg-primary/90;
@@ -123,7 +173,8 @@
                         <div id="usageStatusIndicator" class="mb-4 p-3 rounded-md text-sm hidden"></div>
 
                         <!-- 平台/模型/配置：模型占剩余宽度，配置按钮仅占自身宽度 -->
-                        <div class="grid gap-4 items-end" style="grid-template-columns: auto 1fr auto;">
+                        <div class="grid gap-4 items-end grid-cols-1 md:grid-cols-3 lg:grid-cols-3"
+                            style="grid-template-columns: auto 1fr auto;">
                             <div>
                                 <label class="form-label" for="usagePlatformSelect">平台</label>
                                 <select id="usagePlatformSelect" class="form-control" required>
@@ -152,41 +203,41 @@
 
                         <!-- 提示词模板与参数行 -->
                         <div class="form-group mt-4">
-                            <div class="flex gap-3 items-center">
-                                <div class="flex-1">
+                            <div class="flex gap-3 items-center flex-col sm:flex-row">
+                                <div class="flex-1 w-full">
                                     <label class="form-label" for="promptTemplateSelect">提示词模板</label>
-                                    <div class="flex flex-nowrap items-center">
-                                        <select id="promptTemplateSelect" class="form-control">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <select id="promptTemplateSelect" class="form-control flex-1">
                                             <option value="">无模板</option>
                                             <!-- 模板项可由JS填充 -->
                                         </select>
                                         <button type="button" id="promptTemplateConfigBtn"
-                                            class="btn btn-outline ml-2 inline-flex whitespace-nowrap items-center">配置</button>
+                                            class="btn btn-outline inline-flex whitespace-nowrap items-center">配置</button>
                                         <button type="button" id="promptTemplateApplyBtn"
-                                            class="btn btn-primary ml-2 inline-flex whitespace-nowrap items-center">应用</button>
+                                            class="btn btn-primary inline-flex whitespace-nowrap items-center">应用</button>
                                         <button type="button" id="promptTemplatePreviewBtn"
-                                            class="btn btn-secondary ml-2 inline-flex whitespace-nowrap items-center">预览</button>
+                                            class="btn btn-secondary inline-flex whitespace-nowrap items-center">预览</button>
                                     </div>
                                 </div>
 
-                                <div class="w-1/3">
+                                <div class="w-full sm:w-1/3">
                                     <label class="form-label" for="promptParamsSelect">参数</label>
-                                    <div class="flex">
-                                        <select id="promptParamsSelect" class="form-control">
+                                    <div class="flex gap-2">
+                                        <select id="promptParamsSelect" class="form-control flex-1">
                                             <option value="">{{name}} 节点名称</option>
                                             <!-- 更多参数由JS填充 -->
                                         </select>
                                         <button type="button" id="insertParamBtn"
-                                            class="btn btn-outline ml-2 inline-flex whitespace-nowrap items-center">插入</button>
+                                            class="btn btn-outline inline-flex whitespace-nowrap items-center">插入</button>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- 输入与输出并列区 -->
-                        <div class="grid grid-cols-12 gap-4 mt-4">
+                        <!-- 输入与输出区域 -->
+                        <div class="space-y-4 mt-4">
                             <!-- 输入区域 -->
-                            <div class="col-span-7">
+                            <div class="w-full">
                                 <label class="form-label" for="usagePromptInput">输入</label>
                                 <div class="flex justify-end items-center gap-2 text-xs text-gray-600 mt-1">
                                     <label class="inline-flex items-center cursor-pointer">
@@ -195,25 +246,27 @@
                                     </label>
                                     <span>当前模式：<span id="promptViewModeText">占位符</span></span>
                                 </div>
-                                <textarea id="usagePromptInput" class="form-control h-52 " placeholder="请输入提示词..."
-                                    required></textarea>
+                                <textarea id="usagePromptInput" class="form-control h-40 sm:h-52"
+                                    placeholder="请输入提示词..." required></textarea>
 
-                                <div class="flex justify-end mt-3">
-                                    <button id="usageSubmitBtn" type="button" class="btn btn-primary" disabled>
+                                <div class="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 mt-3">
+                                    <button id="usageSubmitBtn" type="button"
+                                        class="btn btn-primary w-full sm:w-auto touch-manipulation" disabled>
                                         <i class="fa fa-paper-plane mr-2"></i>发送
                                     </button>
                                 </div>
                             </div>
 
                             <!-- 输出区域 -->
-                            <div class="col-span-5">
+                            <div class="w-full">
                                 <label class="form-label">输出</label>
                                 <div id="usageResultContainer"
-                                    class="bg-neutral-light p-3 rounded-md h-52 overflow-y-auto">
+                                    class="bg-neutral-light p-3 rounded-md h-40 sm:h-52 overflow-y-auto">
                                     <div id="usageResultContent" class="whitespace-pre-wrap break-words"></div>
                                 </div>
-                                <div class="flex justify-end mt-3">
-                                    <button id="saveApplyOutputBtn" type="button" class="btn btn-primary">
+                                <div class="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 mt-3">
+                                    <button id="saveApplyOutputBtn" type="button"
+                                        class="btn btn-primary w-full sm:w-auto touch-manipulation">
                                         保存并应用
                                     </button>
                                 </div>
@@ -228,15 +281,16 @@
                             <i class="fa fa-info-circle text-blue-600 mr-2"></i>请选择平台并填写必要信息，完成后点击“保存配置”。
                         </div>
 
-                        <div class="grid grid-cols-12 gap-4">
+                        <div class="grid grid-cols-12 gap-4 md:grid-cols-12 sm:grid-cols-1">
                             <!-- 左侧：已配置平台列表（窄侧栏） -->
-                            <div class="col-span-3 border-r pr-3">
+                            <div
+                                class="col-span-3 md:col-span-3 sm:col-span-12 sm:border-r-0 md:border-r md:pr-3 sm:mb-4">
                                 <div class="mb-2">
                                     <div class="mb-2">
                                         <div class="flex items-center justify-between">
                                             <h4 class="font-medium">已配置平台列表</h4>
                                         </div>
-                                        <div class="mt-2 flex items-center gap-2">
+                                        <div class="mt-2 flex items-center gap-2 flex-wrap">
                                             <button id="addPlatformBtn" type="button"
                                                 class="btn btn-outline text-[12px] px-1 py-0.5 whitespace-nowrap">添加</button>
                                             <button id="exportConfigsBtn" type="button"
@@ -248,13 +302,14 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div id="savedPlatformsList" class="flex flex-col gap-1 max-h-[60vh] overflow-y-auto">
+                                <div id="savedPlatformsList"
+                                    class="flex flex-col gap-1 max-h-[30vh] sm:max-h-[20vh] md:max-h-[60vh] overflow-y-auto">
                                     <!-- JS 填充已保存平台项 -->
                                 </div>
                             </div>
 
                             <!-- 右侧：单个平台配置（显示被选中的平台） -->
-                            <div class="col-span-9 h-full overflow-y-auto">
+                            <div class="col-span-9 md:col-span-9 sm:col-span-12 h-full overflow-y-auto">
                                 <div class="config-section">
                                     <div class="config-header">
                                         <h4 class="font-semibold text-lg">AI配置（单平台）</h4>
@@ -347,7 +402,7 @@
                                             <details class="group">
                                                 <summary class="text-sm font-medium text-gray-700 cursor-pointer">高级选项
                                                 </summary>
-                                                <div class="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div class="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
                                                     <div>
                                                         <label class="form-label" for="temperatureInput">温度
                                                             (0-1)</label>
@@ -368,10 +423,11 @@
 
                                 </div>
                                 <!-- 底部操作 -->
-                                <div class="flex justify-end gap-3 mt-4">
-
-                                    <button id="configBackBtn" type="button" class="btn btn-outline">返回</button>
-                                    <button id="configSaveBtn" type="button" class="btn btn-primary">
+                                <div class="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 mt-4">
+                                    <button id="configBackBtn" type="button"
+                                        class="btn btn-outline w-full sm:w-auto touch-manipulation">返回</button>
+                                    <button id="configSaveBtn" type="button"
+                                        class="btn btn-primary w-full sm:w-auto touch-manipulation">
                                         <i class="fa fa-save mr-2"></i>保存配置
                                     </button>
                                 </div>
@@ -386,10 +442,10 @@
                             <i
                                 class="fa fa-info-circle text-blue-600 mr-2"></i>管理提示词模板：支持新增、编辑、删除、导入、导出。保存后将更新使用界面的模板下拉。
                         </div>
-                        <div class="grid grid-cols-12 gap-4">
-                            <div class="col-span-3 border-r pr-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-12 gap-4">
+                            <div class="col-span-12 sm:col-span-3 border-r-0 sm:border-r sm:pr-3 mb-4 sm:mb-0">
                                 <div class="mb-2">
-                                    <div class="flex items-center gap-2">
+                                    <div class="flex flex-wrap items-center gap-1 sm:gap-2 touch-manipulation">
                                         <button id="addTemplateBtn" type="button"
                                             class="btn btn-outline text-[12px] px-1 py-0.5 whitespace-nowrap">新增</button>
                                         <button id="exportTemplatesBtn" type="button"
@@ -400,15 +456,16 @@
                                             class="hidden" />
                                     </div>
                                 </div>
-                                <div id="templateList" class="flex flex-col gap-1 max-h-[60vh] overflow-y-auto"></div>
+                                <div id="templateList"
+                                    class="flex flex-col gap-1 max-h-[40vh] sm:max-h-[60vh] overflow-y-auto"></div>
                             </div>
-                            <div class="col-span-9 h-full overflow-y-auto">
+                            <div class="col-span-12 sm:col-span-9 h-full overflow-y-auto">
                                 <div class="config-section">
                                     <div class="config-header">
                                         <h4 class="font-semibold text-lg">模板编辑</h4>
                                     </div>
                                     <div class="collapsible-content max-h-[65vh] overflow-y-auto">
-                                        <div class="grid grid-cols-2 gap-4">
+                                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                             <div>
                                                 <label class="form-label" for="tplNameInput">名称</label>
                                                 <input id="tplNameInput" type="text" class="form-control"
@@ -434,7 +491,7 @@
                                             <label class="form-label">参数（名称 与 描述）</label>
                                             <div id="tplParamsContainer" class="space-y-2"></div>
                                             <button id="addTplParamBtn" type="button"
-                                                class="btn btn-outline text-[12px] px-2 py-1 mt-2">添加参数</button>
+                                                class="btn btn-outline text-[12px] px-2 py-1 mt-2 touch-manipulation">添加参数</button>
                                         </div>
                                         <div class="mt-3">
                                             <label class="form-label" for="tplContentInput">模板内容</label>
@@ -442,9 +499,11 @@
                                                 placeholder="模板正文，支持占位符"></textarea>
                                         </div>
                                         <!-- 底部固定按钮已移动至 modal-footer 的 templateViewFooter -->
-                                        <div class="flex justify-end gap-3 mt-4">
-                                            <button id="tplBackBtn" type="button" class="btn btn-outline">返回</button>
-                                            <button id="tplSaveBtn" type="button" class="btn btn-primary"><i
+                                        <div class="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 mt-4">
+                                            <button id="tplBackBtn" type="button"
+                                                class="btn btn-outline w-full sm:w-auto touch-manipulation">返回</button>
+                                            <button id="tplSaveBtn" type="button"
+                                                class="btn btn-primary w-full sm:w-auto touch-manipulation"><i
                                                     class="fa fa-save mr-2"></i>保存模板</button>
                                         </div>
 
@@ -3232,7 +3291,7 @@
 
                 keys.forEach(key => {
                     const row = document.createElement('div');
-                    row.className = 'px-2 py-1 rounded-md hover:bg-gray-100 flex justify-between items-center';
+                    row.className = 'px-2 py-1 rounded-md hover:bg-gray-100 flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-1 sm:space-y-0';
                     row.dataset.platformKey = key;
 
                     const left = document.createElement('div');
@@ -3244,7 +3303,7 @@
                     left.appendChild(span);
 
                     const delBtn = document.createElement('button');
-                    delBtn.className = 'btn btn-outline text-[11px] px-1 py-0.5 ml-2 whitespace-nowrap';
+                    delBtn.className = 'btn btn-outline text-[11px] px-1 py-0.5 sm:ml-2 self-start sm:self-auto';
                     delBtn.title = '删除';
                     delBtn.textContent = '删除';
 

@@ -935,19 +935,19 @@ iframe .btn:not([class*="btn-"]):hover {
         }
 
         /* 隐藏思维导图右侧详情面板 */
-        #nodeDetails {
+        /* #nodeDetails {
             display: none !important;
             width: 0 !important;
             padding: 0 !important;
-        }
+        } */
 
         /* 隐藏批量操作计数（保险） */
         #batchOperations {
             display: none !important;
         }
 
-        /* 统一在移动端隐藏所有面板头部（panel-header） */
-        .panel-header {
+        /* 统一在移动端隐藏所有面板头部（panel-header），但排除节点详情弹窗 */
+        .panel-header:not(#nodeDetails .panel-header) {
             display: none !important;
         }
     }

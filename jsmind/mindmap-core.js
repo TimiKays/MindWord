@@ -225,13 +225,14 @@ window.AIConfigManager = AIConfigManager;
     var cbType = document.getElementById('toggleShowNodeTypeCheckbox');
     var cbList = document.getElementById('toggleShowListNodesCheckbox');
 
-    // 移动端检测：隐藏不需要的控件并设置默认状态
+    // 移动端检测：设置默认状态（不再隐藏节点详情控件）
     var isMobile = (('ontouchstart' in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) || (window.matchMedia && window.matchMedia('(max-width: 768px)').matches));
     if (isMobile) {
       try {
         var exportBtn = document.getElementById('export-json-btn');
         if (exportBtn) exportBtn.style.display = 'none';
-        if (cbDetails && cbDetails.parentElement) cbDetails.parentElement.style.display = 'none';
+        // 移动端默认关闭节点详情开关
+        if (cbDetails) cbDetails.checked = false;
         // 默认移动端不开启显示类型/只看标题
         if (cbType) cbType.checked = false;
         if (cbList) cbList.checked = false;
@@ -1469,12 +1470,14 @@ try {
     window.saveToLocalStorage = window.saveToLocalStorage || (typeof saveToLocalStorage === 'function' ? saveToLocalStorage : undefined);
     window.showAutoUpdateIndicator = window.showAutoUpdateIndicator || (typeof showAutoUpdateIndicator === 'function' ? showAutoUpdateIndicator : undefined);
     window.debouncedSave = window.debouncedSave || (typeof debouncedSave === 'function' ? debouncedSave : undefined);
+    window.showNodeDetails = window.showNodeDetails || (typeof showNodeDetails === 'function' ? showNodeDetails : undefined);
     try {
       console.debug('[MW][core] expose funcs', {
         refreshAllNotesDisplay: typeof window.refreshAllNotesDisplay,
         saveToLocalStorage: typeof window.saveToLocalStorage,
         showAutoUpdateIndicator: typeof window.showAutoUpdateIndicator,
-        debouncedSave: typeof window.debouncedSave
+        debouncedSave: typeof window.debouncedSave,
+        showNodeDetails: typeof window.showNodeDetails
       });
     } catch (e) { /* ignore */ }
   }

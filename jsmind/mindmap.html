@@ -48,8 +48,8 @@
         title="创建同级" style="--ico: url('../res/添加同级.svg');"></span>
       <span class="ico-btn requires-single-selection" role="button" onclick="aiExpandNotes()" tabindex="0" title="扩写备注"
         style="--ico: url('../res/扩写备注.svg');"></span>
-      <span class="ico-btn requires-single-selection" role="button" onclick="quickModifyNode()" tabindex="0"
-        title="修改主题" style="--ico: url('../res/edit.svg');"></span>
+      <span class="ico-btn requires-single-selection" role="button" onclick="quickModifyNode()" tabindex="0" title="修改"
+        style="--ico: url('../res/edit.svg');"></span>
       <span class="ico-btn" role="button" onclick="quickDeleteNode()" tabindex="0" title="删除节点"
         style="--ico: url('../res/删除.svg');"></span>
 
@@ -136,9 +136,6 @@
 
   <div class="main-container">
     <div id="fullScreenMindmap"></div>
-
-
-
     <!-- 浮动节点详情面板（可关闭），保留内部字段和功能 -->
     <div id="nodeDetails" role="dialog" aria-hidden="true" aria-label="节点详情">
       <div class="panel-header">
@@ -466,10 +463,25 @@
       try {
         var sel = jm.get_selected_node && jm.get_selected_node();
         if (!sel) { showWarning && showWarning('请先选择一个节点'); return; }
-        var newTitle = prompt('修改节点主题', sel.topic || '');
-        if (newTitle !== null && newTitle.trim()) jm.update_node(sel.id, newTitle.trim());
-        try { if (typeof debouncedSave === 'function') debouncedSave(); } catch (_) { }
-      } catch (e) { showError && showError('修改失败'); }
+
+        // 无论开关是否开启，都显示节点详情面板
+        try {
+          // 先显示面板
+          if (typeof showNodeDetailsPanel === 'function') {
+            showNodeDetailsPanel();
+          }
+          // 再显示节点详情内容
+          if (typeof window.showNodeDetails === 'function') {
+            window.showNodeDetails(sel);
+          } else if (typeof showNodeDetails === 'function') {
+            showNodeDetails(sel);
+          }
+        } catch (e) {
+          console.warn('显示节点详情失败:', e);
+        }
+      } catch (e) {
+        showError && showError('修改失败');
+      }
     }
     function quickDeleteNode() {
       try {
@@ -1127,7 +1139,7 @@
     // --- extracted block from original HTML ---
     (function () {
       // 节点详情开关（默认开启）
-      window.__nodeDetailsEnabled = (window.__nodeDetailsEnabled === undefined) ? true : !!window.__nodeDetailsEnabled;
+      window.__nodeDetailsEnabled = (window.__nodeDetailsEnabled === undefined) ? false : !!window.__nodeDetailsEnabled;
 
       function updateToggleUI() {
         var enabled = !!window.__nodeDetailsEnabled;
