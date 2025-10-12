@@ -1481,6 +1481,7 @@
       if (!!this.mind) {
         this.mind.selected = null;
         this.view.select_clear();
+        this.invoke_event_handle(jm.event_type.select, { evt: 'unselect_node', data: [], node: null });
       }
     },
 

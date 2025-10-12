@@ -1835,6 +1835,9 @@ function setupBoxSelection() {
     // 更新批量操作工具栏
     updateBatchToolbar();
 
+    // 更新AI快捷操作按钮的可见性
+    updateAIQuickActionsVisibility();
+
     // 暴露便捷 API
     exposeMultiSelectAPI();
   }
@@ -1920,6 +1923,47 @@ function setupBoxSelection() {
     } else {
       batchOps.style.display = 'none';
     }
+  }
+
+  // 检查是否为单选状态（只有一个节点被选中，且不是多选模式）
+  function isSingleSelection() {
+    // 如果多选集合中有且仅有一个节点，认为是单选
+    if (multiSelected.size === 1) {
+      return true;
+    }
+
+    // 如果多选集合为空，检查jsMind的单选状态
+    if (multiSelected.size === 0) {
+      const selectedNode = (window.jm && typeof jm.get_selected_node === 'function') ? jm.get_selected_node() : null;
+      return selectedNode !== null;
+    }
+
+    // 多选模式下返回false
+    return false;
+  }
+
+  // 更新AI快捷操作按钮的可见性
+  function updateAIQuickActionsVisibility() {
+    const aiQuickActions = document.getElementById('aiQuickActions');
+    if (!aiQuickActions) return;
+
+    const buttons = aiQuickActions.querySelectorAll('button');
+    const isSingleSelect = isSingleSelection();
+
+    buttons.forEach(button => {
+      const onclick = button.getAttribute('onclick');
+      // 只控制特定的按钮：创建子级、创建同级、扩写备注、修改、删除
+      if (onclick && (
+        onclick.includes('aiCreateChild()') ||
+        onclick.includes('aiCreateSibling()') ||
+        onclick.includes('aiExpandNotes()') ||
+        onclick.includes('quickModifyNode()') ||
+        onclick.includes('quickDeleteNode()')
+      )) {
+        button.style.display = isSingleSelect ? 'inline-block' : 'none';
+      }
+      // "生成初始树"按钮不受控制，始终显示
+    });
   }
 
   // 暴露便捷 API
@@ -2513,6 +2557,8 @@ function setupBoxSelection() {
             isDraggingNode = false;
           }, 100);
         }
+        // 更新AI快捷操作按钮可见性
+        updateAIQuickActionsVisibility();
       }
     });
   } else {
@@ -4098,6 +4144,25 @@ window.addEventListener('load', async function () {
     window.aiExpander = new window.AIExpander();
     window.aiExpander.init(jm);
   }
+
+  // 监听 jsmind 的事件
+  jm.add_event_listener(function (type, data) {
+    if (type === jsMind.event_type.select) {
+      updateSingleSelectionButtons();
+    }
+  });
+
+  // 更新需要单选的按钮的可见性
+  function updateSingleSelectionButtons() {
+    const buttons = document.querySelectorAll('.requires-single-selection');
+    const shouldShow = !!jm.get_selected_node();
+    buttons.forEach(button => {
+      button.classList.toggle('visible', shouldShow);
+    });
+  }
+
+  // 初始加载时更新一次
+  updateSingleSelectionButtons();
 });
 
 // 焦点丢失监听

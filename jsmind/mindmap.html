@@ -14,7 +14,15 @@
 
 
   <link rel="stylesheet" href="mindmap.css">
+  <style>
+    .requires-single-selection {
+      display: none !important;
+    }
 
+    .requires-single-selection.visible {
+      display: inline-block !important;
+    }
+  </style>
 </head>
 
 </head>
@@ -28,15 +36,23 @@
       style="--ico: url('res/download.svg'); "></span>
     <span class="ico-btn" role="button" onclick="exportData()" tabindex="0" title="查看JSON"
       style="--ico: url('res/code.svg'); "></span>
+    <span class="ico-btn" role="button" onclick="aiGenerateInitialTree()" tabindex="0" title="生成初始树"
+      style="--ico: url('../res/生成初始树.svg');"></span>
 
     <!-- AI 快捷操作 -->
-    <div id="aiQuickActions" style="display:inline-flex;gap:8px;margin-left:8px;align-items:center;">
-      <button class="btn btn-sm" onclick="aiCreateChild()" title="创建子级">创建子级</button>
-      <button class="btn btn-sm" onclick="aiCreateSibling()" title="创建同级">创建同级</button>
-      <button class="btn btn-sm" onclick="aiExpandNotes()" title="扩写备注">扩写备注</button>
-      <button class="btn btn-sm" onclick="quickModifyNode()" title="修改主题">修改</button>
-      <button class="btn btn-sm" onclick="quickDeleteNode()" title="删除节点">删除</button>
-      <button class="btn btn-sm" onclick="aiGenerateInitialTree()" title="生成初始树">生成初始树</button>
+    <div id="aiQuickActions" style="display:inline-flex;gap:8px;align-items:center;">
+      <span style="color: gainsboro;"> | </span>
+      <span class="ico-btn requires-single-selection" role="button" onclick="aiCreateChild()" tabindex="0" title="创建子级"
+        style="--ico: url('../res/添加子级.svg');"></span>
+      <span class="ico-btn requires-single-selection" role="button" onclick="aiCreateSibling()" tabindex="0"
+        title="创建同级" style="--ico: url('../res/添加同级.svg');"></span>
+      <span class="ico-btn requires-single-selection" role="button" onclick="aiExpandNotes()" tabindex="0" title="扩写备注"
+        style="--ico: url('../res/扩写备注.svg');"></span>
+      <span class="ico-btn requires-single-selection" role="button" onclick="quickModifyNode()" tabindex="0"
+        title="修改主题" style="--ico: url('../res/edit.svg');"></span>
+      <span class="ico-btn" role="button" onclick="quickDeleteNode()" tabindex="0" title="删除节点"
+        style="--ico: url('../res/删除.svg');"></span>
+
     </div>
 
 
@@ -452,11 +468,21 @@
     }
     function quickDeleteNode() {
       try {
-        var sel = jm.get_selected_node && jm.get_selected_node();
-        if (!sel) { showWarning && showWarning('请先选择一个节点'); return; }
-        if (confirm('确认删除该节点及其子节点？')) {
-          jm.remove_node(sel.id);
-          try { if (typeof debouncedSave === 'function') debouncedSave(); } catch (_) { }
+        var selectedNodes = (typeof window.getMultiSelection === 'function') ? window.getMultiSelection() : [];
+        if (selectedNodes.length > 1) {
+          if (confirm('确认删除所有选中的 ' + selectedNodes.length + ' 个节点？')) {
+            selectedNodes.forEach(function (nodeId) {
+              jm.remove_node(nodeId);
+            });
+            try { if (typeof debouncedSave === 'function') debouncedSave(); } catch (_) { }
+          }
+        } else {
+          var sel = jm.get_selected_node && jm.get_selected_node();
+          if (!sel) { showWarning && showWarning('请先选择一个节点'); return; }
+          if (confirm('确认删除该节点及其子节点？')) {
+            jm.remove_node(sel.id);
+            try { if (typeof debouncedSave === 'function') debouncedSave(); } catch (_) { }
+          }
         }
       } catch (e) { showError && showError('删除失败'); }
     }
@@ -1269,6 +1295,10 @@
           relocateBatchOpsIfNeeded();
           ensureDetailsToggleVisibleOnDesktop();
           startSelectedCountSync();
+          // 初始化AI快捷操作按钮可见性
+          if (typeof updateAIQuickActionsVisibility === 'function') {
+            updateAIQuickActionsVisibility();
+          }
         }
 
         if (document.readyState === 'complete' || document.readyState === 'interactive') {

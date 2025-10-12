@@ -376,7 +376,7 @@ iframe .btn:not([class*="btn-"]):hover {
     font-size: 14px !important;
     font-weight: 500 !important;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
-    display: flex !important;
+    display: flex;
     align-items: center !important;
     gap: 4px !important;
     line-height: 1 !important;
