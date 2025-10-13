@@ -523,7 +523,7 @@
                 constructor() {
                     // 平台配置将在初始化时从JSON文件加载
                     this.platforms = {};
-                    
+
                     // 存储配置信息
                     this.config = {
                         selectedPlatform: null,
@@ -541,10 +541,10 @@
                         if (!response.ok) {
                             throw new Error(`加载平台配置失败: ${response.statusText}`);
                         }
-                        
+
                         const configData = await response.json();
                         this.platforms = configData.platforms;
-                        
+
                         // 初始化模型数组和获取状态
                         Object.keys(this.platforms).forEach(platform => {
                             if (!this.platforms[platform].models) {
@@ -554,7 +554,7 @@
                                 this.platforms[platform].modelsFetched = false;
                             }
                         });
-                        
+
                         console.log('平台配置加载成功:', Object.keys(this.platforms));
                         return true;
                     } catch (error) {
@@ -593,6 +593,12 @@
                     }
 
                     if (platform === 'modelscope') {
+                        platformInfo.models = [...platformInfo.predefinedModels];
+                        platformInfo.modelsFetched = true;
+                        return platformInfo.models;
+                    }
+
+                    if (platform === 'bigmodel') {
                         platformInfo.models = [...platformInfo.predefinedModels];
                         platformInfo.modelsFetched = true;
                         return platformInfo.models;
@@ -748,6 +754,8 @@
                             return this._callSilibase(prompt, temperature, maxTokens);
                         case 'modelscope':
                             return this._callModelScope(prompt, temperature, maxTokens);
+                        case 'bigmodel':
+                            return this._callZhipu(prompt, temperature, maxTokens);
                         default:
                             throw new Error(`不支持的AI平台: ${this.config.selectedPlatform}`);
                     }
@@ -1067,7 +1075,7 @@
                         }
 
                         const responseText = await response.text();
-                        
+
                         // 处理可能的多个JSON对象拼接的情况
                         let data;
                         try {
@@ -1091,26 +1099,61 @@
                                 throw parseError;
                             }
                         }
-                        
+
                         // 检查是否有错误信息
                         if (data.errors) {
                             throw new Error(`魔搭社区模型错误: ${data.errors.message || '未知错误'}`);
                         }
-                        
+
                         // 检查响应结构
                         if (!data.choices || !data.choices[0] || !data.choices[0].message) {
                             throw new Error('魔搭社区 API 响应格式错误: 缺少必要字段');
                         }
-                        
+
                         return data.choices[0].message.content;
                     } catch (error) {
                         console.error("魔搭社区调用失败:", error);
-                        
+
                         // 如果是模型特定的内容错误，提供更友好的错误信息
                         if (error.message.includes('inappropriate content')) {
                             throw new Error(`模型 "${this.config.selectedModel}" 返回了不当内容，请尝试其他模型或调整输入内容`);
                         }
-                        
+
+                        throw error;
+                    }
+                }
+
+                async _callZhipu(prompt, temperature, maxTokens) {
+                    const url = `${this.platforms.bigmodel.baseUrl}/chat/completions`;
+
+                    const messages = Array.isArray(prompt)
+                        ? prompt
+                        : [{ role: "user", content: prompt }];
+
+                    try {
+                        const response = await fetch(url, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "Authorization": `Bearer ${this.config.apiKey}`
+                            },
+                            body: JSON.stringify({
+                                model: this.config.selectedModel,
+                                messages: messages,
+                                temperature: temperature,
+                                max_tokens: maxTokens
+                            })
+                        });
+
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(`智谱AI API 错误: ${error.error?.message || '未知错误'}`);
+                        }
+
+                        const data = await response.json();
+                        return data.choices[0].message.content;
+                    } catch (error) {
+                        console.error("智谱AI调用失败:", error);
                         throw error;
                     }
                 }
@@ -1118,7 +1161,7 @@
 
             // 创建AI服务实例
             const aiService = new AIPlatformService();
-            
+
             // 初始化AI服务
             aiService.initialize().then(success => {
                 if (success) {
@@ -1127,6 +1170,7 @@
                     initPlatformSelect();
                     loadAllConfigsFromStorage();
                     populateUsagePlatforms();
+                    populateSavedPlatformsList(); // 填充左侧已保存平台列表
                 } else {
                     console.error('AI服务初始化失败，请检查platform-configs.json文件');
                     showStatus('AI服务初始化失败，请检查配置文件', 'error');
@@ -1305,6 +1349,9 @@
 
                 // 自动选择已配置的平台
                 autoSelectConfiguredPlatform();
+
+                // 刷新左侧已保存平台列表
+                populateSavedPlatformsList();
             }
 
             // 自动选择已配置的平台
@@ -2186,6 +2233,7 @@
                                 });
                                 ok = await aiService.verifyConnection();
                             } catch (e) {
+                                console.log(e);
                                 ok = false;
                             }
                         }

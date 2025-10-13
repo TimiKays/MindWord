@@ -110,6 +110,22 @@
         "LLM-Research/Llama-4-Scout-17B-16E-Instruct",
         "mistralai/Mistral-Large-Instruct-2407"
       ]
+    },
+    "bigmodel": {
+      "name": "智谱AI开放平台",
+      "baseUrl": "https://open.bigmodel.cn/api/paas/v4",
+      "modelsUrl": null,
+      "apiKeyUrl": "https://open.bigmodel.cn/apikey",
+      "models": [],
+      "modelsFetched": false,
+      "predefinedModels": [
+        "GLM-4.5-Flash",
+        "GLM-4-Flash-250414",
+        "GLM-Z1-Flash",
+        "GLM-4V-Flash",
+        "CogView-3-Flash",
+        "CogVideoX-Flash"
+      ]
     }
   }
 }
