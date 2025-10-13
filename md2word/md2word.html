@@ -623,6 +623,28 @@
           const normalize = (s) => (s || '').toString().replace(/^\s*(#{1,6}\s+|[-*]\s+|\d+\.\s+|>\s+)/, '').trim();
           const targetNormalized = normalize(raw.replace(/^\s*#{1,6}\s*/, ''));
 
+          // 仅用于匹配的候选文本提取：li 只取首段/首行，避免紧凑列表把后续段落并入导致失配
+          function textForMatch(el) {
+            try {
+              const tag = (el.tagName || '').toLowerCase();
+              let rawText = ((el.innerText || el.textContent || '') + '').toString();
+              if (tag === 'li') {
+                const p = el.querySelector('p');
+                rawText = p ? ((p.innerText || p.textContent || '') + '').toString() : rawText;
+                // 取第一行（到首个换行为止）
+                rawText = rawText.split(/\r?\n/)[0];
+              }
+              return rawText;
+            } catch (_) {
+              return (el && (el.innerText || el.textContent)) ? (el.innerText || el.textContent).toString() : '';
+            }
+          }
+          function normalizeForMatch(s) {
+            return (s || '').toString()
+              .replace(/^\s*(#{1,6}\s+|[-*]\s+|\d+\.\s+|>\s+)/, '')
+              .trim();
+          }
+
           // 在 preview DOM 中查找可能匹配的元素（优先标题 h1-h6，其次 li/p 等）
           const container = previewEl;
           if (!container) return;
@@ -635,8 +657,8 @@
             const headingEls = Array.from(container.querySelectorAll('h1,h2,h3,h4,h5,h6'));
             for (let i = 0; i < headingEls.length; i++) {
               const el = headingEls[i];
-              const text = (el.innerText || el.textContent || '').toString().trim();
-              const norm = normalize(text);
+              const text = textForMatch(el);
+              const norm = normalizeForMatch(text);
               if (norm !== targetNormalized) continue;
 
               // parentPath 校验（若提供）
@@ -661,8 +683,8 @@
             const candidates = Array.from(container.querySelectorAll('li,p'));
             for (let i = 0; i < candidates.length; i++) {
               const el = candidates[i];
-              const text = (el.innerText || el.textContent || '').toString().trim();
-              const norm = normalize(text);
+              const text = textForMatch(el);
+              const norm = normalizeForMatch(text);
               if (norm !== targetNormalized) continue;
 
               if (parentLast) {
@@ -693,11 +715,21 @@
           window.__mw_previewMatchIndex[key] = last;
           const targetEl = matches[last];
 
-          // 滚动并短暂高亮
+          // 列表项仅高亮与滚动到其首段（避免把后续普通段落并入）
+          const highlightEl = (function () {
+            try {
+              if (targetEl && targetEl.tagName && targetEl.tagName.toLowerCase() === 'li') {
+                const p = targetEl.querySelector('p');
+                return p || targetEl;
+              }
+            } catch (e) { /* ignore */ }
+            return targetEl;
+          })();
+
           try {
-            targetEl.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+            highlightEl.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
           } catch (err) {
-            targetEl.scrollIntoView();
+            highlightEl.scrollIntoView();
           }
 
           // 先移除页面上已有的预览高亮（防止残留）
@@ -706,19 +738,18 @@
             existing.forEach(el => el.classList.remove('mw-preview-highlight'));
           } catch (e) { }
 
-          // 添加当前元素高亮，并用独立定时器在 1.6s 后只移除该元素的类
+          // 添加当前元素高亮（对 li 仅高亮其首段），并在 1.6s 后移除
           try {
-            targetEl.classList.add('mw-preview-highlight');
-            // 清理之前可能存在的元素级超时引用（如果有）
+            highlightEl.classList.add('mw-preview-highlight');
             if (!window.__mw_previewHighlightTimers) window.__mw_previewHighlightTimers = new WeakMap();
-            const prevTimer = window.__mw_previewHighlightTimers.get(targetEl);
+            const prevTimer = window.__mw_previewHighlightTimers.get(highlightEl);
             if (prevTimer) clearTimeout(prevTimer);
 
             const t = setTimeout(() => {
-              try { targetEl.classList.remove('mw-preview-highlight'); } catch (e) { }
-              try { window.__mw_previewHighlightTimers.delete(targetEl); } catch (e) { }
+              try { highlightEl.classList.remove('mw-preview-highlight'); } catch (e) { }
+              try { window.__mw_previewHighlightTimers.delete(highlightEl); } catch (e) { }
             }, 1600);
-            try { window.__mw_previewHighlightTimers.set(targetEl, t); } catch (e) { }
+            try { window.__mw_previewHighlightTimers.set(highlightEl, t); } catch (e) { }
           } catch (err) { }
 
           console.log('[MD2WORD] preview scrolled to match', { nodeid: nodeid, index: last, total: matches.length });

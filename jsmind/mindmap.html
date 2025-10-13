@@ -629,14 +629,20 @@
                     var lines = [];
                     lines.push('节点: ' + (topic || ''));
                     lines.push('路径: ' + (fullPath || ''));
+                    // 注入 raw 信息（仅当节点自身包含 raw 字段时）
+                    var rawVal = selectedNode.data.data.raw || '';
+
+
+                    lines.push('raw: ' + rawVal);
+
                     if (notes) lines.push('备注: ' + notes);
                     if (parent && (parent.topic || '')) lines.push('父节点: ' + (parent.topic || ''));
                     if (siblingNodes) lines.push('同级兄弟: ' + siblingNodes);
                     var childTitles = (selectedNode.children || []).map(function (c) { return c.topic || ''; }).filter(Boolean).join(', ');
                     if (childTitles) lines.push('已有子节点: ' + childTitles);
-                    return lines.join('\\n');
+                    return lines.join('\n');
                   } catch (e) {
-                    return (topic || '') + '\\n' + (fullPath || '');
+                    return (topic || '') + '\n' + (fullPath || '');
                   }
                 })()
               }

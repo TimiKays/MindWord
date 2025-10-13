@@ -769,7 +769,7 @@ iframe .btn:not([class*="btn-"]):hover {
     .main-content {
         margin: 0;
         border-radius: 0;
-        padding-bottom: 64px;
+        padding-bottom: 50px;
         /* 给底部 tab 留空间 */
     }
 
@@ -920,35 +920,21 @@ iframe .btn:not([class*="btn-"]):hover {
     }
 
     /* 小屏时隐藏 header 内的 .tabs，显示底部 mobile-tabs */
-    @media (max-width: 768px) {
-        .header .tabs {
-            display: none !important;
-        }
+    .header .tabs {
+        display: none !important;
+    }
 
-        .mobile-tabs {
-            display: flex;
-        }
+    .mobile-tabs {
+        display: flex;
+    }
 
-        /* main-content 底部预留 mobile-tabs 的高度 */
-        .main-content {
-            padding-bottom: 72px;
-        }
+    /* 隐藏批量操作计数（保险） */
+    #batchOperations {
+        display: none !important;
+    }
 
-        /* 隐藏思维导图右侧详情面板 */
-        /* #nodeDetails {
-            display: none !important;
-            width: 0 !important;
-            padding: 0 !important;
-        } */
-
-        /* 隐藏批量操作计数（保险） */
-        #batchOperations {
-            display: none !important;
-        }
-
-        /* 统一在移动端隐藏所有面板头部（panel-header），但排除节点详情弹窗 */
-        .panel-header:not(#nodeDetails .panel-header) {
-            display: none !important;
-        }
+    /* 统一在移动端隐藏所有面板头部（panel-header），但排除节点详情弹窗 */
+    .panel-header:not(#nodeDetails .panel-header) {
+        display: none !important;
     }
 }
