@@ -588,6 +588,25 @@
                             modelsFetched: false,
                             apiKeyUrl: "https://www.siliconflow.cn",
                             models: []
+                        },
+                        modelscope: {
+                            name: "魔搭社区",
+                            baseUrl: "https://api-inference.modelscope.cn/v1",
+                            modelsUrl: null, // 魔搭社区没有统一的模型列表API，需要用户手动输入
+                            modelsFetched: false,
+                            apiKeyUrl: "https://www.modelscope.cn/my/myaccesstoken",
+                            models: [],
+                            predefinedModels: [
+                                "Qwen/Qwen2.5-7B-Instruct",
+                                "Qwen/Qwen2.5-1.5B-Instruct", 
+                                "Qwen/Qwen2-7B-Instruct",
+                                "Qwen/Qwen2-1.5B-Instruct",
+                                "baichuan-inc/Baichuan2-13B-Chat",
+                                "THUDM/chatglm3-6b",
+                                "01-ai/Yi-6B-Chat",
+                                "deepseek-ai/deepseek-llm-7b-chat",
+                                "Qwen/Qwen2.5-Coder-32B-Instruct"
+                            ]
                         }
                     };
 
@@ -609,8 +628,8 @@
                     if (!this.platforms[platform]) {
                         throw new Error(`不支持的AI平台: ${platform}`);
                     }
-                    if (platform === 'anthropic' && this.platforms[platform].models.length === 0) {
-                        return [...this.platforms[platform].predefinedModels];
+                    if ((platform === 'anthropic' || platform === 'modelscope') && this.platforms[platform].models.length === 0) {
+                        return [...(this.platforms[platform].predefinedModels || [])];
                     }
                     return [...this.platforms[platform].models];
                 }
@@ -623,6 +642,12 @@
                     const platformInfo = this.platforms[platform];
 
                     if (platform === 'anthropic') {
+                        platformInfo.models = [...platformInfo.predefinedModels];
+                        platformInfo.modelsFetched = true;
+                        return platformInfo.models;
+                    }
+
+                    if (platform === 'modelscope') {
                         platformInfo.models = [...platformInfo.predefinedModels];
                         platformInfo.modelsFetched = true;
                         return platformInfo.models;
@@ -776,6 +801,8 @@
                             return this._callCloudflare(prompt, temperature, maxTokens);
                         case 'silibase':
                             return this._callSilibase(prompt, temperature, maxTokens);
+                        case 'modelscope':
+                            return this._callModelScope(prompt, temperature, maxTokens);
                         default:
                             throw new Error(`不支持的AI平台: ${this.config.selectedPlatform}`);
                     }
@@ -1063,6 +1090,41 @@
                         return data.choices[0].message.content;
                     } catch (error) {
                         console.error("硅基流动调用失败:", error);
+                        throw error;
+                    }
+                }
+
+                async _callModelScope(prompt, temperature, maxTokens) {
+                    const url = `${this.platforms.modelscope.baseUrl}/chat/completions`;
+
+                    const messages = Array.isArray(prompt)
+                        ? prompt
+                        : [{ role: "user", content: prompt }];
+
+                    try {
+                        const response = await fetch(url, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "Authorization": `Bearer ${this.config.apiKey}`
+                            },
+                            body: JSON.stringify({
+                                model: this.config.selectedModel,
+                                messages: messages,
+                                temperature: temperature,
+                                max_tokens: maxTokens
+                            })
+                        });
+
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(`魔搭社区 API 错误: ${error.error?.message || '未知错误'}`);
+                        }
+
+                        const data = await response.json();
+                        return data.choices[0].message.content;
+                    } catch (error) {
+                        console.error("魔搭社区调用失败:", error);
                         throw error;
                     }
                 }
