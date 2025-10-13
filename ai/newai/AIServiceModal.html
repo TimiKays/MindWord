@@ -30,7 +30,9 @@
     <style type="text/tailwindcss">
         @layer utilities {
             .modal-backdrop {
-                @apply fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center p-4;
+                @apply fixed inset-0 z-40 flex items-center justify-center p-4;
+                /* 背景透明，避免在 iframe 内遮挡父页面（父页面负责半透明遮罩） */
+                background: transparent;
             }
             .modal-container {
                 @apply bg-white rounded-lg shadow-2xl w-full max-w-4xl h-auto flex flex-col;
@@ -143,7 +145,7 @@
     </style>
 </head>
 
-<body class="bg-gray-100 p-8">
+<body class="p-8" style="background: transparent;">
     <!-- 触发弹窗的按钮 -->
     <button id="openAIModalBtn" class="btn btn-primary">
         <i class="fa fa-robot mr-2"></i>打开AI工具
@@ -262,7 +264,8 @@
                                 <label class="form-label">输出</label>
                                 <div id="usageResultContainer"
                                     class="bg-neutral-light p-3 rounded-md h-40 sm:h-52 overflow-y-auto">
-                                    <div id="usageResultContent" class="whitespace-pre-wrap break-words"></div>
+                                    <div id="usageResultContent" class="whitespace-pre-wrap break-words"
+                                        contenteditable="true" aria-multiline="true"></div>
                                 </div>
                                 <div class="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 mt-3">
                                     <button id="saveApplyOutputBtn" type="button"
@@ -1521,8 +1524,8 @@
 
                 console.log('更新后的常用模型:', favoriteModels[platform]);
 
-                // 保存配置
-                saveCurrentPlatformConfig();
+                // 已禁用：发送请求时不自动保存平台配置（避免在发送时意外覆盖已保存的 apiKey）
+                // saveCurrentPlatformConfig();
 
 
                 // 若在使用界面，刷新模型下拉
@@ -1831,7 +1834,15 @@
                     // 显示结果
                     showUsageStatus('请求成功完成', 'success');
                     usageResultContent.textContent = result;
-                    usageResultContainer.classList.remove('hidden');
+                    // 确保输出容器可见且可交互，避免被样式或属性禁用
+                    if (usageResultContainer) {
+                        usageResultContainer.classList.remove('hidden');
+                        try { usageResultContainer.style.pointerEvents = 'auto'; } catch (_) { /* noop */ }
+                        try { usageResultContainer.removeAttribute('aria-hidden'); } catch (_) { /* noop */ }
+                        try { usageResultContainer.classList.remove('opacity-50'); } catch (_) { /* noop */ }
+                    }
+                    // 确保保存/应用按钮可用
+                    try { if (saveApplyOutputBtn) saveApplyOutputBtn.disabled = false; } catch (_) { /* noop */ }
 
                     // 派发提交事件（供内部监听）
                     emitEvent('onSubmit', {
@@ -1862,7 +1873,15 @@
                     const msg = (error && error.message) ? error.message : String(error);
                     showUsageStatus(`请求失败: ${msg}`, 'error');
                     usageResultContent.textContent = `错误：${msg}`;
-                    usageResultContainer.classList.remove('hidden');
+                    // 确保输出容器可见且可交互，避免被样式或属性禁用
+                    if (usageResultContainer) {
+                        usageResultContainer.classList.remove('hidden');
+                        try { usageResultContainer.style.pointerEvents = 'auto'; } catch (_) { /* noop */ }
+                        try { usageResultContainer.removeAttribute('aria-hidden'); } catch (_) { /* noop */ }
+                        try { usageResultContainer.classList.remove('opacity-50'); } catch (_) { /* noop */ }
+                    }
+                    // 确保保存/应用按钮可用（即便出错，用户可能仍想复制或查看原始错误）
+                    try { if (saveApplyOutputBtn) saveApplyOutputBtn.disabled = false; } catch (_) { /* noop */ }
 
                     // 派发错误事件
                     emitEvent('onError', { code: 'SEND_FAILED', message: msg });
@@ -1870,11 +1889,13 @@
                     // 回传失败给父窗口
                     try {
                         const rid = modal?.dataset?.requestId || null;
+                        // 不要让父页面在收到错误后自动关闭弹窗：增加 keepOpen 字段以便父页面判断
                         window.parent?.postMessage({
                             type: 'AI_MODAL_RESULT',
                             requestId: rid,
                             status: 'error',
-                            detail: { message: msg }
+                            detail: { message: msg },
+                            keepOpen: true
                         }, '*');
                     } catch (_) { /* noop */ }
                 } finally {
@@ -1985,6 +2006,78 @@
                 } else {
                     switchToUsageView();
                 }
+
+                // 恢复上次使用的 平台 与 模型（若存在）
+                try {
+                    (function restoreLastSelection() {
+                        try {
+                            const lastPlatform = localStorage.getItem('lastUsedPlatform');
+                            if (lastPlatform && usagePlatformSelect) {
+                                // 若选项还未包含该值，则等待短暂时间再尝试（通常 populateUsagePlatforms 会在初始化时填充）
+                                const applyPlatform = () => {
+                                    if (!usagePlatformSelect.querySelector(`option[value="${lastPlatform}"]`)) return false;
+                                    usagePlatformSelect.value = lastPlatform;
+                                    // 同步到主平台选择并触发 change 以加载模型
+                                    if (platformSelect) {
+                                        platformSelect.value = lastPlatform;
+                                        const ev = new Event('change', { bubbles: true });
+                                        platformSelect.dispatchEvent(ev);
+                                    }
+                                    // 触发 usagePlatformSelect 的 change 以保持行为一致
+                                    const ev2 = new Event('change', { bubbles: true });
+                                    usagePlatformSelect.dispatchEvent(ev2);
+                                    return true;
+                                };
+
+                                if (!applyPlatform()) {
+                                    // 若尚未填充选项，等待并重试几次
+                                    let tries = 0;
+                                    const tid = setInterval(() => {
+                                        tries++;
+                                        if (applyPlatform() || tries >= 6) {
+                                            clearInterval(tid);
+                                            // 尝试恢复模型（若存在）
+                                            tryRestoreModel();
+                                        }
+                                    }, 250);
+                                } else {
+                                    // 平台已应用，尝试恢复模型
+                                    tryRestoreModel();
+                                }
+                            } else {
+                                // 未记录平台或无 usagePlatformSelect，仍尝试恢复模型基于当前平台
+                                tryRestoreModel();
+                            }
+
+                            function tryRestoreModel() {
+                                try {
+                                    const curPlatform = usagePlatformSelect ? usagePlatformSelect.value : (platformSelect ? platformSelect.value : null);
+                                    if (!curPlatform) return;
+                                    const lastModelKey = `lastUsedModel_${curPlatform}`;
+                                    const lastModel = localStorage.getItem(lastModelKey);
+                                    if (!lastModel) return;
+                                    // 若 usageModelSelect 已填充并包含该模型则直接设置
+                                    const applyModel = () => {
+                                        if (!usageModelSelect) return false;
+                                        if (!usageModelSelect.querySelector(`option[value="${lastModel}"]`)) return false;
+                                        usageModelSelect.value = lastModel;
+                                        const ev = new Event('change', { bubbles: true });
+                                        usageModelSelect.dispatchEvent(ev);
+                                        return true;
+                                    };
+                                    if (!applyModel()) {
+                                        // 等待模型填充完成后重试
+                                        let mtries = 0;
+                                        const mid = setInterval(() => {
+                                            mtries++;
+                                            if (applyModel() || mtries >= 8) clearInterval(mid);
+                                        }, 250);
+                                    }
+                                } catch (e) { /* noop */ }
+                            }
+                        } catch (e) { /* noop */ }
+                    })();
+                } catch (e) { /* noop */ }
             }
 
             // 关闭弹窗
@@ -2373,12 +2466,111 @@
                 });
             }
 
-            // 点击弹窗背景关闭弹窗
-            if (modal) modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    closeModal();
+            // // 点击弹窗背景或弹窗容器外部区域关闭弹窗（若点击目标不在 .modal-container 内则关闭）
+            // if (modal) modal.addEventListener('click', (e) => {
+            //     try {
+            //         // 若事件目标或其祖先在 .modal-container 内，则视为内部点击，忽略关闭
+            //         if (e && e.target && e.target.closest && e.target.closest('.modal-container')) {
+            //             return;
+            //         }
+            //     } catch (_) { /* ignore */ }
+            //     // 否则关闭弹窗（等同于用户点击遮罩/外部区域）
+            //     closeModal();
+            // });
+
+            // ----- 可拖拽支持（拖动弹窗头部移动 modal） -----
+            (function enableModalDrag() {
+                try {
+                    const container = document.querySelector('.modal-container');
+                    const headerEl = container ? container.querySelector('.modal-header') : null;
+                    if (!container || !headerEl) return;
+
+                    // 允许头部显示拖动光标
+                    headerEl.style.cursor = 'move';
+                    // 禁用容器的 CSS 过渡以避免拖动时不必要动画
+                    container.style.transition = 'none';
+
+                    let dragging = false;
+                    let startX = 0, startY = 0;
+                    let baseX = 0, baseY = 0;
+
+                    function getEventPos(e) {
+                        if (e.touches && e.touches[0]) {
+                            return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                        }
+                        return { x: e.clientX, y: e.clientY };
+                    }
+
+                    function parseCurrentTranslate() {
+                        const t = container.style.transform || '';
+                        const m = t.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
+                        if (m) {
+                            return { x: parseFloat(m[1]) || 0, y: parseFloat(m[2]) || 0 };
+                        }
+                        return { x: 0, y: 0 };
+                    }
+
+                    function onStart(e) {
+                        // 仅左键或触摸启动
+                        if (e.type === 'mousedown' && e.button !== 0) return;
+                        const pos = getEventPos(e);
+                        dragging = true;
+                        startX = pos.x;
+                        startY = pos.y;
+                        const cur = parseCurrentTranslate();
+                        baseX = cur.x;
+                        baseY = cur.y;
+                        // 阻止选择与滚动
+                        document.body.style.userSelect = 'none';
+                        document.body.style.touchAction = 'none';
+                        e.preventDefault && e.preventDefault();
+                    }
+
+                    function onMove(e) {
+                        if (!dragging) return;
+                        const pos = getEventPos(e);
+                        const dx = pos.x - startX;
+                        const dy = pos.y - startY;
+                        const tx = baseX + dx;
+                        const ty = baseY + dy;
+                        container.style.transform = `translate(${tx}px, ${ty}px)`;
+                        e.preventDefault && e.preventDefault();
+                    }
+
+                    function onEnd() {
+                        if (!dragging) return;
+                        // 更新基准位置
+                        const cur = parseCurrentTranslate();
+                        baseX = cur.x;
+                        baseY = cur.y;
+                        dragging = false;
+                        document.body.style.userSelect = '';
+                        document.body.style.touchAction = '';
+                    }
+
+                    headerEl.addEventListener('mousedown', onStart, { passive: false });
+                    document.addEventListener('mousemove', onMove, { passive: false });
+                    document.addEventListener('mouseup', onEnd, { passive: true });
+
+                    headerEl.addEventListener('touchstart', onStart, { passive: false });
+                    document.addEventListener('touchmove', onMove, { passive: false });
+                    document.addEventListener('touchend', onEnd, { passive: true });
+
+                    // 当 modal 打开时，重置居中（如果希望每次打开都居中）
+                    const origOpen = window.openAIServiceModal;
+                    if (typeof origOpen === 'function') {
+                        window.openAIServiceModal = function (opts) {
+                            try {
+                                const c = document.querySelector('.modal-container');
+                                if (c) c.style.transform = '';
+                            } catch (_) { /* ignore */ }
+                            return origOpen.apply(this, arguments);
+                        };
+                    }
+                } catch (err) {
+                    console.warn('[aiModal] enableModalDrag failed', err);
                 }
-            });
+            })();
 
             // 按ESC键关闭弹窗
             document.addEventListener('keydown', (e) => {
@@ -2446,11 +2638,13 @@
                         // 向父窗口回传预览错误，包含 requestId，便于父页恢复 UI
                         try {
                             const rid = modal?.dataset?.requestId || null;
+                            // 预览错误也不要触发父页面立即关闭：加上 keepOpen 标识
                             window.parent?.postMessage({
                                 type: 'AI_MODAL_RESULT',
                                 requestId: rid,
                                 status: 'error',
-                                detail: { message: msg, phase: 'preview' }
+                                detail: { message: msg, phase: 'preview' },
+                                keepOpen: true
                             }, '*');
                         } catch (err) {
                             console.warn('[aiModal] postMessage preview error failed', err);

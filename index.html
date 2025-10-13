@@ -1212,8 +1212,20 @@
                     if (msg.type === 'AI_MODAL_RESULT' && msg.requestId) {
                         console.log('[INDEX] AI_MODAL_RESULT', msg.requestId, msg.status);
                         var srcWin = window.__ai_req_map.get(msg.requestId);
-                        try { var f = document.getElementById('aiModalFrame'); if (f) f.style.display = 'none'; } catch (_) { }
-                        if (srcWin) { try { srcWin.postMessage(msg, '*'); } catch (e) { console.warn('[INDEX] forward result failed', e); } window.__ai_req_map.delete(msg.requestId); } else { console.warn('[INDEX] source not found for', msg.requestId); }
+                        // 仅在消息没有要求保留（keepOpen）时才隐藏 aiModalFrame。
+                        // 如果 msg.keepOpen === true，则保持弹窗打开（错误时 modal 会发送 keepOpen:true）
+                        try {
+                            var f = document.getElementById('aiModalFrame');
+                            if (f && !msg.keepOpen) {
+                                f.style.display = 'none';
+                            }
+                        } catch (_) { }
+                        if (srcWin) {
+                            try { srcWin.postMessage(msg, '*'); } catch (e) { console.warn('[INDEX] forward result failed', e); }
+                            window.__ai_req_map.delete(msg.requestId);
+                        } else {
+                            console.warn('[INDEX] source not found for', msg.requestId);
+                        }
                     }
 
                     // headless run result
