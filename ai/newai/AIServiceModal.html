@@ -521,95 +521,9 @@
             // AI服务类
             class AIPlatformService {
                 constructor() {
-                    // 初始化支持的平台基本信息，包含API密钥申请链接
-                    this.platforms = {
-                        openai: {
-                            name: "OpenAI",
-                            baseUrl: "https://api.openai.com/v1",
-                            modelsUrl: "https://api.openai.com/v1/models",
-                            modelsFetched: false,
-                            apiKeyUrl: "https://platform.openai.com/account/api-keys",
-                            models: []
-                        },
-                        anthropic: {
-                            name: "Anthropic",
-                            baseUrl: "https://api.anthropic.com/v1",
-                            modelsUrl: null,
-                            modelsFetched: false,
-                            apiKeyUrl: "https://console.anthropic.com/settings/keys",
-                            predefinedModels: [
-                                "claude-3-opus-20240229",
-                                "claude-3-sonnet-20240229",
-                                "claude-3-haiku-20240307",
-                                "claude-2.1"
-                            ],
-                            models: []
-                        },
-                        google: {
-                            name: "Google Gemini",
-                            baseUrl: "https://generativelanguage.googleapis.com/v1beta",
-                            modelsUrl: "https://generativelanguage.googleapis.com/v1beta/models?key=API_KEY_PLACEHOLDER",
-                            modelsFetched: false,
-                            apiKeyUrl: "https://makersuite.google.com/app/apikey",
-                            models: []
-                        },
-                        azure: {
-                            name: "Azure OpenAI",
-                            modelsUrl: null,
-                            modelsFetched: false,
-                            apiKeyUrl: "https://portal.azure.com/",
-                            models: []
-                        },
-                        openrouter: {
-                            name: "OpenRouter",
-                            baseUrl: "https://openrouter.ai/api/v1",
-                            modelsUrl: "https://openrouter.ai/api/v1/models",
-                            modelsFetched: false,
-                            apiKeyUrl: "https://openrouter.ai/settings/keys",
-                            models: []
-                        },
-                        cloudflare: {
-                            name: "Cloudflare Workers AI",
-                            baseUrl: "https://api.cloudflare.com/client/v4/accounts/ACCOUNT_ID_PLACEHOLDER/ai/run",
-                            modelsUrl: null,
-                            modelsFetched: false,
-                            apiKeyUrl: "https://dash.cloudflare.com/profile/api-tokens",
-                            models: [
-                                "@cf/meta/llama-3.1-8b-instruct",
-                                "@cf/meta/llama-3-8b-instruct",
-                                "@cf/qwen/qwen2.5-7b-instruct",
-                                "@cf/mistral/mistral-7b-instruct"
-                            ]
-                        },
-                        silibase: {
-                            name: "硅基流动",
-                            baseUrl: "https://api.siliconflow.cn/v1",
-                            modelsUrl: "https://api.siliconflow.cn/v1/models",
-                            modelsFetched: false,
-                            apiKeyUrl: "https://www.siliconflow.cn",
-                            models: []
-                        },
-                        modelscope: {
-                            name: "魔搭社区",
-                            baseUrl: "https://api-inference.modelscope.cn/v1",
-                            modelsUrl: null, // 魔搭社区没有统一的模型列表API，需要用户手动输入
-                            modelsFetched: false,
-                            apiKeyUrl: "https://www.modelscope.cn/my/myaccesstoken",
-                            models: [],
-                            predefinedModels: [
-                                "Qwen/Qwen2.5-7B-Instruct",
-                                "Qwen/Qwen2.5-1.5B-Instruct", 
-                                "Qwen/Qwen2-7B-Instruct",
-                                "Qwen/Qwen2-1.5B-Instruct",
-                                "baichuan-inc/Baichuan2-13B-Chat",
-                                "THUDM/chatglm3-6b",
-                                "01-ai/Yi-6B-Chat",
-                                "deepseek-ai/deepseek-llm-7b-chat",
-                                "Qwen/Qwen2.5-Coder-32B-Instruct"
-                            ]
-                        }
-                    };
-
+                    // 平台配置将在初始化时从JSON文件加载
+                    this.platforms = {};
+                    
                     // 存储配置信息
                     this.config = {
                         selectedPlatform: null,
@@ -618,6 +532,37 @@
                         azureEndpoint: null,
                         cloudflareAccountId: null
                     };
+                }
+
+                // 异步初始化方法，从JSON文件加载平台配置
+                async initialize() {
+                    try {
+                        const response = await fetch('./platform-configs.json');
+                        if (!response.ok) {
+                            throw new Error(`加载平台配置失败: ${response.statusText}`);
+                        }
+                        
+                        const configData = await response.json();
+                        this.platforms = configData.platforms;
+                        
+                        // 初始化模型数组和获取状态
+                        Object.keys(this.platforms).forEach(platform => {
+                            if (!this.platforms[platform].models) {
+                                this.platforms[platform].models = [];
+                            }
+                            if (!this.platforms[platform].modelsFetched) {
+                                this.platforms[platform].modelsFetched = false;
+                            }
+                        });
+                        
+                        console.log('平台配置加载成功:', Object.keys(this.platforms));
+                        return true;
+                    } catch (error) {
+                        console.error('加载平台配置失败:', error);
+                        // 如果加载失败，使用默认空配置
+                        this.platforms = {};
+                        return false;
+                    }
                 }
 
                 getPlatforms() {
@@ -1121,10 +1066,51 @@
                             throw new Error(`魔搭社区 API 错误: ${error.error?.message || '未知错误'}`);
                         }
 
-                        const data = await response.json();
+                        const responseText = await response.text();
+                        
+                        // 处理可能的多个JSON对象拼接的情况
+                        let data;
+                        try {
+                            data = JSON.parse(responseText);
+                        } catch (parseError) {
+                            // 如果直接解析失败，尝试分割多个JSON对象
+                            const jsonStrings = responseText.trim().split(/}\s*{/);
+                            if (jsonStrings.length > 1) {
+                                // 有多个JSON对象，尝试解析第一个完整的
+                                const firstJson = jsonStrings[0] + '}';
+                                try {
+                                    data = JSON.parse(firstJson);
+                                    console.warn('ModelScope返回多个JSON对象，使用第一个:', responseText);
+                                } catch (e) {
+                                    // 如果第一个也解析失败，尝试解析最后一个
+                                    const lastJson = '{' + jsonStrings[jsonStrings.length - 1];
+                                    data = JSON.parse(lastJson);
+                                    console.warn('ModelScope返回格式异常，使用最后一个JSON对象:', responseText);
+                                }
+                            } else {
+                                throw parseError;
+                            }
+                        }
+                        
+                        // 检查是否有错误信息
+                        if (data.errors) {
+                            throw new Error(`魔搭社区模型错误: ${data.errors.message || '未知错误'}`);
+                        }
+                        
+                        // 检查响应结构
+                        if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+                            throw new Error('魔搭社区 API 响应格式错误: 缺少必要字段');
+                        }
+                        
                         return data.choices[0].message.content;
                     } catch (error) {
                         console.error("魔搭社区调用失败:", error);
+                        
+                        // 如果是模型特定的内容错误，提供更友好的错误信息
+                        if (error.message.includes('inappropriate content')) {
+                            throw new Error(`模型 "${this.config.selectedModel}" 返回了不当内容，请尝试其他模型或调整输入内容`);
+                        }
+                        
                         throw error;
                     }
                 }
@@ -1132,6 +1118,23 @@
 
             // 创建AI服务实例
             const aiService = new AIPlatformService();
+            
+            // 初始化AI服务
+            aiService.initialize().then(success => {
+                if (success) {
+                    console.log('AI服务初始化成功');
+                    // 初始化完成后执行后续操作
+                    initPlatformSelect();
+                    loadAllConfigsFromStorage();
+                    populateUsagePlatforms();
+                } else {
+                    console.error('AI服务初始化失败，请检查platform-configs.json文件');
+                    showStatus('AI服务初始化失败，请检查配置文件', 'error');
+                }
+            }).catch(error => {
+                console.error('AI服务初始化错误:', error);
+                showStatus('AI服务初始化错误: ' + error.message, 'error');
+            });
 
             // 统一事件派发与状态接口
             function emitEvent(name, detail = {}) {
@@ -2839,10 +2842,10 @@
                 }
             }
 
-            // 在初始化后填充平台下拉（initPlatformSelect 已被覆盖）
-            initPlatformSelect();
-            loadAllConfigsFromStorage();
-            populateUsagePlatforms();
+            // 初始化函数现在由aiService.initialize()成功后调用，避免重复初始化
+            // initPlatformSelect();
+            // loadAllConfigsFromStorage();
+            // populateUsagePlatforms();
 
             // 强制初始化提示词视图默认状态：确保无论如何打开组件都会默认处于“占位符”模式并缓存 template
             (function initPromptViewDefaults() {
