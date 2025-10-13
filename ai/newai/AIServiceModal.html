@@ -1345,10 +1345,38 @@
                         console.error('加载平台配置失败:', e);
                         allPlatformConfigs = {};
                     }
+                } else {
+                    // 新用户没有任何配置，创建内置的智谱AI配置
+                    console.log('检测到新用户，创建内置智谱AI配置');
+                    allPlatformConfigs = {
+                        'bigmodel': {
+                            apiKey: 'a3fea99953404e49a1ad26a2d68b11f2.iOyc4IHbrj5vJLsn', // 内置的免费API密钥
+                            cloudflareAccountId: '',
+                            azureEndpoint: '',
+                            temperature: 0.7,
+                            maxTokens: 1000,
+                            favoriteModels: ['GLM-4-Flash'] // 默认使用免费的GLM-4-Flash模型
+                        }
+                    };
+
+                    // 保存到本地存储
+                    localStorage.setItem('allAIPlatformConfigs', JSON.stringify(allPlatformConfigs));
+
+                    // 设置默认模型为GLM-4-Flash
+                    localStorage.setItem('selectedModel', 'GLM-4-Flash');
+
+                    console.log('已创建内置智谱AI配置，使用GLM-4-Flash模型');
                 }
 
                 // 自动选择已配置的平台
                 autoSelectConfiguredPlatform();
+
+                // 如果是新用户，显示欢迎提示
+                if (!savedConfigs) {
+                    setTimeout(() => {
+                        showStatus('欢迎使用！已为您内置智谱AI平台配置，使用免费的GLM-4-Flash模型', 'success');
+                    }, 1000);
+                }
 
                 // 刷新左侧已保存平台列表
                 populateSavedPlatformsList();

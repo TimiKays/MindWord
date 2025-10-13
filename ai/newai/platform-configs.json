@@ -120,6 +120,7 @@
       "modelsFetched": false,
       "predefinedModels": [
         "GLM-4.5-Flash",
+        "GLM-4-Flash",
         "GLM-4-Flash-250414",
         "GLM-Z1-Flash",
         "GLM-4V-Flash",
