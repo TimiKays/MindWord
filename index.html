@@ -291,6 +291,13 @@
         let focusMode = false;
         let activeFocusPanel = 'editor';
 
+        // 状态存储键名
+        const STORAGE_KEYS = {
+            focusMode: 'mindword_focus_mode',
+            activeFocusPanel: 'mindword_active_focus_panel',
+            panels: 'mindword_panels_state'
+        };
+
         // 拖拽状态 - 优化后的状态管理
         let dragState = {
             isDragging: false,
@@ -430,6 +437,9 @@
                 exitFocusMode();
             }
 
+            // 保存状态到localStorage
+            saveStateToStorage();
+
             updateLayout();
             updateTabs();
         }
@@ -471,6 +481,9 @@
                 panels[panelName] = !panels[panelName];
             }
 
+            // 保存状态到localStorage
+            saveStateToStorage();
+
             updateLayout();
             updateTabs();
         }
@@ -482,6 +495,8 @@
                 Object.keys(panels).forEach(name => {
                     panels[name] = (name === panelName);
                 });
+                // 保存状态到localStorage
+                saveStateToStorage();
                 updateLayout();
                 updateTabs();
             } else {
@@ -568,6 +583,64 @@
                     tab.classList.toggle('active', panels[panelName]);
                 }
             });
+        }
+
+        // 保存状态到localStorage
+        function saveStateToStorage() {
+            try {
+                localStorage.setItem(STORAGE_KEYS.focusMode, JSON.stringify(focusMode));
+                localStorage.setItem(STORAGE_KEYS.activeFocusPanel, JSON.stringify(activeFocusPanel));
+                localStorage.setItem(STORAGE_KEYS.panels, JSON.stringify(panels));
+            } catch (e) {
+                console.warn('Failed to save state to localStorage:', e);
+            }
+        }
+
+        // 从localStorage恢复状态
+        function restoreStateFromStorage() {
+            try {
+                const savedFocusMode = localStorage.getItem(STORAGE_KEYS.focusMode);
+                const savedActiveFocusPanel = localStorage.getItem(STORAGE_KEYS.activeFocusPanel);
+                const savedPanels = localStorage.getItem(STORAGE_KEYS.panels);
+
+                if (savedFocusMode !== null) {
+                    focusMode = JSON.parse(savedFocusMode);
+                }
+
+                if (savedActiveFocusPanel !== null) {
+                    activeFocusPanel = JSON.parse(savedActiveFocusPanel);
+                }
+
+                if (savedPanels !== null) {
+                    const parsedPanels = JSON.parse(savedPanels);
+                    Object.keys(panels).forEach(key => {
+                        if (parsedPanels.hasOwnProperty(key)) {
+                            panels[key] = parsedPanels[key];
+                        }
+                    });
+                }
+            } catch (e) {
+                console.warn('Failed to restore state from localStorage:', e);
+            }
+        }
+
+        // 应用恢复的状态
+        function applyRestoredState() {
+            const mainContent = document.getElementById('main-content');
+            const focusToggle = document.getElementById('focus-toggle');
+
+            if (focusMode) {
+                mainContent.classList.add('focus-mode');
+                focusToggle.classList.add('active');
+                focusToggle.querySelector('span').textContent = '退出专注';
+            } else {
+                mainContent.classList.remove('focus-mode');
+                focusToggle.classList.remove('active');
+                focusToggle.querySelector('span').textContent = '专注模式';
+            }
+
+            updateLayout();
+            updateTabs();
         }
 
         // ===================================
@@ -732,11 +805,16 @@
         // ===================================
 
         // 移动端自动进入专注模式（隐藏专注切换按钮并进入专注）
-        (function initMobileFocus() {
+        function initMobileFocus() {
             const isMobile = (window.matchMedia && window.matchMedia('(max-width: 768px)').matches)
                 || ('ontouchstart' in window && navigator.maxTouchPoints > 0);
             const focusToggle = document.getElementById('focus-toggle');
-            if (isMobile) {
+            
+            // 检查是否有保存的状态
+            const hasSavedState = localStorage.getItem(STORAGE_KEYS.focusMode) !== null;
+            
+            if (isMobile && !hasSavedState) {
+                // 只有在没有保存状态的情况下才应用移动端默认行为
                 // 隐藏专注切换按钮（样式已在 mobile CSS 中隐藏 header-right）
                 if (focusToggle) focusToggle.style.display = 'none';
 
@@ -751,8 +829,11 @@
                 if (typeof enterFocusMode === 'function') enterFocusMode();
                 if (typeof updateTabs === 'function') updateTabs();
                 if (typeof updateLayout === 'function') updateLayout();
+            } else if (isMobile && hasSavedState) {
+                // 如果有保存的状态，只隐藏专注切换按钮
+                if (focusToggle) focusToggle.style.display = 'none';
             }
-        })();
+        }
 
         // 专注模式切换按钮事件
         document.getElementById('focus-toggle').addEventListener('click', toggleFocusMode);
@@ -999,6 +1080,9 @@
 
         // 初始化应用
         function initApp() {
+            // 从localStorage恢复状态（在移动端自动专注模式之前）
+            restoreStateFromStorage();
+            
             updateLayout();
             initResizing();
 
@@ -1006,6 +1090,12 @@
             Object.keys(PAGE_CONFIG).forEach(panelName => {
                 loadPanelContent(panelName);
             });
+
+            // 应用恢复的状态到UI
+            applyRestoredState();
+
+            // 移动端自动专注模式初始化（在状态恢复之后）
+            initMobileFocus();
 
             // 监听来自子页面的消息
             window.addEventListener('message', handleNotificationMessage);
