@@ -878,6 +878,22 @@ function expandWithAI() {
 
     // send open request to parent modal
     try {
+      // 动态计算窗口标题并注入到 payload，供弹窗显示
+      try {
+        const actionKey = (payload && payload.actionType) ? payload.actionType : (window.__mw_next_actionType || 'create_child');
+        const actionNameMap = {
+          create_child: '扩展子节点',
+          create_sibling: '创建同级',
+          expand_notes: '扩写备注',
+          generate_initial_tree: '生成初始树'
+        };
+        const actionName = actionNameMap[actionKey] || actionKey;
+        const nodeTitleForWin = (topic && String(topic).trim())
+          ? String(topic).trim()
+          : ((realSel && realSel.topic) ? String(realSel.topic).trim() : '');
+        payload.title = nodeTitleForWin ? (actionName + '：' + nodeTitleForWin) : actionName;
+      } catch (_) { /* noop */ }
+
       window.parent.postMessage({ type: 'AI_MODAL_OPEN_REQUEST', requestId: requestId, payload: payload }, '*');
       // clear one-time preset keys
       try { delete window.__mw_next_actionType; delete window.__mw_next_templateKey; delete window.__mw_next_placeholders; } catch (_) { }
