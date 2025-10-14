@@ -1805,8 +1805,8 @@
                 const temperature = parseFloat(temperatureInput.value);
                 const maxTokens = parseInt(maxTokensInput.value);
 
-                // 保存配置
-                saveCurrentPlatformConfig();
+                // 不进行隐式保存：仅当用户点击“保存配置”按钮时才写入本地存储
+                // saveCurrentPlatformConfig();
 
                 try {
                     // 配置AI服务
@@ -2422,8 +2422,9 @@
             if (azureEndpoint) azureEndpoint.addEventListener('input', () => {
                 updateConfigStatus();
             });
-            if (temperatureInput) temperatureInput.addEventListener('change', saveCurrentPlatformConfig);
-            if (maxTokensInput) maxTokensInput.addEventListener('change', saveCurrentPlatformConfig);
+            // 改为仅标记脏状态，避免非显式保存写回配置/密钥
+            if (temperatureInput) temperatureInput.addEventListener('change', () => setDirty(true));
+            if (maxTokensInput) maxTokensInput.addEventListener('change', () => setDirty(true));
 
             // 模型搜索
             if (modelSearchInput) modelSearchInput.addEventListener('input', searchModels);
