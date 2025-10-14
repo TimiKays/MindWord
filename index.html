@@ -1336,6 +1336,27 @@
             };
         })();
     </script>
+    <script>
+        (function () {
+            // 来自 editor 的刷新请求：由顶层执行整页刷新
+            window.addEventListener('message', function (e) {
+                try {
+                    var d = e && e.data;
+                    if (!d || d.type !== 'editor-reload-request') return;
+                    // 可选：检查来源或 requestId 等以增加安全性
+                    try {
+                        if (top && top.location && top !== window) {
+                            top.location.reload();
+                        } else {
+                            window.location.reload();
+                        }
+                    } catch (err) {
+                        try { window.location.reload(); } catch (e) { /* ignore */ }
+                    }
+                } catch (err) { }
+            }, { passive: true });
+        })();
+    </script>
 </body>
 
 </html>

@@ -2100,14 +2100,25 @@
                 if (modeTextEl) modeTextEl.textContent = '占位符';
 
                 // 通知父窗口此次为用户取消/关闭（以便父页隐藏顶层 aiFrame 并恢复焦点）
+                // 若是通过“保存并应用”触发的关闭（已设置 suppress 标记），则不要发送 cancel
                 try {
-                    const rid = modal?.dataset?.requestId || null;
-                    window.parent?.postMessage({
-                        type: 'AI_MODAL_RESULT',
-                        requestId: rid,
-                        status: 'cancel',
-                        detail: { message: 'user_closed' }
-                    }, '*');
+                    const suppress = (modal?.dataset?.suppressCancelOnClose === '1') || !!window._suppressAICancel;
+                    // 清理标记，避免影响后续打开
+                    try { if (modal?.dataset) delete modal.dataset.suppressCancelOnClose; } catch (_) { /* noop */ }
+                    try { window._suppressAICancel = false; } catch (_) { /* noop */ }
+
+                    if (!suppress) {
+                        const rid = modal?.dataset?.requestId || null;
+                        window.parent?.postMessage({
+                            type: 'AI_MODAL_RESULT',
+                            requestId: rid,
+                            status: 'cancel',
+                            detail: { message: 'user_closed' }
+                        }, '*');
+                    } else {
+                        // 已保存并应用的正常关闭：不发送 cancel
+                        try { console.debug('[aiModal] closeModal suppressed cancel due to save/apply'); } catch (_) { /* noop */ }
+                    }
                 } catch (err) {
                     console.warn('[aiModal] postMessage close failed', err);
                 }

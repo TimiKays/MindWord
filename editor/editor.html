@@ -500,6 +500,19 @@
                 // 监听跨页面/iframe 的缓存变化，markdown 有变更则刷新自己并执行同步
                 window.addEventListener('storage', (e) => {
                     if (e.key === 'mindword_markdown_data') {
+                        // 冷却窗口：避免 mindmap->editor 注入后 storage 事件再次触发重复同步
+                        try {
+                            const now = Date.now();
+                            const until = Math.max(
+                                Number(localStorage.getItem('mw_sync_cooldown_until') || 0),
+                                window.__mw_editor_cooldown_until || 0
+                            );
+                            if (now < until) {
+                                // 控制台提示一次，便于调试
+                                try { console.log('[EDITOR] storage ignored due to cooldown', { now, until }); } catch (e) { }
+                                return;
+                            }
+                        } catch (e) { }
                         const newVal = e.newValue ?? '';
                         if (newVal !== this.getContent()) {
                             this.setContent(newVal);
@@ -1394,6 +1407,86 @@
                 window.markdownEditor.saveToStorage(false);
             }
         });
+    </script>
+
+    <!-- Mindmap -> Editor 消息协议监听：设置 Markdown + 保存/同步 -->
+    <script>
+        (function () {
+            function setMarkdownToEditor(md) {
+                try {
+                    if (window.markdownEditor && typeof window.markdownEditor.setContent === 'function') {
+                        window.markdownEditor.setContent(String(md || ''));
+                        try { window.markdownEditor.saveToStorage(false); } catch (e) { }
+                        // 确保写入 localStorage，让其它 iframe 能接收到 storage 事件并更新
+                        try { localStorage.setItem('mindword_markdown_data', String(md || '')); } catch (e) { }
+                        window.markdownEditor.saveToStorage(false);
+                        window.syncAll('markdown', true, true);
+
+                        try { setTimeout(function () { try { window.parent.postMessage({ type: 'editor-reload-request', requestId: (window.__mw_ai_active_requestId || null) }, '*'); } catch (e) { /* ignore postMessage errors */ } }, 500); } catch (e) { /* ignore timer errors */ }
+                        return true;
+                    }
+                } catch (e) { }
+                return false;
+            }
+            function saveOrSync(reason) {
+
+                window.markdownEditor.saveToStorage(false);
+
+                window.syncAll('markdown', true, true);
+
+            }
+
+            window.__mw_pending_editor_set = window.__mw_pending_editor_set || null;
+
+            // 监听来自父页/思维导图的消息
+            window.addEventListener('message', function (e) {
+                try {
+                    var msg = e && e.data;
+                    if (!msg || typeof msg !== 'object' || !msg.type) return;
+
+                    if (msg.type === 'editor-set-markdown') {
+                        // 设置冷却窗口，避免 storage 回声引发的重复同步/通知
+                        try {
+                            var __until = Date.now() + 1200;
+                            window.__mw_editor_cooldown_until = __until;
+                            // do not write cooldown to localStorage to avoid blocking other frames
+                        } catch (_) { }
+                        var ok = setMarkdownToEditor(msg.markdown);
+                        if (!ok) {
+                            // 若编辑器尚未初始化，缓存一次
+                            try { window.__mw_pending_editor_set = String(msg.markdown || ''); } catch (_) { }
+                        } else {
+                            try { window.showSuccess && window.showSuccess('已接收并应用 Markdown'); } catch (_) { }
+                        }
+                        return;
+                    }
+
+                    if (msg.type === 'editor-save-or-sync') {
+                        saveOrSync(msg.reason || '');
+                        try { window.showSuccess && window.showSuccess('已保存并同步'); } catch (_) { }
+                        return;
+                    }
+                } catch (err) {
+                    // 忽略处理错误，避免影响编辑器
+                }
+            }, { passive: true });
+
+            // 编辑器就绪后，如存在待设置的内容则立即应用
+            document.addEventListener('DOMContentLoaded', function () {
+                try {
+                    if (window.__mw_pending_editor_set) {
+                        setMarkdownToEditor(window.__mw_pending_editor_set);
+                        // 设置冷却窗口，避免初始化时 storage 回声
+                        try {
+                            var __until2 = Date.now() + 1200;
+                            window.__mw_editor_cooldown_until = __until2;
+                            // do not write cooldown to localStorage to avoid blocking other frames
+                        } catch (_) { }
+                        window.__mw_pending_editor_set = null;
+                    }
+                } catch (_) { }
+            });
+        })();
     </script>
 
     <!-- 引入并初始化 converter，提供 syncAll 能力 -->
