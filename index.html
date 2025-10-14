@@ -4,1451 +4,955 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MindWord</title>
-    <link rel="stylesheet" href="styles.css">
-    <!-- Bootstrap CSS for notifications -->
-    <!-- <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet"> -->
-    <style>
-        /* 完全匹配你贴出的按钮组外观（非 Tailwind 实现） */
-        .tabs {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            /* 等同于 tailwind 的 gap-4 */
-            border-radius: 8px;
-            padding: 4px;
-            /* p-1 */
-            background-color: rgba(0, 0, 0, 0.05);
-            /* bg-black/5 */
-            /* 深色模式可自行扩展，如果需要我可以加 media-query 或 .dark 前缀 */
-            font-size: 14px;
-            /* text-sm */
-            font-weight: 500;
-            /* font-medium */
-            width: fit-content;
-            box-sizing: border-box;
-            flex: 0 0 auto;
+    <title>MindWord - 思维导图与Markdown结合的写作工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#619dff',
+                        secondary: '#5eb97e',
+                        accent: '#b88bf1',
+                        dark: '#1E293B',
+                        light: '#F8FAFC',
+                        third: '#f3e8ff'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
         }
-
-        /* 每个 tab 视觉等同于你给的 button */
-        .tab {
-            position: relative;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            /* 等同于 gap-2 */
-            padding: 6px 12px;
-            /* py-1.5 px-3 */
-            border-radius: 6px;
-            /* rounded-md */
-            cursor: pointer;
-            transition: color 0.15s ease, background-color 0.15s ease;
-            color: #6b7280;
-            /* text-gray-500 */
-            background: transparent;
-            box-shadow: none;
-            white-space: nowrap;
-            line-height: 1;
-        }
-
-        /* 非激活 hover 仅改变文字颜色（与示例一致） */
-        .tab:not(.active):hover {
-            color: #101922;
-            /* hover:text-[#101922] */
-        }
-
-        /* 激活项：白底、深色文字、轻阴影 */
-        .tab.active {
-            background: #ffffff;
-            color: #101922;
-            /* text-[#101922] */
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
-            /* shadow-sm 风格 */
-        }
-
-        /* 图标：如果是 SVG 控制大小/填充；如果是 font icon（material symbols）也能兼容 */
-        .tab svg,
-        .tab .icon,
-        .tab .material-symbols-outlined {
-            width: 16px;
-            height: 16px;
-            display: inline-block;
-            vertical-align: middle;
-            flex: 0 0 16px;
-        }
-
-        /* 如果使用 SVG，控制 fill；font icon 使用 color */
-        .tab svg {
-            fill: currentColor;
-        }
-
-        .tab .icon {
-            fill: currentColor;
-        }
-
-        /* 激活/非激活颜色通过 color（currentColor）变化即可 */
-        .tab:not(.active) svg,
-        .tab:not(.active) .icon {
-            opacity: 0.85;
-            color: #6b7280;
-        }
-
-        .tab.active svg,
-        .tab.active .icon {
-            color: #101922;
-            opacity: 1;
-        }
-
-        /* 文本 */
-        .tab>span {
-            font-size: 14px;
-            font-weight: 500;
-            line-height: 16px;
-            color: inherit;
-            /* 继承 currentColor */
-        }
-
-        /* emoji 的尺寸与图标一致 */
-        .tab>.emoji,
-        .tab>.emj {
-            font-size: 16px;
-            line-height: 16px;
-            display: inline-block;
-        }
-
-        /* 可访问的焦点环（轻量） */
-        .tab:focus {
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(16, 25, 34, 0.08);
-        }
-
-        /* 在小屏时，如果需要克隆到底部，保持隐藏/显示逻辑不变（JS 控制 show/hide） */
-        .mobile-tabs {
-            display: none;
-            gap: 8px;
-        }
-
-        @media (max-width: 768px) {
-            .header .tabs {
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .text-gradient {
+                background-clip: text;
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+            }
+            .bg-blur {
+                backdrop-filter: blur(8px);
+            }
+            .scrollbar-hide::-webkit-scrollbar {
                 display: none;
             }
-
-            .mobile-tabs {
-                display: flex;
-                position: fixed;
-                bottom: 8px;
-                left: 50%;
-                transform: translateX(-50%);
-                z-index: 999;
-                gap: 8px;
+            .card-hover {
+                transition: all 0.3s ease;
             }
+            .card-hover:hover {
+                transform: translateY(-5px);
+            }
+        }
+    </style>
+    <style>
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+        }
+
+        .hero-pattern {
+            background-image: radial-gradient(rgba(59, 130, 246, 0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .feature-icon {
+            transition: transform 0.3s ease;
+        }
+
+        .feature-card:hover .feature-icon {
+            transform: scale(1.1);
+        }
+
+        .animate-float {
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-20px);
+            }
+
+            100% {
+                transform: translateY(0px);
+            }
+        }
+
+        .nav-link {
+            position: relative;
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: -2px;
+            left: 0;
+            background-color: #3B82F6;
+            transition: width 0.3s ease;
+        }
+
+        .nav-link:hover::after {
+            width: 100%;
         }
     </style>
 </head>
 
-<body>
-    <!-- 顶部导航栏 -->
-    <header class="header">
-        <div class="brand"
-            style="font-family: 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-weight:700; font-size:26px; background: linear-gradient(0deg,#0b82e4 0%,#11c49d 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;">
-            <img src="favicon.ico" alt="favicon" style="width:32px;height:32px;vertical-align:middle;margin-right:8px;">
-            MindWord
+<body class="bg-light text-dark antialiased">
+    <!-- 导航栏 -->
+    <header id="navbar" class="fixed w-full top-0 z-50 transition-all duration-300 bg-white/80 bg-blur shadow-sm">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-4">
+                <div class="flex items-center space-x-2">
+                    <div
+                        class="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+                        <img src="res/思维导图.svg" alt="MindWord" class="w-6 h-6 ">
+                    </div>
+                    <span
+                        class="text-xl font-bold bg-gradient-to-r from-primary to-secondary text-gradient">MindWord</span>
+                </div>
+
+                <!-- 桌面导航 -->
+                <nav class="hidden md:flex items-center space-x-8">
+                    <a href="#features" class="nav-link text-dark/80 hover:text-primary transition-colors">核心功能</a>
+                    <a href="#scenarios" class="nav-link text-dark/80 hover:text-primary transition-colors">适用场景</a>
+                    <a href="#getting-started"
+                        class="nav-link text-dark/80 hover:text-primary transition-colors">快速上手</a>
+                    <a href="#privacy" class="nav-link text-dark/80 hover:text-primary transition-colors">隐私保障</a>
+                    <a href="#feedback" class="nav-link text-dark/80 hover:text-primary transition-colors">反馈建议</a>
+                </nav>
+
+                <div class="hidden md:block">
+                    <a href="app.html"
+                        class="bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-lg font-medium transition-all shadow-md hover:shadow-lg">
+                        立即体验
+                    </a>
+                </div>
+
+                <!-- 移动端菜单按钮 -->
+                <button id="menu-toggle" class="md:hidden text-dark p-2 rounded-md">
+                    <i class="fa fa-bars text-xl"></i>
+                </button>
+            </div>
         </div>
-        <div class="tabs">
-            <div class="tab active" data-panel="editor" style="font-size:14px;"><svg t="1759394685575" class="icon"
-                    viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1342">
-                    <path
-                        d="M527.37066667 90.6976v62.41493333a7.8016 7.8016 0 0 1-7.80266667 7.8016H199.92426667a39.00906667 39.00906667 0 0 0-38.38613334 31.98826667l-0.624 7.02186667V824.07466667a39.00906667 39.00906667 0 0 0 31.98826667 38.38613333l7.02186667 0.624H824.07466667a39.00906667 39.00906667 0 0 0 38.38613333-31.98826667l0.624-7.02186666v-338.60266667a7.8016 7.8016 0 0 1 7.8016-7.8016h62.41493333a7.8016 7.8016 0 0 1 7.80266667 7.8016v338.60266667a117.02826667 117.02826667 0 0 1-105.79413333 116.4832l-11.2352 0.54613333H199.92533333a117.02826667 117.02826667 0 0 1-116.4832-105.79413333l-0.54613333-11.2352V199.92533333a117.02826667 117.02826667 0 0 1 105.79413333-116.4832l11.2352-0.54613333h319.64373334a7.8016 7.8016 0 0 1 7.8016 7.80266667z m327.83466666 33.93813333l44.16 44.15893334a7.8016 7.8016 0 0 1 0 11.00053333L413.85066667 665.30773333a7.8016 7.8016 0 0 1-11.00053334 0l-44.15893333-44.16a7.8016 7.8016 0 0 1 0-10.99946666l485.51253333-485.51253334a7.8016 7.8016 0 0 1 11.00053334 0z"
-                        p-id="1343"></path>
-                </svg>
 
-
-                <span>文本编辑</span>
+        <!-- 移动端导航菜单 -->
+        <div id="mobile-menu" class="md:hidden hidden bg-white border-t">
+            <div class="container mx-auto px-4 py-3 space-y-3">
+                <a href="#features" class="block py-2 text-dark/80 hover:text-primary transition-colors">核心功能</a>
+                <a href="#scenarios" class="block py-2 text-dark/80 hover:text-primary transition-colors">适用场景</a>
+                <a href="#getting-started" class="block py-2 text-dark/80 hover:text-primary transition-colors">快速上手</a>
+                <a href="#privacy" class="block py-2 text-dark/80 hover:text-primary transition-colors">隐私保障</a>
+                <a href="#feedback" class="block py-2 text-dark/80 hover:text-primary transition-colors">反馈建议</a>
+                <a href="app.html"
+                    class="block py-2 text-center bg-primary hover:bg-primary/90 text-white rounded-lg font-medium transition-colors">
+                    立即体验
+                </a>
             </div>
-            <div class="tab active" data-panel="preview" style="font-size:14px;"><svg t="1759394709317" class="icon"
-                    viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1495">
-                    <path
-                        d="M648.101506 803.835981a35.839821 35.839821 0 0 0-35.839821-35.839821H291.836621a35.839821 35.839821 0 1 0 0 72.106306h319.9984a35.839821 35.839821 0 0 0 36.266485-36.266485z m127.99936-159.9992a35.839821 35.839821 0 0 0-35.839821-35.839821H291.836621a35.839821 35.839821 0 1 0 0 72.106306h447.99776a35.839821 35.839821 0 0 0 36.266485-36.266485z m-191.99904-159.9992a35.839821 35.839821 0 0 0-35.839821-35.839821h-255.99872a35.839821 35.839821 0 1 0 0 72.106306h255.99872a35.839821 35.839821 0 0 0 35.839821-36.266485z m238.932139 469.330986H200.103746V72.106306H511.99552v239.785468A72.959635 72.959635 0 0 0 584.101826 383.99808h238.932139zM582.821833 110.506114l200.958995 201.812324h-200.958995z m291.83854 191.145711L597.328427 21.333227a76.799616 76.799616 0 0 0-14.506594-11.519943l-4.266646-2.133322h-2.986652A71.679642 71.679642 0 0 0 546.128683 0H200.957075A72.959635 72.959635 0 0 0 127.99744 72.106306v879.782268A72.959635 72.959635 0 0 0 200.957075 1023.99488h622.930219A71.252977 71.252977 0 0 0 895.9936 951.888574V352.424905a71.252977 71.252977 0 0 0-21.333227-50.77308z"
-                        fill="#5E5C5C" p-id="1496"></path>
-                </svg>
-                <span>文档预览</span>
-            </div>
-            <div class="tab active" data-panel="mindmap" style="font-size:14px;"><svg t="1759394646816" class="icon"
-                    viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1189">
-                    <path
-                        d="M911.45752364 467.61583017a44.38416983 44.38416983 0 0 1 0 88.76833966h-355.07335381a44.38416983 44.38416983 0 0 1 0-88.76833966h355.07335381z m0 310.68918518a44.38416983 44.38416983 0 0 1 0 88.76833967h-355.07335381a44.38416983 44.38416983 0 0 1 0-88.76833967h355.07335381z m0-621.37837037a44.38416983 44.38416983 0 0 1 0 88.76833967h-355.07335381a44.38416983 44.38416983 0 0 1 0-88.76833967h355.07335381zM112.54247636 556.38416983l-5.90309451-0.31068918C53.42276267 550.34792194 55.42004994 467.61583017 112.54247636 467.61583017h88.76833846c23.16853673 0 32.22290674-18.59696746 44.91677969-101.06275248 1.50906228-9.85328541 2.21920795-14.64677535 3.10689185-19.97287637 17.13228883-107.72037874 42.60880202-163.06743857 115.48760837-187.38996353a44.38416983 44.38416983 0 0 1 28.05079518 84.24115405c-29.6042411 9.85328541-43.7184066 40.5671311-55.92405333 117.08543795l-3.01812334 19.52903502c-4.83787481 31.46837621-9.98643758 58.18764614-16.42214316 80.60165113L315.37812943 467.61583017H378.84749172a44.38416983 44.38416983 0 0 1 44.07348064 39.19122219L423.23166155 512a44.38416983 44.38416983 0 0 1-44.38416983 44.38416983H315.42251429l2.13043943 6.96831423c5.59240533 19.61780231 10.20835946 42.52003472 14.55800806 69.01738277l1.81975146 11.53988471 3.06250699 19.57341867c12.16126188 76.51830806 26.27542858 107.23215254 55.92405334 117.08543795a44.38416983 44.38416983 0 1 1-28.09517884 84.24115405c-72.92319001-24.32252496-98.35531954-79.66958356-115.48760837-187.38996353-0.8876839-5.3260998-1.59782958-10.11959094-3.10689185-19.97287637C233.53372157 575.02552095 224.47935154 556.38416983 201.31081482 556.38416983H112.54247636z"
-                        fill="#000000" fill-opacity=".65" p-id="1190"></path>
-                </svg>
-
-                <span>思维导图</span>
-            </div>
-        </div>
-        <div class="header-right">
-            <button class="btn btn-small" id="focus-toggle">
-                <div class="focus-icon"></div>
-                <span>专注模式</span>
-            </button>
         </div>
     </header>
 
-    <!-- 移动端底部 Tabs 容器（JS 会在移动端将顶部 tabs 克隆到这里） -->
-    <div id="mobile-tabs" class="mobile-tabs" aria-hidden="true"></div>
+    <main>
+        <!-- 英雄区域 -->
+        <section class="pt-40 pb-20 hero-pattern">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <!-- 标题和按钮区域 - 居中显示 -->
+                <div class="text-center mb-16">
+                    <h1 class="text-[clamp(2rem,5vw,3.5rem)] font-bold leading-tight mb-6">
 
-    <!-- 主内容区域 -->
-    <main class="main-content" id="main-content">
-        <!-- 专注模式提示 -->
-        <div class="focus-indicator">专注模式</div>
+                        <span class="bg-gradient-to-r from-primary to-secondary text-gradient">MindWord</span>
+                    </h1>
+                    <p class="text-lg text-dark/70 mb-8 max-w-xl mx-auto">
+                        像画图一样写文档
+                    </p>
+                    <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                        <a href="app.html"
+                            class="bg-primary hover:bg-primary/90 text-white px-8 py-3 rounded-lg font-medium text-center transition-all shadow-lg hover:shadow-xl">
+                            免费体验 <i class="fa fa-arrow-right ml-2"></i>
+                        </a>
+                        <a href="#features"
+                            class="bg-white border border-dark/10 hover:border-primary text-dark px-8 py-3 rounded-lg font-medium text-center transition-all shadow-md hover:shadow-lg">
+                            功能介绍 <i class="fa fa-info-circle ml-2"></i>
+                        </a>
+                    </div>
+                </div>
 
-        <!-- MD编辑面板 -->
-        <div class="panel editor-panel" id="editor-panel">
-            <div class="panel-header">
-                <span>Markdown 编辑器</span>
-                <button class="btn btn-icon" onclick="togglePanel('editor')">&times;</button>
-            </div>
-            <div class="panel-content">
-                <div class="placeholder" id="editor-placeholder">
-                    <div class="loading">正在加载编辑器</div>
-                    <small>地址: <span id="editor-url">未配置</span></small>
+
+
+                <!-- 产品展示图片 - 移到用户群体下方 -->
+                <div class="max-w-4xl mx-auto">
+                    <div class="relative">
+                        <div
+                            class="absolute inset-0 bg-gradient-to-tr from-primary/20 to-secondary/20 rounded-3xl transform rotate-3 scale-105">
+                        </div>
+                        <img src="res/screenShot-all.png" alt="MindWord产品界面展示"
+                            class="relative z-10 rounded-3xl shadow-2xl w-full">
+                        <div
+                            class="absolute -bottom-6 -left-6 bg-white p-4 rounded-xl shadow-lg z-20 border border-green-100">
+                            <div class="flex items-center space-x-2">
+                                <div
+                                    class="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-400 flex items-center justify-center shadow-lg">
+                                    <i class="fa fa-check text-white"></i>
+                                </div>
+                                <div>
+                                    <p class="font-medium">拖拽式写作</p>
+                                    <p class="text-sm text-dark/60">文档与思维导图双向实时更新</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div
+                            class="absolute -top-6 -right-6 bg-white p-4 rounded-xl shadow-lg z-20 border border-blue-100">
+                            <div class="flex items-center space-x-2">
+                                <div
+                                    class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shadow-lg">
+                                    <i class="fa fa-lightbulb-o text-white"></i>
+                                </div>
+                                <div>
+                                    <p class="font-medium">AI辅助生成</p>
+                                    <p class="text-sm text-dark/60">快速重写或扩展章节</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 用户群体 -->
+                <div class="text-center mb-16 mt-8"></div>
+                <p class="text-dark/50 uppercase tracking-wider mb-4"> </p>
+                <div class="flex flex-wrap justify-center gap-8">
+                    <div class="flex flex-col items-center p-4">
+                        <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                            <i class="fa fa-pencil text-gray-700 text-xl"></i>
+                        </div>
+                        <span class="font-medium text-gray-800">写作者</span>
+                    </div>
+                    <div class="flex flex-col items-center p-4">
+                        <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                            <i class="fa fa-cubes text-gray-700 text-xl"></i>
+                        </div>
+                        <span class="font-medium text-gray-800">产品经理</span>
+                    </div>
+                    <div class="flex flex-col items-center p-4">
+                        <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                            <i class="fa fa-code text-gray-700 text-xl"></i>
+                        </div>
+                        <span class="font-medium text-gray-800">AI爱好者</span>
+                    </div>
+                    <div class="flex flex-col items-center p-4">
+                        <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                            <i class="fa fa-lightbulb-o text-gray-700 text-xl"></i>
+                        </div>
+                        <span class="font-medium text-gray-800">脑力工作者</span>
+                    </div>
                 </div>
             </div>
-        </div>
-
-        <!-- 分隔条1 -->
-        <div class="resizer" id="resizer1"></div>
-
-        <!-- MD预览面板 -->
-        <div class="panel preview-panel" id="preview-panel">
-            <div class="panel-header">
-                <span>Markdown 预览</span>
-                <button class="btn btn-icon" onclick="togglePanel('preview')">&times;</button>
             </div>
-            <div class="panel-content">
-                <div class="placeholder" id="preview-placeholder">
-                    <div class="loading">正在加载预览</div>
-                    <small>地址: <span id="preview-url">未配置</span></small>
+        </section>
+
+        <!-- 项目背景 -->
+        <section class="py-20 bg-white">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="max-w-3xl mx-auto text-center mb-16">
+                    <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold mb-6">项目背景</h2>
+                    <div class="w-20 h-1 bg-primary mx-auto mb-8 rounded-full"></div>
+                    <p class="text-lg text-dark/70">
+                        你是否遇到过这样的困扰：好不容易在思维导图中梳理好框架，写文章时仍需要重写大纲；修改文章或导图另一侧不会变，导致框架与内容脱节？找AI头脑风暴，却难以融入已有文档？难以局部修改或深入探索？
+                    </p>
+                </div>
+
+                <div class="bg-gray-50 rounded-2xl p-8 shadow-sm max-w-4xl mx-auto">
+                    <div class="flex flex-col md:flex-row gap-8">
+                        <div class="md:w-1/2">
+                            <div class="h-full flex flex-col justify-center">
+                                <h3 class="text-xl font-bold mb-4 text-primary">传统写作的痛点</h3>
+                                <ul class="space-y-4">
+
+                                    <li class="flex items-start">
+                                        <i class="fa fa-times-circle text-red-500 mt-1 mr-3"></i>
+                                        <span>思路与正文分离，难以保持一致性</span>
+                                    </li>
+                                    <li class="flex items-start">
+                                        <i class="fa fa-times-circle text-red-500 mt-1 mr-3"></i>
+                                        <span>格式调整繁琐，从草稿到正式文档耗时</span>
+                                    </li>
+                                    <li class="flex items-start">
+                                        <i class="fa fa-times-circle text-red-500 mt-1 mr-3"></i>
+                                        <span>AI辅助与手动编辑难以无缝结合</span>
+                                    </li>
+                                    <li class="flex items-start">
+                                        <i class="fa fa-times-circle text-red-500 mt-1 mr-3"></i>
+                                        <span>想把AI回复或文章存到文档，却丢了格式</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="md:w-1/2">
+                            <div class="h-full flex flex-col justify-center">
+                                <h3 class="text-xl font-bold mb-4 text-secondary">MindWord 的解决方案</h3>
+                                <ul class="space-y-4">
+
+                                    <li class="flex items-start">
+                                        <i class="fa fa-check-circle text-green-500 mt-1 mr-3"></i>
+                                        <span>拖拽式文档结构调整，即时双向同步</span>
+                                    </li>
+                                    <li class="flex items-start">
+                                        <i class="fa fa-check-circle text-green-500 mt-1 mr-3"></i>
+                                        <span>一键导出符合格式要求的Word文档</span>
+                                    </li>
+                                    <li class="flex items-start">
+                                        <i class="fa fa-check-circle text-green-500 mt-1 mr-3"></i>
+                                        <span>AI辅助节点生成，无缝融入创作流程</span>
+                                    </li>
+                                    <li class="flex items-start">
+                                        <i class="fa fa-check-circle text-green-500 mt-1 mr-3"></i>
+                                        <span>支持贴入富文本生成文档，保留格式和层级</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <!-- 分隔条2 -->
-        <div class="resizer" id="resizer2"></div>
+        <!-- 核心功能 -->
+        <section id="features" class="py-20 bg-gray-50">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="max-w-3xl mx-auto text-center mb-16">
+                    <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold mb-6">核心功能</h2>
+                    <div class="w-20 h-1 bg-primary mx-auto mb-8 rounded-full"></div>
+                    <p class="text-lg text-dark/70">
+                        MindWord 重新定义了结构化写作体验。通过将 Markdown结构与思维导图节点实时映射，实现可视化创作流程，让创作思路与正文完美融合。
+                        配合 AI辅助功能，轻松完成头脑风暴、主题拆解、段落优化，最终生成文档。
+                    </p>
+                </div>
 
-        <!-- 思维导图面板 -->
-        <div class="panel mindmap-panel" id="mindmap-panel">
-            <div class="panel-header">
-                <span>思维导图</span>
-                <button class="btn btn-icon" onclick="togglePanel('mindmap')">&times;</button>
-            </div>
-            <div class="panel-content">
-                <div class="placeholder" id="mindmap-placeholder">
-                    <div class="loading">正在加载思维导图</div>
-                    <small>地址: <span id="mindmap-url">未配置</span></small>
+                <!-- 功能标签页 -->
+                <div class="max-w-5xl mx-auto">
+                    <div class="mb-8 flex flex-wrap justify-center gap-4">
+                        <button class="feature-tab active px-6 py-2 rounded-full bg-primary text-white font-medium"
+                            data-tab="markdown">
+                            Markdown编辑器
+                        </button>
+                        <button
+                            class="feature-tab px-6 py-2 rounded-full bg-white text-dark font-medium hover:bg-gray-100 transition-colors"
+                            data-tab="mindmap">
+                            思维导图画布
+                        </button>
+                        <button
+                            class="feature-tab px-6 py-2 rounded-full bg-white text-dark font-medium hover:bg-gray-100 transition-colors"
+                            data-tab="word">
+                            Word文件生成
+                        </button>
+                    </div>
+
+                    <!-- Markdown编辑器功能 -->
+                    <div class="feature-content active" id="markdown-content">
+                        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                            <div class="flex flex-col lg:flex-row">
+                                <div class="lg:w-1/2 p-8 lg:p-12">
+                                    <h3 class="text-2xl font-bold mb-6 text-primary">
+                                        <i class="fa fa-edit mr-2"></i> Markdown编辑器
+                                    </h3>
+                                    <p class="text-dark/70 mb-8">
+                                        强大的数据收集与初始化功能，支持多种导入方式，让你从任何起点开始创作
+                                    </p>
+
+                                    <div class="space-y-6">
+                                        <div class="feature-card">
+                                            <div class="flex items-start">
+                                                <div
+                                                    class="feature-icon w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center mr-4 flex-shrink-0">
+                                                    <i class="fa fa-plug text-primary"></i>
+                                                </div>
+                                                <div>
+                                                    <h4 class="font-bold text-lg mb-2">支持多种数据来源</h4>
+                                                    <ul class="text-dark/70 space-y-1">
+                                                        <li>• 粘贴markdown纯文本</li>
+                                                        <li>• 粘贴富文本并自动转为Markdown</li>
+                                                        <li>• 粘贴图片</li>
+                                                        <li>• 上传md/zip（带图片）</li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="feature-card">
+                                            <div class="flex items-start">
+                                                <div
+                                                    class="feature-icon w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center mr-4 flex-shrink-0">
+                                                    <i class="fa fa-file-text-o text-primary"></i>
+                                                </div>
+                                                <div>
+                                                    <h4 class="font-bold text-lg mb-2">导入/导出源文件</h4>
+                                                    <p class="text-dark/70">
+                                                        支持导入/导出标准语法的md/zip（带图片），可反复修改与复用，不用担心被工具捆绑。
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="feature-card">
+                                            <div class="flex items-start">
+                                                <div
+                                                    class="feature-icon w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center mr-4 flex-shrink-0">
+                                                    <i class="fa fa-lock text-primary"></i>
+                                                </div>
+                                                <div>
+                                                    <h4 class="font-bold text-lg mb-2">数据本地离线存储</h4>
+                                                    <p class="text-dark/70">
+                                                        所有数据本地存储（无服务器），安全可控，保护你的隐私和知识产权。
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="lg:w-1/2 bg-gray-100 p-8 flex items-center justify-center">
+                                    <img src="res/screenShot-editor.png" alt="Markdown编辑器界面"
+                                        class="rounded-xl shadow-md max-w-full h-auto">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 思维导图画布功能 -->
+                    <div class="feature-content hidden" id="mindmap-content">
+                        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                            <div class="flex flex-col lg:flex-row">
+                                <div class="lg:w-1/2 p-8 lg:p-12">
+                                    <h3 class="text-2xl font-bold mb-6 text-secondary">
+                                        <i class="fa fa-sitemap mr-2"></i> 思维导图画布
+                                    </h3>
+                                    <p class="text-dark/70 mb-8">
+                                        可视化同步编辑文档结构，让你的创意和思路更加清晰有序
+                                    </p>
+
+                                    <div class="space-y-6">
+                                        <div class="feature-card">
+                                            <div class="flex items-start">
+                                                <div
+                                                    class="feature-icon w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center mr-4 flex-shrink-0">
+                                                    <i class="fa fa-tree text-secondary"></i>
+                                                </div>
+                                                <div>
+                                                    <h4 class="font-bold text-lg mb-2">树形节点定义</h4>
+                                                    <p class="text-dark/70">
+                                                        Markdown 所有1到6级标题与有序/无序列表行作为节点标题，其他文本均作为节点的备注属性。
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="feature-card">
+                                            <div class="flex items-start">
+                                                <div
+                                                    class="feature-icon w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center mr-4 flex-shrink-0">
+                                                    <i class="fa fa-exchange text-secondary"></i>
+                                                </div>
+                                                <div>
+                                                    <h4 class="font-bold text-lg mb-2">双向同步编辑</h4>
+                                                    <p class="text-dark/70">
+                                                        在Markdown文本与可视化思维导图的任一侧修改，另一侧即时更新，解决不同步问题。
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="feature-card">
+                                            <div class="flex items-start">
+                                                <div
+                                                    class="feature-icon w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center mr-4 flex-shrink-0">
+                                                    <i class="fa fa-magic text-secondary"></i>
+                                                </div>
+                                                <div>
+                                                    <h4 class="font-bold text-lg mb-2">AI 生成子节点</h4>
+                                                    <p class="text-dark/70">
+                                                        在头脑风暴或细化主题时，可让AI基于某个节点一键生成子节点，并可手动采纳或编辑。
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="lg:w-1/2 bg-gray-100 p-8 flex items-center justify-center">
+                                    <img src="res/rec-mindmap.gif" alt="思维导图画布界面"
+                                        class="rounded-xl shadow-md max-w-full h-auto">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Word文件生成功能 -->
+                    <div class="feature-content hidden" id="word-content">
+                        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                            <div class="flex flex-col lg:flex-row">
+                                <div class="lg:w-1/2 p-8 lg:p-12">
+                                    <h3 class="text-2xl font-bold mb-6 text-accent">
+                                        <i class="fa fa-file-word-o mr-2"></i> Word文件生成
+                                    </h3>
+                                    <p class="text-dark/70 mb-8">
+                                        输出日常办公文档形成闭环，满足正式场合的文档需求
+                                    </p>
+
+                                    <div class="space-y-6">
+                                        <div class="feature-card">
+                                            <div class="flex items-start">
+                                                <div
+                                                    class="feature-icon w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center mr-4 flex-shrink-0">
+                                                    <i class="fa fa-file-text text-accent"></i>
+                                                </div>
+                                                <div>
+                                                    <h4 class="font-bold text-lg mb-2">预设模板</h4>
+                                                    <p class="text-dark/70">
+                                                        不需额外配置，直接基于预设模板样式一键生成word文件，快速满足基本需求。
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="feature-card">
+                                            <div class="flex items-start">
+                                                <div
+                                                    class="feature-icon w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center mr-4 flex-shrink-0">
+                                                    <i class="fa fa-sliders text-accent"></i>
+                                                </div>
+                                                <div>
+                                                    <h4 class="font-bold text-lg mb-2">自定义模板</h4>
+                                                    <p class="text-dark/70">
+                                                        对word样式有要求的用户，可自行下载模板并修改样式集，上传模板生成符合特定格式的文档。
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="feature-card">
+                                            <div class="flex items-start">
+                                                <div
+                                                    class="feature-icon w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center mr-4 flex-shrink-0">
+                                                    <i class="fa fa-check-square-o text-accent"></i>
+                                                </div>
+                                                <div>
+                                                    <h4 class="font-bold text-lg mb-2">完整保留结构</h4>
+                                                    <p class="text-dark/70">
+                                                        生成的Word文档完整保留思维导图中的层级结构，格式规范，美观专业。
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="lg:w-1/2 bg-gray-100 p-8 flex items-center justify-center">
+                                    <img src="res/rec-docx.gif" alt="Word文件生成示例"
+                                        class="rounded-xl shadow-md max-w-full h-auto">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
+        </section>
+
+        <!-- 适用场景 -->
+        <section id="scenarios" class="py-20 bg-white">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="max-w-3xl mx-auto text-center mb-16">
+                    <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold mb-6">适用场景</h2>
+                    <div class="w-20 h-1 bg-primary mx-auto mb-8 rounded-full"></div>
+                    <p class="text-lg text-dark/70">
+                        无论你是学生、职场人士还是创作者，MindWord都能为你的工作和学习提供有力支持
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-5xl mx-auto">
+                    <!-- 学习计划场景 -->
+                    <div class="bg-gray-50 rounded-xl p-6 shadow-sm card-hover">
+                        <div class="w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center mb-6">
+                            <i class="fa fa-graduation-cap text-gray-600 text-2xl"></i>
+                        </div>
+                        <h3 class="text-xl font-bold mb-4">学习计划</h3>
+                        <p class="text-dark/70">
+                            根据对应知识结构生成学习计划，形成学习大纲+内容+笔记+进度，学完即可形成知识图谱。
+                        </p>
+                        <div class="mt-6 pt-6 border-t border-gray-200">
+                            <h4 class="font-medium mb-2">适用人群</h4>
+                            <div class="flex flex-wrap gap-2">
+                                <span class="px-3 py-1  bg-gray-100 text-gray-700  text-sm rounded-full">学生</span>
+                                <span class="px-3 py-1  bg-gray-100 text-gray-700 text-sm rounded-full">终身学习者</span>
+                                <span class="px-3 py-1  bg-gray-100 text-gray-700 text-sm rounded-full">研究者</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 产品PRD场景 -->
+                    <div class="bg-gray-50 rounded-xl p-6 shadow-sm card-hover">
+                        <div class="w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center mb-6">
+                            <i class="fa fa-cube text-gray-600 text-2xl"></i>
+                        </div>
+                        <h3 class="text-xl font-bold mb-4">产品PRD</h3>
+                        <p class="text-dark/70">
+                            生成AI友好的结构化需求文档：把一句话需求分解为可控的子任务与说明，逐步深化、可反复修改。
+                        </p>
+                        <div class="mt-6 pt-6 border-t border-gray-200">
+                            <h4 class="font-medium mb-2">适用人群</h4>
+                            <div class="flex flex-wrap gap-2">
+                                <span class="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full">产品经理</span>
+                                <span class="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full">项目经理</span>
+                                <span class="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full">创业者</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 文章写作场景 -->
+                    <div class="bg-gray-50 rounded-xl p-6 shadow-sm card-hover">
+                        <div class="w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center mb-6">
+                            <i class="fa fa-book text-gray-600 text-2xl"></i>
+                        </div>
+                        <h3 class="text-xl font-bold mb-4">文章写作</h3>
+                        <p class="text-dark/70">
+                            基于大纲写作，随时可调整结构，逐步从思维导图到可发布的文稿，让创作过程更加流畅。
+                        </p>
+                        <div class="mt-6 pt-6 border-t border-gray-200">
+                            <h4 class="font-medium mb-2">适用人群</h4>
+                            <div class="flex flex-wrap gap-2">
+                                <span class="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full">作家</span>
+                                <span class="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full">自媒体</span>
+                                <span class="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full">内容创作者</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 快速上手 -->
+        <section id="getting-started" class="py-20 bg-gray-50">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="max-w-3xl mx-auto text-center mb-16">
+                    <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold mb-6">快速上手</h2>
+                    <div class="w-20 h-1 bg-primary mx-auto mb-8 rounded-full"></div>
+                    <p class="text-lg text-dark/70">
+                        只需简单几步，即可开始使用MindWord提升你的写作效率
+                    </p>
+                </div>
+
+                <div class="max-w-4xl mx-auto">
+                    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <div class="p-8 lg:p-12">
+                            <div class="relative">
+                                <div class="absolute left-0 top-0 bottom-0 w-1 bg-gray-200 ml-6"></div>
+
+                                <!-- 步骤1 -->
+                                <div class="relative pl-16 pb-10">
+                                    <div
+                                        class="absolute left-0 top-0 w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold">
+                                        1</div>
+                                    <h3 class="text-xl font-bold mb-3">初始化</h3>
+                                    <p class="text-dark/70">
+                                        上传 Markdown文件，或复制粘贴markdown或富文本，即可看到对应预览与思维导图。
+                                    </p>
+                                    <div class="mt-10 pt-6 border-t border-gray-100">
+                                        <h4 class="text-xl font-bold mb-4">示例 Markdown 片段</h4>
+                                        <p class="text-dark/70 mb-4">导入下面的 Markdown 片段会形成对应树状结构：</p>
+                                        <div
+                                            class="bg-gray-900 text-gray-100 p-4 rounded-lg font-mono text-sm overflow-x-auto">
+                                            <pre># 产品需求文档
+## 功能概述
+- 背景说明
+- 目标用户
+## 功能详情
+### 登录
+- 支持手机号
+- 支持第三方
+### 写作编辑
+- 思维导图视图
+- Markdown 编辑器</pre>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 步骤2 -->
+                                <div class="relative pl-16 pb-10">
+                                    <div
+                                        class="absolute left-0 top-0 w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold">
+                                        2</div>
+                                    <h3 class="text-xl font-bold mb-3">编辑方式</h3>
+                                    <p class="text-dark/70 mb-4">
+                                        在右侧思维导图中双击节点编辑标题或备注，拖拽调整结构；在左侧 Markdown 编辑器中编辑对应部分，任一侧修改都会同步到另一侧。
+                                    </p>
+                                    <div class="bg-gray-50 p-4 rounded-lg">
+                                        <h4 class="font-medium mb-2">常用快捷与操作</h4>
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                                            <div>• 新建子级节点：选中节点后按Tab</div>
+                                            <div>• 新增同级节点：选中节点后按 Enter</div>
+                                            <div>• 删除节点：选中后节点按 Delete</div>
+                                            <div>• 撤销：Ctrl+z，可撤销最近10次</div>
+                                            <div>• 重做：Ctrl+Shift+Z</div>
+                                            <div>• 多选：支持鼠标框选</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 步骤3 -->
+                                <div class="relative pl-16">
+                                    <div
+                                        class="absolute left-0 top-0 w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold">
+                                        3</div>
+                                    <h3 class="text-xl font-bold mb-3">导出</h3>
+                                    <p class="text-dark/70">
+                                        Markdown可导出为md文件，如果有图片将一起打包成zip文件。也可以直接导出为格式化的Word文档。
+                                    </p>
+                                </div>
+                            </div>
+
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 隐私保障 -->
+        <section id="privacy" class="py-20 bg-white">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="max-w-3xl mx-auto text-center mb-16">
+                    <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold mb-6">隐私保障</h2>
+                    <div class="w-20 h-1 bg-primary mx-auto mb-8 rounded-full"></div>
+                    <p class="text-lg text-dark/70">
+                        我们重视你的数据安全和隐私保护，让你使用得更加放心
+                    </p>
+                </div>
+
+                <div class="max-w-3xl mx-auto bg-gray-50 rounded-2xl p-8 shadow-sm">
+                    <div class="space-y-6">
+                        <div class="flex items-start">
+                            <div
+                                class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mr-4 flex-shrink-0">
+                                <i class="fa fa-database text-secondary"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-lg mb-2">本地存储</h3>
+                                <p class="text-dark/70">
+                                    所有文档与图片存储在本地浏览器缓存或本地文件（取决于导入方式），不上传任何服务器，确保你的数据安全。
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- <div class="flex items-start">
+                            <div
+                                class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mr-4 flex-shrink-0">
+                                <i class="fa fa-code-fork text-primary"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-lg mb-2">开源许可</h3>
+                                <p class="text-dark/70">
+                                    项目开源，可自托管与修改，你可以完全掌控工具的使用方式和数据流向。
+                                </p>
+                            </div>
+                        </div> -->
+
+                        <div class="flex items-start">
+                            <div
+                                class="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mr-4 flex-shrink-0">
+                                <i class="fa fa-exclamation-triangle text-amber-500"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-lg mb-2">AI功能说明</h3>
+                                <p class="text-dark/70">
+                                    使用外部 AI 服务时，相关文本会发送到配置的 AI 平台处理，请知晓。
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 下载/体验区域 -->
+        <section id="download" class="py-20 bg-gradient-to-br from-primary to-secondary text-white">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="max-w-4xl mx-auto text-center">
+                    <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold mb-6">开始使用 MindWord</h2>
+                    <p class="text-white/80 text-lg mb-10 max-w-2xl mx-auto">
+                        立即体验思维导图与Markdown结合的高效写作方式，让你的创意和想法更有条理
+                    </p>
+
+                    <div class="flex flex-col sm:flex-row justify-center gap-4 mb-12">
+                        <a href="app.html"
+                            class="bg-white text-primary hover:bg-gray-100 px-8 py-4 rounded-lg font-medium transition-all shadow-lg hover:shadow-xl flex items-center justify-center">
+                            <i class="fa fa-globe mr-2"></i> 访问网页版
+                        </a>
+                        <!-- <a href="#"
+                            class="bg-transparent border-2 border-white text-white hover:bg-white/10 px-8 py-4 rounded-lg font-medium transition-all flex items-center justify-center">
+                            <i class="fa fa-globe mr-2"></i> 访问网页版
+                        </a> -->
+                    </div>
+
+                    <div class="bg-white/10 backdrop-blur-sm rounded-xl p-6 max-w-lg mx-auto">
+                        <p class="flex items-center justify-center mb-0">
+                            <i class="fa fa-info-circle mr-2"></i>
+                            兼容PC和移动端，全平台一致体验
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 反馈与建议 -->
+        <section id="feedback" class="py-20 bg-white">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="max-w-3xl mx-auto text-center mb-16">
+                    <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold mb-6">反馈与建议</h2>
+                    <div class="w-20 h-1 bg-primary mx-auto mb-8 rounded-full"></div>
+                    <p class="text-lg text-dark/70">
+                        本产品由1名产品经理 + ChatGPT + KIMI 独立开发完成，如有任何问题或建议，欢迎联系我~
+                    </p>
+                </div>
+
+                <div class="max-w-md mx-auto bg-gray-50 rounded-2xl p-8 shadow-sm text-center">
+                    <div class="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
+                        <i class="fa fa-comments text-primary text-3xl"></i>
+                    </div>
+                    <p class="text-dark/80 mb-6">
+                        产品 | UI | 开发 | 测试 | 运维 | 客服
+                    </p>
+                    <div class="bg-white p-4 rounded-lg inline-block shadow-sm mb-6">
+                        <p class="font-medium text-lg">微信号：TimiKays</p>
+                    </div>
+                    <p class="text-dark/60 text-sm">
+
+                    </p>
+                </div>
+            </div>
+        </section>
     </main>
 
-    <!-- Bootstrap JS for notifications -->
-    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
-
-    <script>
-        // ===================================
-        // 📌 页面配置 - 在这里修改三个页面的地址
-        // ===================================
-        const PAGE_CONFIG = {
-            // Markdown 编辑器页面地址
-            editor: {
-                url: 'editor/editor.html', // 填入您的编辑器页面地址，例如: 'https://your-domain.com/editor.html'
-                title: 'Markdown 编辑器'
-            },
-
-            // Markdown 预览页面地址
-            preview: {
-                url: 'md2word/md2word.html', // 填入您的预览页面地址，例如: 'https://your-domain.com/preview.html'
-                title: 'Markdown 预览'
-            },
-
-            // 思维导图页面地址
-            mindmap: {
-                url: 'jsmind/mindmap.html', // 填入您的思维导图页面地址，例如: 'https://your-domain.com/mindmap.html'
-                title: '思维导图'
-            }
-        };
-
-        // ===================================
-        // 应用状态管理
-        // ===================================
-
-        // 面板状态管理
-        const panels = {
-            editor: true,
-            preview: true,
-            mindmap: true
-        };
-
-        // 专注模式状态
-        let focusMode = false;
-        let activeFocusPanel = 'editor';
-
-        // 状态存储键名
-        const STORAGE_KEYS = {
-            focusMode: 'mindword_focus_mode',
-            activeFocusPanel: 'mindword_active_focus_panel',
-            panels: 'mindword_panels_state'
-        };
-
-        // 拖拽状态 - 优化后的状态管理
-        let dragState = {
-            isDragging: false,
-            currentResizer: null,
-            startX: 0,
-            currentX: 0,
-            leftPanel: null,
-            rightPanel: null,
-            startLeftWidth: 0,
-            startRightWidth: 0,
-            containerWidth: 0,
-            animationId: null
-        };
-
-        // ===================================
-        // 页面加载功能
-        // ===================================
-
-        // 加载iframe内容（改进：标识 iframe，onload 后向子页请求重排）
-        function loadPanelContent(panelName) {
-            const config = PAGE_CONFIG[panelName];
-            const panelContent = document.querySelector(`#${panelName}-panel .panel-content`);
-            const placeholder = document.getElementById(`${panelName}-placeholder`);
-            const urlSpan = document.getElementById(`${panelName}-url`);
-
-            // 更新URL显示
-            urlSpan.textContent = config.url || '未配置';
-
-            if (!config.url) {
-                placeholder.innerHTML = `
-                    <div style="color: #e74c3c;">⚠️ 页面地址未配置</div>
-                    <small>请在 PAGE_CONFIG.${panelName}.url 中设置页面地址</small>
-                `;
-                return;
-            }
-
-            // 检查是否已经有iframe
-            const existingIframe = panelContent.querySelector('iframe');
-            if (existingIframe) {
-                return;
-            }
-
-            // 创建iframe
-            const iframe = document.createElement('iframe');
-            // 添加时间戳参数避免缓存
-            const timestamp = new Date().getTime();
-            iframe.src = config.url + (config.url.includes('?') ? '&' : '?') + '_t=' + timestamp;
-
-            // 标识 iframe 便于后续选择与消息转发
-            iframe.dataset.panel = panelName;
-            iframe.id = `iframe-${panelName}`;
-
-            // 样式：确保占满面板内容
-            iframe.style.width = '100%';
-            iframe.style.height = '100%';
-            iframe.style.border = 'none';
-            iframe.style.backgroundColor = 'white';
-            iframe.style.display = 'none';
-
-            // 加载成功后显示并请求子页重排（立即+短延迟）
-            iframe.onload = function () {
-                placeholder.style.display = 'none';
-                iframe.style.display = 'block';
-
-                // 请求子页重排，防止首次渲染时尺寸未就绪
-                try {
-                    if (iframe.contentWindow) {
-                        iframe.contentWindow.postMessage({ type: 'mw_relayout' }, '*');
-                        setTimeout(() => {
-                            try { iframe.contentWindow.postMessage({ type: 'mw_relayout' }, '*'); } catch (e) { }
-                        }, 200);
-                    }
-                } catch (e) { console.warn('postMessage to iframe failed', e); }
-            };
-
-            iframe.onerror = function () {
-                placeholder.innerHTML = `
-                    <div style="color: #e74c3c;">❌ 页面加载失败</div>
-                    <small>地址: ${config.url}</small>
-                    <br>
-                    <button onclick="retryLoad('${panelName}')" style="margin-top: 10px; padding: 5px 10px; border: 1px solid #3498db; background: white; color: #3498db; border-radius: 4px; cursor: pointer;">重试</button>
-                `;
-            };
-
-            panelContent.appendChild(iframe);
-
-            // 在父页窗口尺寸变化时，通知子 iframe 重排（防止父容器被调整）
-            // 延迟合并多次 resize
-            let _relayoutTimer = null;
-            window.addEventListener('resize', function () {
-                clearTimeout(_relayoutTimer);
-                _relayoutTimer = setTimeout(function () {
-                    try {
-                        if (iframe && iframe.contentWindow) iframe.contentWindow.postMessage({ type: 'mw_relayout' }, '*');
-                    } catch (e) { }
-                }, 150);
-            }, { passive: true });
-        }
-
-        // 重试加载
-        function retryLoad(panelName) {
-            const panelContent = document.querySelector(`#${panelName}-panel .panel-content`);
-            const iframe = panelContent.querySelector('iframe');
-            if (iframe) {
-                iframe.remove();
-            }
-
-            const placeholder = document.getElementById(`${panelName}-placeholder`);
-            placeholder.innerHTML = `
-                <div class="loading">正在重新加载</div>
-                <small>地址: <span id="${panelName}-url">${PAGE_CONFIG[panelName].url}</span></small>
-            `;
-            placeholder.style.display = 'flex';
-
-            setTimeout(() => loadPanelContent(panelName), 100);
-        }
-
-        // ===================================
-        // 专注模式功能
-        // ===================================
-
-        // 切换专注模式
-        function toggleFocusMode() {
-            focusMode = !focusMode;
-            const mainContent = document.getElementById('main-content');
-            const focusToggle = document.getElementById('focus-toggle');
-
-            if (focusMode) {
-                mainContent.classList.add('focus-mode');
-                focusToggle.classList.add('active');
-                focusToggle.querySelector('span').textContent = '退出专注';
-                enterFocusMode();
-            } else {
-                mainContent.classList.remove('focus-mode');
-                focusToggle.classList.remove('active');
-                focusToggle.querySelector('span').textContent = '专注模式';
-                exitFocusMode();
-            }
-
-            // 保存状态到localStorage
-            saveStateToStorage();
-
-            updateLayout();
-            updateTabs();
-        }
-
-        // 进入专注模式
-        function enterFocusMode() {
-            Object.keys(panels).forEach(panelName => {
-                panels[panelName] = false;
-            });
-            panels[activeFocusPanel] = true;
-        }
-
-        // 退出专注模式
-        function exitFocusMode() {
-            Object.keys(panels).forEach(panelName => {
-                panels[panelName] = true;
-            });
-        }
-
-        // ===================================
-        // 面板管理功能
-        // ===================================
-
-        // 切换面板显示/隐藏
-        function togglePanel(panelName) {
-            if (focusMode) {
-                activeFocusPanel = panelName;
-                Object.keys(panels).forEach(name => {
-                    panels[name] = (name === panelName);
-                });
-            } else {
-                const visiblePanels = Object.values(panels).filter(v => v).length;
-
-                if (visiblePanels <= 1 && panels[panelName]) {
-                    showWarning('至少需要保留一个视图面板！', 3000);
-                    return;
-                }
-
-                panels[panelName] = !panels[panelName];
-            }
-
-            // 保存状态到localStorage
-            saveStateToStorage();
-
-            updateLayout();
-            updateTabs();
-        }
-
-        // 处理Tab点击
-        function handleTabClick(panelName) {
-            if (focusMode) {
-                activeFocusPanel = panelName;
-                Object.keys(panels).forEach(name => {
-                    panels[name] = (name === panelName);
-                });
-                // 保存状态到localStorage
-                saveStateToStorage();
-                updateLayout();
-                updateTabs();
-            } else {
-                togglePanel(panelName);
-            }
-            // 在移动端切换到某个面板时，若是思维导图则触发 iframe 强制重载/重排
-            try { if (typeof MW_reloadMindmapOnShowIfMobile === 'function') MW_reloadMindmapOnShowIfMobile(panelName); } catch (e) { /* ignore */ }
-        }
-
-        // 更新布局
-        function updateLayout() {
-            const editorPanel = document.getElementById('editor-panel');
-            const previewPanel = document.getElementById('preview-panel');
-            const mindmapPanel = document.getElementById('mindmap-panel');
-            const resizer1 = document.getElementById('resizer1');
-            const resizer2 = document.getElementById('resizer2');
-
-            // 显示/隐藏面板
-            editorPanel.classList.toggle('hidden', !panels.editor);
-            previewPanel.classList.toggle('hidden', !panels.preview);
-            mindmapPanel.classList.toggle('hidden', !panels.mindmap);
-
-            if (focusMode) {
-                resizer1.style.display = 'none';
-                resizer2.style.display = 'none';
-                return;
-            }
-
-            // 处理分隔条显示
-            const visiblePanels = [];
-            if (panels.editor) visiblePanels.push('editor');
-            if (panels.preview) visiblePanels.push('preview');
-            if (panels.mindmap) visiblePanels.push('mindmap');
-
-            resizer1.style.display = 'none';
-            resizer2.style.display = 'none';
-
-            if (visiblePanels.length === 2) {
-                if (visiblePanels.includes('editor') && visiblePanels.includes('preview')) {
-                    resizer1.style.display = 'block';
-                } else if (visiblePanels.includes('preview') && visiblePanels.includes('mindmap')) {
-                    resizer2.style.display = 'block';
-                } else if (visiblePanels.includes('editor') && visiblePanels.includes('mindmap')) {
-                    resizer1.style.display = 'block';
-                }
-            } else if (visiblePanels.length === 3) {
-                resizer1.style.display = 'block';
-                resizer2.style.display = 'block';
-            }
-
-            resetFlexBasis();
-        }
-
-        // 重置flex基础值
-        function resetFlexBasis() {
-            if (focusMode) return;
-
-            const visiblePanels = [];
-            if (panels.editor) visiblePanels.push('editor');
-            if (panels.preview) visiblePanels.push('preview');
-            if (panels.mindmap) visiblePanels.push('mindmap');
-
-            if (visiblePanels.length === 0) return;
-
-            // 重置flex属性
-            if (panels.editor) {
-                document.getElementById('editor-panel').style.flex = visiblePanels.length === 3 ? '1' : '1';
-            }
-            if (panels.preview) {
-                document.getElementById('preview-panel').style.flex = visiblePanels.length === 3 ? '1' : '1';
-            }
-            if (panels.mindmap) {
-                document.getElementById('mindmap-panel').style.flex = visiblePanels.length === 3 ? '2' : '1';
-            }
-        }
-
-        // 更新tab状态
-        function updateTabs() {
-            document.querySelectorAll('.tab[data-panel]').forEach(tab => {
-                const panelName = tab.dataset.panel;
-                if (focusMode) {
-                    tab.classList.toggle('active', panelName === activeFocusPanel);
-                } else {
-                    tab.classList.toggle('active', panels[panelName]);
-                }
-            });
-        }
-
-        // 保存状态到localStorage
-        function saveStateToStorage() {
-            try {
-                localStorage.setItem(STORAGE_KEYS.focusMode, JSON.stringify(focusMode));
-                localStorage.setItem(STORAGE_KEYS.activeFocusPanel, JSON.stringify(activeFocusPanel));
-                localStorage.setItem(STORAGE_KEYS.panels, JSON.stringify(panels));
-            } catch (e) {
-                console.warn('Failed to save state to localStorage:', e);
-            }
-        }
-
-        // 从localStorage恢复状态
-        function restoreStateFromStorage() {
-            try {
-                const savedFocusMode = localStorage.getItem(STORAGE_KEYS.focusMode);
-                const savedActiveFocusPanel = localStorage.getItem(STORAGE_KEYS.activeFocusPanel);
-                const savedPanels = localStorage.getItem(STORAGE_KEYS.panels);
-
-                if (savedFocusMode !== null) {
-                    focusMode = JSON.parse(savedFocusMode);
-                }
-
-                if (savedActiveFocusPanel !== null) {
-                    activeFocusPanel = JSON.parse(savedActiveFocusPanel);
-                }
-
-                if (savedPanels !== null) {
-                    const parsedPanels = JSON.parse(savedPanels);
-                    Object.keys(panels).forEach(key => {
-                        if (parsedPanels.hasOwnProperty(key)) {
-                            panels[key] = parsedPanels[key];
-                        }
-                    });
-                }
-            } catch (e) {
-                console.warn('Failed to restore state from localStorage:', e);
-            }
-        }
-
-        // 应用恢复的状态
-        function applyRestoredState() {
-            const mainContent = document.getElementById('main-content');
-            const focusToggle = document.getElementById('focus-toggle');
-
-            if (focusMode) {
-                mainContent.classList.add('focus-mode');
-                focusToggle.classList.add('active');
-                focusToggle.querySelector('span').textContent = '退出专注';
-            } else {
-                mainContent.classList.remove('focus-mode');
-                focusToggle.classList.remove('active');
-                focusToggle.querySelector('span').textContent = '专注模式';
-            }
-
-            updateLayout();
-            updateTabs();
-        }
-
-        // ===================================
-        // 拖拽功能 - 使用像素直接映射，1:1跟随鼠标
-        // ===================================
-
-        // 获取相邻面板
-        function getAdjacentPanels(resizer) {
-            const mainContent = document.getElementById('main-content');
-            const allChildren = Array.from(mainContent.children);
-            const resizerIndex = allChildren.indexOf(resizer);
-
-            let leftPanel = null;
-            let rightPanel = null;
-
-            // 向左找可见面板
-            for (let i = resizerIndex - 1; i >= 0; i--) {
-                const element = allChildren[i];
-                if (element.classList.contains('panel') && !element.classList.contains('hidden')) {
-                    leftPanel = element;
-                    break;
-                }
-            }
-
-            // 向右找可见面板
-            for (let i = resizerIndex + 1; i < allChildren.length; i++) {
-                const element = allChildren[i];
-                if (element.classList.contains('panel') && !element.classList.contains('hidden')) {
-                    rightPanel = element;
-                    break;
-                }
-            }
-
-            return { leftPanel, rightPanel };
-        }
-
-        // 开始拖拽
-        function startDrag(e, resizer) {
-            if (focusMode) return;
-
-            e.preventDefault();
-
-            const { leftPanel, rightPanel } = getAdjacentPanels(resizer);
-            if (!leftPanel || !rightPanel) return;
-
-            const containerWidth = document.getElementById('main-content').offsetWidth;
-
-            // 设置拖拽状态
-            dragState = {
-                isDragging: true,
-                currentResizer: resizer,
-                startX: e.clientX,
-                currentX: e.clientX,
-                leftPanel: leftPanel,
-                rightPanel: rightPanel,
-                startLeftWidth: leftPanel.offsetWidth,
-                startRightWidth: rightPanel.offsetWidth,
-                containerWidth: containerWidth,
-                animationId: null
-            };
-
-            // 添加视觉反馈和禁用过渡
-            resizer.classList.add('dragging');
-            document.body.classList.add('resizing', 'no-select');
-            leftPanel.classList.add('resizing');
-            rightPanel.classList.add('resizing');
-        }
-
-        // 处理拖拽 - 1:1像素映射
-        function handleDrag(e) {
-            if (!dragState.isDragging) return;
-
-            dragState.currentX = e.clientX;
-
-            // 取消之前的动画帧
-            if (dragState.animationId) {
-                cancelAnimationFrame(dragState.animationId);
-            }
-
-            // 使用requestAnimationFrame确保流畅性
-            dragState.animationId = requestAnimationFrame(() => {
-                const deltaX = dragState.currentX - dragState.startX;
-
-                // 计算新的宽度（像素值）
-                const newLeftWidth = dragState.startLeftWidth + deltaX;
-                const newRightWidth = dragState.startRightWidth - deltaX;
-
-                // 设置最小宽度限制
-                const minWidth = 100;
-
-                if (newLeftWidth >= minWidth && newRightWidth >= minWidth) {
-                    // 转换为百分比以保持响应式
-                    const leftPercent = (newLeftWidth / dragState.containerWidth) * 100;
-                    const rightPercent = (newRightWidth / dragState.containerWidth) * 100;
-
-                    // 直接设置width而不是flex，确保精确控制
-                    dragState.leftPanel.style.width = `${leftPercent}%`;
-                    dragState.rightPanel.style.width = `${rightPercent}%`;
-                    dragState.leftPanel.style.flex = 'none';
-                    dragState.rightPanel.style.flex = 'none';
-                }
-            });
-        }
-
-        // 结束拖拽
-        function endDrag() {
-            if (!dragState.isDragging) return;
-
-            // 取消动画帧
-            if (dragState.animationId) {
-                cancelAnimationFrame(dragState.animationId);
-            }
-
-            // 清理视觉反馈
-            if (dragState.currentResizer) {
-                dragState.currentResizer.classList.remove('dragging');
-            }
-            if (dragState.leftPanel) {
-                dragState.leftPanel.classList.remove('resizing');
-            }
-            if (dragState.rightPanel) {
-                dragState.rightPanel.classList.remove('resizing');
-            }
-            document.body.classList.remove('resizing', 'no-select');
-
-            // 重置状态
-            dragState = {
-                isDragging: false,
-                currentResizer: null,
-                startX: 0,
-                currentX: 0,
-                leftPanel: null,
-                rightPanel: null,
-                startLeftWidth: 0,
-                startRightWidth: 0,
-                containerWidth: 0,
-                animationId: null
-            };
-        }
-
-        // 初始化拖拽功能
-        function initResizing() {
-            const resizers = document.querySelectorAll('.resizer');
-
-            resizers.forEach(resizer => {
-                // 鼠标按下开始拖拽
-                resizer.addEventListener('mousedown', (e) => startDrag(e, resizer), { passive: false });
-            });
-
-            // 全局鼠标事件
-            document.addEventListener('mousemove', handleDrag, { passive: true });
-            document.addEventListener('mouseup', endDrag, { passive: true });
-
-            // 防止拖拽时选择文本
-            document.addEventListener('selectstart', (e) => {
-                if (dragState.isDragging) e.preventDefault();
-            });
-        }
-
-        // ===================================
-        // 事件监听器
-        // ===================================
-
-        // 移动端自动进入专注模式（隐藏专注切换按钮并进入专注）
-        function initMobileFocus() {
-            const isMobile = (window.matchMedia && window.matchMedia('(max-width: 768px)').matches)
-                || ('ontouchstart' in window && navigator.maxTouchPoints > 0);
-            const focusToggle = document.getElementById('focus-toggle');
-            
-            // 检查是否有保存的状态
-            const hasSavedState = localStorage.getItem(STORAGE_KEYS.focusMode) !== null;
-            
-            if (isMobile && !hasSavedState) {
-                // 只有在没有保存状态的情况下才应用移动端默认行为
-                // 隐藏专注切换按钮（样式已在 mobile CSS 中隐藏 header-right）
-                if (focusToggle) focusToggle.style.display = 'none';
-
-                // 设置专注状态并激活默认面板
-                focusMode = true;
-                activeFocusPanel = activeFocusPanel || 'editor';
-
-                const mainContent = document.getElementById('main-content');
-                if (mainContent) mainContent.classList.add('focus-mode');
-
-                // 调用现有的专注初始化逻辑（如果存在）
-                if (typeof enterFocusMode === 'function') enterFocusMode();
-                if (typeof updateTabs === 'function') updateTabs();
-                if (typeof updateLayout === 'function') updateLayout();
-            } else if (isMobile && hasSavedState) {
-                // 如果有保存的状态，只隐藏专注切换按钮
-                if (focusToggle) focusToggle.style.display = 'none';
-            }
-        }
-
-        // 专注模式切换按钮事件
-        document.getElementById('focus-toggle').addEventListener('click', toggleFocusMode);
-
-        // Tab点击事件
-        document.querySelectorAll('.tab[data-panel]').forEach(tab => {
-            tab.addEventListener('click', () => {
-                const panelName = tab.dataset.panel;
-                handleTabClick(panelName);
-            });
-        });
-
-        // 键盘快捷键 - ESC退出专注模式
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && focusMode) {
-                toggleFocusMode();
-            }
-        });
-
-        // ===================================
-        // 全局通知系统
-        // ===================================
-
-        /**
-         * 显示全局通知消息（替代alert）
-         * @param {string} message - 通知消息
-         * @param {string} type - 通知类型：success, danger, warning, info
-         * @param {number} duration - 显示时长（毫秒）
-         */
-        function showNotification(message, type = 'info', duration = 1500) {
-            if (typeof $ === 'undefined') {
-                // 如果jQuery不可用，回退到alert
-                alert(message);
-                return;
-            }
-
-            // 统一颜色方案
-            const typeStyles = {
-                success: 'background-color: #28a745; border-color: #28a745; color: white;', // 绿色
-                danger: 'background-color: #dc3545; border-color: #dc3545; color: white;',   // 红色
-                warning: 'background-color: #ffc107; border-color: #ffc107; color: #212529;', // 黄色
-                info: 'background-color: #17a2b8; border-color: #17a2b8; color: white;'     // 蓝色
-            };
-
-            // 创建通知容器（如果不存在）——右对齐多条通知，垂直排列
-            if ($('#global-notification-container').length === 0) {
-                $('body').append('<div id="global-notification-container" style="position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 6px; align-items: flex-end;"></div>');
-            }
-
-            // 创建通知元素
-            const notificationId = 'global-notification-' + Date.now();
-            const notificationHtml = `
-                <div id="${notificationId}" class="alert alert-dismissible fade show" 
-                     style="display: inline-flex; align-items: center; height: 24px; line-height: 14px; padding: 0 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.08); margin: 0; white-space: nowrap; ${typeStyles[type] || typeStyles.info}">
-                    <span style="font-size:12px; padding-right:16px;">${message}</span>
-                    <button type="button" class="close" data-dismiss="alert" aria-label="Close" style="color: inherit; opacity: 0.9; padding:0 6px; height:20px; line-height:20px; background:transparent; border:none; display:inline-flex; align-items:center; justify-content:center;">
-                        <span aria-hidden="true" style="font-size:12px; line-height:20px;">&times;</span>
-                    </button>
+    <!-- 页脚 -->
+    <footer class="bg-dark text-white py-8">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="flex items-center space-x-2 mb-6 md:mb-0">
+                    <!-- <div
+                        class="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+                        <i class="fa fa-sitemap text-white text-xl"></i>
+                    </div> -->
+                    <span class="text-xl font-bold">MindWord</span>
                 </div>
-            `;
+                <p class="text-white/60 text-sm mb-4 md:mb-0">
+                    &copy; 2025 MindWord. 保留所有权利。
+                </p>
+                <!-- <div class="flex space-x-6">
+                    <a href="#" class="text-white/70 hover:text-white transition-colors">
+                        <i class="fa fa-github text-xl"></i>
+                    </a>
+                    <a href="#" class="text-white/70 hover:text-white transition-colors">
+                        <i class="fa fa-twitter text-xl"></i>
+                    </a>
+                    <a href="#" class="text-white/70 hover:text-white transition-colors">
+                        <i class="fa fa-linkedin text-xl"></i>
+                    </a>
+                    <a href="#" class="text-white/70 hover:text-white transition-colors">
+                        <i class="fa fa-weixin text-xl"></i>
+                    </a>
+                </div> -->
+            </div>
 
-            // 添加到通知容器
-            $('#global-notification-container').append(notificationHtml);
+            <!-- <div class="border-t border-white/10 pt-8">
+                <div class="flex flex-col md:flex-row justify-between items-center">
 
-            // 自动移除
-            setTimeout(() => {
-                const $notification = $(`#${notificationId}`);
-                $notification.fadeOut(300, function () {
-                    $notification.remove();
-                    // 重新排列剩余通知
-                    rearrangeGlobalNotifications();
+
+                    <!-- <div class="flex flex-wrap justify-center gap-6">
+                        <a href="#" class="text-white/60 hover:text-white text-sm transition-colors">隐私政策</a>
+                        <a href="#" class="text-white/60 hover:text-white text-sm transition-colors">使用条款</a>
+                        <a href="#" class="text-white/60 hover:text-white text-sm transition-colors">开源许可</a>
+                        <a href="#" class="text-white/60 hover:text-white text-sm transition-colors">帮助中心</a>
+                    </div> -->
+            <!-- </div>
+        </div> -->
+        </div>
+    </footer>
+
+    <script>
+        // 导航栏滚动效果
+        window.addEventListener('scroll', function () {
+            const navbar = document.getElementById('navbar');
+            if (window.scrollY > 50) {
+                navbar.classList.add('py-2', 'shadow-md');
+                navbar.classList.remove('py-4', 'shadow-sm');
+            } else {
+                navbar.classList.add('py-4', 'shadow-sm');
+                navbar.classList.remove('py-2', 'shadow-md');
+            }
+        });
+
+        // 移动端菜单切换
+        document.getElementById('menu-toggle').addEventListener('click', function () {
+            const mobileMenu = document.getElementById('mobile-menu');
+            mobileMenu.classList.toggle('hidden');
+        });
+
+        // 功能标签页切换
+        const featureTabs = document.querySelectorAll('.feature-tab');
+        const featureContents = document.querySelectorAll('.feature-content');
+
+        featureTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                // 移除所有标签和内容的active类
+                featureTabs.forEach(t => {
+                    t.classList.remove('active', 'bg-primary', 'text-white');
+                    t.classList.add('bg-white', 'text-dark', 'hover:bg-gray-100');
                 });
-            }, duration);
 
-            // 点击关闭按钮时移除
-            $(`#${notificationId} .close`).click(() => {
-                const $notification = $(`#${notificationId}`);
-                $notification.fadeOut(300, function () {
-                    $notification.remove();
-                    // 重新排列剩余通知
-                    rearrangeGlobalNotifications();
+                featureContents.forEach(content => {
+                    content.classList.add('hidden');
+                    content.classList.remove('active');
                 });
+
+                // 为当前点击的标签添加active类
+                tab.classList.add('active', 'bg-primary', 'text-white');
+                tab.classList.remove('bg-white', 'text-dark', 'hover:bg-gray-100');
+
+                // 显示对应的内容
+                const tabId = tab.getAttribute('data-tab');
+                document.getElementById(`${tabId}-content`).classList.remove('hidden');
+                document.getElementById(`${tabId}-content`).classList.add('active');
             });
-        }
+        });
 
-        /**
-         * 重新排列全局通知
-         */
-        function rearrangeGlobalNotifications() {
-            const $container = $('#global-notification-container');
-            const $notifications = $container.children('.alert');
+        // 平滑滚动
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
 
-            if ($notifications.length === 0) {
-                // 如果没有通知了，移除容器
-                $container.remove();
-                return;
-            }
+                const targetId = this.getAttribute('href');
+                const targetElement = document.querySelector(targetId);
 
-            // 重新计算位置
-            $notifications.each(function (index) {
-                const $notification = $(this);
-                // 添加平滑过渡效果
-                $notification.css('transition', 'transform 0.3s ease');
-                $notification.css('transform', `translateY(0)`);
-            });
-        }
+                if (targetElement) {
+                    // 关闭移动端菜单（如果打开）
+                    document.getElementById('mobile-menu').classList.add('hidden');
 
-        /**
-         * 显示成功通知
-         */
-        function showSuccess(message, duration = 1500) {
-            showNotification(message, 'success', duration);
-        }
-
-        /**
-         * 显示错误通知
-         */
-        function showError(message, duration = 3000) {
-            showNotification(message, 'danger', duration);
-        }
-
-        /**
-         * 显示警告通知
-         */
-        function showWarning(message, duration = 2000) {
-            showNotification(message, 'warning', duration);
-        }
-
-        /**
-         * 显示信息通知
-         */
-        function showInfo(message, duration = 1500) {
-            showNotification(message, 'info', duration);
-        }
-
-        /**
-         * 处理来自子页面的通知消息
-         * - 新增处理 mw_editing_mode 消息以设置全局抑制标志 window.__mw_global_suppress_toasts
-         * - 当全局抑制生效时，对 type==='notification' 的消息仅记录到 console 不展示 UI 通知
-         */
-        function handleNotificationMessage(event) {
-            // 验证消息来源
-            if (!event.data || !event.data.type) return;
-
-            // 先处理编辑模式开关消息（由子 iframe 广播）
-            try {
-                if (event.data.type === 'mw_editing_mode') {
-                    try {
-                        window.__mw_global_suppress_toasts = !!event.data.editing;
-                        console.log('[INDEX] mw_editing_mode ->', window.__mw_global_suppress_toasts);
-                    } catch (e) { /* ignore */ }
-                    return;
-                }
-            } catch (e) { /* ignore */ }
-
-            // 转发来自思维导图的节点选中消息到 editor iframe（用于滚动/高亮）
-            try {
-                if (event.data.type === 'mindmap-node-selected') {
-                    // 找到 editor 面板 iframe（基于 PAGE_CONFIG 或常见选择器）
-                    var editorIframe = document.querySelector('iframe[data-panel="editor"], iframe#panel-editor, iframe[src*="editor/editor.html"]');
-                    // 找到 preview/md2word 面板 iframe
-                    var previewIframe = document.querySelector('iframe[data-panel="preview"], iframe#panel-preview, iframe[src*="md2word/md2word.html"], iframe[src*="preview"]');
-                    var payload = event.data;
-                    var forwardEditor = {
-                        type: 'editor-scroll-to',
-                        nodeid: payload.nodeid,
-                        raw: payload.raw,
-                        parentPath: payload.parentPath
-                    };
-                    var forwardPreview = {
-                        type: 'preview-scroll-to',
-                        nodeid: payload.nodeid,
-                        raw: payload.raw,
-                        parentPath: payload.parentPath
-                    };
-
-                    // 转发到 editor iframe
-                    if (editorIframe && editorIframe.contentWindow) {
-                        try {
-                            editorIframe.contentWindow.postMessage(forwardEditor, '*');
-                            console.log('[INDEX FORWARD] -> editor', { nodeid: payload.nodeid });
-                        } catch (e) {
-                            console.warn('[INDEX FORWARD] editor postMessage failed', e);
-                        }
-                    } else {
-                        // 如果 editor iframe 尚未就绪，缓存最后一条消息，init 时可重发
-                        window.__mw__pendingEditorMessage = forwardEditor;
-                        console.log('[INDEX FORWARD] editor iframe not ready, cached');
-                    }
-
-                    // 转发到 preview/md2word iframe（如果存在）
-                    if (previewIframe && previewIframe.contentWindow) {
-                        try {
-                            previewIframe.contentWindow.postMessage(forwardPreview, '*');
-                            console.log('[INDEX FORWARD PREVIEW] -> preview', { nodeid: payload.nodeid });
-                        } catch (e) {
-                            console.warn('[INDEX FORWARD PREVIEW] preview postMessage failed', e);
-                        }
-                    } else {
-                        // 缓存以便在 iframe 初始化时重发
-                        window.__mw__pendingPreviewMessage = forwardPreview;
-                        console.log('[INDEX FORWARD PREVIEW] preview iframe not ready, cached');
-                    }
-                    return;
-                }
-            } catch (e) {
-                console.warn('forwarding mindmap message failed', e);
-            }
-
-            // 只处理通知相关的消息
-            if (event.data.type === 'notification') {
-                const { message, notificationType, duration } = event.data;
-
-                // 若父页处于全局抑制状态，则跳过可视通知，仅写 console（避免编辑时打断）
-                if (window.__mw_global_suppress_toasts) {
-                    try {
-                        console.log('[INDEX] notification suppressed ->', notificationType, message);
-                    } catch (e) { }
-                    return;
-                }
-
-                switch (notificationType) {
-                    case 'success':
-                        showSuccess(message, duration);
-                        break;
-                    case 'error':
-                        showError(message, duration);
-                        break;
-                    case 'warning':
-                        showWarning(message, duration);
-                        break;
-                    case 'info':
-                        showInfo(message, duration);
-                        break;
-                    default:
-                        showNotification(message, notificationType, duration);
-                }
-            }
-        }
-
-        // ===================================
-        // 初始化
-        // ===================================
-
-        // 初始化应用
-        function initApp() {
-            // 从localStorage恢复状态（在移动端自动专注模式之前）
-            restoreStateFromStorage();
-            
-            updateLayout();
-            initResizing();
-
-            // 加载所有面板内容
-            Object.keys(PAGE_CONFIG).forEach(panelName => {
-                loadPanelContent(panelName);
-            });
-
-            // 应用恢复的状态到UI
-            applyRestoredState();
-
-            // 移动端自动专注模式初始化（在状态恢复之后）
-            initMobileFocus();
-
-            // 监听来自子页面的消息
-            window.addEventListener('message', handleNotificationMessage);
-            // 调试：打印所有收到的原始 message，便于排查 mindmap -> index -> editor 的消息流
-            window.addEventListener('message', function (e) {
-                try { console.log('[INDEX RAW MESSAGE]', e && e.data); } catch (err) { }
-            }, { passive: true });
-
-            console.log('📌 Markdown Studio 已初始化');
-            console.log('配置信息:', PAGE_CONFIG);
-        }
-
-        // 页面加载完成后初始化
-        document.addEventListener('DOMContentLoaded', initApp);
-
-        // 预加载 AI prompt 模板到全局，供子 iframe（如 mindmap）同步读取
-        (function preloadAIPromptTemplates() {
-            try {
-                if (window.__prompt_templates) return;
-                var url = 'ai/newai/prompt-templates.json';
-                fetch(url, { cache: 'no-cache' }).then(function (resp) {
-                    if (!resp.ok) throw new Error('fetch failed ' + resp.status);
-                    return resp.json();
-                }).then(function (json) {
-                    try { window.__prompt_templates = json; console.log('[INDEX] loaded prompt-templates.json', Array.isArray(json) ? json.length : 0); } catch (e) { }
-                }).catch(function (err) {
-                    console.warn('[INDEX] preload prompt-templates.json failed', err);
-                    try { window.__prompt_templates = window.__prompt_templates || null; } catch (e) { }
-                });
-            } catch (e) { console.warn('[INDEX] preloadAIPromptTemplates error', e); }
-        })();
-
-        /* ==== AI 弹窗父层托管注入（来自 ai/newai/demo-caller.html 的适配实现） ====
-           子 iframe 通过 postMessage({ type:'AI_MODAL_OPEN_REQUEST', requestId, payload }, '*')
-           调用位于 ai/newai/AIServiceModal.html 的 AIServiceModal。支持 modal 与 headless（direct）。
-        */
-        (function injectAiModalHost() {
-            try {
-                var existing = document.getElementById('aiModalFrame');
-                if (!existing) {
-                    var frame = document.createElement('iframe');
-                    frame.id = 'aiModalFrame';
-                    frame.src = 'ai/newai/AIServiceModal.html';
-                    frame.style.position = 'fixed';
-                    frame.style.inset = '0';
-                    frame.style.width = '100%';
-                    frame.style.height = '100%';
-                    frame.style.border = '0';
-                    frame.style.display = 'none';
-                    frame.setAttribute('aria-hidden', 'true');
-                    frame.style.zIndex = '9999';
-                    frame.style.background = 'transparent';
-                    document.body.appendChild(frame);
-                }
-            } catch (e) {
-                console.warn('[INDEX][AI] inject aiModalFrame failed', e);
-            }
-
-            window.__ai_req_map = window.__ai_req_map || new Map();
-            window._headlessTimeouts = window._headlessTimeouts || new Map();
-
-            window.addEventListener('message', function (e) {
-                try {
-                    var msg = e && e.data;
-                    if (!msg || typeof msg !== 'object') return;
-
-                    if (msg.type === 'AI_MODAL_OPEN_REQUEST' && msg.requestId) {
-                        console.log('[INDEX] AI_MODAL_OPEN_REQUEST', msg.requestId, msg.payload);
-                        window.__ai_req_map.set(msg.requestId, e.source);
-                        var aiFrame = document.getElementById('aiModalFrame');
-
-                        if (msg.payload && msg.payload.mode === 'direct') {
-                            // headless handling (kept for compatibility)
-                            var platformCfgRaw = msg.payload.platformConfig || msg.payload.platform || {};
-                            var platformConfig = Object.assign({}, platformCfgRaw);
-
-                            try {
-                                var storageStr = aiFrame && aiFrame.contentWindow && aiFrame.contentWindow.localStorage
-                                    ? aiFrame.contentWindow.localStorage.getItem('allAIPlatformConfigs')
-                                    : null;
-                                if (!platformConfig.provider && storageStr) {
-                                    try {
-                                        var allCfgs = JSON.parse(storageStr || '{}') || {};
-                                        var keys = Object.keys(allCfgs || {});
-                                        var chosen = null;
-                                        for (var i = 0; i < keys.length; i++) {
-                                            var k = keys[i];
-                                            var c = allCfgs[k] || {};
-                                            var hasApiKey = c.apiKey && String(c.apiKey).trim() !== '';
-                                            var okCloudflare = (k !== 'cloudflare') || (c.cloudflareAccountId && String(c.cloudflareAccountId).trim() !== '');
-                                            var okAzure = (k !== 'azure') || (c.azureEndpoint && String(c.azureEndpoint).trim() !== '');
-                                            if (hasApiKey && okCloudflare && okAzure) {
-                                                chosen = { key: k, cfg: c };
-                                                break;
-                                            }
-                                        }
-                                        if (chosen) {
-                                            platformConfig.provider = platformConfig.provider || chosen.key;
-                                            platformConfig.apiKey = platformConfig.apiKey || chosen.cfg.apiKey || '';
-                                            if (chosen.cfg.azureEndpoint) platformConfig.azureEndpoint = platformConfig.azureEndpoint || chosen.cfg.azureEndpoint;
-                                            if (chosen.cfg.cloudflareAccountId) platformConfig.cloudflareAccountId = platformConfig.cloudflareAccountId || chosen.cfg.cloudflareAccountId;
-                                            console.log('[INDEX] selected saved platform from aiModalFrame.localStorage:', chosen.key);
-                                        }
-                                    } catch (err) { console.warn('[INDEX] parse aiModalFrame.localStorage failed', err); }
-                                }
-                            } catch (err) { console.warn('[INDEX] read aiFrame localStorage failed', err); }
-
-                            var _tplRaw = msg.payload.templateData || {
-                                templateText: msg.payload.template || '',
-                                placeholders: msg.payload.params || {}
-                            };
-                            try {
-                                if (!(_tplRaw && typeof _tplRaw.templateText === 'string' && _tplRaw.templateText.trim())) {
-                                    var ph = (_tplRaw && _tplRaw.placeholders) ? _tplRaw.placeholders : (msg.payload.placeholders || msg.payload.params || {});
-                                    var candidate = '';
-                                    if (ph) {
-                                        if (ph.input && typeof ph.input === 'object' && typeof ph.input.value === 'string') candidate = ph.input.value;
-                                        else if (typeof ph.input === 'string') candidate = ph.input;
-                                    }
-                                    if (!candidate && typeof msg.payload.template === 'string') candidate = msg.payload.template;
-                                    if (candidate && String(candidate).trim()) { _tplRaw.templateText = String(candidate); }
-                                }
-                            } catch (err) { console.warn('[INDEX] fill templateText failed', err); }
-
-                            var headlessPayload = {
-                                platformConfig: platformConfig,
-                                modelConfig: msg.payload.modelConfig || msg.payload.model || {},
-                                templateData: _tplRaw,
-                                options: msg.payload.options || {}
-                            };
-
-                            try {
-                                aiFrame.contentWindow.postMessage({
-                                    type: 'AI_MODAL_RUN_HEADLESS',
-                                    requestId: msg.requestId,
-                                    payload: headlessPayload
-                                }, '*');
-                                var HEADLESS_TIMEOUT_MS = 15000;
-                                var t = setTimeout(function () {
-                                    try {
-                                        var src = window.__ai_req_map.get(msg.requestId);
-                                        if (src) {
-                                            src.postMessage({
-                                                type: 'AI_MODAL_RESULT',
-                                                requestId: msg.requestId,
-                                                status: 'error',
-                                                detail: { message: 'headless call timeout' }
-                                            }, '*');
-                                        }
-                                    } catch (e) { }
-                                    window._headlessTimeouts.delete(msg.requestId);
-                                    window.__ai_req_map.delete(msg.requestId);
-                                }, HEADLESS_TIMEOUT_MS);
-                                window._headlessTimeouts.set(msg.requestId, { timer: t, source: e.source });
-                            } catch (err) {
-                                console.error('[INDEX] post to aiModalFrame failed', err);
-                                try { e.source.postMessage({ type: 'AI_MODAL_RESULT', requestId: msg.requestId, status: 'error', detail: { message: 'failed to post to aiModalFrame: ' + (err && err.message ? err.message : String(err)) } }, '*'); } catch (_) { }
-                                window.__ai_req_map.delete(msg.requestId);
-                            }
-                            return;
-                        }
-
-                        // modal path: show frame and forward
-                        try { if (aiFrame) { aiFrame.style.display = 'block'; aiFrame.focus && aiFrame.focus(); } } catch (_) { }
-                        try {
-                            aiFrame.contentWindow.postMessage({
-                                type: 'AI_MODAL_OPEN',
-                                payload: Object.assign({}, msg.payload || {}, { requestId: msg.requestId })
-                            }, '*');
-                            console.log('[INDEX] forwarded AI_MODAL_OPEN to aiModalFrame', msg.requestId);
-                        } catch (err) {
-                            console.error('[INDEX] forward AI_MODAL_OPEN failed', err);
-                            try { e.source.postMessage({ type: 'AI_MODAL_RESULT', requestId: msg.requestId, status: 'error', detail: { message: 'failed to forward to aiModalFrame' } }, '*'); } catch (_) { }
-                            window.__ai_req_map.delete(msg.requestId);
-                        }
-                    }
-
-                    // handle AI_MODAL_SAVE_OUTPUT: when modal's "保存并应用" sends output, forward it as a RESULT to the original requester
-                    if (msg.type === 'AI_MODAL_SAVE_OUTPUT' && msg.requestId) {
-                        console.log('[INDEX] AI_MODAL_SAVE_OUTPUT', msg.requestId);
-                        var srcWinSave = window.__ai_req_map.get(msg.requestId);
-                        try { var fsave = document.getElementById('aiModalFrame'); if (fsave) fsave.style.display = 'none'; } catch (_) { }
-                        var outMsgSave = {
-                            type: 'AI_MODAL_RESULT',
-                            requestId: msg.requestId,
-                            status: 'ok',
-                            detail: { output: msg.output }
-                        };
-                        if (srcWinSave) {
-                            try {
-                                srcWinSave.postMessage(outMsgSave, '*');
-                                window.__ai_req_map.delete(msg.requestId);
-                                console.log('[INDEX] forwarded AI_MODAL_SAVE_OUTPUT as RESULT to source', msg.requestId);
-                            } catch (e) {
-                                console.warn('[INDEX] forward save output failed', e);
-                            }
-                        } else {
-                            console.warn('[INDEX] source not found for AI_MODAL_SAVE_OUTPUT', msg.requestId);
-                        }
-                        return;
-                    }
-
-                    // modal result
-                    if (msg.type === 'AI_MODAL_RESULT' && msg.requestId) {
-                        console.log('[INDEX] AI_MODAL_RESULT', msg.requestId, msg.status);
-                        var srcWin = window.__ai_req_map.get(msg.requestId);
-                        // 仅在消息没有要求保留（keepOpen）时才隐藏 aiModalFrame。
-                        // 如果 msg.keepOpen === true，则保持弹窗打开（错误时 modal 会发送 keepOpen:true）
-                        try {
-                            var f = document.getElementById('aiModalFrame');
-                            if (f && !msg.keepOpen) {
-                                f.style.display = 'none';
-                            }
-                        } catch (_) { }
-                        if (srcWin) {
-                            try { srcWin.postMessage(msg, '*'); } catch (e) { console.warn('[INDEX] forward result failed', e); }
-                            window.__ai_req_map.delete(msg.requestId);
-                        } else {
-                            console.warn('[INDEX] source not found for', msg.requestId);
-                        }
-                    }
-
-                    // headless run result
-                    if (msg.type === 'AI_MODAL_RUN_RESULT' && msg.requestId) {
-                        console.log('[INDEX] AI_MODAL_RUN_RESULT', msg.requestId, msg.status);
-                        var srcWin2 = window.__ai_req_map.get(msg.requestId);
-                        try { var f2 = document.getElementById('aiModalFrame'); if (f2) f2.style.display = 'none'; } catch (_) { }
-                        var outMsg = { type: 'AI_MODAL_RESULT', requestId: msg.requestId, status: msg.status === 'ok' ? 'ok' : 'error', detail: msg.detail };
-                        if (srcWin2) { try { srcWin2.postMessage(outMsg, '*'); } catch (e) { console.warn('[INDEX] forward headless result failed', e); } window.__ai_req_map.delete(msg.requestId); } else { console.warn('[INDEX] source not found for headless', msg.requestId); }
-                    }
-                } catch (err) {
-                    console.warn('[INDEX] ai message handler error', err);
-                }
-            }, false);
-        })();
-
-        // 在移动端创建底部 tabs：克隆 header .tabs 到 mobile-tabs（保持事件绑定）
-        function createMobileTabs() {
-            try {
-                const isMobile = (window.matchMedia && window.matchMedia('(max-width: 768px)').matches)
-                    || ('ontouchstart' in window && navigator.maxTouchPoints > 0);
-                const headerTabs = document.querySelector('.header .tabs');
-                const mobileContainer = document.getElementById('mobile-tabs');
-                if (!headerTabs || !mobileContainer) return;
-
-                // 清空并克隆
-                mobileContainer.innerHTML = '';
-                headerTabs.querySelectorAll('.tab[data-panel]').forEach(tab => {
-                    const panel = tab.dataset.panel;
-                    const clone = tab.cloneNode(true);
-                    clone.classList.remove('active');
-                    clone.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        handleTabClick(panel);
-                        // 视觉反馈
-                        document.querySelectorAll('.mobile-tabs .tab').forEach(t => t.classList.remove('active'));
-                        clone.classList.add('active');
+                    // 滚动到目标位置
+                    window.scrollTo({
+                        top: targetElement.offsetTop - 80,
+                        behavior: 'smooth'
                     });
-                    mobileContainer.appendChild(clone);
-                });
-
-                // 显示/隐藏与 focusMode 状态同步
-                if (isMobile) {
-                    mobileContainer.setAttribute('aria-hidden', 'false');
-                    mobileContainer.style.display = 'flex';
-                } else {
-                    mobileContainer.setAttribute('aria-hidden', 'true');
-                    mobileContainer.style.display = 'none';
                 }
-
-                // 同步激活状态
-                updateTabs();
-            } catch (e) {
-                console.warn('createMobileTabs error', e);
-            }
-        }
-
-        // 当窗口尺寸变化时同步 mobile tabs
-        window.addEventListener('resize', () => {
-            // debounce 简单实现
-            clearTimeout(window._mobileTabsResizeTimer);
-            window._mobileTabsResizeTimer = setTimeout(() => createMobileTabs(), 120);
+            });
         });
-
-        // 在 initApp 中也调用一次（在 DOMContentLoaded 之后）
-        document.addEventListener('DOMContentLoaded', () => {
-            createMobileTabs();
-        });
-    </script>
-
-    <script>
-        (function () {
-            // 仅在移动端启用的 mindmap iframe 强制重载策略
-            function isMobile() {
-                return (window.matchMedia && window.matchMedia('(max-width: 768px)').matches)
-                    || ('ontouchstart' in window && navigator.maxTouchPoints > 0);
-            }
-
-            function reloadMindmapIframeOnce() {
-                var iframe = document.getElementById('iframe-mindmap');
-                if (!iframe) {
-                    // 如果没有 id 为 iframe-mindmap 的元素，尝试按 panel src 选择
-                    iframe = document.querySelector('iframe[src*="jsmind/mindmap.html"]');
-                }
-                if (!iframe) return;
-                try {
-                    var src = iframe.getAttribute('src') || iframe.src;
-                    src = src.replace(/([?&])_t=\d+/, '$1');
-                    iframe.src = src + (src.includes('?') ? '&' : '?') + '_t=' + Date.now();
-
-                    function onLoadHandler() {
-                        try {
-                            if (iframe.contentWindow) {
-                                iframe.contentWindow.postMessage({ type: 'mw_relayout' }, '*');
-                                setTimeout(function () { try { iframe.contentWindow.postMessage({ type: 'mw_relayout' }, '*'); } catch (e) { } }, 200);
-                            }
-                        } catch (e) { }
-                        iframe.removeEventListener('load', onLoadHandler);
-                    }
-                    iframe.addEventListener('load', onLoadHandler);
-                } catch (e) { console.warn('reloadMindmapIframeOnce error', e); }
-            }
-
-            window.MW_reloadMindmapOnShowIfMobile = function (panelName) {
-                if (panelName !== 'mindmap') return;
-                if (!isMobile()) return;
-                setTimeout(reloadMindmapIframeOnce, 80);
-            };
-        })();
-    </script>
-    <script>
-        (function () {
-            // 来自 editor 的刷新请求：由顶层执行整页刷新
-            window.addEventListener('message', function (e) {
-                try {
-                    var d = e && e.data;
-                    if (!d || d.type !== 'editor-reload-request') return;
-                    // 可选：检查来源或 requestId 等以增加安全性
-                    try {
-                        if (top && top.location && top !== window) {
-                            top.location.reload();
-                        } else {
-                            window.location.reload();
-                        }
-                    } catch (err) {
-                        try { window.location.reload(); } catch (e) { /* ignore */ }
-                    }
-                } catch (err) { }
-            }, { passive: true });
-        })();
     </script>
 </body>
-
-</html>
 
 </html>

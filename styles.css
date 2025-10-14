@@ -182,6 +182,24 @@ iframe .btn:not([class*="btn-"]):hover {
     background-clip: text;
 }
 
+.brand-clickable {
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin: -8px -12px;
+}
+
+.brand-clickable:hover {
+    background: rgba(59, 130, 246, 0.1);
+    transform: translateY(-1px);
+}
+
+.brand-clickable:active {
+    transform: translateY(0);
+}
+
 
 
 .header-right {
