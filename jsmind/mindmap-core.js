@@ -1,11 +1,11 @@
 /* mindmap-core.js - extracted from mindmap.html inline scripts (core) */
 
-// AI模块导入和全局导出（从mindmap-module-1.js迁移）
-import { AIExpander } from '../ai/ai-expander.js';
-import { AIConfigManager } from '../ai/ai-config.js';
-// 将类导出到全局作用域
-window.AIExpander = AIExpander;
-window.AIConfigManager = AIConfigManager;
+// // AI模块导入和全局导出（从mindmap-module-1.js迁移）
+// import { AIExpander } from '../ai/ai-expander.js';
+// import { AIConfigManager } from '../ai/ai-config.js';
+// // 将类导出到全局作用域
+// window.AIExpander = AIExpander;
+// window.AIConfigManager = AIConfigManager;
 
 // --- 防重复绑定补丁（从 mindmap-extensions.js 整合） ---
 // 防重复绑定补丁（非侵入）：对一组常见事件的等价回调去重（DOMContentLoaded, load, resize, storage）
