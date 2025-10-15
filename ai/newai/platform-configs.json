@@ -116,6 +116,7 @@
       "baseUrl": "https://open.bigmodel.cn/api/paas/v4",
       "modelsUrl": null,
       "apiKeyUrl": "https://open.bigmodel.cn/apikey",
+      "proxyUrl": "https://mindword.timikays.workers.dev/",
       "models": [],
       "modelsFetched": false,
       "predefinedModels": [

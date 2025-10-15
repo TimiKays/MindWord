@@ -253,7 +253,7 @@
 
                                 <div class="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 mt-3">
                                     <button id="usageSubmitBtn" type="button"
-                                        class="btn btn-primary w-full sm:w-auto touch-manipulation" disabled>
+                                        class="btn btn-primary w-full sm:w-auto touch-manipulation">
                                         <i class="fa fa-paper-plane mr-2"></i>发送
                                     </button>
                                 </div>
@@ -718,10 +718,14 @@
                 }
 
                 isConfigured() {
-                    if (!this.config.selectedPlatform || !this.config.selectedModel || !this.config.apiKey) {
+                    // 原有逻辑：需要 platform/model/apiKey
+                    // 增强：若 apiKey 缺失但平台在配置中提供了 proxyUrl（例如通过后端代理/Cloudflare Worker），
+                    // 则视作已配置以允许代理转发路径（前端仍不保存或暴露任何密钥）。
+                    if (!this.config.selectedPlatform || !this.config.selectedModel) {
                         return false;
                     }
 
+                    // 特殊平台检查（azure/cloudflare 仍需其特定字段）
                     if (this.config.selectedPlatform === 'azure' && !this.config.azureEndpoint) {
                         return false;
                     }
@@ -730,7 +734,20 @@
                         return false;
                     }
 
-                    return true;
+                    // 如果已有 apiKey 则为已配置
+                    if (this.config.apiKey && String(this.config.apiKey).trim() !== '') {
+                        return true;
+                    }
+
+                    // 否则：检查是否存在代理配置（proxyUrl）供前端使用（比如 bigmodel.proxyUrl）
+                    try {
+                        const platformCfg = (this.platforms && this.platforms[this.config.selectedPlatform]) || null;
+                        if (platformCfg && platformCfg.proxyUrl) {
+                            return true;
+                        }
+                    } catch (e) { /* ignore */ }
+
+                    return false;
                 }
 
                 async generate(options) {
@@ -1127,36 +1144,96 @@
                 }
 
                 async _callZhipu(prompt, temperature, maxTokens) {
-                    const url = `${this.platforms.bigmodel.baseUrl}/chat/completions`;
-
+                    // 支持两种调用模式：
+                    // 1) 用户提供 apiKey：按原有逻辑直接请求平台
+                    // 2) 用户未提供 apiKey，但平台配置中提供了 proxyUrl：将请求转发到 proxyUrl（由 Cloudflare Worker 等在服务端持有内置 Key 并完成真实调用）
                     const messages = Array.isArray(prompt)
                         ? prompt
                         : [{ role: "user", content: prompt }];
 
+                    const payload = {
+                        model: this.config.selectedModel,
+                        messages: messages,
+                        temperature: temperature,
+                        max_tokens: maxTokens
+                    };
+
+                    // 优先：若用户提供了 apiKey，则直接调用第三方
+                    if (this.config.apiKey && String(this.config.apiKey).trim() !== '') {
+                        const url = `${this.platforms.bigmodel.baseUrl}/chat/completions`;
+                        try {
+                            const response = await fetch(url, {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    "Authorization": `Bearer ${this.config.apiKey}`
+                                },
+                                body: JSON.stringify(payload)
+                            });
+
+                            if (!response.ok) {
+                                const error = await response.json();
+                                throw new Error(`智谱AI API 错误: ${error.error?.message || '未知错误'}`);
+                            }
+
+                            const data = await response.json();
+                            return data.choices[0].message.content;
+                        } catch (error) {
+                            console.error("智谱AI调用失败（直接）:", error);
+                            throw error;
+                        }
+                    }
+
+                    // 回退：尝试使用平台配置中的 proxyUrl 转发（前端不含/暴露任何内置key）
+                    const proxyUrl = this.platforms.bigmodel && this.platforms.bigmodel.proxyUrl;
+                    if (!proxyUrl) {
+                        throw new Error('未配置 API Key，且未提供 proxyUrl 以进行安全转发。请在设置中填写 API Key 或配置代理。');
+                    }
+
                     try {
-                        const response = await fetch(url, {
-                            method: "POST",
+                        // 向 proxy 发起请求，proxy 在服务端持有实际 Key 并完成调用
+                        // 请求格式为 { provider: 'bigmodel', path: '/chat/completions', method: 'POST', payload: {...} }
+                        const proxyRequest = {
+                            provider: 'bigmodel',
+                            method: 'POST',
+                            path: '/chat/completions',
+                            payload: payload
+                        };
+
+                        const resp = await fetch(proxyUrl, {
+                            method: 'POST',
                             headers: {
-                                "Content-Type": "application/json",
-                                "Authorization": `Bearer ${this.config.apiKey}`
+                                'Content-Type': 'application/json'
+                                // 注意：不在前端添加任何 Authorization 头
                             },
-                            body: JSON.stringify({
-                                model: this.config.selectedModel,
-                                messages: messages,
-                                temperature: temperature,
-                                max_tokens: maxTokens
-                            })
+                            body: JSON.stringify(proxyRequest)
                         });
 
-                        if (!response.ok) {
-                            const error = await response.json();
-                            throw new Error(`智谱AI API 错误: ${error.error?.message || '未知错误'}`);
+                        if (!resp.ok) {
+                            let txt = await resp.text().catch(() => '');
+                            let errMsg = `代理请求失败: ${resp.status} ${resp.statusText}` + (txt ? (' - ' + txt) : '');
+                            throw new Error(errMsg);
                         }
 
-                        const data = await response.json();
-                        return data.choices[0].message.content;
+                        const data = await resp.json();
+
+                        // 期望代理直接返回第三方的响应结构或标准化结构 { success: true, data: {...} } 或直接转发原始响应
+                        // 尝试兼容原有处理：若代理返回 { choices: [...] } 兼容直接读取；否则若代理包裹在 data 字段则读取 data.choices
+                        let result;
+                        if (Array.isArray(data?.choices)) {
+                            result = data.choices[0]?.message?.content;
+                        } else if (Array.isArray(data?.data?.choices)) {
+                            result = data.data.choices[0]?.message?.content;
+                        } else if (typeof data?.result === 'string') {
+                            result = data.result;
+                        } else {
+                            // 兜底：将整个代理返回序列化为字符串
+                            result = JSON.stringify(data);
+                        }
+
+                        return result;
                     } catch (error) {
-                        console.error("智谱AI调用失败:", error);
+                        console.error("智谱AI调用失败（代理）:", error);
                         throw error;
                     }
                 }
@@ -1349,26 +1426,35 @@
                         allPlatformConfigs = {};
                     }
                 } else {
-                    // 新用户没有任何配置，创建内置的智谱AI配置
-                    console.log('检测到新用户，创建内置智谱AI配置');
+                    // 新用户没有任何配置 —— 出于安全，不在前端写入或暴露任何内置 API Key。
+                    // 之前版本在此处写入了一个内置密钥（已被移除）。
+                    // 处理策略：
+                    //  1) 不自动将任何密钥写入 allPlatformConfigs/localStorage（避免泄露）。
+                    //  2) 如果需要提供“免配置”体验，请在后端通过受保护的服务端代理或在运行时由受信任的后端注入密钥（推荐），
+                    //     前端仅接收是否可用的布尔标志或短期一次性 token（不在代码/LocalStorage 中保存长期密钥）。
+                    //  3) 仍保留默认模型名称提示，但不包含任何可调用 API 的凭据。
                     allPlatformConfigs = {
+                        // 仅预填充平台元信息（不含 apiKey）
                         'bigmodel': {
-                            apiKey: 'a3fea99953404e49a1ad26a2d68b11f2.iOyc4IHbrj5vJLsn', // 内置的免费API密钥
+                            apiKey: '', // 用户必须手动输入或由后端安全注入
                             cloudflareAccountId: '',
                             azureEndpoint: '',
                             temperature: 0.7,
                             maxTokens: 1000,
-                            favoriteModels: ['GLM-4-Flash'] // 默认使用免费的GLM-4-Flash模型
+                            favoriteModels: ['GLM-4-Flash'] // 仅作为 UI 建议的默认模型名
                         }
                     };
 
-                    // 保存到本地存储
-                    localStorage.setItem('allAIPlatformConfigs', JSON.stringify(allPlatformConfigs));
+                    // 将“空”配置保存到本地（不包含任何密钥）
+                    try {
+                        localStorage.setItem('allAIPlatformConfigs', JSON.stringify(allPlatformConfigs));
+                        // 仅保存默认模型名用于 UI 回显，不保存任何凭据
+                        localStorage.setItem('selectedModel', 'GLM-4-Flash');
+                    } catch (e) {
+                        console.warn('保存默认配置到 localStorage 失败（已忽略敏感数据写入）', e);
+                    }
 
-                    // 设置默认模型为GLM-4-Flash
-                    localStorage.setItem('selectedModel', 'GLM-4-Flash');
-
-                    console.log('已创建内置智谱AI配置，使用GLM-4-Flash模型');
+                    console.log('已创建安全的默认平台占位配置（不包含密钥），请在设置中填写 API 密钥或使用后端注入');
                 }
 
                 // 自动选择已配置的平台
@@ -1793,12 +1879,34 @@
 
             // 发送AI请求
             async function sendAIRequest() {
-                const selectedPlatform = platformSelect.value;
-                const selectedModel = usageModelSelect.value;
-                const apiKey = apiKeyInput.value;
-                // 优先发送“实际值”：
-                // - 若输入框有 dataset.resolved（解析后的实际值），优先使用它；
-                // - 否则使用 textarea.value 作为降级方案。
+                let selectedPlatform = platformSelect.value;
+                let selectedModel = usageModelSelect.value;
+                let apiKey = apiKeyInput.value;
+                // 如果用户未配置任何平台/模型/密钥，则自动使用 bigmodel 的 proxy（临时使用，不写回 localStorage）
+                try {
+                    const hasAnySavedConfig = Object.keys(allPlatformConfigs || {}).length > 0 &&
+                        Object.values(allPlatformConfigs || {}).some(c => c && c.apiKey && String(c.apiKey).trim() !== '');
+                    const hasSelection = selectedPlatform && selectedModel && apiKey && String(apiKey).trim() !== '';
+                    if (!hasAnySavedConfig && !hasSelection) {
+                        // 若平台配置中存在 bigmodel 并配置了 proxyUrl，则临时使用它
+                        const platforms = aiService.getPlatforms();
+                        if (platforms && platforms.bigmodel && platforms.bigmodel.proxyUrl) {
+                            console.debug('[aiModal] no user config detected — using bigmodel proxy fallback');
+                            selectedPlatform = 'bigmodel';
+                            // 优先使用 usageModelSelect 的值（若用户选择了模型），否则使用平台预定义模型或首个常见模型
+                            if (!selectedModel || String(selectedModel).trim() === '') {
+                                const defs = platforms.bigmodel.predefinedModels || [];
+                                selectedModel = defs.length > 0 ? defs[0] : 'GLM-4-Flash';
+                            }
+                            // 留空 apiKey，_callZhipu 中会检测并走 proxyUrl
+                            apiKey = '';
+                            // 注意：不把这些临时值写回本地存储或 UI
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[aiModal] auto fallback to proxy failed', e);
+                }
+
                 const prompt = (usagePromptInput && usagePromptInput.dataset && usagePromptInput.dataset.resolved)
                     ? String(usagePromptInput.dataset.resolved)
                     : (usagePromptInput ? usagePromptInput.value : '');
@@ -1819,7 +1927,7 @@
                     });
 
                     // 显示加载状态
-                    usageSubmitBtn.disabled = true;
+                    usageSubmitBtn.disabled = false;
                     usageSubmitBtn.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i>处理中...';
                     showUsageStatus('正在向AI发送请求...', 'info');
                     usageResultContainer.classList.add('hidden');
@@ -1899,7 +2007,7 @@
                         }, '*');
                     } catch (_) { /* noop */ }
                 } finally {
-                    usageSubmitBtn.disabled = false;
+
                     usageSubmitBtn.innerHTML = '<i class="fa fa-paper-plane mr-2"></i>发送请求';
                 }
             }
@@ -2188,7 +2296,7 @@
                 const apiKey = apiKeyInput.value;
                 if (!selectedPlatform) {
                     usageModelSelect.innerHTML = '<option value="">-- 请先配置AI平台 --</option>';
-                    usageSubmitBtn.disabled = true;
+
                     return;
                 }
 
@@ -2272,8 +2380,12 @@
 
             // 更新使用界面发送按钮状态
             function updateUsageSubmitButtonState() {
-                const isReady = checkIfConfigured() && usagePromptInput.value && usageModelSelect.value;
-                usageSubmitBtn.disabled = !isReady;
+                // 改为：不再禁用发送按钮，始终允许用户点击。若发送失败，sendAIRequest 会向用户展示具体错误信息。
+                try {
+                    if (usageSubmitBtn) usageSubmitBtn.disabled = false;
+                } catch (e) {
+                    console.warn('[aiModal] failed to enable usageSubmitBtn', e);
+                }
             }
 
             // 事件监听器
@@ -4289,7 +4401,7 @@
                                         try {
                                             // 将 textarea 的 current resolved 文本更新到视图再触发发送
                                             try { applyView(); } catch (_) { /* noop */ }
-                                            if (usageSubmitBtn && !usageSubmitBtn.disabled) {
+                                            if (usageSubmitBtn) {
                                                 usageSubmitBtn.click();
                                             }
                                         } catch (err) { console.warn('[aiModal] autoRun send failed', err); }
