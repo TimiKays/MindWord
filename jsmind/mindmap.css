@@ -435,11 +435,23 @@ body {
 
 /* 调整节点备注输入框大小，仅影响 id="nodeNotes" */
 #nodeNotes {
-  height: 400px;
+  height: 300px;
   /* 默认高度，可按需调整 */
   min-height: 100px;
   /* 最小高度 */
   resize: vertical;
   /* 允许用户垂直调整 */
   box-sizing: border-box;
+}
+
+/* node note icon (shows when node has note data) */
+.jm-node-note {
+  display: inline-block;
+  margin-left: 6px;
+  color: #666;
+  cursor: help;
+  font-size: 12px;
+  vertical-align: middle;
+  line-height: 1;
+  padding: 0 2px;
 }

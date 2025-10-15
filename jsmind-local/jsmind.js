@@ -2510,6 +2510,39 @@
 
       parent_node.appendChild(d);
       view_data.element = d;
+      var _v = this;
+      // add small note icon when node has note data (supports note/notes/remark/comment)
+      (function () {
+        var noteText = null;
+        if (node && node.data) {
+          noteText = node.data.note || node.data.notes || node.data.remark || node.data.comment || null;
+        }
+        if (noteText) {
+          var noteEl = $c('span');
+          noteEl.className = 'jm-node-note';
+          noteEl.textContent = '📒';
+          noteEl.title = noteText;
+          // click on note: select node and open detail panel (no inline edit)
+          noteEl.addEventListener && noteEl.addEventListener('click', function (evt) {
+            try { evt.stopPropagation(); } catch (e) { }
+            try {
+              _v.jm.select_node(node.id);
+              if (typeof window.quickModifyNode === 'function') {
+                window.quickModifyNode();
+              } else if (typeof window.open_node_detail === 'function') {
+                window.open_node_detail(node.id);
+              } else if (typeof window.showNodeDetailsPanel === 'function' && typeof window.showNodeDetails === 'function') {
+                try { window.showNodeDetailsPanel(); } catch (e1) { }
+                try { window.showNodeDetails(node); } catch (e2) { }
+              } else {
+                var btn = $d.getElementById && $d.getElementById('node-detail-toggle');
+                if (btn && typeof btn.click === 'function') { btn.click(); }
+              }
+            } catch (e) { /* ignore */ }
+          }, false);
+          d.appendChild(noteEl);
+        }
+      })();
     },
 
     remove_node: function (node) {
@@ -2545,6 +2578,49 @@
           $t(element, node.topic);
         }
       }
+      // synchronize note icon: remove old then add if present
+      (function () {
+        // remove existing note icons to keep idempotent
+        var olds = element.querySelectorAll && element.querySelectorAll('.jm-node-note');
+        if (olds && olds.length) {
+          for (var i = 0; i < olds.length; i++) {
+            var o = olds[i];
+            if (o && o.parentElement) { o.parentElement.removeChild(o); }
+          }
+        }
+        // add if node has note
+        var noteText = null;
+        if (node && node.data) {
+          noteText = node.data.note || node.data.notes || node.data.remark || node.data.comment || null;
+        }
+        if (noteText) {
+          var noteEl = $c('span');
+          noteEl.className = 'jm-node-note';
+          noteEl.textContent = '📒';
+          noteEl.title = noteText;
+          // bind click same as creation: select node and open detail (no inline edit)
+          noteEl.addEventListener && noteEl.addEventListener('click', function (evt) {
+            try { evt.stopPropagation(); } catch (e) { }
+            try {
+              if (node && node.id) {
+                if (_v && _v.jm) { _v.jm.select_node(node.id); }
+                if (typeof window.quickModifyNode === 'function') {
+                  window.quickModifyNode();
+                } else if (typeof window.open_node_detail === 'function') {
+                  window.open_node_detail(node.id);
+                } else if (typeof window.showNodeDetailsPanel === 'function' && typeof window.showNodeDetails === 'function') {
+                  try { window.showNodeDetailsPanel(); } catch (e1) { }
+                  try { window.showNodeDetails(node); } catch (e2) { }
+                } else {
+                  var btn = $d.getElementById && $d.getElementById('node-detail-toggle');
+                  if (btn && typeof btn.click === 'function') { btn.click(); }
+                }
+              }
+            } catch (e) { /* ignore */ }
+          }, false);
+          element.appendChild(noteEl);
+        }
+      })();
       if (this.layout.is_visible(node)) {
         view_data.width = element.clientWidth;
         view_data.height = element.clientHeight;
@@ -2619,6 +2695,8 @@
           } else {
             $t(element, node.topic);
           }
+          // ensure note icon is synchronized even when no textual change (fix lost icon)
+          try { this.update_node(node); } catch (e) { /* ignore */ }
         } else {
           this.jm.update_node(node.id, topic);
         }

@@ -228,11 +228,33 @@
             showNodeDetailsPanel();
           }
           // 再显示节点详情内容
-          if (typeof window.showNodeDetails === 'function') {
-            window.showNodeDetails(sel);
-          } else if (typeof showNodeDetails === 'function') {
-            showNodeDetails(sel);
+          // 临时绕过详情开关限制，确保能显示内容
+          var __prevBypass = window.__bypassDetailsGuard;
+          try {
+            window.__bypassDetailsGuard = true;
+            if (typeof window.showNodeDetails === 'function') {
+              window.showNodeDetails(sel);
+            } else if (typeof showNodeDetails === 'function') {
+              showNodeDetails(sel);
+            }
+          } finally {
+            window.__bypassDetailsGuard = __prevBypass;
           }
+          // 用户主动打开详情后，自动开启“详情面板”开关并同步 UI
+          try {
+            window.__nodeDetailsEnabled = true;
+            var cb = document.getElementById('toggleNodeDetailsCheckbox');
+            if (cb) {
+              cb.checked = true;
+              cb.setAttribute('aria-checked', 'true');
+            }
+            var btn = document.getElementById('toggleNodeDetailsBtn');
+            if (btn) {
+              btn.classList.remove('state-off', 'state-default');
+              btn.classList.add('state-on');
+              btn.setAttribute('aria-pressed', 'true');
+            }
+          } catch (e) { /* ignore */ }
         } catch (e) {
           console.warn('显示节点详情失败:', e);
         }
@@ -297,6 +319,8 @@
       if (p) {
         p.style.display = 'block';
         p.setAttribute('aria-hidden', 'false');
+        // 提升层级，盖过悬浮圆形按钮
+        p.style.zIndex = '10010';
         // 仅当面板未被用户移动过时，才重置为默认靠右位置
         if (p.dataset.moved !== 'true') {
           p.style.right = '12px';
@@ -589,7 +613,8 @@
       if (typeof window.showNodeDetails === 'function') {
         var _origShowNodeDetails = window.showNodeDetails;
         window.showNodeDetails = function (node) {
-          if (window.__nodeDetailsEnabled === false) return;
+          // 允许在显式绕过标志下显示详情（不改变用户的开关状态）
+          if (window.__nodeDetailsEnabled === false && !window.__bypassDetailsGuard) return;
           return _origShowNodeDetails.apply(this, arguments);
         };
       } else {
@@ -598,7 +623,7 @@
           if (typeof window.showNodeDetails === 'function') {
             var _orig = window.showNodeDetails;
             window.showNodeDetails = function (node) {
-              if (window.__nodeDetailsEnabled === false) return;
+              if (window.__nodeDetailsEnabled === false && !window.__bypassDetailsGuard) return;
               return _orig.apply(this, arguments);
             };
             clearInterval(_tryWrapInterval);
@@ -895,7 +920,253 @@
       window.MW_scheduleOnce && window.MW_scheduleOnce('initToolbarIconGrid', function () {
         initWithRetry(4);
       }, 300);
+    })();    // 悬停节点右侧的就近快捷按钮（修改 / AI扩写子节点 / 删除）
+    (function setupNodeHoverActions() {
+      try {
+        const wrap = document.createElement('div');
+        wrap.id = 'nodeHoverActions';
+        wrap.setAttribute('aria-hidden', 'true');
+        wrap.style.cssText = [
+          'position:absolute',
+          'display:none',
+          'z-index:9999',
+          'pointer-events:auto',
+          'background:transparent'
+        ].join(';');
+
+        // 以 DOM 方式创建（外层白底圆形 + 阴影容器，内层复用 ico-btn），避免字符串转义和自动格式化破坏 URL
+        var btnEdit = null, btnAIChild = null, btnDelete = null;
+        (function () {
+          function addBtn(title, iconUrl) {
+            // 外层圆形容器
+            var box = document.createElement('div');
+            box.className = 'mw-fab';
+            box.setAttribute('role', 'button');
+            box.tabIndex = 0;
+            box.title = title;
+            box.style.cssText = [
+              'position:absolute',
+              'width:36px',
+              'height:36px',
+              'border-radius:50%',
+              'background:#fff',
+              'box-shadow:0 6px 18px rgba(0,0,0,0.3)',
+              'display:flex',
+              'align-items:center',
+              'justify-content:center',
+              'cursor:pointer',
+              'transition:transform .12s ease, box-shadow .12s ease',
+              'will-change:transform, left, top'
+            ].join(';');
+            box.addEventListener('mouseenter', function () { box.style.transform = 'scale(1.06)'; box.style.boxShadow = '0 8px 22px rgba(0,0,0,0.38)'; });
+            box.addEventListener('mouseleave', function () { box.style.transform = ''; box.style.boxShadow = '0 6px 18px rgba(0,0,0,0.3)'; });
+
+            // 内层图标
+            var ico = document.createElement('span');
+            ico.className = 'ico-btn';
+            ico.setAttribute('aria-hidden', 'true');
+            // 让内层不拦截事件，点击落在外层 box
+            ico.style.pointerEvents = 'none';
+            // 压缩一下图标尺寸以适配 36px 圆
+            ico.style.width = '22px';
+            ico.style.height = '22px';
+            ico.style.backgroundSize = 'contain';
+            try { ico.style.setProperty('--ico', "url('" + iconUrl + "')"); } catch (_) { ico.style = "--ico: url('" + iconUrl + "')"; }
+
+            box.appendChild(ico);
+            wrap.appendChild(box);
+            return box;
+          }
+          btnEdit = addBtn('修改', '../res/edit.svg');
+          btnAIChild = addBtn('AI扩写子节点', '../res/添加子级.svg');
+          btnDelete = addBtn('删除节点', '../res/删除.svg');
+        })();
+
+        document.body.appendChild(wrap);
+
+        let activeNodeEl = null;
+        let activeNodeId = null;
+        let hideTimer = null;
+
+        // 将三个按钮按弧形（上-中-下）分布在节点右侧
+        function positionNear(nodeEl) {
+          const rect = nodeEl.getBoundingClientRect();
+          const scrollX = window.scrollX || window.pageXOffset || 0;
+          const scrollY = window.scrollY || window.pageYOffset || 0;
+
+          // 基点：节点右侧中点的稍右处（让按钮“环绕在后方”）
+          const baseX = scrollX + rect.right + 12;
+          const baseY = scrollY + rect.top + rect.height;
+
+          // 弧形参数
+          const R = 48; // 半径
+          const size = 36; // 按钮直径
+          const half = size / 2;
+
+          // 角度（度数）从上到下：-60°, 0°, 60°
+          const deg = [-60, 0, 60];
+
+          // 将 wrap 放到基点附近（用于连贯隐藏/显示，子项使用绝对定位）
+          wrap.style.left = (baseX - half) + 'px';
+          wrap.style.top = (baseY - half) + 'px';
+
+          function place(el, angleDeg) {
+            if (!el) return;
+            const rad = angleDeg * Math.PI / 180;
+            const x = Math.cos(rad) * R;
+            const y = Math.sin(rad) * R;
+            el.style.left = Math.round(x - half) + 'px';
+            el.style.top = Math.round(y - half) + 'px';
+          }
+
+          place(btnEdit, deg[0]);
+          place(btnAIChild, deg[1]);
+          place(btnDelete, deg[2]);
+        }
+
+        function showFor(nodeEl) {
+          if (!nodeEl) return;
+          activeNodeEl = nodeEl;
+          activeNodeId = nodeEl.getAttribute('nodeid') || nodeEl.getAttribute('nodeId') || null;
+          positionNear(nodeEl);
+          wrap.style.display = 'block';
+          wrap.setAttribute('aria-hidden', 'false');
+        }
+
+        function getSelectedNodeId() {
+          try {
+            var sel = (window.jm && typeof jm.get_selected_node === 'function') ? jm.get_selected_node() : null;
+            return sel && sel.id ? sel.id : null;
+          } catch (_) { return null; }
+        }
+        function hide() {
+          // 若当前节点仍被选中，则保持显示
+          try {
+            var sid = getSelectedNodeId();
+            if (sid && activeNodeId && sid === activeNodeId) return;
+          } catch (_) { }
+          wrap.style.display = 'none';
+          wrap.setAttribute('aria-hidden', 'true');
+          activeNodeEl = null;
+          activeNodeId = null;
+        }
+
+        // 事件委托：进入 jmnode 或其子元素时显示
+        document.addEventListener('mouseover', function (e) {
+          const t = e.target;
+          const nodeEl = t && (t.closest ? t.closest('jmnode') : (t.tagName && t.tagName.toLowerCase() === 'jmnode' ? t : null));
+          if (nodeEl) {
+            if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+            showFor(nodeEl);
+          }
+        }, { passive: true });
+
+        // 离开 jmnode 或其子元素：若未进入按钮组且未仍在同一 jmnode 内，则延迟隐藏
+        document.addEventListener('mouseout', function (e) {
+          const t = e.target;
+          const fromNode = t && (t.closest ? t.closest('jmnode') : (t.tagName && t.tagName.toLowerCase() === 'jmnode' ? t : null));
+          if (fromNode) {
+            const to = e.relatedTarget;
+            if (wrap.contains(to)) return; // 进入按钮组，不隐藏
+            const toNode = to && to.closest ? to.closest('jmnode') : null;
+            if (toNode && toNode === fromNode) return; // 在同一节点内移动，不隐藏
+            hideTimer = setTimeout(hide, 200);
+          }
+        }, { passive: true });
+
+        // 鼠标在按钮组上方时保持显示
+        wrap.addEventListener('mouseenter', function () {
+          if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+        });
+        wrap.addEventListener('mouseleave', function (e) {
+          const to = e.relatedTarget;
+          // 返回节点不隐藏
+          if (activeNodeEl && to && activeNodeEl.contains && activeNodeEl.contains(to)) return;
+          hideTimer = setTimeout(hide, 150);
+        });
+
+        // 若有选中但无悬停，也显示在选中节点旁
+        (function setupSelectionFollow() {
+          function getNodeElById(id) {
+            if (!id) return null;
+            return document.querySelector('jmnode[nodeid="' + id + '"]') ||
+              document.querySelector('jmnode[nodeId="' + id + '"]');
+          }
+          var lastSid = null;
+          setInterval(function () {
+            try {
+              var sid = getSelectedNodeId();
+              if (sid !== lastSid) {
+                lastSid = sid;
+                if (sid) {
+                  var el = getNodeElById(sid);
+                  if (el) showFor(el);
+                } else {
+                  // 无选中：若也无悬停，隐藏
+                  if (!activeNodeEl) hide();
+                }
+              } else if (sid && wrap.style.display === 'none') {
+                // 选中存在但未显示，补一次
+                var el2 = getNodeElById(sid);
+                if (el2) showFor(el2);
+              }
+            } catch (_) { }
+          }, 300);
+        })();
+
+        // 点击按钮前，确保将悬停节点设为选中，复用顶部已有逻辑
+        function ensureSelect() {
+          try {
+            if (activeNodeId && window.jm && typeof jm.select_node === 'function') {
+              jm.select_node(activeNodeId);
+            }
+          } catch (_) { /* ignore */ }
+        }
+
+        // 点击/键盘触发：绑定到外层圆形容器
+        if (btnEdit) {
+          btnEdit.addEventListener('click', function (e) {
+            e.stopPropagation();
+            ensureSelect();
+            try { quickModifyNode(); } catch (_) { /* ignore */ }
+          });
+          btnEdit.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); btnEdit.click(); }
+          });
+        }
+        if (btnAIChild) {
+          btnAIChild.addEventListener('click', function (e) {
+            e.stopPropagation();
+            ensureSelect();
+            try { aiCreateChild(); } catch (_) { /* ignore */ }
+          });
+          btnAIChild.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); btnAIChild.click(); }
+          });
+        }
+        if (btnDelete) {
+          btnDelete.addEventListener('click', function (e) {
+            e.stopPropagation();
+            ensureSelect();
+            try { quickDeleteNode(); } catch (_) { /* ignore */ }
+          });
+          btnDelete.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); btnDelete.click(); }
+          });
+        }
+
+        // 视口变化时重定位
+        window.addEventListener('scroll', function () {
+          if (activeNodeEl && wrap.style.display !== 'none') positionNear(activeNodeEl);
+        }, { passive: true });
+        window.addEventListener('resize', function () {
+          if (activeNodeEl && wrap.style.display !== 'none') positionNear(activeNodeEl);
+        });
+      } catch (e) {
+        try { console.warn('[MW] nodeHoverActions init failed', e); } catch (_) { }
+      }
     })();
+
   </script>
 
 </body>
