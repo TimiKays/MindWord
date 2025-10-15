@@ -615,6 +615,24 @@
                     }
                 }
 
+                // 主动通知父页做软同步（推送到预览与导图）
+                try { window.parent.postMessage({ type: 'editor-sync-request' }, '*'); } catch (e) { }
+
+                // 同步最新内容到父页文档库（以当前活动文档ID为准）
+                try {
+                    const activeId = window.__mw_activeDocId || null;
+                    // 将 Map entries 转为导出/存库通用的数组格式
+                    const imgList = Array.from(this.images.values()).map(v => ({
+                        name: v.name || '',
+                        mime: v.type || 'image/png',
+                        dataUrl: v.data || ''
+                    }));
+                    window.parent.postMessage({
+                        type: 'mw_document_changed',
+                        payload: { id: activeId, md: content, images: imgList }
+                    }, '*');
+                } catch (e) { }
+
                 if (manual) {
                     this.showMessage('✅ 手动保存成功', 'success');
                 } else {
@@ -1564,7 +1582,34 @@
                     const { id, name, md, images } = msg.payload;
                     window.__mw_activeDocId = id || null;
                     window.__mw_activeDoc = { id, name, md, images };
-                    applyEditorContent(msg.payload);
+                    // 直接应用到编辑器并联动保存/同步
+                    try {
+                        if (window.markdownEditor && typeof window.markdownEditor.setContent === 'function') {
+                            window.markdownEditor.setContent(String(md || ''));
+                            // 同步图片（兼容数组或对象）
+                            try {
+                                if (Array.isArray(images)) {
+                                    window.markdownEditor.images = new Map(images);
+                                } else if (images && typeof images === 'object') {
+                                    window.markdownEditor.images = new Map(Object.entries(images));
+                                } else {
+                                    window.markdownEditor.images = new Map();
+                                }
+                            } catch (e) { console.warn('[editor] set images map failed', e); }
+                            // 写入 localStorage 让其它面板即时收到
+                            try {
+                                localStorage.setItem('mindword_markdown_data', String(md || ''));
+                                const imgArr = Array.from((window.markdownEditor.images || new Map()).entries());
+                                localStorage.setItem('markdown-images', JSON.stringify(imgArr));
+                            } catch (e) { console.warn('[editor] localStorage write failed', e); }
+                            try { window.markdownEditor.saveToStorage(false); } catch (e) { }
+                            try { if (typeof window.syncAll === 'function') window.syncAll('markdown', true, true); } catch (e) { }
+                        } else {
+                            applyEditorContent(msg.payload);
+                        }
+                    } catch (e) { applyEditorContent(msg.payload); }
+                    // 广播事件以兼容其他监听
+                    document.dispatchEvent(new CustomEvent('mw:load_document', { detail: msg.payload }));
                 }
 
                 if (msg.type === 'mw_assign_document_id') {
