@@ -116,6 +116,9 @@
 
             this.canvas_elem = c;
             this.canvas_ctx = ctx;
+            // 隐藏截图画布，避免覆盖界面显示
+            this.canvas_elem.style.display = 'none';
+            this.canvas_elem.style.pointerEvents = 'none';
             this.jm.view.e_panel.appendChild(c);
             this._inited = true;
             this.resize();
@@ -127,7 +130,7 @@
                 !!callback && callback();
                 this.clean();
             }.bind(this));
-            this._watermark();
+            // 禁用水印以避免影响自动裁剪范围
         },
 
         shootDownload: function () {
@@ -138,7 +141,7 @@
 
         shootAsDataURL: function (callback) {
             this.shoot(function () {
-                !!callback && callback(this.canvas_elem.toDataURL());
+                !!callback && callback(this._getCroppedDataURL());
             }.bind(this));
         },
 
@@ -158,9 +161,8 @@
             var ctx = this.canvas_ctx;
             var c = this.canvas_elem;
 
-            // 设置画布背景为白色
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, c.width, c.height);
+            // 使用透明背景，清空画布
+            ctx.clearRect(0, 0, c.width, c.height);
 
             ctx.textAlign = 'left';
             ctx.textBaseline = 'top';
@@ -309,15 +311,80 @@
             ctx.stroke();
         },
 
+        // 计算非透明像素的最小外接矩形并返回裁剪后的 DataURL
+        _getCroppedDataURL: function (padding, mime, quality) {
+            try {
+                var c = this.canvas_elem;
+                var ctx = this.canvas_ctx;
+                var w = c.width, h = c.height;
+                if (!w || !h) return c.toDataURL(mime || 'image/png', quality);
+
+                var img = ctx.getImageData(0, 0, w, h);
+                var data = img.data;
+                var minX = w, minY = h, maxX = -1, maxY = -1;
+
+                for (var y = 0; y < h; y++) {
+                    var rowStart = y * w * 4;
+                    for (var x = 0; x < w; x++) {
+                        var i = rowStart + x * 4;
+                        var a = data[i + 3];
+                        if (a !== 0) {
+                            if (x < minX) minX = x;
+                            if (y < minY) minY = y;
+                            if (x > maxX) maxX = x;
+                            if (y > maxY) maxY = y;
+                        }
+                    }
+                }
+
+                // 全透明或未找到内容，返回整张
+                if (maxX < minX || maxY < minY) {
+                    return c.toDataURL(mime || 'image/png', quality);
+                }
+
+                var pad = typeof padding === 'number' ? Math.max(0, Math.floor(padding)) : 2; // 默认留 2px 缓冲
+                var sx = Math.max(0, minX - pad);
+                var sy = Math.max(0, minY - pad);
+                var sw = Math.min(w - sx, (maxX - minX + 1) + pad * 2);
+                var sh = Math.min(h - sy, (maxY - minY + 1) + pad * 2);
+
+                var nc = $c('canvas');
+                nc.width = sw;
+                nc.height = sh;
+                var nctx = nc.getContext('2d');
+
+                // 可选白底
+                if (this.whiteBackground) {
+                    nctx.fillStyle = '#ffffff';
+                    nctx.fillRect(0, 0, sw, sh);
+                }
+
+                nctx.drawImage(c, sx, sy, sw, sh, 0, 0, sw, sh);
+
+                return nc.toDataURL(mime || 'image/png', quality);
+            } catch (e) {
+                // 失败则回退
+                try { return this.canvas_elem.toDataURL(mime || 'image/png', quality); } catch (e2) { return ''; }
+            }
+        },
+
         _download: function () {
             var c = this.canvas_elem;
             var name = this.jm.mind.name + '.png';
 
             if (navigator.msSaveBlob && (!!c.msToBlob)) {
-                var blob = c.msToBlob();
-                navigator.msSaveBlob(blob, name);
+                var dataurl = this._getCroppedDataURL();
+                try {
+                    var arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1], bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+                    while (n--) u8arr[n] = bstr.charCodeAt(n);
+                    var blob = new Blob([u8arr], { type: mime });
+                    navigator.msSaveBlob(blob, name);
+                } catch (e) {
+                    // 回退：如果转换失败，直接跳转 dataURL
+                    location.href = dataurl;
+                }
             } else {
-                var bloburl = this.canvas_elem.toDataURL();
+                var bloburl = this._getCroppedDataURL();
                 var anchor = $c('a');
                 if ('download' in anchor) {
                     anchor.style.visibility = 'hidden';
@@ -344,6 +411,9 @@
     var screenshot_plugin = new jsMind.plugin('screenshot', function (jm) {
         var jss = new jsMind.screenshot(jm);
         jm.screenshot = jss;
+        // 允许外部设置导出是否白底（默认透明）
+        jss.whiteBackground = false;
+        jss.setWhiteBackground = function (b) { this.whiteBackground = !!b; };
         jm.shoot = function () {
             jss.shoot();
         };
