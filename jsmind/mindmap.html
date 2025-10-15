@@ -1171,6 +1171,39 @@
 
   </script>
 
+  <script>
+    (function () {
+      function renderMindmapFromMd(payload) {
+        const md = payload?.md || '';
+        const images = payload?.images || [];
+        try {
+          if (typeof window.renderMindmapFromMarkdown === 'function') {
+            window.renderMindmapFromMarkdown(md, images);
+          } else if (typeof window.loadMarkdownToMindmap === 'function') {
+            window.loadMarkdownToMindmap(md, images);
+          } else if (window.mindmap && typeof window.mindmap.renderMarkdown === 'function') {
+            window.mindmap.renderMarkdown(md, images);
+          }
+          document.dispatchEvent(new CustomEvent('mw:load_markdown', { detail: payload }));
+        } catch (e) { console.warn('[mindmap] renderMindmapFromMd error', e); }
+      }
+
+      window.addEventListener('message', function (e) {
+        const msg = e.data;
+        if (!msg || typeof msg !== 'object') return;
+
+        if (msg.type === 'mw_load_markdown' && msg.payload) {
+          renderMindmapFromMd(msg.payload);
+        }
+
+        if (msg.type === 'mw_relayout') {
+          try {
+            if (typeof window.updateLayout === 'function') window.updateLayout();
+          } catch (_) { }
+        }
+      }, { passive: true });
+    })();
+  </script>
 </body>
 
 </html>

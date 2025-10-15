@@ -2156,6 +2156,39 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
   <!-- 通知桥接器 -->
   <script src="../notification-bridge.js"></script>
+  <script>
+    (function () {
+      function renderIncomingMarkdown(payload) {
+        const md = payload?.md || '';
+        const images = payload?.images || [];
+        try {
+          if (typeof window.renderMarkdown === 'function') {
+            window.renderMarkdown(md, images);
+          } else if (typeof window.setMarkdown === 'function') {
+            window.setMarkdown(md, images);
+          } else if (window.preview && typeof window.preview.render === 'function') {
+            window.preview.render(md, images);
+          }
+          document.dispatchEvent(new CustomEvent('mw:load_markdown', { detail: payload }));
+        } catch (e) { console.warn('[preview] renderIncomingMarkdown error', e); }
+      }
+
+      window.addEventListener('message', function (e) {
+        const msg = e.data;
+        if (!msg || typeof msg !== 'object') return;
+
+        if (msg.type === 'mw_load_markdown' && msg.payload) {
+          renderIncomingMarkdown(msg.payload);
+        }
+
+        if (msg.type === 'mw_relayout') {
+          try {
+            if (typeof window.updateLayout === 'function') window.updateLayout();
+          } catch (_) { }
+        }
+      }, { passive: true });
+    })();
+  </script>
 </body>
 
 </html>

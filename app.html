@@ -144,13 +144,177 @@
             }
         }
     </style>
+    <!-- ZIP 打包依赖 -->
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
 </head>
 
 <body>
+    <!-- 文档侧栏触发按钮与侧栏 -->
+    <style>
+        #doc-menu-btn {
+            position: fixed;
+            top: 17px;
+            left: 15px;
+            z-index: 10000;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            background: #fff;
+            color: #111827;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+        }
+
+        #doc-menu-btn:hover {
+            background: #f8fafc;
+        }
+
+        #doc-sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 280px;
+            max-width: 80vw;
+            height: 100vh;
+            background: #ffffff;
+            border-right: 1px solid #e5e7eb;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            z-index: 10000;
+            transform: translateX(-100%);
+            transition: transform 0.22s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #doc-sidebar.open {
+            transform: translateX(0);
+        }
+
+        #doc-sidebar .side-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        #doc-sidebar .side-header .title {
+            font-weight: 600;
+            color: #0f172a;
+        }
+
+        #doc-sidebar .side-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        #doc-sidebar .side-actions button {
+            height: 28px;
+            padding: 0 8px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            background: #fff;
+            color: #334155;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        #doc-sidebar .side-actions button:hover {
+            background: #f8fafc;
+        }
+
+        #doc-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .doc-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px;
+            border: 1px solid #f1f5f9;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            background: #fff;
+        }
+
+        .doc-name {
+            font-size: 13px;
+            color: #0f172a;
+            font-weight: 500;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 140px;
+        }
+
+        .doc-buttons {
+            display: flex;
+            gap: 6px;
+        }
+
+        .doc-buttons button {
+            height: 24px;
+            padding: 0 8px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            background: #fff;
+            color: #334155;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .doc-buttons button:hover {
+            background: #f8fafc;
+        }
+
+        .side-footer {
+            border-top: 1px solid #f1f5f9;
+            padding: 8px;
+            display: flex;
+            gap: 6px;
+        }
+
+        .side-footer input[type="file"] {
+            display: none;
+        }
+    </style>
+
+    <button id="doc-menu-btn" title="文档列表">
+        <span style="display:inline-block;width:16px;height:12px;">
+            <span style="display:block;height:2px;background:#0f172a;border-radius:2px;"></span>
+            <span style="display:block;height:2px;background:#0f172a;border-radius:2px;margin-top:3px;"></span>
+            <span style="display:block;height:2px;background:#0f172a;border-radius:2px;margin-top:3px;"></span>
+        </span>
+    </button>
+
+    <aside id="doc-sidebar" aria-hidden="true">
+        <div class="side-header">
+            <div class="title">我的文档</div>
+            <div class="side-actions">
+                <button id="btn-new-doc">新增</button>
+                <button id="btn-export-all">全部导出ZIP</button>
+                <label for="import-zip-input"><button id="btn-import-zip">导入ZIP</button></label>
+                <button id="btn-close-sidebar">关闭</button>
+                <button id="btn-sync-cloud" title="预留" style="display:none;">云同步</button>
+            </div>
+        </div>
+        <div id="doc-list"></div>
+        <div class="side-footer">
+            <input id="import-zip-input" type="file" accept=".zip" />
+        </div>
+    </aside>
     <!-- 顶部导航栏 -->
     <header class="header">
         <div class="brand brand-clickable"
-            style="font-family: 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-weight:700; font-size:26px; background: linear-gradient(0deg,#0b82e4 0%,#11c49d 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; cursor: pointer;"
+            style="font-family: 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin-left: 50;   font-weight:700; font-size:26px; background: linear-gradient(0deg,#0b82e4 0%,#11c49d 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; cursor: pointer;"
             onclick="window.location.href='index.html'" title="返回首页">
             <img src="favicon.ico" alt="favicon" style="width:32px;height:32px;vertical-align:middle;margin-right:8px;">
             MindWord
@@ -370,6 +534,21 @@
                         setTimeout(() => {
                             try { iframe.contentWindow.postMessage({ type: 'mw_relayout' }, '*'); } catch (e) { }
                         }, 200);
+                        // 若存在待发送的markdown/文档，在iframe就绪后立刻发送，确保“即点即切”
+                        try {
+                            if (panelName === 'editor' && window.__mw_pendingEditorDocument) {
+                                iframe.contentWindow.postMessage({ type: 'mw_load_document', payload: window.__mw_pendingEditorDocument }, '*');
+                                window.__mw_pendingEditorDocument = null;
+                            }
+                            if (panelName === 'preview' && window.__mw_pendingPreviewMarkdown) {
+                                iframe.contentWindow.postMessage({ type: 'mw_load_markdown', payload: window.__mw_pendingPreviewMarkdown }, '*');
+                                window.__mw_pendingPreviewMarkdown = null;
+                            }
+                            if (panelName === 'mindmap' && window.__mw_pendingMindmapMarkdown) {
+                                iframe.contentWindow.postMessage({ type: 'mw_load_markdown', payload: window.__mw_pendingMindmapMarkdown }, '*');
+                                window.__mw_pendingMindmapMarkdown = null;
+                            }
+                        } catch (e) { /* ignore */ }
                     }
                 } catch (e) { console.warn('postMessage to iframe failed', e); }
             };
@@ -1447,6 +1626,442 @@
                 } catch (err) { }
             }, { passive: true });
         })();
+    </script>
+    <script>
+        // =============== 文档库与侧栏 ===============
+        const MW_STORAGE_KEYS = {
+            docs: 'mw_documents',
+            active: 'mw_active_doc'
+        };
+
+        function mw_loadDocs() {
+            try { return JSON.parse(localStorage.getItem(MW_STORAGE_KEYS.docs) || '[]'); } catch (_) { return []; }
+        }
+        function mw_saveDocs(docs) {
+            localStorage.setItem(MW_STORAGE_KEYS.docs, JSON.stringify(docs));
+        }
+        function mw_setActive(docId) {
+            localStorage.setItem(MW_STORAGE_KEYS.active, docId || '');
+        }
+        function mw_getActive() {
+            return localStorage.getItem(MW_STORAGE_KEYS.active) || '';
+        }
+
+        function mw_renderList() {
+            const list = document.getElementById('doc-list');
+            const docs = mw_loadDocs();
+            const active = mw_getActive();
+            list.innerHTML = '';
+            if (!docs.length) {
+                list.innerHTML = '<div style="padding:12px;color:#64748b;font-size:12px;">暂无文档，点击“新增”创建</div>';
+                return;
+            }
+            docs.forEach(doc => {
+                const row = document.createElement('div');
+                row.className = 'doc-item';
+                row.innerHTML = `
+                    <div class="doc-name" title="${doc.name}">${active === doc.id ? '• ' : ''}${doc.name}</div>
+                    <div class="doc-buttons">
+                        <button data-act="open">打开</button>
+                        <button data-act="export">导出</button>
+                        <button data-act="del" style="color:#b91c1c;border-color:#fecaca;">删除</button>
+                    </div>
+                `;
+                row.querySelector('[data-act="open"]').onclick = () => mw_openDoc(doc.id);
+                row.querySelector('[data-act="export"]').onclick = () => mw_exportDocZip(doc.id);
+                row.querySelector('[data-act="del"]').onclick = () => mw_deleteDoc(doc.id);
+                list.appendChild(row);
+            });
+        }
+
+        function mw_toggleSidebar(open) {
+            const el = document.getElementById('doc-sidebar');
+            if (open === true) el.classList.add('open');
+            else if (open === false) el.classList.remove('open');
+            else el.classList.toggle('open');
+            el.setAttribute('aria-hidden', el.classList.contains('open') ? 'false' : 'true');
+        }
+
+        function mw_newDoc() {
+            const name = prompt('新文档名称：', '未命名文档');
+            if (!name) return;
+            const id = 'doc_' + Date.now();
+            const doc = {
+                id, name,
+                md: '# ' + name + '\n',
+                images: [], // {name, mime, dataUrl}
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+                version: 1
+            };
+            const docs = mw_loadDocs();
+            docs.push(doc);
+            mw_saveDocs(docs);
+            mw_setActive(id);
+            mw_renderList();
+            mw_notifyEditorLoad(doc);
+            try { showSuccess && showSuccess('已创建并打开'); } catch (_) { }
+        }
+
+        function mw_openDoc(id) {
+            const docs = mw_loadDocs();
+            const doc = docs.find(d => d.id === id);
+            if (!doc) return alert('文档不存在');
+            mw_setActive(id);
+            mw_renderList();
+            // 打开时以 Markdown 为准同步三面板
+            mw_notifyEditorLoad(doc);
+            mw_notifyPreviewLoad(doc);
+            mw_notifyMindmapLoad(doc);
+            // 立即关闭侧栏并确保编辑器面板显示（避免 handleTabClick 在非专注模式下把编辑器切换为隐藏）
+            try { mw_toggleSidebar(false); } catch (_) { }
+            try {
+                // panels.editor = true;
+                saveStateToStorage();
+                updateLayout();
+                updateTabs();
+            } catch (_) { }
+        }
+
+        function mw_deleteDoc(id) {
+            if (!confirm('确认删除该文档？此操作不可撤销')) return;
+            let docs = mw_loadDocs();
+            const idx = docs.findIndex(d => d.id === id);
+            if (idx >= 0) {
+                docs.splice(idx, 1);
+                mw_saveDocs(docs);
+                if (mw_getActive() === id) mw_setActive('');
+                mw_renderList();
+                try { showSuccess && showSuccess('已删除'); } catch (_) { }
+            }
+        }
+
+        function mw_notifyEditorLoad(doc) {
+            const editorIframe = document.querySelector('iframe[data-panel="editor"], iframe#iframe-editor, iframe[src*="editor/editor.html"]');
+            const payload = {
+                id: doc.id,
+                name: doc.name,
+                md: doc.md,
+                images: doc.images || [],
+                aiPlatformConfigs: doc.aiPlatformConfigs || null,
+                aiPromptTemplates: doc.aiPromptTemplates || null
+            };
+            if (editorIframe && editorIframe.contentWindow) {
+                try {
+                    editorIframe.contentWindow.postMessage({ type: 'mw_load_document', payload }, '*');
+                    console.log('[DOC] -> editor mw_load_document', payload.id);
+                } catch (e) { console.warn('postMessage to editor failed', e); }
+            } else {
+                // iframe 未就绪，缓存待发内容，onload 立即派发
+                try { window.__mw_pendingEditorDocument = payload; } catch (_) { }
+            }
+        }
+
+        function mw_notifyPreviewLoad(doc) {
+            const previewIframe = document.querySelector('iframe[data-panel="preview"], iframe#iframe-preview, iframe[src*="md2word/md2word.html"], iframe[src*="preview"]');
+            const payload = { md: doc.md, images: doc.images || [] };
+            if (previewIframe && previewIframe.contentWindow) {
+                try {
+                    previewIframe.contentWindow.postMessage({ type: 'mw_load_markdown', payload }, '*');
+                    console.log('[DOC] -> preview mw_load_markdown', (doc.id || ''));
+                } catch (e) { console.warn('postMessage to preview failed', e); }
+            } else {
+                // iframe 尚未就绪，缓存待发送数据，待 onload 时立即发送
+                try { window.__mw_pendingPreviewMarkdown = payload; } catch (_) { }
+            }
+        }
+
+        function mw_notifyMindmapLoad(doc) {
+            const mmIframe = document.querySelector('iframe[data-panel="mindmap"], iframe#iframe-mindmap, iframe[src*="jsmind/mindmap.html"]');
+            const payload = { md: doc.md, images: doc.images || [] };
+            if (mmIframe && mmIframe.contentWindow) {
+                try {
+                    mmIframe.contentWindow.postMessage({ type: 'mw_load_markdown', payload }, '*');
+                    console.log('[DOC] -> mindmap mw_load_markdown', (doc.id || ''));
+                } catch (e) { console.warn('postMessage to mindmap failed', e); }
+            }
+        }
+
+        // ===== 导出为ZIP（单文档/全部） =====
+        async function mw_exportDocZip(id) {
+            const docs = mw_loadDocs();
+            const doc = docs.find(d => d.id === id);
+            if (!doc) return alert('文档不存在');
+            const zip = new JSZip();
+            const safeName = (doc.name || 'document').replace(/[\\/:*?"<>|]+/g, '_');
+            const root = zip.folder(safeName);
+
+            // md
+            root.file('index.md', doc.md || '');
+
+            // images
+            if (doc.images && doc.images.length) {
+                const imgFolder = root.folder('images');
+                for (const img of doc.images) {
+                    const fname = img.name || ('img_' + Date.now() + '.png');
+                    // 将 dataURL 转为二进制
+                    const blob = await mw_dataUrlToBlob(img.dataUrl || '', img.mime || 'image/png');
+                    const ab = await blob.arrayBuffer();
+                    imgFolder.file(fname, ab);
+                }
+            }
+
+
+
+            // meta
+            root.file('meta.json', JSON.stringify({
+                id: doc.id,
+                name: doc.name,
+                version: doc.version || 1,
+                exportedAt: Date.now()
+            }, null, 2));
+
+            const blob = await zip.generateAsync({ type: 'blob' });
+            saveAs(blob, safeName + '.zip');
+            try { showSuccess && showSuccess('ZIP 导出完成'); } catch (_) { }
+        }
+
+        async function mw_exportAllZip() {
+            const docs = mw_loadDocs();
+            if (!docs.length) return alert('没有文档可导出');
+            const zip = new JSZip();
+            for (const doc of docs) {
+                const safeName = (doc.name || 'document').replace(/[\\/:*?"<>|]+/g, '_');
+                const root = zip.folder(safeName);
+                root.file('index.md', doc.md || '');
+
+                if (doc.images && doc.images.length) {
+                    const imgFolder = root.folder('images');
+                    for (const img of doc.images) {
+                        const fname = img.name || ('img_' + Date.now() + '.png');
+                        const blob = await mw_dataUrlToBlob(img.dataUrl || '', img.mime || 'image/png');
+                        const ab = await blob.arrayBuffer();
+                        imgFolder.file(fname, ab);
+                    }
+                }
+
+                const aiFolder = root.folder('ai');
+                const aiCfg = doc.aiPlatformConfigs || mw_fetchAIPlatformConfigsSnapshot();
+                if (aiCfg) aiFolder.file('platform-configs.json', JSON.stringify(aiCfg, null, 2));
+                const tpl = doc.aiPromptTemplates || mw_fetchAIPromptTemplatesSnapshot();
+                if (tpl) aiFolder.file('prompt-templates.json', JSON.stringify(tpl, null, 2));
+
+                root.file('meta.json', JSON.stringify({
+                    id: doc.id, name: doc.name, version: doc.version || 1
+                }, null, 2));
+            }
+            const blob = await zip.generateAsync({ type: 'blob' });
+            saveAs(blob, 'MindWord_AllDocs.zip');
+            try { showSuccess && showSuccess('全部 ZIP 导出完成'); } catch (_) { }
+        }
+
+        // ===== 导入ZIP（支持多文档） =====
+        async function mw_importZip(file) {
+            if (!file) return;
+            const zip = await JSZip.loadAsync(file);
+            const topFolders = Object.values(zip.files).filter(f => f.dir).map(f => f.name).filter(n => !n.includes('/'));
+            const docs = mw_loadDocs();
+
+            // 若没有顶级文件夹，尝试单文档（直接 index.md）
+            const processOne = async (folderName) => {
+                const folder = zip.folder(folderName);
+                const mdFile = folder.file('index.md');
+                if (!mdFile) return;
+                const md = await mdFile.async('string');
+                const images = [];
+                const imgFolder = folder.folder('images');
+                if (imgFolder) {
+                    const files = Object.values(imgFolder.files).filter(f => !f.dir);
+                    for (const f of files) {
+                        const mime = mw_guessMime(f.name);
+                        const ab = await imgFolder.file(f.name).async('arraybuffer');
+                        const dataUrl = await mw_arrayBufferToDataUrl(ab, mime);
+                        images.push({ name: f.name, mime, dataUrl });
+                    }
+                }
+                // AI
+                let aiCfg = null, tpl = null;
+                const aiFolder = folder.folder('ai');
+                if (aiFolder) {
+                    const cfg = aiFolder.file('platform-configs.json');
+                    const tpf = aiFolder.file('prompt-templates.json');
+                    if (cfg) try { aiCfg = JSON.parse(await cfg.async('string')); } catch (_) { }
+                    if (tpf) try { tpl = JSON.parse(await tpf.async('string')); } catch (_) { }
+                }
+                const safeName = folderName.replace(/\/$/, '').replace(/[\\/:*?"<>|]+/g, '_');
+                const id = 'doc_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+                docs.push({
+                    id, name: safeName || '导入文档', md, images,
+                    aiPlatformConfigs: aiCfg, aiPromptTemplates: tpl,
+                    createdAt: Date.now(), updatedAt: Date.now(), version: 1
+                });
+            };
+
+            if (topFolders.length) {
+                for (const folderName of topFolders) { await processOne(folderName); }
+            } else {
+                // 尝试根级 index.md
+                const mdFile = zip.file('index.md');
+                if (mdFile) await processOne('');
+            }
+
+            mw_saveDocs(docs);
+            mw_renderList();
+            try { showSuccess && showSuccess('ZIP 导入完成'); } catch (_) { }
+        }
+
+        // ===== 辅助函数 =====
+        function mw_extractTitleFromMd(md) {
+            try {
+                const lines = String(md || '').split(/\r?\n/);
+                const first = (lines.find(l => l.trim().length > 0) || '').trim();
+                if (!first) return '未命名文档';
+                const cleaned = first
+                    .replace(/^#{1,6}\s*/, '')
+                    .replace(/^[-*+]\s+/, '')
+                    .replace(/^\d+\.\s+/, '')
+                    .trim();
+                return cleaned || '未命名文档';
+            } catch (_) { return '未命名文档'; }
+        }
+        function mw_guessMime(name) {
+            const lower = (name || '').toLowerCase();
+            if (lower.endsWith('.png')) return 'image/png';
+            if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+            if (lower.endsWith('.gif')) return 'image/gif';
+            if (lower.endsWith('.webp')) return 'image/webp';
+            return 'application/octet-stream';
+        }
+        async function mw_arrayBufferToDataUrl(ab, mime) {
+            const blob = new Blob([ab], { type: mime || 'application/octet-stream' });
+            return await new Promise(resolve => {
+                const r = new FileReader();
+                r.onload = () => resolve(r.result);
+                r.readAsDataURL(blob);
+            });
+        }
+        async function mw_dataUrlToBlob(dataUrl, mime) {
+            if (!dataUrl) return new Blob([], { type: mime || 'application/octet-stream' });
+            const arr = dataUrl.split(','), bstr = atob(arr[1]);
+            let n = bstr.length, u8 = new Uint8Array(n);
+            while (n--) u8[n] = bstr.charCodeAt(n);
+            return new Blob([u8], { type: mime || 'application/octet-stream' });
+        }
+
+        function mw_fetchAIPlatformConfigsSnapshot() {
+            try {
+                const frame = document.getElementById('aiModalFrame');
+                const ls = frame && frame.contentWindow && frame.contentWindow.localStorage;
+                if (!ls) return null;
+                const raw = ls.getItem('allAIPlatformConfigs');
+                if (!raw) return null;
+                const json = JSON.parse(raw);
+                return json;
+            } catch (_) { return null; }
+        }
+        function mw_fetchAIPromptTemplatesSnapshot() {
+            try {
+                return window.__prompt_templates || null;
+            } catch (_) { return null; }
+        }
+
+        // ===== 事件绑定 =====
+        (function initDocSidebar() {
+            const btn = document.getElementById('doc-menu-btn');
+            const closeBtn = document.getElementById('btn-close-sidebar');
+            const newBtn = document.getElementById('btn-new-doc');
+            const exportAllBtn = document.getElementById('btn-export-all');
+            const importInput = document.getElementById('import-zip-input');
+            const importBtn = document.getElementById('btn-import-zip');
+
+            btn && (btn.onclick = () => { mw_toggleSidebar(); mw_renderList(); });
+            closeBtn && (closeBtn.onclick = () => mw_toggleSidebar(false));
+            newBtn && (newBtn.onclick = () => mw_newDoc());
+            exportAllBtn && (exportAllBtn.onclick = () => mw_exportAllZip());
+            importBtn && (importBtn.onclick = () => importInput && importInput.click());
+            importInput && importInput.addEventListener('change', (e) => {
+                const f = e.target.files && e.target.files[0];
+                if (f) mw_importZip(f);
+                e.target.value = '';
+            });
+
+            // 初始渲染一次（不强制打开）
+            mw_renderList();
+        })();
+
+        // 监听来自编辑器的文档更新消息
+        window.addEventListener('message', function (e) {
+            const msg = e && e.data;
+            if (!msg || typeof msg !== 'object') return;
+
+            // 编辑器请求当前活动文档（如刷新后）
+            if (msg.type === 'mw_request_active') {
+                const activeId = mw_getActive();
+                if (!activeId) return;
+                const docs = mw_loadDocs();
+                const doc = docs.find(d => d.id === activeId);
+                if (doc) mw_notifyEditorLoad(doc);
+                return;
+            }
+
+            // 编辑器提交文档修改（支持首次自动建档）
+            if (msg.type === 'mw_document_changed') {
+                const { id, md, images } = msg.payload || {};
+                const docs = mw_loadDocs();
+
+                if (id) {
+                    const idx = docs.findIndex(d => d.id === id);
+                    if (idx >= 0) {
+                        if (typeof md === 'string') {
+                            docs[idx].md = md;
+                            const newName = mw_extractTitleFromMd(md);
+                            if (newName && docs[idx].name !== newName) docs[idx].name = newName;
+                        }
+                        if (Array.isArray(images)) docs[idx].images = images;
+                        docs[idx].updatedAt = Date.now();
+                        mw_saveDocs(docs);
+                        mw_setActive(id);
+                        mw_renderList();
+                        // 同步到预览与思维导图
+                        mw_notifyPreviewLoad(docs[idx]);
+                        mw_notifyMindmapLoad(docs[idx]);
+                        try { showSuccess && showSuccess('文档已保存'); } catch (_) { }
+                        return;
+                    }
+                }
+
+                // 首次保存：自动创建文档
+                const newId = 'doc_' + Date.now();
+                const name = mw_extractTitleFromMd(md || '');
+                const doc = {
+                    id: newId,
+                    name,
+                    md: md || ('# ' + name + '\n'),
+                    images: Array.isArray(images) ? images : [],
+                    createdAt: Date.now(),
+                    updatedAt: Date.now(),
+                    version: 1
+                };
+                docs.push(doc);
+                mw_saveDocs(docs);
+                mw_setActive(newId);
+                mw_renderList();
+
+                // 通知编辑器绑定新文档ID
+                try {
+                    const editorIframe = document.querySelector('iframe[data-panel="editor"], iframe#iframe-editor, iframe[src*="editor/editor.html"]');
+                    if (editorIframe && editorIframe.contentWindow) {
+                        editorIframe.contentWindow.postMessage({ type: 'mw_assign_document_id', id: newId }, '*');
+                    }
+                } catch (_) { }
+
+                // 同步到预览与思维导图
+                mw_notifyPreviewLoad(doc);
+                mw_notifyMindmapLoad(doc);
+                try { showSuccess && showSuccess('已创建文档并保存'); } catch (_) { }
+                return;
+            }
+        }, { passive: true });
     </script>
 </body>
 

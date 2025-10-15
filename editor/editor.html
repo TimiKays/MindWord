@@ -1505,6 +1505,82 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
     <!-- 通知桥接器 -->
     <script src="../notification-bridge.js"></script>
+    <script>
+        (function () {
+            // 记录当前活动文档ID
+            window.__mw_activeDocId = window.__mw_activeDocId || null;
+
+            function applyEditorContent(payload) {
+                try {
+                    const md = (payload && payload.md) ? String(payload.md) : '';
+                    const images = payload && payload.images ? payload.images : null;
+
+                    // 首选使用 MarkdownEditor
+                    if (window.markdownEditor && typeof window.markdownEditor.setContent === 'function') {
+                        // 设置正文
+                        window.markdownEditor.setContent(md);
+
+                        // 设置图片 Map（兼容数组或对象）
+                        try {
+                            if (Array.isArray(images)) {
+                                window.markdownEditor.images = new Map(images);
+                            } else if (images && typeof images === 'object') {
+                                window.markdownEditor.images = new Map(Object.entries(images));
+                            } else {
+                                window.markdownEditor.images = new Map();
+                            }
+                        } catch (e) { console.warn('[editor] set images map failed', e); }
+
+                        // 同步到 localStorage（让预览/导图也能立即切换）
+                        try {
+                            localStorage.setItem('mindword_markdown_data', md);
+                            const imgArr = Array.from((window.markdownEditor.images || new Map()).entries());
+                            localStorage.setItem('markdown-images', JSON.stringify(imgArr));
+                        } catch (e) { console.warn('[editor] write localStorage failed', e); }
+
+                        // 保存并联动
+                        try { window.markdownEditor.saveToStorage(false); } catch (e) { /* ignore */ }
+                        try { if (typeof window.syncAll === 'function') window.syncAll('markdown', true, true); } catch (e) { /* ignore */ }
+
+                    } else if (typeof window.setMarkdown === 'function') {
+                        // 回退：旧接口
+                        window.setMarkdown(md);
+                    } else if (window.editor && typeof window.editor.setMarkdown === 'function') {
+                        window.editor.setMarkdown(md);
+                    } else if (typeof window.loadIncomingDocument === 'function') {
+                        window.loadIncomingDocument(payload);
+                    }
+
+                    // 广播事件，便于现有代码监听刷新
+                    document.dispatchEvent(new CustomEvent('mw:load_document', { detail: payload }));
+                } catch (e) { console.warn('[editor] applyEditorContent error', e); }
+            }
+
+            window.addEventListener('message', function (e) {
+                const msg = e.data;
+                if (!msg || typeof msg !== 'object') return;
+
+                if (msg.type === 'mw_load_document' && msg.payload) {
+                    const { id, name, md, images } = msg.payload;
+                    window.__mw_activeDocId = id || null;
+                    window.__mw_activeDoc = { id, name, md, images };
+                    applyEditorContent(msg.payload);
+                }
+
+                if (msg.type === 'mw_assign_document_id') {
+                    window.__mw_activeDocId = msg.id;
+                    // 通知现有逻辑绑定ID（可选）
+                    document.dispatchEvent(new CustomEvent('mw:assign_document_id', { detail: { id: msg.id } }));
+                }
+
+                if (msg.type === 'mw_relayout') {
+                    try {
+                        if (typeof window.updateLayout === 'function') window.updateLayout();
+                    } catch (_) { }
+                }
+            }, { passive: true });
+        })();
+    </script>
 </body>
 
 </html>
