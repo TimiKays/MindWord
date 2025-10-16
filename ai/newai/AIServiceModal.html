@@ -2300,21 +2300,26 @@
                 })();
             }
 
-            // 更新使用界面的模型选择
+            // 更新使用界面的模型选择（优先使用 usagePlatformSelect 的选中值）
             function updateUsageModelSelect() {
                 // 清空选择框
+                if (!usageModelSelect) return;
                 usageModelSelect.innerHTML = '';
 
-                // 获取当前配置的平台
-                const selectedPlatform = platformSelect.value;
-                const apiKey = apiKeyInput.value;
-                if (!selectedPlatform) {
-                    usageModelSelect.innerHTML = '<option value="">-- 请先配置AI平台 --</option>';
+                // 优先使用使用界面平台下拉的值，其次回退到配置面板的 platformSelect
+                const selectedPlatform = (usagePlatformSelect && usagePlatformSelect.value) ? usagePlatformSelect.value : (platformSelect ? platformSelect.value : '');
+                // 尝试从本地已保存配置中读取 apiKey 回退到输入框的值
+                const savedCfg = (allPlatformConfigs && selectedPlatform) ? (allPlatformConfigs[selectedPlatform] || null) : null;
+                const apiKeyFromSaved = savedCfg && savedCfg.apiKey ? savedCfg.apiKey : '';
+                const apiKey = apiKeyFromSaved || (apiKeyInput ? apiKeyInput.value : '');
 
+                if (!selectedPlatform) {
+                    usageModelSelect.innerHTML = '<option value="">-- 请先选择平台 --</option>';
+                    updateUsageSubmitButtonState();
                     return;
                 }
 
-                // 获取当前平台的常用模型
+                // 获取当前平台的常用模型（基于使用界面的 favoriteModels）
                 const platformFavoriteModels = favoriteModels[selectedPlatform] || [];
 
                 const fillOptions = (models) => {
@@ -2326,8 +2331,8 @@
                             option.textContent = model;
                             usageModelSelect.appendChild(option);
                         });
-                        // 记忆上次模型选择
-                        const lastModelKey = `lastUsedModel_${platformSelect.value}`;
+                        // 记忆上次模型选择（按实际使用的平台）
+                        const lastModelKey = `lastUsedModel_${selectedPlatform}`;
                         const lastModel = localStorage.getItem(lastModelKey);
                         if (lastModel && models.includes(lastModel)) {
                             usageModelSelect.value = lastModel;
@@ -2341,22 +2346,30 @@
                 };
 
                 if (platformFavoriteModels.length > 0) {
-                    // 优先使用常用模型
+                    // 优先使用常用模型（用户已保存的偏好）
                     fillOptions(platformFavoriteModels);
                 } else {
-                    // 无常用模型则显示全部模型；若尚未加载则自动拉取
-                    let models = aiService.getModels(selectedPlatform);
+                    // 无常用模型则显示全部模型；若尚未加载则尝试拉取（优先使用 saved apiKey，再使用输入框的 apiKey）
+                    let models = [];
+                    try {
+                        models = aiService.getModels(selectedPlatform) || [];
+                    } catch (e) {
+                        models = [];
+                    }
+
                     if (!Array.isArray(models) || models.length === 0) {
-                        // 需要拉取
+                        // 需要拉取模型列表
                         const options = {};
-                        if (selectedPlatform === 'cloudflare' && cloudflareAccountId.value) {
-                            options.cloudflareAccountId = cloudflareAccountId.value;
+                        if (selectedPlatform === 'cloudflare') {
+                            // 优先使用已保存的 account id，否则使用输入框的值
+                            options.cloudflareAccountId = (savedCfg && savedCfg.cloudflareAccountId) ? savedCfg.cloudflareAccountId : (cloudflareAccountId ? cloudflareAccountId.value : '');
                         }
                         if (apiKey) {
                             aiService.fetchModels(selectedPlatform, apiKey, options)
                                 .then(ms => fillOptions(ms))
                                 .catch(() => fillOptions([]));
                         } else {
+                            // 无可用 apiKey 时尝试直接使用 aiService.getModels 的结果（可能为空）
                             fillOptions(models);
                         }
                     } else {
@@ -3106,15 +3119,29 @@
                 }
             })();
 
-            // 扩展 initPlatformSelect：同时填充使用界面的平台下拉
+            // 扩展 initPlatformSelect：同时填充使用界面的平台下拉，但避免覆盖已由 populateUsagePlatforms 填充的已保存平台列表
             const _origInitPlatformSelect = initPlatformSelect;
             initPlatformSelect = function () {
                 _origInitPlatformSelect();
-                // 复制 platformSelect 的选项到 usagePlatformSelect（如果存在）
+                // 仅在 usagePlatformSelect 尚未被 populateUsagePlatforms 填充时，才从 platformSelect 复制选项，避免覆盖已保存平台列表
                 if (usagePlatformSelect && platformSelect) {
-                    usagePlatformSelect.innerHTML = platformSelect.innerHTML;
-                    // 若 platformSelect 有选中值，同步到 usagePlatformSelect
-                    usagePlatformSelect.value = platformSelect.value || '';
+                    // 如果 usagePlatformSelect 只有默认项或为空，则同步所有平台选项；否则保持由 populateUsagePlatforms 控制的已保存平台列表
+                    try {
+                        if (!usagePlatformSelect.options || usagePlatformSelect.options.length <= 1) {
+                            usagePlatformSelect.innerHTML = platformSelect.innerHTML;
+                            // 若 platformSelect 有选中值，同步到 usagePlatformSelect
+                            usagePlatformSelect.value = platformSelect.value || '';
+                        } else {
+                            // 保持现有的已保存平台列表（由 populateUsagePlatforms 提供）
+                            console.debug('[aiModal] keep usagePlatformSelect populated by saved configs');
+                        }
+                    } catch (e) {
+                        // 容错：若检查失败则退回到安全的复制行为
+                        try {
+                            usagePlatformSelect.innerHTML = platformSelect.innerHTML;
+                            usagePlatformSelect.value = platformSelect.value || '';
+                        } catch (_) { /* noop */ }
+                    }
                 }
             };
 
