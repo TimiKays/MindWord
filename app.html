@@ -365,6 +365,7 @@
                 <button id="btn-export-all">全部导出ZIP</button>
                 <label for="import-zip-input"><button id="btn-import-zip">导入ZIP</button></label>
                 <button id="btn-sync-cloud" title="预留" style="display:none;">云同步</button>
+                <button id="btn-clear-data" style="background-color: #e74c3c; color: white;" title="清空所有本地数据">清空数据</button>
             </div>
             <button id="btn-close-sidebar" title="关闭">&times;</button>
         </div>
@@ -2133,6 +2134,34 @@
             } catch (_) { return null; }
         }
 
+        // ===== 清空所有本地数据 =====
+        function mw_clearAllData() {
+            if (confirm('⚠️ 警告：此操作将永久删除所有本地数据！\n\n确认要清空以下数据吗？\n• 所有文档数据\n• AI平台配置\n• 提示词模板\n• 编辑器设置\n\n此操作不可恢复，建议先导出备份。')) {
+                try {
+                    // 清空所有localStorage数据
+                    localStorage.clear();
+                    
+                    // 重新初始化必要的数据结构
+                    localStorage.setItem('mindword_docs', '[]');
+                    localStorage.setItem('mindword_active_doc_id', '');
+                    
+                    // 刷新界面
+                    mw_renderList();
+                    
+                    // 通知编辑器清空内容
+                    window.postMessage({ type: 'mw_apply_markdown', payload: { md: '', images: [] } }, '*');
+                    
+                    // 显示成功消息
+                    try { showSuccess && showSuccess('所有本地数据已清空'); } catch (_) { }
+                    
+                    console.log('所有本地数据已清空');
+                } catch (error) {
+                    console.error('清空数据失败:', error);
+                    try { showError && showError('清空数据失败: ' + error.message); } catch (_) { }
+                }
+            }
+        }
+
         // ===== 事件绑定 =====
         (function initDocSidebar() {
             const btn = document.getElementById('doc-menu-btn');
@@ -2141,6 +2170,7 @@
             const exportAllBtn = document.getElementById('btn-export-all');
             const importInput = document.getElementById('import-zip-input');
             const importBtn = document.getElementById('btn-import-zip');
+            const clearDataBtn = document.getElementById('btn-clear-data');
             const sidebar = document.getElementById('doc-sidebar');
 
             btn && (btn.onclick = () => { mw_toggleSidebar(); mw_renderList(); });
@@ -2153,6 +2183,7 @@
                 if (f) mw_importZip(f);
                 e.target.value = '';
             });
+            clearDataBtn && (clearDataBtn.onclick = () => mw_clearAllData());
 
             // 侧滑栏失去焦点时自动收起
             if (sidebar) {
