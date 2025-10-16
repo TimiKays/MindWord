@@ -296,6 +296,8 @@ function applyAIAction(actionType, ctx) {
       }
       case 'generate_initial_tree': {
         try {
+
+
           // parsedText 或 itemsToInsert -> md
           var md = '';
           try { md = (typeof ctx.parsedText === 'string') ? ctx.parsedText : ''; } catch (_) { md = ''; }
@@ -310,25 +312,45 @@ function applyAIAction(actionType, ctx) {
           md = String(md || '');
           if (!md.trim()) { _show('warn', 'AI 未返回有效 Markdown，无法生成初始树'); break; }
 
-          // find editor iframe in parent
-          var editorFrame = null;
-          try { editorFrame = window.parent && window.parent.document && window.parent.document.querySelector('iframe[data-panel="editor"]'); } catch (_) { editorFrame = null; }
-          if (!editorFrame) {
-            try { editorFrame = window.parent && window.parent.document && window.parent.document.getElementById('iframe-editor'); } catch (_) { editorFrame = null; }
-          }
-          if (!editorFrame) {
-            try { editorFrame = window.parent && window.parent.document && window.parent.document.querySelector('iframe[src*="editor/editor.html"]'); } catch (_) { editorFrame = null; }
-          }
-          var targetWin = (editorFrame && editorFrame.contentWindow) ? editorFrame.contentWindow : null;
-          if (!targetWin) { _show('error', '未找到编辑器面板，无法替换文档内容'); break; }
-
+          // 优先走父页统一应用路径：让父页更新当前活动文档并广播三端，无需刷新
+          var posted = false;
           try {
-            targetWin.postMessage({ type: 'editor-set-markdown', markdown: md, requestId: (window.__mw_ai_active_requestId || null), source: 'mindmap' }, '*');
-          } catch (e1) { }
-          setTimeout(function () {
-            try { targetWin.postMessage({ type: 'editor-save-or-sync', reason: 'generate_initial_tree', requestId: (window.__mw_ai_active_requestId || null), source: 'mindmap' }, '*'); } catch (e2) { }
-          }, 50);
-          try { _show('success', '已将内容发送到编辑器并触发保存/同步'); } catch (_) { }
+            if (window.parent && window.parent !== window) {
+              window.parent.postMessage({
+                type: 'mw_apply_markdown',
+                payload: { md: md, images: [] },
+                requestId: (window.__mw_ai_active_requestId || null),
+                source: 'mindmap'
+              }, '*');
+              posted = true;
+              try { _show('success', 'AI 内容已提交，正在应用到文档'); } catch (_) { }
+            }
+          } catch (ePost) {
+            posted = false;
+          }
+
+          if (!posted) {
+            // 兜底：旧逻辑，直接尝试操作编辑器 iframe（尽量不走到这里）
+            // find editor iframe in parent
+            var editorFrame = null;
+            try { editorFrame = window.parent && window.parent.document && window.parent.document.querySelector('iframe[data-panel="editor"]'); } catch (_) { editorFrame = null; }
+            if (!editorFrame) {
+              try { editorFrame = window.parent && window.parent.document && window.parent.document.getElementById('iframe-editor'); } catch (_) { editorFrame = null; }
+            }
+            if (!editorFrame) {
+              try { editorFrame = window.parent && window.parent.document && window.parent.document.querySelector('iframe[src*="editor/editor.html"]'); } catch (_) { editorFrame = null; }
+            }
+            var targetWin = (editorFrame && editorFrame.contentWindow) ? editorFrame.contentWindow : null;
+            if (!targetWin) { _show('error', '未找到编辑器面板，无法替换文档内容'); break; }
+
+            try {
+              targetWin.postMessage({ type: 'editor-set-markdown', markdown: md, requestId: (window.__mw_ai_active_requestId || null), source: 'mindmap' }, '*');
+            } catch (e1) { }
+            setTimeout(function () {
+              try { targetWin.postMessage({ type: 'editor-save-or-sync', reason: 'generate_initial_tree', requestId: (window.__mw_ai_active_requestId || null), source: 'mindmap' }, '*'); } catch (e2) { }
+            }, 50);
+            try { _show('success', '已将内容发送到编辑器并触发保存/同步'); } catch (_) { }
+          }
         } catch (e) {
           _show('error', '生成初始树失败');
         }
@@ -342,8 +364,10 @@ function applyAIAction(actionType, ctx) {
       }
     } // end switch
 
-    // 尝试保存 debounce
-    try { if (typeof debouncedSave === 'function') debouncedSave(); } catch (_) { }
+    // 尝试保存 debounce（仅当本地有实际变动时；生成初始树交由父页应用Markdown，不在此保存旧导图）
+    if (actionType !== 'generate_initial_tree') {
+      try { if (typeof debouncedSave === 'function') debouncedSave(); } catch (_) { }
+    }
   } catch (e) {
     _show('error', '处理 AI 动作失败');
   }

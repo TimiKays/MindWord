@@ -618,26 +618,30 @@
                 // 主动通知父页做软同步（推送到预览与导图）
                 try { window.parent.postMessage({ type: 'editor-sync-request' }, '*'); } catch (e) { }
 
-                // 同步最新内容到父页文档库（以当前活动文档ID为准）
-                try {
-                    const activeId = window.__mw_activeDocId || null;
-                    // 将 Map entries 转为导出/存库通用的数组格式
-                    const imgList = Array.from(this.images.values()).map(v => ({
-                        name: v.name || '',
-                        mime: v.type || 'image/png',
-                        dataUrl: v.data || ''
-                    }));
-                    window.parent.postMessage({
-                        type: 'mw_document_changed',
-                        payload: { id: activeId, md: content, images: imgList }
-                    }, '*');
-                } catch (e) { }
+                // 若当前为“接收父页下发内容”的写入阶段，抑制回发 mw_document_changed，避免回声覆盖
+                if (!window.__mw_receiving) {
+                    try {
+                        const activeId = window.__mw_activeDocId || null;
+                        // 将 Map entries 转为导出/存库通用的数组格式
+                        const imgList = Array.from(this.images.values()).map(v => ({
+                            name: v.name || '',
+                            mime: v.type || 'image/png',
+                            dataUrl: v.data || ''
+                        }));
+                        window.parent.postMessage({
+                            type: 'mw_document_changed',
+                            payload: { id: activeId, md: content, images: imgList, origin: 'editor' }
+                        }, '*');
+                    } catch (e) { }
+                }
 
                 if (manual) {
                     this.showMessage('✅ 手动保存成功', 'success');
                 } else {
                     // 自动保存时显示小绿钩提示（统一走全局通知）
-                    window.showSuccess && window.showSuccess('已自动保存');
+                    if (!window.__mw_receiving) {
+                        window.showSuccess && window.showSuccess('已自动保存');
+                    }
                 }
             }
 
@@ -1579,10 +1583,12 @@
                 if (!msg || typeof msg !== 'object') return;
 
                 if (msg.type === 'mw_load_document' && msg.payload) {
-                    const { id, name, md, images } = msg.payload;
+                    const { id, name, md, images, rev } = msg.payload;
                     window.__mw_activeDocId = id || null;
-                    window.__mw_activeDoc = { id, name, md, images };
-                    // 直接应用到编辑器并联动保存/同步
+                    window.__mw_activeDoc = { id, name, md, images, rev };
+                    // 进入接收阶段：抑制回声保存
+                    window.__mw_receiving = true;
+                    // 直接应用到编辑器并联动保存/同步（但不回发 mw_document_changed）
                     try {
                         if (window.markdownEditor && typeof window.markdownEditor.setContent === 'function') {
                             window.markdownEditor.setContent(String(md || ''));
@@ -1608,6 +1614,8 @@
                             applyEditorContent(msg.payload);
                         }
                     } catch (e) { applyEditorContent(msg.payload); }
+                    // 退出接收阶段（微延迟，确保本轮保存结束）
+                    setTimeout(() => { window.__mw_receiving = false; }, 200);
                     // 广播事件以兼容其他监听
                     document.dispatchEvent(new CustomEvent('mw:load_document', { detail: msg.payload }));
                 }

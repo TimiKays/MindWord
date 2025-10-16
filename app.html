@@ -1744,12 +1744,14 @@
                 md: doc.md,
                 images: doc.images || [],
                 aiPlatformConfigs: doc.aiPlatformConfigs || null,
-                aiPromptTemplates: doc.aiPromptTemplates || null
+                aiPromptTemplates: doc.aiPromptTemplates || null,
+                rev: doc.version || doc.updatedAt || Date.now(),
+                origin: 'index'
             };
             if (editorIframe && editorIframe.contentWindow) {
                 try {
                     editorIframe.contentWindow.postMessage({ type: 'mw_load_document', payload }, '*');
-                    console.log('[DOC] -> editor mw_load_document', payload.id);
+                    console.log('[DOC] -> editor mw_load_document', payload.id, 'rev=', payload.rev);
                 } catch (e) { console.warn('postMessage to editor failed', e); }
             } else {
                 // iframe 未就绪，缓存待发内容，onload 立即派发
@@ -1759,11 +1761,11 @@
 
         function mw_notifyPreviewLoad(doc) {
             const previewIframe = document.querySelector('iframe[data-panel="preview"], iframe#iframe-preview, iframe[src*="md2word/md2word.html"], iframe[src*="preview"]');
-            const payload = { md: doc.md, images: doc.images || [] };
+            const payload = { md: doc.md, images: doc.images || [], rev: doc.version || doc.updatedAt || Date.now(), origin: 'index' };
             if (previewIframe && previewIframe.contentWindow) {
                 try {
                     previewIframe.contentWindow.postMessage({ type: 'mw_load_markdown', payload }, '*');
-                    console.log('[DOC] -> preview mw_load_markdown', (doc.id || ''));
+                    console.log('[DOC] -> preview mw_load_markdown', (doc.id || ''), 'rev=', payload.rev);
                 } catch (e) { console.warn('postMessage to preview failed', e); }
             } else {
                 // iframe 尚未就绪，缓存待发送数据，待 onload 时立即发送
@@ -1773,11 +1775,11 @@
 
         function mw_notifyMindmapLoad(doc) {
             const mmIframe = document.querySelector('iframe[data-panel="mindmap"], iframe#iframe-mindmap, iframe[src*="jsmind/mindmap.html"]');
-            const payload = { md: doc.md, images: doc.images || [] };
+            const payload = { md: doc.md, images: doc.images || [], rev: doc.version || doc.updatedAt || Date.now(), origin: 'index' };
             if (mmIframe && mmIframe.contentWindow) {
                 try {
                     mmIframe.contentWindow.postMessage({ type: 'mw_load_markdown', payload }, '*');
-                    console.log('[DOC] -> mindmap mw_load_markdown', (doc.id || ''));
+                    console.log('[DOC] -> mindmap mw_load_markdown', (doc.id || ''), 'rev=', payload.rev);
                 } catch (e) { console.warn('postMessage to mindmap failed', e); }
             }
         }
@@ -2004,6 +2006,67 @@
                 return;
             }
 
+            // 来自 mindmap 或其他子页面：要求父页统一应用一份 Markdown 到“当前活动文档”
+            // 效果：立即更新本地文档库并同时广播给 editor / preview / mindmap，无需刷新
+            if (msg.type === 'mw_apply_markdown') {
+                try {
+                    const payload = msg.payload || {};
+                    const md = typeof payload.md === 'string' ? payload.md : '';
+                    const images = Array.isArray(payload.images) ? payload.images : [];
+                    let docs = mw_loadDocs();
+                    const activeId = mw_getActive();
+
+                    if (activeId) {
+                        const idx = docs.findIndex(d => d.id === activeId);
+                        if (idx >= 0) {
+                            // 覆盖当前活动文档
+                            docs[idx].md = md;
+                            docs[idx].images = images;
+                            docs[idx].updatedAt = Date.now();
+                            // 版本自增（或初始化）
+                            docs[idx].version = (Number(docs[idx].version || 1) + 1);
+                            const newName = mw_extractTitleFromMd(md);
+                            if (newName && docs[idx].name !== newName) docs[idx].name = newName;
+                            mw_saveDocs(docs);
+                            mw_renderList();
+                            const doc = docs[idx];
+                            // 广播到三端（携带 rev）
+                            mw_notifyEditorLoad(doc);
+                            mw_notifyPreviewLoad(doc);
+                            mw_notifyMindmapLoad(doc);
+                            try { showSuccess && showSuccess('文档已更新'); } catch (_) { }
+                            return;
+                        }
+                    }
+
+                    // 无活动文档或未找到：创建新的并设为活动
+                    const newId = 'doc_' + Date.now();
+                    const name = mw_extractTitleFromMd(md || '');
+                    const doc = {
+                        id: newId,
+                        name,
+                        md: md || ('# ' + name + '\n'),
+                        images: images,
+                        createdAt: Date.now(),
+                        updatedAt: Date.now(),
+                        version: 1
+                    };
+                    docs.push(doc);
+                    mw_saveDocs(docs);
+                    mw_setActive(newId);
+                    mw_renderList();
+                    // 广播到三端
+                    mw_notifyEditorLoad(doc);
+                    // mw_notifyPreviewLoad(doc);
+                    // mw_notifyMindmapLoad(doc);
+                    try { showSuccess && showSuccess('已创建新文档并应用'); } catch (_) { }
+                    return;
+                } catch (err) {
+                    try { showError && showError('应用 AI 内容失败'); } catch (_) { }
+                    console.warn('[INDEX] mw_apply_markdown failed', err);
+                }
+            }
+
             // 编辑器提交文档修改（支持首次自动建档）
             if (msg.type === 'mw_document_changed') {
                 const { id, md, images } = msg.payload || {};
@@ -2019,10 +2082,12 @@
                         }
                         if (Array.isArray(images)) docs[idx].images = images;
                         docs[idx].updatedAt = Date.now();
+                        // 版本自增
+                        docs[idx].version = (Number(docs[idx].version || 1) + 1);
                         mw_saveDocs(docs);
                         mw_setActive(id);
                         mw_renderList();
-                        // 同步到预览与思维导图
+                        // 同步到预览与思维导图（携带 rev）
                         mw_notifyPreviewLoad(docs[idx]);
                         mw_notifyMindmapLoad(docs[idx]);
                         try { showSuccess && showSuccess('文档已保存'); } catch (_) { }
