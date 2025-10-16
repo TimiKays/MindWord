@@ -2047,6 +2047,20 @@
 
             // 打开弹窗
             function openModal() {
+                // 每次打开前从 localStorage 重新加载最新的配置，避免需要手动刷新页面才能看到变更
+                try {
+                    loadAllConfigsFromStorage();
+                    populateSavedPlatformsList();
+                    populateUsagePlatforms();
+                    // 确保平台选项已填充并同步到使用界面
+                    initPlatformSelect && initPlatformSelect();
+                    // 刷新使用界面的模型与配置状态
+                    updateUsageModelSelect && updateUsageModelSelect();
+                    updateUsageConfigStatus && updateUsageConfigStatus();
+                } catch (e) {
+                    console.warn('[aiModal] refresh configs on open failed', e);
+                }
+
                 modal.classList.remove('hidden');
 
                 // 读取预设提示词（信任调用方已传入真实换行）

@@ -186,9 +186,9 @@ iframe .btn:not([class*="btn-"]):hover {
     transition: all 0.2s ease;
     display: inline-flex;
     align-items: center;
-    padding: 8px 8px 8px 40px;
+    padding: 8px 8px 8px 30px;
     border-radius: 8px;
-    margin: -8px -12px;
+    /* margin: -8px -12px; */
 }
 
 .brand-clickable:hover {
@@ -816,6 +816,11 @@ iframe .btn:not([class*="btn-"]):hover {
         border-radius: 0 !important;
     }
 
+
+    #doc-sidebar {
+        top: 56px !important;
+        height: calc(100vh - 56px);
+    }
 
 
     /* 隐藏右侧区域（包括专注按钮），移动端顶部只显示品牌 */

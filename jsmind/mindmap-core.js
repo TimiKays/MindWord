@@ -1665,7 +1665,7 @@ function setupBoxSelection() {
     // 隐藏批量工具栏
     const batchOps = document.getElementById('batchOperations');
     if (batchOps) batchOps.style.display = 'none';
-    return;
+    // 注意：不再直接 return —— 继续执行后续绑定以支持移动端的空格+拖拽与单指拖拽交互
   }
 
   const container = document.getElementById('fullScreenMindmap');
