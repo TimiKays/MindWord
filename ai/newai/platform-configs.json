@@ -12,7 +12,7 @@
       "name": "Anthropic Claude",
       "baseUrl": "https://api.anthropic.com/v1",
       "modelsUrl": null,
-      "apiKeyUrl": "https://console.anthropic.com/",
+      "apiKeyUrl": "https://console.anthropic.com/settings/keys",
       "models": [],
       "modelsFetched": false,
       "predefinedModels": [
@@ -26,7 +26,7 @@
       "name": "Google Gemini",
       "baseUrl": "https://generativelanguage.googleapis.com/v1beta",
       "modelsUrl": "https://generativelanguage.googleapis.com/v1beta/models?key=API_KEY_PLACEHOLDER",
-      "apiKeyUrl": "https://makersuite.google.com/app/apikey",
+      "apiKeyUrl": "https://aistudio.google.com/app/apikey",
       "models": [],
       "modelsFetched": false
     },
@@ -34,7 +34,7 @@
       "name": "Azure OpenAI",
       "baseUrl": "https://RESOURCE_NAME.openai.azure.com/openai",
       "modelsUrl": null,
-      "apiKeyUrl": "https://portal.azure.com/",
+      "apiKeyUrl": "https://portal.azure.com/#view/Microsoft_Azure_ProjectOxford/CognitiveServicesHub/~/CognitiveServicesHub",
       "models": [],
       "modelsFetched": false
     },
@@ -83,7 +83,7 @@
       "name": "硅基流动",
       "baseUrl": "https://api.siliconflow.cn/v1",
       "modelsUrl": "https://api.siliconflow.cn/v1/models",
-      "apiKeyUrl": "https://www.siliconflow.cn",
+      "apiKeyUrl": "https://cloud.siliconflow.cn/account/ak",
       "models": [],
       "modelsFetched": false
     },
@@ -115,7 +115,7 @@
       "name": "智谱AI开放平台",
       "baseUrl": "https://open.bigmodel.cn/api/paas/v4",
       "modelsUrl": null,
-      "apiKeyUrl": "https://open.bigmodel.cn/apikey",
+      "apiKeyUrl": "https://bigmodel.cn/usercenter/proj-mgmt/apikeys",
       "proxyUrl": "https://mindword.timikays.workers.dev/",
       "models": [],
       "modelsFetched": false,
