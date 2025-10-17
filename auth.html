@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>账户 - 登录 / 注册</title>
+    <link rel="icon" href="favicon.ico" />
+    <style>
+        body {
+            font-family: Inter, Segoe UI, Roboto, Arial, sans-serif;
+            background: #f8fafc;
+            margin: 0;
+            color: #0f172a
+        }
+
+        .container {
+            max-width: 420px;
+            margin: 40px auto;
+            padding: 24px;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, .06)
+        }
+
+        h1 {
+            font-size: 20px;
+            margin: 0 0 16px;
+            font-weight: 700
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px
+        }
+
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 10px 0;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #64748b;
+            background: #fff
+        }
+
+        .tab.active {
+            background: #0ea5e9;
+            color: #fff;
+            border-color: #0ea5e9
+        }
+
+        form {
+            display: none
+        }
+
+        form.active {
+            display: block
+        }
+
+        label {
+            display: block;
+            font-size: 12px;
+            color: #334155;
+            margin: 10px 0 6px
+        }
+
+        input {
+            width: 100%;
+            box-sizing: border-box;
+            height: 36px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 0 10px
+        }
+
+        button {
+            height: 36px;
+            border: none;
+            border-radius: 8px;
+            background: #0ea5e9;
+            color: #fff;
+            padding: 0 12px;
+            cursor: pointer
+        }
+
+        .row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 12px
+        }
+
+        .hint {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 8px
+        }
+
+        .err {
+            font-size: 12px;
+            color: #dc2626;
+            margin-top: 8px
+        }
+
+        .success {
+            font-size: 12px;
+            color: #16a34a;
+            margin-top: 8px
+        }
+
+        .back {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin: 12px auto 0;
+            color: #0ea5e9;
+            text-decoration: none
+        }
+
+        /* 弹窗样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-content h3 {
+            margin-top: 0;
+            color: #16a34a;
+            margin-bottom: 15px;
+        }
+
+        .modal-content p {
+            margin-bottom: 20px;
+            color: #334155;
+            line-height: 1.5;
+        }
+
+        .modal-button {
+            background-color: #0ea5e9;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        .modal-button:hover {
+            background-color: #0284c7;
+        }
+    </style>
+    <!-- LeanCloud SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/leancloud-storage@4/dist/av-min.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <h1>账户</h1>
+        <div class="tabs">
+            <div class="tab active" data-t="login">登录</div>
+            <div class="tab" data-t="signup">注册</div>
+            <div class="tab" data-t="reset">忘记密码</div>
+        </div>
+
+        <form id="f-login" class="active">
+            <label>邮箱</label>
+            <input id="login-email" type="email" placeholder="name@example.com" required />
+            <label>密码</label>
+            <input id="login-pass" type="password" placeholder="••••••••" required />
+            <div class="row">
+                <button id="btn-login" type="button">登录</button>
+                <a class="back" href="app.html">返回应用</a>
+            </div>
+            <div id="login-msg" class="hint">使用邮箱 + 密码登录</div>
+        </form>
+
+        <form id="f-signup">
+            <label>邮箱（将作为用户名）</label>
+            <input id="signup-email" type="email" placeholder="name@example.com" required />
+            <label>密码</label>
+            <input id="signup-pass" type="password" placeholder="至少 6 位" required />
+            <label>确认密码</label>
+            <input id="signup-pass-confirm" type="password" placeholder="再次输入密码" required />
+            <div class="row">
+                <button id="btn-signup" type="button">注册</button>
+                <a class="back" href="app.html">返回应用</a>
+            </div>
+            <div id="signup-msg" class="hint">注册后会发送验证邮件到您的邮箱</div>
+        </form>
+
+        <form id="f-reset">
+            <label>邮箱</label>
+            <input id="reset-email" type="email" placeholder="name@example.com" required />
+            <div class="row">
+                <button id="btn-reset" type="button">发送重置邮件</button>
+                <a class="back" href="app.html">返回应用</a>
+            </div>
+            <div id="reset-msg" class="hint">我们将向你的邮箱发送重置密码邮件</div>
+        </form>
+    </div>
+
+    <!-- 验证邮件发送成功弹窗 -->
+    <div id="emailVerifyModal" class="modal">
+        <div class="modal-content">
+            <h3>验证邮件已发送</h3>
+            <p>验证邮件已发送。请查看邮箱并点击链接，完成注册后即可登录</p>
+            <button id="btn-verify-complete" class="modal-button">我已验证，去登录</button>
+        </div>
+    </div>
+
+    <script>
+        //  LeanCloud 应用信息
+        var APP_ID = 'MQ3fZEqOgskJBWGoxOwqG1nT-gzGzoHsz';
+        var APP_KEY = 'bhU0peMhrAVKEJ2OQbiFKXwC';
+
+        try {
+            if (typeof AV !== 'undefined' && AV && !AV.applicationId) {
+                // 从 LeanCloud 控制台复制“API 服务器地址”到 SERVER_URL（必填）
+                var SERVER_URL = 'https://mq3fzeqo.lc-cn-n1-shared.com';
+                if (!SERVER_URL || SERVER_URL.indexOf('http') !== 0) {
+                    console.error('[AUTH] LeanCloud SERVER_URL 未设置，请到控制台复制“API 服务器地址”并替换占位符 LEANCLOUD_SERVER_URL');
+                }
+                AV.init({ appId: APP_ID, appKey: APP_KEY, serverURL: SERVER_URL });
+            }
+        } catch (e) {
+            console.warn('[AUTH] AV init failed', e);
+        }
+
+        // 轻量提示
+        function setMsg(id, text, kind) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            el.className = kind || 'hint';
+            el.textContent = text || '';
+        }
+
+        // Tab 切换
+        document.querySelectorAll('.tab').forEach(function (tab) {
+            tab.addEventListener('click', function () {
+                document.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('active'); });
+                tab.classList.add('active');
+                var t = tab.getAttribute('data-t');
+                document.querySelectorAll('form').forEach(function (f) { f.classList.remove('active'); });
+                document.getElementById('f-' + t).classList.add('active');
+            });
+        });
+
+        // 登录（仅支持邮箱+密码登录，检查邮箱验证状态）
+        document.getElementById('btn-login').addEventListener('click', async function () {
+            var email = document.getElementById('login-email').value.trim();
+            var pass = document.getElementById('login-pass').value;
+            if (!email || !pass) return setMsg('login-msg', '请输入邮箱和密码', 'err');
+            setMsg('login-msg', '正在登录...', 'hint');
+
+            try {
+                // 仅使用邮箱登录
+                await AV.User.loginWithEmail(email, pass);
+
+                // 检查邮箱是否已验证
+                var currentUser = AV.User.current();
+                if (currentUser && !currentUser.get('emailVerified')) {
+                    setMsg('login-msg', '请先验证您的邮箱后再登录', 'err');
+                    // 登出未验证的用户
+                    await AV.User.logOut();
+                    return;
+                }
+
+                setMsg('login-msg', '登录成功，正在返回...', 'success');
+                setTimeout(function () { window.location.href = 'app.html'; }, 600);
+            } catch (e) {
+                return setMsg('login-msg', (e && e.message) ? e.message : '登录失败', 'err');
+            }
+        });
+
+        // 显示验证邮件弹窗
+        function showEmailVerifyModal(email) {
+            document.getElementById('emailVerifyModal').style.display = 'block';
+        }
+
+        // 隐藏验证邮件弹窗
+        function hideEmailVerifyModal() {
+            document.getElementById('emailVerifyModal').style.display = 'none';
+        }
+
+        // 注册（邮箱作为用户名 + email）
+        document.getElementById('btn-signup').addEventListener('click', async function () {
+            var email = document.getElementById('signup-email').value.trim();
+            var pass = document.getElementById('signup-pass').value;
+            var passConfirm = document.getElementById('signup-pass-confirm').value;
+            if (!email || !pass) return setMsg('signup-msg', '请输入邮箱和密码', 'err');
+            if (pass.length < 6) return setMsg('signup-msg', '密码至少 6 位', 'err');
+            if (pass !== passConfirm) return setMsg('signup-msg', '两次输入的密码不一致', 'err');
+            setMsg('signup-msg', '正在注册...', 'hint');
+            try {
+                var user = new AV.User();
+                user.setUsername(email);
+                user.setPassword(pass);
+                user.setEmail(email);
+                // 设置邮箱未验证状态
+                user.set('emailVerified', false);
+                await user.signUp();
+
+                // signUp()已自动发送验证邮件，无需重复发送
+
+                // 清空密码字段
+                document.getElementById('signup-pass').value = '';
+                document.getElementById('signup-pass-confirm').value = '';
+
+                // 显示验证邮件弹窗
+                showEmailVerifyModal(email);
+
+            } catch (e) {
+                setMsg('signup-msg', (e && e.message) ? e.message : '注册失败', 'err');
+            }
+        });
+
+        // 点击"我已验证，去登录"按钮
+        document.getElementById('btn-verify-complete').addEventListener('click', function () {
+            hideEmailVerifyModal();
+
+            // 获取注册时使用的邮箱
+            var email = document.getElementById('signup-email').value.trim();
+
+            // 切换到登录界面并传递邮箱
+            document.querySelector('.tab[data-t="login"]').click();
+            document.getElementById('login-email').value = email;
+            document.getElementById('login-pass').focus();
+        });
+
+        // 点击弹窗外部关闭弹窗
+        document.getElementById('emailVerifyModal').addEventListener('click', function (e) {
+            if (e.target === this) {
+                hideEmailVerifyModal();
+            }
+        });
+
+        // 忘记密码（发送重置邮件）
+        document.getElementById('btn-reset').addEventListener('click', async function () {
+            var email = document.getElementById('reset-email').value.trim();
+            if (!email) return setMsg('reset-msg', '请输入邮箱', 'err');
+            setMsg('reset-msg', '正在发送重置邮件...', 'hint');
+            try {
+                await AV.User.requestPasswordReset(email);
+                setMsg('reset-msg', '重置邮件已发送，请检查邮箱', 'success');
+            } catch (e) {
+                setMsg('reset-msg', (e && e.message) ? e.message : '发送失败', 'err');
+            }
+        });
+
+        // 若已登录，直接回跳
+        try {
+            var cur = AV.User.current && AV.User.current();
+            if (cur) {
+                window.location.replace('app.html');
+            }
+        } catch (_) { }
+    </script>
+</body>
+
+</html>

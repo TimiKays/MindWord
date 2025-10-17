@@ -91,7 +91,7 @@ function showLocalNotification(message, type = 'info', duration = 1500) {
 
     // 创建通知容器（如果不存在）
     if ($('#notification-container').length === 0) {
-        $('body').append('<div id="notification-container" style="position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;"></div>');
+        $('body').append('<div id="notification-container" style="position: fixed; top: 80px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;"></div>');
     }
 
     // 创建通知元素

@@ -159,6 +159,8 @@
     <!-- ZIP 打包依赖 -->
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+    <!-- LeanCloud SDK（仅前端 AppID/AppKey，切勿使用 Master Key） -->
+    <script src="https://cdn.jsdelivr.net/npm/leancloud-storage@4/dist/av-min.js"></script>
 </head>
 
 <body>
@@ -365,7 +367,8 @@
                 <button id="btn-export-all">全部导出ZIP</button>
                 <label for="import-zip-input"><button id="btn-import-zip">导入ZIP</button></label>
                 <button id="btn-sync-cloud" title="预留" style="display:none;">云同步</button>
-                <button id="btn-clear-data" style="background-color: #e74c3c; color: white;" title="清空所有本地数据">清空数据</button>
+                <button id="btn-clear-data" style="background-color: #e74c3c; color: white;"
+                    title="清空所有本地数据">清空数据</button>
             </div>
             <button id="btn-close-sidebar" title="关闭">&times;</button>
         </div>
@@ -420,6 +423,18 @@
                 <div class="focus-icon"></div>
                 <span>专注模式</span>
             </button>
+
+            <!-- 账号区：未登录显示“注册/登录”，已登录显示“用户名/退出登录” -->
+            <div id="auth-area" style="display:inline-flex; align-items:center; gap:8px; margin-left:10px;">
+                <a id="auth-link" href="auth.html"
+                    style="display:inline-flex; align-items:center; height:30px; padding:0 10px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; color:#334155; text-decoration:none; font-size:12px; cursor:pointer;">
+                    注册/登录
+                </a>
+                <div id="auth-user" style="display:none; align-items:center; gap:8px;">
+                    <span id="auth-username" style="font-size:12px; color:#334155;"></span>
+                    <button id="auth-logout" class="btn btn-small" style="height:30px;">退出登录</button>
+                </div>
+            </div>
         </div>
     </header>
 
@@ -1127,7 +1142,7 @@
 
             // 创建通知容器（如果不存在）——右对齐多条通知，垂直排列
             if ($('#global-notification-container').length === 0) {
-                $('body').append('<div id="global-notification-container" style="position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 6px; align-items: flex-end;"></div>');
+                $('body').append('<div id="global-notification-container" style="position: fixed; top: 80px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 6px; align-items: flex-end;"></div>');
             }
 
             // 创建通知元素
@@ -2140,20 +2155,20 @@
                 try {
                     // 清空所有localStorage数据
                     localStorage.clear();
-                    
+
                     // 重新初始化必要的数据结构
                     localStorage.setItem('mindword_docs', '[]');
                     localStorage.setItem('mindword_active_doc_id', '');
-                    
+
                     // 刷新界面
                     mw_renderList();
-                    
+
                     // 通知编辑器清空内容
                     window.postMessage({ type: 'mw_apply_markdown', payload: { md: '', images: [] } }, '*');
-                    
+
                     // 显示成功消息
                     try { showSuccess && showSuccess('所有本地数据已清空'); } catch (_) { }
-                    
+
                     console.log('所有本地数据已清空');
                 } catch (error) {
                     console.error('清空数据失败:', error);
@@ -2376,8 +2391,194 @@
         // 定期检查localStorage变化（用于同一页面内的变化）
         setInterval(checkMarkdownDataChange, 1000);
     </script>
-</body>
+    <!-- 登录状态初始化与切换 -->
+    <script>
+        (function initAuthArea() {
+            // 替换为你的实际 AppID/AppKey（不要使用 Master Key）
+            var APP_ID = 'lMQ3fZEqOgskJBWGoxOwqG1nT-gzGzoHsz';
+            var APP_KEY = 'bhU0peMhrAVKEJ2OQbiFKXwC';
 
-</html>
+            try {
+                if (typeof AV !== 'undefined' && AV && !AV.applicationId) {
+                    // 从 LeanCloud 控制台复制“API 服务器地址”到 SERVER_URL（必填）
+                    var SERVER_URL = 'https://mq3fzeqo.lc-cn-n1-shared.com';
+                    if (!SERVER_URL || SERVER_URL.indexOf('http') !== 0) {
+                        console.error('[AUTH] LeanCloud SERVER_URL 未设置，请到控制台复制“API 服务器地址”并替换占位符 LEANCLOUD_SERVER_URL');
+                    }
+                    AV.init({ appId: APP_ID, appKey: APP_KEY, serverURL: SERVER_URL });
+                }
+            } catch (e) {
+                console.warn('[AUTH] AV init failed', e);
+            }
+
+            function refreshAuthUI() {
+                var user = null;
+                try { 
+                    // 首先尝试AV.User.current()
+                    user = (typeof AV !== 'undefined' && AV.User && AV.User.current) ? AV.User.current() : null; 
+                    
+                    // 如果AV.User.current()返回null，尝试从localStorage手动获取
+                    if (!user) {
+                        var appId = 'MQ3fZEqOgskJBWGoxOwqG1nT-gzGzoHsz';
+                        var localUserKey = 'AV/' + appId + '/currentUser';
+                        var localUserData = localStorage.getItem(localUserKey);
+                        
+                        if (localUserData) {
+                            try {
+                                var userObj = JSON.parse(localUserData);
+                                if (userObj && userObj.objectId) {
+                                    // 创建模拟用户对象
+                                    user = {
+                                        id: userObj.objectId,
+                                        username: userObj.username,
+                                        email: userObj.email,
+                                        get: function(key) {
+                                            return userObj[key];
+                                        }
+                                    };
+                                    console.log('[AUTH] 从localStorage恢复用户:', userObj.username);
+                                }
+                            } catch (e) {
+                                console.warn('[AUTH] 解析本地用户数据失败:', e);
+                            }
+                        }
+                    }
+                } catch (_) { }
+                
+                var link = document.getElementById('auth-link');
+                var userBox = document.getElementById('auth-user');
+                var nameSpan = document.getElementById('auth-username');
+
+                if (user && userBox && nameSpan) {
+                    // 修复：优先使用user.username，因为localStorage中的数据username在根对象
+                    var username = user.username || (user.get && (user.get('username') || user.get('email'))) || '已登录';
+                    nameSpan.textContent = username;
+                    // 登录后隐藏"注册/登录"按钮，显示用户区域
+                    if (link) link.style.display = 'none';
+                    userBox.style.display = 'inline-flex';
+                    console.log('[AUTH] 用户已登录:', username);
+                } else {
+                    if (link) link.style.display = 'inline-flex';
+                    if (userBox) userBox.style.display = 'none';
+                    console.log('[AUTH] 用户未登录或获取失败');
+                }
+            }
+
+            // 退出登录
+            try {
+                var logoutBtn = document.getElementById('auth-logout');
+                if (logoutBtn) {
+                    logoutBtn.addEventListener('click', function () {
+                        // 创建自定义对话框
+                        var dialogHtml = `
+                            <div id="logout-dialog" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; display: flex; align-items: center; justify-content: center;">
+                                <div style="background: white; padding: 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); max-width: 400px; text-align: center;">
+                                    <h3 style="margin: 0 0 16px 0; color: #333;">确认退出登录</h3>
+                                    <p style="margin: 0 0 24px 0; color: #666;">请选择对本地数据的处理方式：</p>
+                                    <div style="display: flex; gap: 12px; justify-content: center;">
+                                        <button id="logout-save" style="padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">保存</button>
+                                        <button id="logout-nosave" style="padding: 8px 16px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer;">不保存</button>
+                                        <button id="logout-cancel" style="padding: 8px 16px; background: #9e9e9e; color: white; border: none; border-radius: 4px; cursor: pointer;">取消</button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        
+                        // 添加对话框到页面
+                        document.body.insertAdjacentHTML('beforeend', dialogHtml);
+                        var dialog = document.getElementById('logout-dialog');
+                        
+                        // 处理按钮点击
+                        function handleLogoutChoice(choice) {
+                            // 移除对话框
+                            if (dialog) dialog.remove();
+                            
+                            // 如果用户选择取消，直接返回
+                            if (choice === 'cancel') {
+                                console.log('[AUTH] 用户取消退出登录');
+                                return;
+                            }
+                            
+                            // 执行退出登录
+                            try {
+                                if (typeof AV !== 'undefined' && AV && AV.User && AV.User.logOut) {
+                                    AV.User.logOut().then(function () {
+                                        try { showSuccess && showSuccess('已退出登录'); } catch (_) { }
+                                        
+                                        // 清理用户相关数据
+                                        var appId = 'MQ3fZEqOgskJBWGoxOwqG1nT-gzGzoHsz';
+                                        localStorage.removeItem('AV/' + appId + '/currentUser');
+                                        localStorage.removeItem('AV/' + appId + '/subscriptionId');
+                                        
+                                        // 根据用户选择处理本地数据
+                                        if (choice === 'nosave') {
+                                            // 不保存模式：清除所有数据（包括用户数据和文档数据）
+                                            var keysToKeep = []; // 不保留任何数据
+                                            var keysToRemove = [];
+                                            
+                                            for (var i = 0; i < localStorage.length; i++) {
+                                                var key = localStorage.key(i);
+                                                if (keysToKeep.indexOf(key) === -1) {
+                                                    keysToRemove.push(key);
+                                                }
+                                            }
+                                            
+                                            keysToRemove.forEach(function(key) {
+                                                localStorage.removeItem(key);
+                                            });
+                                            
+                                            console.log('[AUTH] 已清除所有本地数据（包括文档数据）');
+                                            try { showSuccess && showSuccess('已清除所有本地数据'); } catch (_) { }
+                                        } else if (choice === 'save') {
+                                            // 保存模式：只清除用户数据，保留所有文档数据
+                                            console.log('[AUTH] 保留所有本地文档数据');
+                                            try { showSuccess && showSuccess('已保留所有本地文档数据'); } catch (_) { }
+                                        }
+                                        
+                                        refreshAuthUI();
+                                        // 刷新全页，确保 iframe 子页也感知状态
+                                        setTimeout(function () { location.reload(); }, 250);
+                                    }).catch(function (err) {
+                                        console.warn('[AUTH] logout failed', err);
+                                        try { showError && showError('退出失败：' + (err && err.message ? err.message : '未知错误')); } catch (_) { }
+                                    });
+                                }
+                            } catch (e) { console.warn('[AUTH] logout error', e); }
+                        }
+                        
+                        // 绑定按钮事件
+                        document.getElementById('logout-save').addEventListener('click', function() { handleLogoutChoice('save'); });
+                        document.getElementById('logout-nosave').addEventListener('click', function() { handleLogoutChoice('nosave'); });
+                        document.getElementById('logout-cancel').addEventListener('click', function() { handleLogoutChoice('cancel'); });
+                        
+                        // 点击背景也可以取消
+                        dialog.addEventListener('click', function(e) {
+                            if (e.target === dialog) {
+                                handleLogoutChoice('cancel');
+                            }
+                        });
+                    });
+                }
+            } catch (e) { console.warn(e); }
+
+            // 首次渲染
+            refreshAuthUI();
+            
+            // 延迟重试，确保LeanCloud SDK完全初始化
+            setTimeout(function() {
+                console.log('[AUTH] 延迟刷新认证状态');
+                refreshAuthUI();
+            }, 1000);
+            
+            // 如果用户从登录页面返回，可能需要更长时间
+            if (document.referrer && document.referrer.includes('auth.html')) {
+                setTimeout(function() {
+                    console.log('[AUTH] 从登录页面返回，再次刷新认证状态');
+                    refreshAuthUI();
+                }, 2000);
+            }
+        })();
+    </script>
+</body>
 
 </html>
