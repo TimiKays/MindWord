@@ -292,7 +292,61 @@
                 setMsg('login-msg', '登录成功，正在返回...', 'success');
                 setTimeout(function () { window.location.href = 'app.html'; }, 600);
             } catch (e) {
-                return setMsg('login-msg', (e && e.message) ? e.message : '登录失败', 'err');
+                let errorMsg = '登录失败，请检查邮箱和密码';
+                if (e && e.message) {
+                    // 根据LeanCloud错误消息提供更友好的提示
+                    if (e.message.includes("Email address isn't verified.")) {
+                        errorMsg = '邮箱尚未验证，请先验证您的邮箱';
+                        setMsg('login-msg', errorMsg, 'err');
+                        
+                        // 添加重新发送激活邮件的按钮
+                        setTimeout(() => {
+                            const loginMsg = document.getElementById('login-msg');
+                            if (loginMsg && loginMsg.textContent.includes('邮箱尚未验证')) {
+                                const resendBtn = document.createElement('button');
+                                resendBtn.textContent = '重新发送激活邮件';
+                                resendBtn.style.cssText = 'color: blue; text-decoration: underline; cursor: pointer; background: none; border: none; padding: 0; margin-left: 8px;';
+                                resendBtn.onclick = async function () {
+                                    try {
+                                        resendBtn.disabled = true;
+                                        resendBtn.textContent = '发送中...';
+
+                                        // 请求发送验证邮件
+                                        await AV.User.requestEmailVerify(email);
+
+                                        resendBtn.textContent = '已发送';
+
+                                        setMsg('login-msg', '激活邮件已重新发送，请检查邮箱', 'success');
+                                    } catch (resendError) {
+                                        resendBtn.disabled = false;
+                                        resendBtn.textContent = '重新发送激活邮件';
+
+                                        let resendErrorMsg = '发送失败，请稍后重试';
+                                        if (resendError && resendError.message) {
+                                            if (resendError.message.includes('network') || resendError.message.includes('timeout')) {
+                                                resendErrorMsg = '网络连接失败，请检查网络后重试';
+                                            } else if (resendError.message.includes('email')) {
+                                                resendErrorMsg = '邮箱格式不正确，请输入正确的邮箱地址';
+                                            } else if (resendError.message.includes('already verified')) {
+                                                resendErrorMsg = '该邮箱已经验证过了，请直接登录';
+                                            } else {
+                                                resendErrorMsg = resendError.message;
+                                            }
+                                        }
+                                        setMsg('login-msg', `重新发送失败：${resendErrorMsg}`, 'err');
+                                    }
+                                };
+                                loginMsg.appendChild(resendBtn);
+                            }
+                        }, 100);
+                        return;
+                    } else if (e.message.includes('network') || e.message.includes('timeout')) {
+                        errorMsg = '网络连接失败，请检查网络后重试';
+                    } else {
+                        errorMsg = '邮箱未注册或密码错误，请检查后重试';
+                    }
+                }
+                return setMsg('login-msg', errorMsg, 'err');
             }
         });
 
@@ -334,7 +388,22 @@
                 showEmailVerifyModal(email);
 
             } catch (e) {
-                setMsg('signup-msg', (e && e.message) ? e.message : '注册失败', 'err');
+                let errorMsg = '注册失败，请稍后重试';
+                if (e && e.message) {
+                    // 根据LeanCloud错误消息提供更友好的提示
+                    if (e.message.includes('already exists') || e.message.includes('taken') || e.message.includes('此电子邮箱已经被占用')) {
+                        errorMsg = '该邮箱已注册，请直接登录。';
+                    } else if (e.message.includes('email')) {
+                        errorMsg = '邮箱格式不正确，请输入正确的邮箱地址';
+                    } else if (e.message.includes('password')) {
+                        errorMsg = '密码不符合要求，请确保密码至少6位';
+                    } else if (e.message.includes('network') || e.message.includes('timeout')) {
+                        errorMsg = '网络连接失败，请检查网络后重试';
+                    } else {
+                        errorMsg = e.message; // 其他未知错误显示原始消息
+                    }
+                }
+                setMsg('signup-msg', errorMsg, 'err');
             }
         });
 
@@ -367,7 +436,20 @@
                 await AV.User.requestPasswordReset(email);
                 setMsg('reset-msg', '重置邮件已发送，请检查邮箱', 'success');
             } catch (e) {
-                setMsg('reset-msg', (e && e.message) ? e.message : '发送失败', 'err');
+                let errorMsg = '发送失败，请稍后重试';
+                if (e && e.message) {
+                    // 根据LeanCloud错误消息提供更友好的提示
+                    if (e.message.includes('not found') || e.message.includes('user')) {
+                        errorMsg = '该邮箱未注册，请检查邮箱地址或先注册账号';
+                    } else if (e.message.includes('email')) {
+                        errorMsg = '邮箱格式不正确，请输入正确的邮箱地址';
+                    } else if (e.message.includes('network') || e.message.includes('timeout')) {
+                        errorMsg = '网络连接失败，请检查网络后重试';
+                    } else {
+                        errorMsg = e.message; // 其他未知错误显示原始消息
+                    }
+                }
+                setMsg('reset-msg', errorMsg, 'err');
             }
         });
 
