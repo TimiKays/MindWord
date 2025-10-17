@@ -25,7 +25,7 @@ function sendNotification(message, type = 'info', duration = 1500) {
                 } else {
                     console.log('[NotificationBridge suppressed] ' + message);
                 }
-            } catch (e) {}
+            } catch (e) { }
             return;
         }
 
@@ -43,26 +43,26 @@ function sendNotification(message, type = 'info', duration = 1500) {
         }
     } catch (e) {
         // 在出错时退回到 console，避免抛出异常中断业务代码
-        try { console.warn('sendNotification fallback:', e); } catch(e){}
+        try { console.warn('sendNotification fallback:', e); } catch (e) { }
     }
 }
 
 // 监听来自其它 frame 的编辑模式消息，以便全局抑制或恢复通知
-(function(){
+(function () {
     try {
         // 初始化标志
         if (typeof window.__mw_global_suppress_toasts === 'undefined') {
             window.__mw_global_suppress_toasts = false;
         }
 
-        window.addEventListener('message', function(evt){
+        window.addEventListener('message', function (evt) {
             try {
                 if (!evt || !evt.data) return;
                 var d = evt.data;
                 // 约定：{ type: 'mw_editing_mode', editing: true/false }
                 if (d && (d.type === 'mw_editing_mode')) {
                     window.__mw_global_suppress_toasts = !!d.editing;
-                    try { console.log('[NotificationBridge] mw_editing_mode ->', window.__mw_global_suppress_toasts); } catch(e){}
+                    try { console.log('[NotificationBridge] mw_editing_mode ->', window.__mw_global_suppress_toasts); } catch (e) { }
                 }
             } catch (e) {
                 // 忽略解析错误

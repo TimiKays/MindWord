@@ -81,11 +81,49 @@ body {
 
 /* 专注模式按钮特定样式 */
 #focus-toggle {
-    font-size: 12px !important;
+    font-size: 11px !important;
     white-space: nowrap;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
+    padding: 4px 8px !important;
+    height: 28px !important;
+    border-radius: 6px !important;
+    background: transparent !important;
+    color: #6b7280 !important;
+    border: none !important;
+    box-shadow: none !important;
+    transition: color 0.15s ease, background-color 0.15s ease !important;
+}
+
+#focus-toggle:hover {
+    color: #101922 !important;
+    background: rgba(0, 0, 0, 0.05) !important;
+}
+
+#focus-toggle.active {
+    background: #ffffff !important;
+    color: #101922 !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06) !important;
+}
+
+/* 专注模式图标调整 */
+#focus-toggle .focus-icon {
+    width: 12px !important;
+    height: 12px !important;
+}
+
+#focus-toggle .focus-icon::before {
+    width: 8px !important;
+    height: 8px !important;
+    top: 2px !important;
+    left: 2px !important;
+}
+
+#focus-toggle.active .focus-icon::before {
+    width: 12px !important;
+    height: 12px !important;
+    font-size: 8px !important;
 }
 
 /* 面板关闭按钮 - 简约风格 */
