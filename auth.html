@@ -7,119 +7,222 @@
     <title>账户 - 登录 / 注册</title>
     <link rel="icon" href="favicon.ico" />
     <style>
-        body {
-            font-family: Inter, Segoe UI, Roboto, Arial, sans-serif;
-            background: #f8fafc;
+        * {
             margin: 0;
-            color: #0f172a
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #b0cdfc 0%, #c9fdd9 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #2d3748;
+            line-height: 1.6;
         }
 
         .container {
-            max-width: 420px;
-            margin: 40px auto;
-            padding: 24px;
-            background: #fff;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, .06)
+            max-width: 440px;
+            width: 90%;
+            margin: 20px;
+            padding: 40px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .container:hover {
+            transform: translateY(-2px);
         }
 
         h1 {
-            font-size: 20px;
-            margin: 0 0 16px;
-            font-weight: 700
+            font-size: 28px;
+            font-weight: 700;
+            margin: 0 0 30px;
+            text-align: center;
+            background: linear-gradient(135deg, #c5cffc 0%, #5eafe6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.5px;
         }
 
         .tabs {
             display: flex;
-            gap: 8px;
-            margin-bottom: 16px
+            gap: 12px;
+            margin-bottom: 32px;
+            background: #f7fafc;
+            border-radius: 12px;
+            padding: 4px;
         }
 
         .tab {
             flex: 1;
             text-align: center;
-            padding: 10px 0;
-            border: 1px solid #e2e8f0;
+            padding: 12px 0;
             border-radius: 8px;
             cursor: pointer;
-            color: #64748b;
-            background: #fff
+            color: #718096;
+            background: transparent;
+            font-weight: 500;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            border: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tab:hover {
+            color: #4a5568;
+            background: rgba(102, 126, 234, 0.1);
         }
 
         .tab.active {
-            background: #0ea5e9;
+            background: linear-gradient(135deg, #9fc0f5 0%, #53a8cf 100%);
             color: #fff;
-            border-color: #0ea5e9
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
         }
 
         form {
-            display: none
+            display: none;
+            animation: fadeIn 0.4s ease;
         }
 
         form.active {
-            display: block
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         label {
             display: block;
-            font-size: 12px;
-            color: #334155;
-            margin: 10px 0 6px
+            font-size: 13px;
+            font-weight: 500;
+            color: #4a5568;
+            margin: 20px 0 8px;
+            letter-spacing: 0.3px;
         }
 
         input {
             width: 100%;
-            box-sizing: border-box;
-            height: 36px;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 0 10px
+            height: 48px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 0 16px;
+            font-size: 15px;
+            color: #2d3748;
+            background: #fff;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: #619dff;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            transform: translateY(-1px);
+        }
+
+        input::placeholder {
+            color: #a0aec0;
         }
 
         button {
-            height: 36px;
+            height: 48px;
+            width: 100%;
             border: none;
-            border-radius: 8px;
-            background: #0ea5e9;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #9fc0f5 0%, #53a8cf 100%);
             color: #fff;
-            padding: 0 12px;
-            cursor: pointer
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            padding: 0 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
 
         .row {
             display: flex;
-            gap: 8px;
+            gap: 12px;
             align-items: center;
             justify-content: space-between;
-            margin-top: 12px
+            margin-top: 24px;
         }
 
         .hint {
-            font-size: 12px;
-            color: #64748b;
-            margin-top: 8px
+            font-size: 13px;
+            color: #718096;
+            margin-top: 12px;
+            line-height: 1.5;
         }
 
         .err {
-            font-size: 12px;
-            color: #dc2626;
-            margin-top: 8px
+            font-size: 13px;
+            color: #e53e3e;
+            margin-top: 12px;
+            font-weight: 500;
+            line-height: 1.5;
         }
 
         .success {
-            font-size: 12px;
-            color: #16a34a;
-            margin-top: 8px
+            font-size: 13px;
+            color: #38a169;
+            margin-top: 12px;
+            font-weight: 500;
+            line-height: 1.5;
         }
 
         .back {
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            margin: 12px auto 0;
-            color: #0ea5e9;
-            text-decoration: none
+            margin: 16px auto 0;
+            color: #619dff;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            padding: 8px 12px;
+            border-radius: 8px;
+        }
+
+        .back:hover {
+            color: #5a67d8;
+            background: rgba(102, 126, 234, 0.1);
+            transform: translateX(-2px);
         }
 
         /* 弹窗样式 */
@@ -131,55 +234,121 @@
             top: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            animation: fadeIn 0.3s ease;
         }
 
         .modal-content {
-            background-color: #fefefe;
+            background: rgba(255, 255, 255, 0.95);
             margin: 15% auto;
-            padding: 20px;
-            border: 1px solid #888;
-            border-radius: 8px;
-            width: 80%;
-            max-width: 400px;
+            padding: 32px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 420px;
             text-align: center;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            animation: slideUp 0.4s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .modal-content h3 {
-            margin-top: 0;
-            color: #16a34a;
-            margin-bottom: 15px;
+            margin: 0 0 16px;
+            color: #38a169;
+            font-size: 20px;
+            font-weight: 600;
         }
 
         .modal-content p {
-            margin-bottom: 20px;
-            color: #334155;
-            line-height: 1.5;
+            margin-bottom: 24px;
+            color: #4a5568;
+            line-height: 1.6;
+            font-size: 15px;
         }
 
         .modal-button {
-            background-color: #0ea5e9;
+            background: linear-gradient(135deg, #619dff 0%, #5eb97e 100%);
             color: white;
             border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
+            padding: 12px 24px;
+            border-radius: 12px;
             cursor: pointer;
-            font-size: 14px;
-            transition: background-color 0.2s;
+            font-size: 15px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            min-width: 120px;
         }
 
         .modal-button:hover {
-            background-color: #0284c7;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        /* 重新发送激活邮件按钮样式 */
+        .resend-email-btn {
+            background: transparent;
+            color: #619dff;
+            border: 1px solid #619dff;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin-left: 8px;
+        }
+
+        .resend-email-btn:hover {
+            background: #619dff;
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .resend-email-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 480px) {
+            .container {
+                padding: 32px 24px;
+                margin: 16px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .modal-content {
+                padding: 24px 20px;
+                margin: 20% auto;
+            }
         }
     </style>
     <!-- LeanCloud SDK -->
     <script src="https://cdn.jsdelivr.net/npm/leancloud-storage@4/dist/av-min.js"></script>
 </head>
 
-<body>
+<body style="flex-direction: column; ">
+    <div>
+
+    </div display="flex" flex-direction="column" align-items="center">
     <div class="container">
-        <h1>账户</h1>
+        <h1>欢迎使用MindWord</h1>
         <div class="tabs">
             <div class="tab active" data-t="login">登录</div>
             <div class="tab" data-t="signup">注册</div>
@@ -188,39 +357,50 @@
 
         <form id="f-login" class="active">
             <label>邮箱</label>
-            <input id="login-email" type="email" placeholder="name@example.com" required />
+            <input id="login-email" type="email" placeholder="请输入您的邮箱地址" required autocomplete="email" />
             <label>密码</label>
-            <input id="login-pass" type="password" placeholder="••••••••" required />
+            <input id="login-pass" type="password" placeholder="请输入您的密码" required autocomplete="current-password" />
             <div class="row">
                 <button id="btn-login" type="button">登录</button>
-                <a class="back" href="app.html">返回应用</a>
+
             </div>
-            <div id="login-msg" class="hint">使用邮箱 + 密码登录</div>
+            <div id="login-msg" class="hint"></div>
         </form>
 
         <form id="f-signup">
             <label>邮箱（将作为用户名）</label>
-            <input id="signup-email" type="email" placeholder="name@example.com" required />
+            <input id="signup-email" type="email" placeholder="请输入您的邮箱地址" required autocomplete="email" />
             <label>密码</label>
-            <input id="signup-pass" type="password" placeholder="至少 6 位" required />
+            <input id="signup-pass" type="password" placeholder="请设置至少6位密码" required autocomplete="new-password" />
             <label>确认密码</label>
-            <input id="signup-pass-confirm" type="password" placeholder="再次输入密码" required />
+            <input id="signup-pass-confirm" type="password" placeholder="请再次输入密码" required
+                autocomplete="new-password" />
             <div class="row">
                 <button id="btn-signup" type="button">注册</button>
-                <a class="back" href="app.html">返回应用</a>
+
             </div>
             <div id="signup-msg" class="hint">注册后会发送验证邮件到您的邮箱</div>
         </form>
 
         <form id="f-reset">
             <label>邮箱</label>
-            <input id="reset-email" type="email" placeholder="name@example.com" required />
+            <input id="reset-email" type="email" placeholder="请输入您的邮箱地址" required autocomplete="email" />
             <div class="row">
                 <button id="btn-reset" type="button">发送重置邮件</button>
-                <a class="back" href="app.html">返回应用</a>
+
             </div>
             <div id="reset-msg" class="hint">我们将向你的邮箱发送重置密码邮件</div>
         </form>
+
+    </div>
+
+
+
+    <!-- 返回应用链接 - 移动到登录注册面板下方 -->
+
+    <a class="back" href="app.html"
+        style="display: inline-block; padding: 12px 24px; background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border-radius: 25px; text-decoration: none; color: #fff; font-size: 14px; transition: all 0.3s ease; border: 1px solid rgba(255, 255, 255, 0.2);">返回应用</a>
+    </div>
     </div>
 
     <!-- 验证邮件发送成功弹窗 -->
@@ -230,237 +410,237 @@
             <p>验证邮件已发送。请查看邮箱并点击链接，完成注册后即可登录</p>
             <button id="btn-verify-complete" class="modal-button">我已验证，去登录</button>
         </div>
-    </div>
 
-    <script>
-        //  LeanCloud 应用信息
-        var APP_ID = 'MQ3fZEqOgskJBWGoxOwqG1nT-gzGzoHsz';
-        var APP_KEY = 'bhU0peMhrAVKEJ2OQbiFKXwC';
 
-        try {
-            if (typeof AV !== 'undefined' && AV && !AV.applicationId) {
-                // 从 LeanCloud 控制台复制“API 服务器地址”到 SERVER_URL（必填）
-                var SERVER_URL = 'https://mq3fzeqo.lc-cn-n1-shared.com';
-                if (!SERVER_URL || SERVER_URL.indexOf('http') !== 0) {
-                    console.error('[AUTH] LeanCloud SERVER_URL 未设置，请到控制台复制“API 服务器地址”并替换占位符 LEANCLOUD_SERVER_URL');
+        <script>
+            //  LeanCloud 应用信息
+            var APP_ID = 'MQ3fZEqOgskJBWGoxOwqG1nT-gzGzoHsz';
+            var APP_KEY = 'bhU0peMhrAVKEJ2OQbiFKXwC';
+
+            try {
+                if (typeof AV !== 'undefined' && AV && !AV.applicationId) {
+                    // 从 LeanCloud 控制台复制“API 服务器地址”到 SERVER_URL（必填）
+                    var SERVER_URL = 'https://mq3fzeqo.lc-cn-n1-shared.com';
+                    if (!SERVER_URL || SERVER_URL.indexOf('http') !== 0) {
+                        console.error('[AUTH] LeanCloud SERVER_URL 未设置，请到控制台复制“API 服务器地址”并替换占位符 LEANCLOUD_SERVER_URL');
+                    }
+                    AV.init({ appId: APP_ID, appKey: APP_KEY, serverURL: SERVER_URL });
                 }
-                AV.init({ appId: APP_ID, appKey: APP_KEY, serverURL: SERVER_URL });
+            } catch (e) {
+                console.warn('[AUTH] AV init failed', e);
             }
-        } catch (e) {
-            console.warn('[AUTH] AV init failed', e);
-        }
 
-        // 轻量提示
-        function setMsg(id, text, kind) {
-            var el = document.getElementById(id);
-            if (!el) return;
-            el.className = kind || 'hint';
-            el.textContent = text || '';
-        }
+            // 轻量提示
+            function setMsg(id, text, kind) {
+                var el = document.getElementById(id);
+                if (!el) return;
+                el.className = kind || 'hint';
+                el.textContent = text || '';
+            }
 
-        // Tab 切换
-        document.querySelectorAll('.tab').forEach(function (tab) {
-            tab.addEventListener('click', function () {
-                document.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('active'); });
-                tab.classList.add('active');
-                var t = tab.getAttribute('data-t');
-                document.querySelectorAll('form').forEach(function (f) { f.classList.remove('active'); });
-                document.getElementById('f-' + t).classList.add('active');
+            // Tab 切换
+            document.querySelectorAll('.tab').forEach(function (tab) {
+                tab.addEventListener('click', function () {
+                    document.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('active'); });
+                    tab.classList.add('active');
+                    var t = tab.getAttribute('data-t');
+                    document.querySelectorAll('form').forEach(function (f) { f.classList.remove('active'); });
+                    document.getElementById('f-' + t).classList.add('active');
+                });
             });
-        });
 
-        // 登录（仅支持邮箱+密码登录，检查邮箱验证状态）
-        document.getElementById('btn-login').addEventListener('click', async function () {
-            var email = document.getElementById('login-email').value.trim();
-            var pass = document.getElementById('login-pass').value;
-            if (!email || !pass) return setMsg('login-msg', '请输入邮箱和密码', 'err');
-            setMsg('login-msg', '正在登录...', 'hint');
+            // 登录（仅支持邮箱+密码登录，检查邮箱验证状态）
+            document.getElementById('btn-login').addEventListener('click', async function () {
+                var email = document.getElementById('login-email').value.trim();
+                var pass = document.getElementById('login-pass').value;
+                if (!email || !pass) return setMsg('login-msg', '请输入邮箱和密码', 'err');
+                setMsg('login-msg', '正在登录...', 'hint');
 
-            try {
-                // 仅使用邮箱登录
-                await AV.User.loginWithEmail(email, pass);
+                try {
+                    // 仅使用邮箱登录
+                    await AV.User.loginWithEmail(email, pass);
 
-                // 检查邮箱是否已验证
-                var currentUser = AV.User.current();
-                if (currentUser && !currentUser.get('emailVerified')) {
-                    setMsg('login-msg', '请先验证您的邮箱后再登录', 'err');
-                    // 登出未验证的用户
-                    await AV.User.logOut();
-                    return;
-                }
-
-                setMsg('login-msg', '登录成功，正在返回...', 'success');
-                setTimeout(function () { window.location.href = 'app.html'; }, 600);
-            } catch (e) {
-                let errorMsg = '登录失败，请检查邮箱和密码';
-                if (e && e.message) {
-                    // 根据LeanCloud错误消息提供更友好的提示
-                    if (e.message.includes("Email address isn't verified.")) {
-                        errorMsg = '邮箱尚未验证，请先验证您的邮箱';
-                        setMsg('login-msg', errorMsg, 'err');
-                        
-                        // 添加重新发送激活邮件的按钮
-                        setTimeout(() => {
-                            const loginMsg = document.getElementById('login-msg');
-                            if (loginMsg && loginMsg.textContent.includes('邮箱尚未验证')) {
-                                const resendBtn = document.createElement('button');
-                                resendBtn.textContent = '重新发送激活邮件';
-                                resendBtn.style.cssText = 'color: blue; text-decoration: underline; cursor: pointer; background: none; border: none; padding: 0; margin-left: 8px;';
-                                resendBtn.onclick = async function () {
-                                    try {
-                                        resendBtn.disabled = true;
-                                        resendBtn.textContent = '发送中...';
-
-                                        // 请求发送验证邮件
-                                        await AV.User.requestEmailVerify(email);
-
-                                        resendBtn.textContent = '已发送';
-
-                                        setMsg('login-msg', '激活邮件已重新发送，请检查邮箱', 'success');
-                                    } catch (resendError) {
-                                        resendBtn.disabled = false;
-                                        resendBtn.textContent = '重新发送激活邮件';
-
-                                        let resendErrorMsg = '发送失败，请稍后重试';
-                                        if (resendError && resendError.message) {
-                                            if (resendError.message.includes('network') || resendError.message.includes('timeout')) {
-                                                resendErrorMsg = '网络连接失败，请检查网络后重试';
-                                            } else if (resendError.message.includes('email')) {
-                                                resendErrorMsg = '邮箱格式不正确，请输入正确的邮箱地址';
-                                            } else if (resendError.message.includes('already verified')) {
-                                                resendErrorMsg = '该邮箱已经验证过了，请直接登录';
-                                            } else {
-                                                resendErrorMsg = resendError.message;
-                                            }
-                                        }
-                                        setMsg('login-msg', `重新发送失败：${resendErrorMsg}`, 'err');
-                                    }
-                                };
-                                loginMsg.appendChild(resendBtn);
-                            }
-                        }, 100);
+                    // 检查邮箱是否已验证
+                    var currentUser = AV.User.current();
+                    if (currentUser && !currentUser.get('emailVerified')) {
+                        setMsg('login-msg', '请先验证您的邮箱后再登录', 'err');
+                        // 登出未验证的用户
+                        await AV.User.logOut();
                         return;
-                    } else if (e.message.includes('network') || e.message.includes('timeout')) {
-                        errorMsg = '网络连接失败，请检查网络后重试';
-                    } else {
-                        errorMsg = '邮箱未注册或密码错误，请检查后重试';
                     }
-                }
-                return setMsg('login-msg', errorMsg, 'err');
-            }
-        });
 
-        // 显示验证邮件弹窗
-        function showEmailVerifyModal(email) {
-            document.getElementById('emailVerifyModal').style.display = 'block';
-        }
+                    setMsg('login-msg', '登录成功，正在返回...', 'success');
+                    setTimeout(function () { window.location.href = 'app.html'; }, 600);
+                } catch (e) {
+                    let errorMsg = '登录失败，请检查邮箱和密码';
+                    if (e && e.message) {
+                        // 根据LeanCloud错误消息提供更友好的提示
+                        if (e.message.includes("Email address isn't verified.")) {
+                            errorMsg = '邮箱尚未验证，请先验证您的邮箱';
+                            setMsg('login-msg', errorMsg, 'err');
 
-        // 隐藏验证邮件弹窗
-        function hideEmailVerifyModal() {
-            document.getElementById('emailVerifyModal').style.display = 'none';
-        }
+                            // 添加重新发送激活邮件的按钮
+                            setTimeout(() => {
+                                const loginMsg = document.getElementById('login-msg');
+                                if (loginMsg && loginMsg.textContent.includes('邮箱尚未验证')) {
+                                    const resendBtn = document.createElement('button');
+                                    resendBtn.textContent = '重新发送激活邮件';
+                                    resendBtn.className = 'resend-email-btn';
+                                    resendBtn.onclick = async function () {
+                                        try {
+                                            resendBtn.disabled = true;
+                                            resendBtn.textContent = '发送中...';
 
-        // 注册（邮箱作为用户名 + email）
-        document.getElementById('btn-signup').addEventListener('click', async function () {
-            var email = document.getElementById('signup-email').value.trim();
-            var pass = document.getElementById('signup-pass').value;
-            var passConfirm = document.getElementById('signup-pass-confirm').value;
-            if (!email || !pass) return setMsg('signup-msg', '请输入邮箱和密码', 'err');
-            if (pass.length < 6) return setMsg('signup-msg', '密码至少 6 位', 'err');
-            if (pass !== passConfirm) return setMsg('signup-msg', '两次输入的密码不一致', 'err');
-            setMsg('signup-msg', '正在注册...', 'hint');
-            try {
-                var user = new AV.User();
-                user.setUsername(email);
-                user.setPassword(pass);
-                user.setEmail(email);
-                // 设置邮箱未验证状态
-                user.set('emailVerified', false);
-                await user.signUp();
+                                            // 请求发送验证邮件
+                                            await AV.User.requestEmailVerify(email);
 
-                // signUp()已自动发送验证邮件，无需重复发送
+                                            resendBtn.textContent = '已发送';
 
-                // 清空密码字段
-                document.getElementById('signup-pass').value = '';
-                document.getElementById('signup-pass-confirm').value = '';
+                                            setMsg('login-msg', '激活邮件已重新发送，请检查邮箱', 'success');
+                                        } catch (resendError) {
+                                            resendBtn.disabled = false;
+                                            resendBtn.textContent = '重新发送激活邮件';
 
-                // 显示验证邮件弹窗
-                showEmailVerifyModal(email);
-
-            } catch (e) {
-                let errorMsg = '注册失败，请稍后重试';
-                if (e && e.message) {
-                    // 根据LeanCloud错误消息提供更友好的提示
-                    if (e.message.includes('already exists') || e.message.includes('taken') || e.message.includes('此电子邮箱已经被占用')) {
-                        errorMsg = '该邮箱已注册，请直接登录。';
-                    } else if (e.message.includes('email')) {
-                        errorMsg = '邮箱格式不正确，请输入正确的邮箱地址';
-                    } else if (e.message.includes('password')) {
-                        errorMsg = '密码不符合要求，请确保密码至少6位';
-                    } else if (e.message.includes('network') || e.message.includes('timeout')) {
-                        errorMsg = '网络连接失败，请检查网络后重试';
-                    } else {
-                        errorMsg = e.message; // 其他未知错误显示原始消息
+                                            let resendErrorMsg = '发送失败，请稍后重试';
+                                            if (resendError && resendError.message) {
+                                                if (resendError.message.includes('network') || resendError.message.includes('timeout')) {
+                                                    resendErrorMsg = '网络连接失败，请检查网络后重试';
+                                                } else if (resendError.message.includes('email')) {
+                                                    resendErrorMsg = '邮箱格式不正确，请输入正确的邮箱地址';
+                                                } else if (resendError.message.includes('already verified')) {
+                                                    resendErrorMsg = '该邮箱已经验证过了，请直接登录';
+                                                } else {
+                                                    resendErrorMsg = resendError.message;
+                                                }
+                                            }
+                                            setMsg('login-msg', `重新发送失败：${resendErrorMsg}`, 'err');
+                                        }
+                                    };
+                                    loginMsg.appendChild(resendBtn);
+                                }
+                            }, 100);
+                            return;
+                        } else if (e.message.includes('network') || e.message.includes('timeout')) {
+                            errorMsg = '网络连接失败，请检查网络后重试';
+                        } else {
+                            errorMsg = '邮箱未注册或密码错误，请检查后重试';
+                        }
                     }
+                    return setMsg('login-msg', errorMsg, 'err');
                 }
-                setMsg('signup-msg', errorMsg, 'err');
+            });
+
+            // 显示验证邮件弹窗
+            function showEmailVerifyModal(email) {
+                document.getElementById('emailVerifyModal').style.display = 'block';
             }
-        });
 
-        // 点击"我已验证，去登录"按钮
-        document.getElementById('btn-verify-complete').addEventListener('click', function () {
-            hideEmailVerifyModal();
+            // 隐藏验证邮件弹窗
+            function hideEmailVerifyModal() {
+                document.getElementById('emailVerifyModal').style.display = 'none';
+            }
 
-            // 获取注册时使用的邮箱
-            var email = document.getElementById('signup-email').value.trim();
+            // 注册（邮箱作为用户名 + email）
+            document.getElementById('btn-signup').addEventListener('click', async function () {
+                var email = document.getElementById('signup-email').value.trim();
+                var pass = document.getElementById('signup-pass').value;
+                var passConfirm = document.getElementById('signup-pass-confirm').value;
+                if (!email || !pass) return setMsg('signup-msg', '请输入邮箱和密码', 'err');
+                if (pass.length < 6) return setMsg('signup-msg', '密码至少 6 位', 'err');
+                if (pass !== passConfirm) return setMsg('signup-msg', '两次输入的密码不一致', 'err');
+                setMsg('signup-msg', '正在注册...', 'hint');
+                try {
+                    var user = new AV.User();
+                    user.setUsername(email);
+                    user.setPassword(pass);
+                    user.setEmail(email);
+                    // 设置邮箱未验证状态
+                    user.set('emailVerified', false);
+                    await user.signUp();
 
-            // 切换到登录界面并传递邮箱
-            document.querySelector('.tab[data-t="login"]').click();
-            document.getElementById('login-email').value = email;
-            document.getElementById('login-pass').focus();
-        });
+                    // signUp()已自动发送验证邮件，无需重复发送
 
-        // 点击弹窗外部关闭弹窗
-        document.getElementById('emailVerifyModal').addEventListener('click', function (e) {
-            if (e.target === this) {
+                    // 清空密码字段
+                    document.getElementById('signup-pass').value = '';
+                    document.getElementById('signup-pass-confirm').value = '';
+
+                    // 显示验证邮件弹窗
+                    showEmailVerifyModal(email);
+
+                } catch (e) {
+                    let errorMsg = '注册失败，请稍后重试';
+                    if (e && e.message) {
+                        // 根据LeanCloud错误消息提供更友好的提示
+                        if (e.message.includes('already exists') || e.message.includes('taken') || e.message.includes('此电子邮箱已经被占用')) {
+                            errorMsg = '该邮箱已注册，请直接登录。';
+                        } else if (e.message.includes('email')) {
+                            errorMsg = '邮箱格式不正确，请输入正确的邮箱地址';
+                        } else if (e.message.includes('password')) {
+                            errorMsg = '密码不符合要求，请确保密码至少6位';
+                        } else if (e.message.includes('network') || e.message.includes('timeout')) {
+                            errorMsg = '网络连接失败，请检查网络后重试';
+                        } else {
+                            errorMsg = e.message; // 其他未知错误显示原始消息
+                        }
+                    }
+                    setMsg('signup-msg', errorMsg, 'err');
+                }
+            });
+
+            // 点击"我已验证，去登录"按钮
+            document.getElementById('btn-verify-complete').addEventListener('click', function () {
                 hideEmailVerifyModal();
-            }
-        });
 
-        // 忘记密码（发送重置邮件）
-        document.getElementById('btn-reset').addEventListener('click', async function () {
-            var email = document.getElementById('reset-email').value.trim();
-            if (!email) return setMsg('reset-msg', '请输入邮箱', 'err');
-            setMsg('reset-msg', '正在发送重置邮件...', 'hint');
-            try {
-                await AV.User.requestPasswordReset(email);
-                setMsg('reset-msg', '重置邮件已发送，请检查邮箱', 'success');
-            } catch (e) {
-                let errorMsg = '发送失败，请稍后重试';
-                if (e && e.message) {
-                    // 根据LeanCloud错误消息提供更友好的提示
-                    if (e.message.includes('not found') || e.message.includes('user')) {
-                        errorMsg = '该邮箱未注册，请检查邮箱地址或先注册账号';
-                    } else if (e.message.includes('email')) {
-                        errorMsg = '邮箱格式不正确，请输入正确的邮箱地址';
-                    } else if (e.message.includes('network') || e.message.includes('timeout')) {
-                        errorMsg = '网络连接失败，请检查网络后重试';
-                    } else {
-                        errorMsg = e.message; // 其他未知错误显示原始消息
-                    }
+                // 获取注册时使用的邮箱
+                var email = document.getElementById('signup-email').value.trim();
+
+                // 切换到登录界面并传递邮箱
+                document.querySelector('.tab[data-t="login"]').click();
+                document.getElementById('login-email').value = email;
+                document.getElementById('login-pass').focus();
+            });
+
+            // 点击弹窗外部关闭弹窗
+            document.getElementById('emailVerifyModal').addEventListener('click', function (e) {
+                if (e.target === this) {
+                    hideEmailVerifyModal();
                 }
-                setMsg('reset-msg', errorMsg, 'err');
-            }
-        });
+            });
 
-        // 若已登录，直接回跳
-        try {
-            var cur = AV.User.current && AV.User.current();
-            if (cur) {
-                window.location.replace('app.html');
-            }
-        } catch (_) { }
-    </script>
+            // 忘记密码（发送重置邮件）
+            document.getElementById('btn-reset').addEventListener('click', async function () {
+                var email = document.getElementById('reset-email').value.trim();
+                if (!email) return setMsg('reset-msg', '请输入邮箱', 'err');
+                setMsg('reset-msg', '正在发送重置邮件...', 'hint');
+                try {
+                    await AV.User.requestPasswordReset(email);
+                    setMsg('reset-msg', '重置邮件已发送，请检查邮箱', 'success');
+                } catch (e) {
+                    let errorMsg = '发送失败，请稍后重试';
+                    if (e && e.message) {
+                        // 根据LeanCloud错误消息提供更友好的提示
+                        if (e.message.includes('not found') || e.message.includes('user')) {
+                            errorMsg = '该邮箱未注册，请检查邮箱地址或先注册账号';
+                        } else if (e.message.includes('email')) {
+                            errorMsg = '邮箱格式不正确，请输入正确的邮箱地址';
+                        } else if (e.message.includes('network') || e.message.includes('timeout')) {
+                            errorMsg = '网络连接失败，请检查网络后重试';
+                        } else {
+                            errorMsg = e.message; // 其他未知错误显示原始消息
+                        }
+                    }
+                    setMsg('reset-msg', errorMsg, 'err');
+                }
+            });
+
+            // 若已登录，直接回跳
+            try {
+                var cur = AV.User.current && AV.User.current();
+                if (cur) {
+                    window.location.replace('app.html');
+                }
+            } catch (_) { }
+        </script>
 </body>
 
 </html>
