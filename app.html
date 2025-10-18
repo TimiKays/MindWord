@@ -154,7 +154,7 @@
             .header .brand {
                 margin-left: 25px !important;
             }
-            
+
             /* 移动端显示认证区域 */
             .header-right {
                 display: flex !important;
@@ -162,19 +162,20 @@
                 margin-left: auto;
                 margin-right: 8px;
             }
-            
+
             /* 移动端认证区域样式调整 */
             #auth-area {
                 margin-left: 8px !important;
                 margin-right: 0 !important;
             }
-            
-            #auth-link, #auth-user {
+
+            #auth-link,
+            #auth-user {
                 height: 32px !important;
                 font-size: 11px !important;
                 padding: 0 8px !important;
             }
-            
+
             #auth-username {
                 font-size: 11px !important;
                 max-width: 60px !important;
@@ -182,7 +183,7 @@
                 text-overflow: ellipsis !important;
                 white-space: nowrap !important;
             }
-            
+
             #auth-logout {
                 height: 32px !important;
                 font-size: 11px !important;
@@ -467,6 +468,35 @@
                 <div id="auth-user" style="display:none; align-items:center; gap:8px;">
                     <span id="auth-username" style="font-size:12px; color:#334155;"></span>
                     <button id="auth-logout" class="btn btn-small" style="height:30px;">退出登录</button>
+                    <!-- 云同步控制区：仅在已登录时显示 -->
+                    <div id="cloud-sync-controls"
+                        style="display:inline-flex; align-items:center; gap:6px; margin-left:6px;">
+                        <button id="cloud-sync-sync-btn" class="btn btn-small" title="双向同步为最新"
+                            style="height:30px;">同步</button>
+                        <button id="cloud-sync-more-btn" class="btn btn-small" title="更多"
+                            style="height:30px;">更多</button>
+                    </div>
+                </div>
+
+                <!-- 云同步弹窗 -->
+                <div id="cloud-sync-modal"
+                    style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;">
+                    <div
+                        style="background: white; padding: 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); max-width: 420px; width: 90%;">
+                        <h3 style="margin: 0 0 10px 0; color: #333;">云备份</h3>
+                        <div style="font-size: 13px; color: #555; margin-bottom: 12px;">
+                            <div>最新备份时间：<span id="cloud-sync-latest-time">—</span></div>
+                            <div>已备份文件数：<span id="cloud-sync-file-count">—</span></div>
+                            <div>总体大小：<span id="cloud-sync-total-size">—</span></div>
+                            <div style="color:#888; margin-top:6px;">容量上限：每用户 10MB（仅保留最新一份）</div>
+                        </div>
+                        <div style="display:flex; gap:8px; justify-content:flex-end;">
+                            <button id="cloud-sync-modal-sync" class="btn btn-small" style="height:30px;">一键同步</button>
+                            <button id="cloud-sync-modal-clear" class="btn btn-small"
+                                style="height:30px; background:#e74c3c; color:#fff;">清空备份</button>
+                            <button id="cloud-sync-modal-close" class="btn btn-small" style="height:30px;">关闭</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2427,7 +2457,7 @@
     <script>
         (function initAuthArea() {
             // 替换为你的实际 AppID/AppKey（不要使用 Master Key）
-            var APP_ID = 'lMQ3fZEqOgskJBWGoxOwqG1nT-gzGzoHsz';
+            var APP_ID = 'MQ3fZEqOgskJBWGoxOwqG1nT-gzGzoHsz';
             var APP_KEY = 'bhU0peMhrAVKEJ2OQbiFKXwC';
 
             try {
@@ -2595,6 +2625,8 @@
 
             // 首次渲染
             refreshAuthUI();
+            // 刷新云同步UI（如果已加载脚本）
+            try { if (typeof window.__mw_initCloudSyncUI === 'function') window.__mw_initCloudSyncUI(); } catch (_) { }
 
             // 延迟重试，确保LeanCloud SDK完全初始化
             setTimeout(function () {
@@ -2611,6 +2643,9 @@
             }
         })();
     </script>
+
+    <!-- 云同步逻辑脚本 -->
+    <script src="cloud-sync.js"></script>
 </body>
 
 </html>
