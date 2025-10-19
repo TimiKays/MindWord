@@ -196,15 +196,18 @@
         const modalClear = document.getElementById('cloud-sync-modal-clear');
         const modalClose = document.getElementById('cloud-sync-modal-close');
 
-        // 显示控制：仅在已登录时显示
+        // 显示控制：仅在已登录且语言为英文时显示
         try {
             const token = getSessionToken();
+            const lang = (function(){ try { return localStorage.getItem('mw_lang') || 'zh'; } catch(_) { return 'zh'; } })();
             if (token && userBox && controls) {
-                controls.style.display = 'inline-flex';
+                controls.style.display = (lang === 'en') ? 'inline-flex' : 'none';
             } else if (controls) {
                 controls.style.display = 'none';
             }
         } catch (_) { }
+        // 初始化结束后再次让语言逻辑统一一次，避免闪烁
+        try { if (typeof window.__mw_applyLangToUI === 'function') setTimeout(window.__mw_applyLangToUI, 0); } catch (_) { }
 
         if (syncBtn) {
             syncBtn.onclick = () => { bidirectionalSyncLatest(); };
