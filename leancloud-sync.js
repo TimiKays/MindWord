@@ -107,6 +107,23 @@
       saveLocalDocs(merged);
       await uploadCloud(obj, merged);
 
+      // 刷新列表与当前文档视图
+      try {
+        if (typeof mw_renderList === 'function') mw_renderList();
+        if (typeof mw_getActive === 'function') {
+          const activeId = mw_getActive();
+          if (activeId) {
+            const docsNow = (typeof mw_loadDocs === 'function') ? mw_loadDocs() : merged;
+            const activeDoc = (docsNow || []).find(d => d.id === activeId) || null;
+            if (activeDoc) {
+              if (typeof mw_notifyEditorLoad === 'function') mw_notifyEditorLoad(activeDoc);
+              if (typeof mw_notifyPreviewLoad === 'function') mw_notifyPreviewLoad(activeDoc);
+              if (typeof mw_notifyMindmapLoad === 'function') mw_notifyMindmapLoad(activeDoc);
+            }
+          }
+        }
+      } catch (_) { }
+
       showSuccess('已完成一键同步');
     } catch (e) {
       showError(e.message || '同步失败');
