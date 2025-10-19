@@ -460,7 +460,8 @@
         </button>
         <div class="header-right">
             <!-- 语言切换 -->
-            <select id="lang-switch" title="Language" style="height:30px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; color:#334155; font-size:12px; padding:0 8px; margin-right:8px;">
+            <select id="lang-switch" title="Language"
+                style="height:30px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; color:#334155; font-size:12px; padding:0 8px; margin-right:8px;">
                 <option value="zh">中文</option>
                 <option value="en">English</option>
             </select>
@@ -484,7 +485,8 @@
                     <!-- 云同步控制区（中文）：LeanCloud Data 方案 -->
                     <div id="lc-sync-controls" style="display:none; align-items:center; gap:6px; margin-left:6px;">
                         <button id="lc-sync-btn" class="btn btn-small" style="height:30px;">一键同步</button>
-                        <button id="lc-clear-btn" class="btn btn-small" style="height:30px; background:#e74c3c; color:#fff;">清空云数据</button>
+                        <button id="lc-clear-btn" class="btn btn-small"
+                            style="height:30px; background:#e74c3c; color:#fff;">清空云数据</button>
                     </div>
                 </div>
 
@@ -1806,11 +1808,15 @@
             const docs = mw_loadDocs();
             const active = mw_getActive();
             list.innerHTML = '';
-            if (!docs.length) {
-                list.innerHTML = '<div style="padding:12px;color:#64748b;font-size:12px;">暂无文档，点击“新增”创建</div>';
+
+            // 过滤掉已删除的文档
+            const visibleDocs = docs.filter(doc => !doc.deletedAt);
+
+            if (!visibleDocs.length) {
+                list.innerHTML = '<div style="padding:12px;color:#64748b;font-size:12px;">暂无文档，点击"新增"创建</div>';
                 return;
             }
-            docs.forEach(doc => {
+            visibleDocs.forEach(doc => {
                 const row = document.createElement('div');
                 row.className = 'doc-item' + (active === doc.id ? ' active' : '');
                 row.innerHTML = `
@@ -1881,11 +1887,16 @@
         }
 
         function mw_deleteDoc(id) {
-            if (!confirm('确认删除该文档？此操作不可撤销')) return;
+            if (!confirm('确认删除该文档？此操作会在所有设备上同步删除')) return;
             let docs = mw_loadDocs();
             const idx = docs.findIndex(d => d.id === id);
             if (idx >= 0) {
-                docs.splice(idx, 1);
+                // 只保留ID和删除信息，移除其他数据以节省空间
+                docs[idx] = {
+                    id: docs[idx].id,
+                    deletedAt: Date.now(),
+                    updatedAt: Date.now()
+                };
                 mw_saveDocs(docs);
 
                 // 如果删除的是当前正在编辑的文档
@@ -1893,16 +1904,16 @@
                     // 清空当前活动文档
                     mw_setActive('');
 
-                    // 如果有剩余的文档，自动切换到第一个文档
-                    if (docs.length > 0) {
-                        const firstDoc = docs[0];
-                        mw_setActive(firstDoc.id);
-                        // 通知各个面板加载第一个文档
-                        mw_notifyEditorLoad(firstDoc);
-                        mw_notifyPreviewLoad(firstDoc);
-                        mw_notifyMindmapLoad(firstDoc);
+                    // 找到第一个未删除的文档
+                    const activeDoc = docs.find(d => !d.deletedAt);
+                    if (activeDoc) {
+                        mw_setActive(activeDoc.id);
+                        // 通知各个面板加载第一个未删除文档
+                        mw_notifyEditorLoad(activeDoc);
+                        mw_notifyPreviewLoad(activeDoc);
+                        mw_notifyMindmapLoad(activeDoc);
                     } else {
-                        // 如果没有剩余文档，自动生成一个未命名文档
+                        // 如果没有剩余未删除文档，自动生成一个未命名文档
                         const newId = 'doc_' + Date.now();
                         const newDoc = {
                             id: newId,
@@ -1925,7 +1936,7 @@
                 }
 
                 mw_renderList();
-                try { showSuccess && showSuccess('已删除'); } catch (_) { }
+                try { showSuccess && showSuccess('已标记为删除，将在所有设备同步'); } catch (_) { }
             }
         }
 
@@ -2428,21 +2439,24 @@
                 const idx = docs.findIndex(d => d.id === currentActiveId);
 
                 if (idx >= 0 && currentMarkdownData) {
+                    // 更新md内容（核心修复）
+                    docs[idx].md = currentMarkdownData;
+                    docs[idx].updatedAt = Date.now();
+                    docs[idx].version = (Number(docs[idx].version || 1) + 1);
+
                     // 提取新标题
                     const newName = mw_extractTitleFromMd(currentMarkdownData);
 
                     // 如果标题发生变化，更新文档信息
                     if (newName && docs[idx].name !== newName) {
                         docs[idx].name = newName;
-                        docs[idx].updatedAt = Date.now();
-                        docs[idx].version = (Number(docs[idx].version || 1) + 1);
-
-                        // 保存文档列表并刷新显示
-                        mw_saveDocs(docs);
-                        mw_renderList();
-
-                        try { showSuccess && showSuccess('文档标题已更新'); } catch (_) { }
                     }
+
+                    // 保存文档列表并刷新显示
+                    mw_saveDocs(docs);
+                    mw_renderList();
+
+                    try { showSuccess && showSuccess('文档内容已更新'); } catch (_) { }
                 }
             }
 
