@@ -8,6 +8,7 @@
 (function () {
   const LANG_KEY = 'mw_lang';
   const CLASS_NAME = 'MWData';
+  let cachedCloudRaw = null;   // 缓存第一次 downloadCloud() 的原生对象
 
   // 文件大小限制
   const MAX_IMAGE_SIZE = 200 * 1024; // 200KB
@@ -18,181 +19,7 @@
   }
 
   // 新的合并算法：将云端数据合并到本地
-  function mergeWithCloudData(localDocs, localAIConfig, localPromptTemplates, cloudData) {
-    const mergedDocs = [...localDocs];
-    const cloudDocs = cloudData.docs || [];
 
-    // 创建文档映射表
-    const localDocMap = new Map();
-    localDocs.forEach(doc => {
-      if (doc && doc.id) {
-        localDocMap.set(doc.id, doc);
-      }
-    });
-
-    const cloudDocMap = new Map();
-    cloudDocs.forEach(doc => {
-      if (doc && doc.id) {
-        cloudDocMap.set(doc.id, doc);
-      }
-    });
-
-    // 处理云端文档
-    cloudDocs.forEach(cloudDoc => {
-      if (!cloudDoc || !cloudDoc.id) return;
-
-      const localDoc = localDocMap.get(cloudDoc.id);
-
-      if (!localDoc) {
-        // 本地没有，直接添加云端文档
-        mergedDocs.push(cloudDoc);
-      } else {
-        // 两边都有，比较时间戳决定保留哪个
-        const localTime = Number(localDoc.updatedAt || localDoc.deletedAt || 0);
-        const cloudTime = Number(cloudDoc.updatedAt || cloudDoc.deletedAt || 0);
-
-        if (cloudTime > localTime) {
-          // 云端更新，用云端版本替换本地版本
-          const index = mergedDocs.findIndex(d => d.id === cloudDoc.id);
-          if (index >= 0) {
-            mergedDocs[index] = cloudDoc;
-          }
-        }
-      }
-    });
-
-    // 处理本地独有但被删除的文档
-    const finalDocs = mergedDocs.filter(doc => {
-      if (!doc || !doc.id) return false;
-
-      // 如果文档被标记为删除，检查云端是否还存在
-      if (doc.deletedAt) {
-        const cloudDoc = cloudDocMap.get(doc.id);
-        if (cloudDoc && !cloudDoc.deletedAt) {
-          // 云端没有删除，保留云端版本
-          return false;
-        }
-      }
-
-      return true;
-    });
-
-    // 合并AI配置（优先使用最新的）
-    let mergedAIConfig = { ...localAIConfig };
-    if (cloudData.aiConfig && cloudData.aiConfig.updatedAt) {
-      const localAIConfigTime = Number(localAIConfig.updatedAt || 0);
-      const cloudAIConfigTime = Number(cloudData.aiConfig.updatedAt || 0);
-
-      if (cloudAIConfigTime > localAIConfigTime) {
-        mergedAIConfig = { ...cloudData.aiConfig };
-      }
-    }
-
-    // 合并提示词模板（优先使用最新的）
-    let mergedTemplates = [...localPromptTemplates];
-    if (cloudData.promptTemplates && cloudData.promptTemplates.updatedAt) {
-      const localTemplatesTime = Number(localPromptTemplates.updatedAt || 0);
-      const cloudTemplatesTime = Number(cloudData.promptTemplates.updatedAt || 0);
-
-      if (cloudTemplatesTime > localTemplatesTime) {
-        mergedTemplates = [...cloudData.promptTemplates];
-      }
-    }
-
-    return {
-      docs: finalDocs,
-      aiConfig: mergedAIConfig,
-      promptTemplates: mergedTemplates
-    };
-  }
-
-  // 检查合并后的数据与云端数据是否有差异
-  function checkDataDifferences(mergedData, cloudData) {
-    // 检查文档差异
-    const mergedDocs = mergedData.docs || [];
-    const cloudDocs = cloudData.docs || [];
-
-    if (mergedDocs.length !== cloudDocs.length) {
-      return true; // 数量不同，有差异
-    }
-
-    // 创建映射表快速比较
-    const mergedDocMap = new Map();
-    mergedDocs.forEach(doc => {
-      if (doc && doc.id) {
-        mergedDocMap.set(doc.id, doc);
-      }
-    });
-
-    const cloudDocMap = new Map();
-    cloudDocs.forEach(doc => {
-      if (doc && doc.id) {
-        cloudDocMap.set(doc.id, doc);
-      }
-    });
-
-    // 检查每个文档
-    for (const [docId, mergedDoc] of mergedDocMap) {
-      const cloudDoc = cloudDocMap.get(docId);
-      if (!cloudDoc) {
-        return true; // 云端缺少文档
-      }
-
-      // 简单的内容比较（可以优化为更复杂的比较）
-      if (JSON.stringify(mergedDoc) !== JSON.stringify(cloudDoc)) {
-        return true; // 内容不同
-      }
-    }
-
-    // 检查AI配置差异
-    if (JSON.stringify(mergedData.aiConfig) !== JSON.stringify(cloudData.aiConfig || {})) {
-      return true;
-    }
-
-    // 检查提示词模板差异
-    if (JSON.stringify(mergedData.promptTemplates) !== JSON.stringify(cloudData.promptTemplates || [])) {
-      return true;
-    }
-
-    return false; // 没有差异
-  }
-
-  // 上传合并后的数据到云端（仅在有时才调用）
-  async function uploadToCloud(mergedData) {
-    const results = { cloudUpdated: 0, errors: [] };
-
-    try {
-      const currentData = await fetchOrCreateRecord();
-
-      // 更新文档
-      currentData.set('docs', mergedData.docs);
-      currentData.set('docUpdatedAt', Date.now());
-      results.cloudUpdated += (mergedData.docs || []).length;
-
-      // 更新AI配置
-      currentData.set('aiConfig', mergedData.aiConfig);
-      currentData.set('configUpdatedAt', Date.now());
-      if (Object.keys(mergedData.aiConfig || {}).length > 0) {
-        results.cloudUpdated++;
-      }
-
-      // 更新提示词模板
-      currentData.set('promptTemplates', mergedData.promptTemplates);
-      currentData.set('templateUpdatedAt', Date.now());
-      if ((mergedData.promptTemplates || []).length > 0) {
-        results.cloudUpdated++;
-      }
-
-      // 保存到云端
-      await currentData.save();
-
-    } catch (error) {
-      results.errors.push(error.message);
-      throw new Error('上传到云端失败：' + error.message);
-    }
-
-    return results;
-  }
   function isLoggedIn() {
     try { return !!(window.AV && AV.User && AV.User.current()); } catch (_) { return false; }
   }
@@ -203,14 +30,17 @@
   // 获取AI配置和提示词模板
   function getLocalAIConfig() {
     try {
-      return (typeof mw_loadAIConfig === 'function') ? mw_loadAIConfig() : {};
+      const configStr = localStorage.getItem('allAIPlatformConfigs');
+      return configStr ? JSON.parse(configStr) : {};
     } catch (_) {
       return {};
     }
   }
+
   function getLocalPromptTemplates() {
     try {
-      return (typeof mw_loadPromptTemplates === 'function') ? mw_loadPromptTemplates() : [];
+      const templatesStr = localStorage.getItem('promptTemplates');
+      return templatesStr ? JSON.parse(templatesStr) : [];
     } catch (_) {
       return [];
     }
@@ -219,17 +49,29 @@
   // 保存AI配置和提示词模板
   function saveLocalAIConfig(config) {
     try {
-      return (typeof mw_saveAIConfig === 'function') ? mw_saveAIConfig(config) : null;
+      localStorage.setItem('allAIPlatformConfigs', JSON.stringify(config));
+      localStorage.setItem('allAIPlatformConfigs_last_modified', Date.now().toString());
+      return true;
     } catch (_) {
-      return null;
+      return false;
     }
   }
+
   function saveLocalPromptTemplates(templates) {
     try {
-      return (typeof mw_savePromptTemplates === 'function') ? mw_savePromptTemplates(templates) : null;
+      localStorage.setItem('promptTemplates', JSON.stringify(templates));
+      localStorage.setItem('promptTemplates_last_modified', Date.now().toString());
+      return true;
     } catch (_) {
-      return null;
+      return false;
     }
+  }
+
+  // 直接读现成的 hash 与 last_modified，不再自己算
+  function getDataHashAndTime(_data, storageKey) {
+    const hash = localStorage.getItem(storageKey + '_hash') || '';
+    const lastModified = parseInt(localStorage.getItem(storageKey + '_last_modified') || '0');
+    return { hash, lastModified };
   }
 
   // 文件大小检查函数
@@ -241,14 +83,14 @@
       if (!doc) continue;
 
       // 计算文档文本内容大小（UTF-8编码）
-      if (doc.content) {
-        const contentSize = new Blob([doc.content]).size;
+      if (doc.md) {
+        const contentSize = new Blob([doc.md]).size;
         totalSize += contentSize;
       }
 
       // 计算标题大小
-      if (doc.title) {
-        const titleSize = new Blob([doc.title]).size;
+      if (doc.name) {
+        const titleSize = new Blob([doc.name]).size;
         totalSize += titleSize;
       }
 
@@ -259,14 +101,14 @@
       }
 
       // 检查文档中的图片
-      if (doc.content) {
-        const imgMatches = doc.content.match(/data:image\/[^;]+;base64,[^"']+/g) || [];
+      if (doc.md) {
+        const imgMatches = doc.md.match(/data:image\/[^;]+;base64,[^"']+/g) || [];
         for (const imgData of imgMatches) {
           const base64Data = imgData.split(',')[1];
           const imgSize = Math.ceil(base64Data.length * 0.75); // base64解码后的大小
 
           if (imgSize > MAX_IMAGE_SIZE) {
-            errors.push(`文档"${doc.title || doc.id}"中的图片超过200KB限制`);
+            errors.push(`文档"${doc.name || doc.id}"中的图片超过200KB限制`);
           }
           totalSize += imgSize;
         }
@@ -310,136 +152,177 @@
     return timestamps;
   }
 
-  // 分析同步需求，返回需要执行的操作列表
-  function analyzeSyncNeeds(localData, cloudData) {
-    const operations = {
-      local: {
-        updateDocs: [],
-        addDocs: [], // 新增：需要新增的文档
-        updateAIConfig: false,
-        updateTemplates: false,
-        deleteDocs: [] // 新增：需要删除的文档
-      },
-      cloud: {
-        updateDocs: [],
-        addDocs: [], // 新增：需要新增的文档
-        updateAIConfig: false,
-        updateTemplates: false,
-        deleteDocs: [] // 新增：需要删除的文档
-      },
-      conflicts: []
+  // ============= 新同步核心：同结构快照 + 三向合并 =============
+
+  // 把云端原始 doc 转成本地格式，并补全缺失字段
+  function normalizeCloudDoc(cDoc) {
+    return {
+      id: cDoc.id,
+      name: cDoc.name || '',
+      md: cDoc.md || '',
+      updatedAt: Number(cDoc.updatedAt || 0),
+      deletedAt: cDoc.deletedAt ? Number(cDoc.deletedAt) : undefined
+    };
+  }
+
+  // 拉取并组装成与 localFullData 完全同构的对象
+  async function fetchCloudFullData() {
+    // 优先用缓存，没有再拉
+    const cloudRaw = cachedCloudRaw || await downloadCloud();
+    if (!cachedCloudRaw) cachedCloudRaw = cloudRaw;
+    return {
+      docs: (cloudRaw.docs || []).map(normalizeCloudDoc),
+      aiConfig: cloudRaw.aiConfig || {},
+      aiConfigHash: cloudRaw.aiConfigHash,                // 直接取云端存的哈希
+      aiConfigLastModified: Number(cloudRaw.configUpdatedAt || 0),
+      promptTemplates: cloudRaw.promptTemplates || [],
+      promptTemplatesHash: cloudRaw.promptTemplatesHash,    // 直接取云端存的哈希
+      promptTemplatesLastModified: Number(cloudRaw.templateUpdatedAt || 0),
+      lastSyncAt: 0                                         // 云端无此字段
+    };
+  }
+
+  // 三向合并：本地 + 云端 → 目标结构
+  function mergeToTarget(local, cloud) {
+    const target = {
+      docs: [],
+      aiConfig: {},
+      promptTemplates: [],
+      aiConfigHash: undefined,
+      aiConfigLastModified: 0,
+      promptTemplatesHash: undefined,
+      promptTemplatesLastModified: 0,
+      lastSyncAt: Date.now()
     };
 
-    // 分析文档同步需求
-    const localDocTimestamps = getDocTimestamps(localData.docs);
-    const cloudDocTimestamps = getDocTimestamps(cloudData.docs);
-    const allDocIds = new Set([...Object.keys(localDocTimestamps), ...Object.keys(cloudDocTimestamps)]);
+    // 1. 文档数组：按 ID 三向合并（跳过已删除，哈希相同取云端，不同按时间戳）
+    const hashDoc = d => {
+      const str = (d.name || '') + '\n' + (d.md || '');
+      let h = 5381;
+      for (let i = 0; i < str.length; i++) h = (h << 5) + h + str.charCodeAt(i);
+      return h >>> 0;          // 转成正 32 位整数
+    };
 
-    // 冲突检测：如果时间差超过5分钟，认为是潜在冲突
-    const CONFLICT_THRESHOLD = 5 * 60 * 1000; // 5分钟
-    const now = Date.now();
+    const localDocMap = new Map(local.docs.map(d => [d.id, d]));
+    const cloudDocMap = new Map(cloud.docs.map(d => [d.id, d]));
+    // 只排除云端已删除的 id；本地已删除仍要参与合并，以便把删除同步到云端
+    const aliveIds = new Set([
+      ...local.docs.map(d => d.id),                       // 本地全部保留
+      ...cloud.docs.filter(d => !d.deletedAt).map(d => d.id) // 云端只留未删除
+    ]);
+    const allIds = aliveIds;
 
-    for (const docId of allDocIds) {
-      const localTime = localDocTimestamps[docId] || 0;
-      const cloudTime = cloudDocTimestamps[docId] || 0;
-      const localDoc = localData.docs.find(d => d.id === docId);
-      const cloudDoc = cloudData.docs.find(d => d.id === docId);
+    for (const id of allIds) {
+      const ld = localDocMap.get(id);
+      const cd = cloudDocMap.get(id);
 
-      // 检测冲突：如果两边都有修改且时间接近（可能存在同时编辑）
-      if (localTime > 0 && cloudTime > 0 && Math.abs(localTime - cloudTime) < CONFLICT_THRESHOLD) {
-        if (localDoc && cloudDoc) {
-          // 检查内容是否不同（简单的标题比较，实际可以更复杂）
-          if (localDoc.title !== cloudDoc.title || localDoc.content !== cloudDoc.content) {
-            operations.conflicts.push({
-              type: 'document',
-              id: docId,
-              title: localDoc.title || cloudDoc.title || '未命名文档',
-              localTime: localTime,
-              cloudTime: cloudTime,
-              localPreview: (localDoc.title || '').substring(0, 50) + '...',
-              cloudPreview: (cloudDoc.title || '').substring(0, 50) + '...'
-            });
-          }
-        }
-      }
-
-      if (localTime > 0 && cloudTime > 0) {
-        // 两边都有文档，比较时间戳和内容
-        if (localTime === cloudTime) {
-          // 时间戳相同，检查内容是否相同
-          const isContentSame = localDoc && cloudDoc &&
-            localDoc.title === cloudDoc.title &&
-            localDoc.content === cloudDoc.content;
-
-          if (!isContentSame) {
-            // 内容不同，更新时间戳较新的（虽然时间戳相同，但可能有微秒差异）
-            if (localDoc && cloudDoc) {
-              // 优先使用本地版本，但更新时间戳
-              operations.cloud.updateDocs.push(localDoc);
-            }
-          }
-          // 如果内容相同，不做任何操作
-        } else if (localTime > cloudTime) {
-          // 本地较新，需要更新云端
-          if (localDoc) {
-            // 检查本地文档是否被标记为删除
-            if (localDoc.deletedAt) {
-              operations.cloud.deleteDocs.push(localDoc);
-            } else {
-              operations.cloud.updateDocs.push(localDoc);
-            }
-          }
-        } else {
-          // 云端较新，需要更新本地
-          if (cloudDoc) {
-            // 检查云端文档是否被标记为删除
-            if (cloudDoc.deletedAt) {
-              operations.local.deleteDocs.push(cloudDoc);
-            } else {
-              operations.local.updateDocs.push(cloudDoc);
-            }
-          }
-        }
-      } else if (localTime > 0 && cloudTime === 0) {
-        // 本地有，云端没有（本地独有）
-        if (localDoc) {
-          if (localDoc.deletedAt) {
-            // 本地标记为删除，不需要同步到云端
-            continue;
-          } else {
-            operations.cloud.addDocs.push(localDoc);
-          }
-        }
-      } else if (localTime === 0 && cloudTime > 0) {
-        // 本地没有，云端有（云端独有）
-        if (cloudDoc) {
-          if (cloudDoc.deletedAt) {
-            // 云端标记为删除，不需要同步到本地
-            continue;
-          } else {
-            // 云端有而本地没有，需要新增到本地
-            operations.local.addDocs.push(cloudDoc);
-          }
+      if (!ld && cd) {           // 仅云端有
+        target.docs.push(cd);
+      } else if (ld && !cd) {    // 仅本地有
+        target.docs.push(ld);
+      } else {                   // 两边都有
+        const hashL = hashDoc(ld);
+        const hashC = hashDoc(cd);
+        if (hashL === hashC) {   // 内容相同，用云端
+          target.docs.push(cd);
+        } else {                 // 内容不同，按时间戳决胜
+          target.docs.push(Number(ld.updatedAt) >= Number(cd.updatedAt) ? ld : cd);
         }
       }
     }
 
-    // 分析AI配置同步需求
-    if (localData.configUpdatedAt > cloudData.configUpdatedAt) {
-      operations.cloud.updateAIConfig = true;
-    } else if (cloudData.configUpdatedAt > localData.configUpdatedAt) {
-      operations.local.updateAIConfig = true;
+    // 2. AI 配置：三向合并（哈希相同用云端，不同谁新用谁）
+    if (!local.aiConfigLastModified && cloud.aiConfigLastModified) {
+      target.aiConfig = cloud.aiConfig;
+      target.aiConfigHash = cloud.aiConfigHash;
+      target.aiConfigLastModified = cloud.aiConfigLastModified;
+    } else if (local.aiConfigLastModified && !cloud.aiConfigLastModified) {
+      target.aiConfig = local.aiConfig;
+      target.aiConfigHash = local.aiConfigHash;
+      target.aiConfigLastModified = local.aiConfigLastModified;
+    } else if (local.aiConfigHash === cloud.aiConfigHash) {
+      target.aiConfig = cloud.aiConfig;
+      target.aiConfigHash = cloud.aiConfigHash;
+      target.aiConfigLastModified = cloud.aiConfigLastModified;
+    } else if (local.aiConfigLastModified >= cloud.aiConfigLastModified) {
+      target.aiConfig = local.aiConfig;
+      target.aiConfigHash = local.aiConfigHash;
+      target.aiConfigLastModified = local.aiConfigLastModified;
+    } else {
+      target.aiConfig = cloud.aiConfig;
+      target.aiConfigHash = cloud.aiConfigHash;
+      target.aiConfigLastModified = cloud.aiConfigLastModified;
     }
 
-    // 分析提示词模板同步需求
-    if (localData.templateUpdatedAt > cloudData.templateUpdatedAt) {
-      operations.cloud.updateTemplates = true;
-    } else if (cloudData.templateUpdatedAt > localData.templateUpdatedAt) {
-      operations.local.updateTemplates = true;
+    // 3. 提示词模板：三向合并（哈希相同用云端，不同谁新用谁）
+    if (!local.promptTemplatesLastModified && cloud.promptTemplatesLastModified) {
+      target.promptTemplates = cloud.promptTemplates;
+      target.promptTemplatesHash = cloud.promptTemplatesHash;
+      target.promptTemplatesLastModified = cloud.promptTemplatesLastModified;
+    } else if (local.promptTemplatesLastModified && !cloud.promptTemplatesLastModified) {
+      target.promptTemplates = local.promptTemplates;
+      target.promptTemplatesHash = local.promptTemplatesHash;
+      target.promptTemplatesLastModified = local.promptTemplatesLastModified;
+    } else if (local.promptTemplatesHash === cloud.promptTemplatesHash) {
+      target.promptTemplates = cloud.promptTemplates;
+      target.promptTemplatesHash = cloud.promptTemplatesHash;
+      target.promptTemplatesLastModified = cloud.promptTemplatesLastModified;
+    } else if (local.promptTemplatesLastModified >= cloud.promptTemplatesLastModified) {
+      target.promptTemplates = local.promptTemplates;
+      target.promptTemplatesHash = local.promptTemplatesHash;
+      target.promptTemplatesLastModified = local.promptTemplatesLastModified;
+    } else {
+      target.promptTemplates = cloud.promptTemplates;
+      target.promptTemplatesHash = cloud.promptTemplatesHash;
+      target.promptTemplatesLastModified = cloud.promptTemplatesLastModified;
     }
 
-    return operations;
+    console.log('合并后的目标结构:', target);
+    return target;
   }
+
+  // 落地：云端
+  async function applyTargetToCloud(target, cloudFullData) {
+    const user = AV.User.current();
+    if (!user) throw new Error('未登录');
+
+    // 0. 先补回云端已删除记录（本地可能已彻底剔除），得到完整目标
+    const targetIds = new Set((target.docs || []).map(d => d.id));
+    const mergedDocs = [...(target.docs || [])];
+    for (const cd of (cloudFullData ? cloudFullData.docs : [])) {
+      if (!targetIds.has(cd.id) && cd.deletedAt) {
+        mergedDocs.push(cd);   // 云端独有且已标记删除
+      }
+    }
+
+
+    // 1. 用补回后的完整目标与云端对比，若完全一致直接跳过
+    if (cloudFullData &&
+      target.aiConfigHash === cloudFullData.aiConfigHash &&
+      target.promptTemplatesHash === cloudFullData.promptTemplatesHash &&
+      JSON.stringify(mergedDocs.map(d => ({ id: d.id, updatedAt: d.updatedAt, deleted: d.deleted }))) ===
+      JSON.stringify(cloudFullData.docs.map(d => ({ id: d.id, updatedAt: d.updatedAt, deleted: d.deleted })))) {
+      showSuccess('云端与本地一致，无需同步');
+      return;   // 无需真正落库
+    }
+
+
+    const obj = await fetchOrCreateRecord();
+    obj.set('docs', mergedDocs);
+    obj.set('aiConfig', target.aiConfig);
+    obj.set('aiConfigHash', target.aiConfigHash);
+    obj.set('configUpdatedAt', target.aiConfigLastModified);
+    obj.set('promptTemplates', target.promptTemplates);
+    obj.set('promptTemplatesHash', target.promptTemplatesHash);
+    obj.set('templateUpdatedAt', target.promptTemplatesLastModified);
+    obj.set('docUpdatedAt', Math.max(...mergedDocs.map(d => Number(d.updatedAt)), 0));
+    obj.set('updatedAtMs', Date.now());   // 补上统一时间戳
+
+    await obj.save();
+  }
+
+
+
 
   // 显示冲突确认对话框
   function showConflictDialog(conflicts) {
@@ -487,143 +370,150 @@
     return await obj.save();
   }
 
-  function toIdMap(arr) {
-    const map = new Map();
-    for (const d of (arr || [])) { if (d && d.id) map.set(d.id, d); }
-    return map;
-  }
+  // function toIdMap(arr) {
+  //   const map = new Map();
+  //   for (const d of (arr || [])) { if (d && d.id) map.set(d.id, d); }
+  //   return map;
+  // }
 
-  // 执行同步操作
-  async function executeSync(operations) {
-    const results = {
-      localUpdated: 0,
-      cloudUpdated: 0,
-      errors: []
-    };
+  // // 执行同步操作
+  // async function executeSync(operations) {
+  //   const results = {
+  //     localUpdated: 0,
+  //     cloudUpdated: 0,
+  //     errors: []
+  //   };
 
-    try {
-      // 更新本地数据
-      if (operations.local.updateDocs.length > 0 || operations.local.addDocs.length > 0 || operations.local.deleteDocs.length > 0) {
-        const currentDocs = getLocalDocs();
-        let updatedDocs = [...currentDocs];
+  //   try {
+  //     // 更新本地数据
+  //     if (operations.local.updateDocs.length > 0 || operations.local.addDocs.length > 0 || operations.local.deleteDocs.length > 0) {
+  //       const currentDocs = getLocalDocs();
+  //       let updatedDocs = [...currentDocs];
 
-        // 处理新增
-        for (const newDoc of operations.local.addDocs) {
-          const exists = updatedDocs.some(d => d.id === newDoc.id);
-          if (!exists) {
-            updatedDocs.push(newDoc);
-          }
-        }
+  //       // 处理新增
+  //       for (const newDoc of operations.local.addDocs) {
+  //         const exists = updatedDocs.some(d => d.id === newDoc.id);
+  //         if (!exists) {
+  //           updatedDocs.push(newDoc);
+  //         }
+  //       }
 
-        // 处理更新
-        for (const newDoc of operations.local.updateDocs) {
-          const index = updatedDocs.findIndex(d => d.id === newDoc.id);
-          if (index >= 0) {
-            updatedDocs[index] = newDoc;
-          } else {
-            updatedDocs.push(newDoc);
-          }
-        }
+  //       // 处理更新
+  //       for (const newDoc of operations.local.updateDocs) {
+  //         const index = updatedDocs.findIndex(d => d.id === newDoc.id);
+  //         if (index >= 0) {
+  //           updatedDocs[index] = newDoc;
+  //         } else {
+  //           updatedDocs.push(newDoc);
+  //         }
+  //       }
 
-        // 处理删除 - 只保留ID和删除时间，移除其他数据以节省空间
-        for (const deleteDoc of operations.local.deleteDocs) {
-          const index = updatedDocs.findIndex(d => d.id === deleteDoc.id);
-          if (index >= 0) {
-            updatedDocs[index] = {
-              id: updatedDocs[index].id,
-              deletedAt: Date.now(),
-              updatedAt: Date.now()
-            };
-          }
-        }
+  //       // 处理删除 - 只保留ID和删除时间，移除其他数据以节省空间
+  //       for (const deleteDoc of operations.local.deleteDocs) {
+  //         const index = updatedDocs.findIndex(d => d.id === deleteDoc.id);
+  //         if (index >= 0) {
+  //           updatedDocs[index] = {
+  //             id: updatedDocs[index].id,
+  //             deletedAt: Date.now(),
+  //             updatedAt: Date.now()
+  //           };
+  //         }
+  //       }
 
-        saveLocalDocs(updatedDocs);
-        results.localUpdated += operations.local.updateDocs.length + operations.local.addDocs.length + operations.local.deleteDocs.length;
-      }
+  //       saveLocalDocs(updatedDocs);
+  //       results.localUpdated += operations.local.updateDocs.length + operations.local.addDocs.length + operations.local.deleteDocs.length;
+  //     }
 
-      if (operations.local.updateAIConfig) {
-        // AI配置更新逻辑
-        const cloudData = await downloadCloud();
-        saveLocalAIConfig(cloudData.aiConfig || {});
-      }
+  //     if (operations.local.updateAIConfig) {
+  //       // AI配置更新逻辑
+  //       const cloudData = await downloadCloud();
+  //       saveLocalAIConfig(cloudData.aiConfig || {});
+  //     }
 
-      if (operations.local.updateTemplates) {
-        // 提示词模板更新逻辑
-        const cloudData = await downloadCloud();
-        saveLocalPromptTemplates(cloudData.promptTemplates || []);
-      }
+  //     if (operations.local.updateTemplates) {
+  //       // 提示词模板更新逻辑
+  //       const cloudData = await downloadCloud();
+  //       saveLocalPromptTemplates(cloudData.promptTemplates || []);
+  //     }
 
-      // 更新云端数据
-      if (operations.cloud.updateDocs.length > 0 || operations.cloud.addDocs.length > 0 || operations.cloud.deleteDocs.length > 0 || operations.cloud.updateAIConfig || operations.cloud.updateTemplates) {
-        const currentData = await fetchOrCreateRecord();
+  //     // 更新云端数据
+  //     if (operations.cloud.updateDocs.length > 0 || operations.cloud.addDocs.length > 0 || operations.cloud.deleteDocs.length > 0 || operations.cloud.updateAIConfig || operations.cloud.updateTemplates) {
+  //       const currentData = await fetchOrCreateRecord();
 
-        if (operations.cloud.updateDocs.length > 0 || operations.cloud.addDocs.length > 0 || operations.cloud.deleteDocs.length > 0) {
-          const currentDocs = currentData.get('docs') || [];
-          let updatedDocs = [...currentDocs];
+  //       if (operations.cloud.updateDocs.length > 0 || operations.cloud.addDocs.length > 0 || operations.cloud.deleteDocs.length > 0) {
+  //         const currentDocs = currentData.get('docs') || [];
+  //         let updatedDocs = [...currentDocs];
 
-          // 处理新增
-          for (const newDoc of operations.cloud.addDocs) {
-            const exists = updatedDocs.some(d => d.id === newDoc.id);
-            if (!exists) {
-              updatedDocs.push(newDoc);
-            }
-          }
+  //         // 处理新增
+  //         for (const newDoc of operations.cloud.addDocs) {
+  //           const exists = updatedDocs.some(d => d.id === newDoc.id);
+  //           if (!exists) {
+  //             updatedDocs.push(newDoc);
+  //           }
+  //         }
 
-          // 处理更新
-          for (const newDoc of operations.cloud.updateDocs) {
-            const index = updatedDocs.findIndex(d => d.id === newDoc.id);
-            if (index >= 0) {
-              updatedDocs[index] = newDoc;
-            } else {
-              updatedDocs.push(newDoc);
-            }
-          }
+  //         // 处理更新
+  //         for (const newDoc of operations.cloud.updateDocs) {
+  //           const index = updatedDocs.findIndex(d => d.id === newDoc.id);
+  //           if (index >= 0) {
+  //             updatedDocs[index] = newDoc;
+  //           } else {
+  //             updatedDocs.push(newDoc);
+  //           }
+  //         }
 
-          // 处理删除 - 只保留ID和删除时间，移除其他数据以节省空间
-          for (const deleteDoc of operations.cloud.deleteDocs) {
-            const index = updatedDocs.findIndex(d => d.id === deleteDoc.id);
-            if (index >= 0) {
-              updatedDocs[index] = {
-                id: updatedDocs[index].id,
-                deletedAt: Date.now(),
-                updatedAt: Date.now()
-              };
-            }
-          }
+  //         // 处理删除 - 只保留ID和删除时间，移除其他数据以节省空间
+  //         for (const deleteDoc of operations.cloud.deleteDocs) {
+  //           const index = updatedDocs.findIndex(d => d.id === deleteDoc.id);
+  //           if (index >= 0) {
+  //             updatedDocs[index] = {
+  //               id: updatedDocs[index].id,
+  //               deletedAt: Date.now(),
+  //               updatedAt: Date.now()
+  //             };
+  //           }
+  //         }
 
-          currentData.set('docs', updatedDocs);
-          currentData.set('docUpdatedAt', Date.now()); // 更新文档时间戳
-          results.cloudUpdated += operations.cloud.updateDocs.length + operations.cloud.addDocs.length + operations.cloud.deleteDocs.length;
-        }
+  //         currentData.set('docs', updatedDocs);
+  //         currentData.set('docUpdatedAt', Date.now()); // 更新文档时间戳
+  //         results.cloudUpdated += operations.cloud.updateDocs.length + operations.cloud.addDocs.length + operations.cloud.deleteDocs.length;
+  //       }
 
-        if (operations.cloud.updateAIConfig) {
-          currentData.set('aiConfig', getLocalAIConfig());
-          currentData.set('configUpdatedAt', Date.now());
-        }
+  //       if (operations.cloud.updateAIConfig) {
+  //         currentData.set('aiConfig', getLocalAIConfig());
+  //         currentData.set('configUpdatedAt', Date.now());
+  //       }
 
-        if (operations.cloud.updateTemplates) {
-          currentData.set('promptTemplates', getLocalPromptTemplates());
-          currentData.set('templateUpdatedAt', Date.now());
-        }
+  //       if (operations.cloud.updateTemplates) {
+  //         currentData.set('promptTemplates', getLocalPromptTemplates());
+  //         currentData.set('templateUpdatedAt', Date.now());
+  //       }
 
-        await currentData.save();
-      }
+  //       await currentData.save();
+  //     }
 
-    } catch (error) {
-      results.errors.push(error.message);
-    }
+  //   } catch (error) {
+  //     results.errors.push(error.message);
+  //   }
 
-    return results;
-  }
+  //   return results;
+  // }
 
   async function downloadCloud() {
     const obj = await fetchOrCreateRecord();
     const docs = obj.get('docs') || [];
+    const docUpdatedAt = obj.get('docUpdatedAt') || 0;
     const aiConfig = obj.get('aiConfig') || {};
     const promptTemplates = obj.get('promptTemplates') || [];
-    const docUpdatedAt = obj.get('docUpdatedAt') || 0;
+
     const configUpdatedAt = obj.get('configUpdatedAt') || 0;
     const templateUpdatedAt = obj.get('templateUpdatedAt') || 0;
+
+    // 新增：补齐上行时会写入的哈希与统一时间戳
+    const aiConfigHash = obj.get('aiConfigHash') || undefined;
+    const promptTemplatesHash = obj.get('promptTemplatesHash') || undefined;
+
+    const updatedAtMs = obj.get('updatedAtMs') || 0;
 
     return {
       obj,
@@ -632,15 +522,35 @@
       promptTemplates,
       docUpdatedAt,
       configUpdatedAt,
-      templateUpdatedAt
+      templateUpdatedAt,
+      aiConfigHash,        // 新增
+      promptTemplatesHash, // 新增
+      updatedAtMs          // 新增
     };
   }
 
-  async function uploadCloud(obj, docs) {
-    obj.set('docs', docs);
-    obj.set('updatedAtMs', Date.now());
-    return await obj.save();
+  // 落地：本地（同步后物理删除已标记文档）
+  function applyTargetToLocal(target) {
+    // 物理剔除已删除文档
+    const aliveDocs = target.docs.filter(d => !d.deletedAt);
+    localStorage.setItem('mw_documents', JSON.stringify(aliveDocs));
+    // AI 配置
+    localStorage.setItem('allAIPlatformConfigs', JSON.stringify(target.aiConfig));
+    localStorage.setItem('allAIPlatformConfigs_hash', target.aiConfigHash);
+    localStorage.setItem('allAIPlatformConfigs_last_modified', String(target.aiConfigLastModified));
+    // 提示词模板
+    localStorage.setItem('promptTemplates', JSON.stringify(target.promptTemplates));
+    localStorage.setItem('promptTemplates_hash', target.promptTemplatesHash);
+    localStorage.setItem('promptTemplates_last_modified', String(target.promptTemplatesLastModified));
+    // 同步时间戳
+    localStorage.setItem('mindword_last_sync_at', String(Date.now()));
   }
+
+  // async function uploadCloud(obj, docs) {
+  //   obj.set('docs', docs);
+  //   obj.set('updatedAtMs', Date.now());
+  //   return await obj.save();
+  // }
 
   // 新的同步逻辑：按照用户方案实现
   async function bidirectionalSync() {
@@ -649,9 +559,20 @@
       if (!isLoggedIn()) { throw new Error('未登录'); }
       showInfo('正在智能同步...');
 
+      // 1. 组装本地完整快照
       const localDocs = getLocalDocs();
       const localAIConfig = getLocalAIConfig();
       const localPromptTemplates = getLocalPromptTemplates();
+      const localFullData = {
+        docs: localDocs,
+        aiConfig: localAIConfig,
+        aiConfigHash: localStorage.getItem('allAIPlatformConfigs_hash') || undefined,
+        aiConfigLastModified: Number(localStorage.getItem('allAIPlatformConfigs_last_modified') || 0),
+        promptTemplates: localPromptTemplates,
+        promptTemplatesHash: localStorage.getItem('promptTemplates_hash') || undefined,
+        promptTemplatesLastModified: Number(localStorage.getItem('promptTemplates_last_modified') || 0),
+        lastSyncAt: Number(localStorage.getItem('mindword_last_sync_at') || 0)
+      };
 
       // 文件大小检查
       const sizeCheck = checkFileSize(localDocs);
@@ -659,48 +580,20 @@
         throw new Error('文件大小检查失败：' + sizeCheck.errors.join('；'));
       }
 
-      // 1. 获取云端数据
-      const cloudData = await downloadCloud();
+      // 2. 拉取云端同结构快照（首次拉取时缓存原生对象）
+      cachedCloudRaw = await downloadCloud();
+      const cloudFullData = await fetchCloudFullData();
 
-      // 2. 生成本地最新版本（合并云端数据）
-      const mergedLocalData = mergeWithCloudData(localDocs, localAIConfig, localPromptTemplates, cloudData);
+      // 3. 三向合并 → 目标结构
+      const targetFullData = mergeToTarget(localFullData, cloudFullData);
 
-      // 3. 保存合并后的版本到本地
-      saveLocalDocs(mergedLocalData.docs);
-      saveLocalAIConfig(mergedLocalData.aiConfig);
-      saveLocalPromptTemplates(mergedLocalData.promptTemplates);
+      // 4. 落地：先写本地，再写云端（确保本地优先）
+      applyTargetToLocal(targetFullData);
+      await applyTargetToCloud(targetFullData, cloudFullData);
 
-      // 4. 对比合并后的本地版本与云端版本
-      const hasChanges = checkDataDifferences(mergedLocalData, cloudData);
-
-      if (!hasChanges) {
-        showInfo('数据已是最新，无需同步');
-        return;
-      }
-
-      // 5. 仅在存在差异时才调用云端API
-      const results = await uploadToCloud(mergedLocalData);
-
-      // 刷新列表与当前文档视图
-      try {
-        if (typeof mw_renderList === 'function') mw_renderList();
-        if (typeof mw_getActive === 'function') {
-          const activeId = mw_getActive();
-          if (activeId) {
-            const docsNow = getLocalDocs();
-            const activeDoc = (docsNow || []).find(d => d.id === activeId) || null;
-            if (activeDoc) {
-              if (typeof mw_notifyEditorLoad === 'function') mw_notifyEditorLoad(activeDoc);
-              if (typeof mw_notifyPreviewLoad === 'function') mw_notifyPreviewLoad(activeDoc);
-              if (typeof mw_notifyMindmapLoad === 'function') mw_notifyMindmapLoad(activeDoc);
-            }
-          }
-        }
-      } catch (_) { }
-
-      showSuccess(`同步成功！云端更新${results.cloudUpdated}项`);
-
-      // 同步完成后更新状态显示
+      // 5. 刷新 UI
+      if (typeof mw_renderList === 'function') mw_renderList();
+      showSuccess('同步完成');
       setTimeout(updateSyncStatus, 300);
     } catch (e) {
       showError(e.message || '同步失败');

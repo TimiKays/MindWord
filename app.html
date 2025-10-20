@@ -1894,6 +1894,7 @@
                 // 只保留ID和删除信息，移除其他数据以节省空间
                 docs[idx] = {
                     id: docs[idx].id,
+                    name: docs[idx].name,
                     deletedAt: Date.now(),
                     updatedAt: Date.now()
                 };
@@ -2695,6 +2696,181 @@
                 window.__mw_applyLangToUI = applyLangToUI;
             });
         })();
+    </script>
+    <!-- 本地存储修改时间监听器 -->
+    <script>
+        // 监听AI配置和提示词模板的修改，自动记录修改时间（简洁无重复版）
+        
+            // 简单的哈希函数
+            function simpleHash(str) {
+                let hash = 0;
+                if (!str || str.length === 0) return hash.toString(36);
+                for (let i = 0; i < str.length; i++) {
+                    const char = str.charCodeAt(i);
+                    hash = ((hash << 5) - hash) + char;
+                    hash = hash & hash;
+                }
+                return Math.abs(hash).toString(36);
+            }
+
+            
+            let isUpdatingModifiedTime = false;
+
+            // 更新AI配置的修改时间
+            function updateAIConfigModifiedTime(newValue) {
+                if (isUpdatingModifiedTime) return;
+                
+                try {
+                    const newHash = newValue ? simpleHash(newValue) : '';
+                    const storedHash = localStorage.getItem('allAIPlatformConfigs_hash') || '';
+                    
+                    if (newHash !== storedHash) {
+                        console.log(`[Storage Listener] AI配置哈希变化: ${storedHash} -> ${newHash}`);
+                        
+                        isUpdatingModifiedTime = true;
+                        localStorage.setItem('allAIPlatformConfigs_hash', newHash);
+                        localStorage.setItem('allAIPlatformConfigs_last_modified', Date.now().toString());
+                        isUpdatingModifiedTime = false;
+                        
+                       
+                        
+                        console.log('[Storage Listener] AI配置内容变化，已更新修改时间和哈希');
+                    }
+                } catch (e) {
+                    isUpdatingModifiedTime = false;
+                    console.warn('[Storage Listener] 更新AI配置修改时间失败:', e);
+                }
+            }
+
+            // 更新提示词模板的修改时间
+            function updatePromptTemplatesModifiedTime(newValue) {
+                if (isUpdatingModifiedTime) return;
+                
+                try {
+                    const newHash = newValue ? simpleHash(newValue) : '';
+                    const storedHash = localStorage.getItem('promptTemplates_hash') || '';
+                    
+                    if (newHash !== storedHash) {
+                        console.log(`[Storage Listener] 提示词模板哈希变化: ${storedHash} -> ${newHash}`);
+                        
+                        isUpdatingModifiedTime = true;
+                        localStorage.setItem('promptTemplates_hash', newHash);
+                        localStorage.setItem('promptTemplates_last_modified', Date.now().toString());
+                        isUpdatingModifiedTime = false;
+                        
+                       
+                        
+                        // console.log('[Storage Listener] 提示词模板内容变化，已更新修改时间和哈希');
+                    }
+                } catch (e) {
+                    isUpdatingModifiedTime = false;
+                    // console.warn('[Storage Listener] 更新提示词模板修改时间失败:', e);
+                }
+            }
+
+            // // 统一的入口函数，根据key分发到对应的处理函数
+            // function updateModifiedTimeIfChanged(key, newValue) {
+            //     if (key === 'allAIPlatformConfigs') {
+            //         updateAIConfigModifiedTime(newValue);
+            //     } else if (key === 'promptTemplates') {
+            //         updatePromptTemplatesModifiedTime(newValue);
+            //     }
+            // }
+
+            // // 重写localStorage.setItem（只重写一次，避免重复）
+            // if (!window.__mw_storageListenerInitialized) {
+            //     const originalSetItem = localStorage.setItem;
+                
+            //     localStorage.setItem = function(key, value) {
+            //         // 避免递归调用
+            //         if (isUpdatingModifiedTime || key.endsWith('_last_modified')) {
+            //             return originalSetItem.call(this, key, value);
+            //         }
+                    
+            //         // 调用原始方法
+            //         const result = originalSetItem.call(this, key, value);
+                    
+            //         // 立即检测（分离处理，避免混淆）
+            //         if (key === 'allAIPlatformConfigs') {
+            //             updateAIConfigModifiedTime(value);
+            //         } else if (key === 'promptTemplates') {
+            //             updatePromptTemplatesModifiedTime(value);
+            //         }
+                    
+            //         return result;
+            //     };
+                
+            //     window.__mw_storageListenerInitialized = true;
+            // }
+
+            // 监听跨页面的storage事件（只绑定一次）
+            if (!window.__mw_storageEventBound) {
+                window.addEventListener('storage', function(e) {
+                    if (e.key === 'allAIPlatformConfigs') {
+                        console.log('[Storage Listener] 检测到跨页面AI配置变化');
+                        updateAIConfigModifiedTime(e.newValue);
+                    } else if (e.key === 'promptTemplates') {
+                        console.log('[Storage Listener] 检测到跨页面提示词模板变化');
+                        updatePromptTemplatesModifiedTime(e.newValue);
+                    }
+                });
+                window.__mw_storageEventBound = true;
+            }
+
+            // // 初始化哈希值（只初始化一次）
+            // function initializeHashes() {
+            //     if (window.__mw_hashesInitialized) return;
+                
+            //     try {
+            //         // 从localStorage读取已保存的哈希值作为基准
+            //         const savedAIConfigHash = localStorage.getItem('allAIPlatformConfigs_hash') || '';
+            //         const savedPromptTemplatesHash = localStorage.getItem('promptTemplates_hash') || '';
+                    
+            //         // 计算当前数据的哈希值
+            //         const aiConfig = localStorage.getItem('allAIPlatformConfigs');
+            //         const currentAIConfigHash = aiConfig ? simpleHash(aiConfig) : '';
+                    
+            //         const promptTemplates = localStorage.getItem('promptTemplates');
+            //         const currentPromptTemplatesHash = promptTemplates ? simpleHash(promptTemplates) : '';
+                    
+            //         console.log('[Storage Listener] 初始化检测:', {
+            //             aiConfig: { saved: savedAIConfigHash, current: currentAIConfigHash },
+            //             promptTemplates: { saved: savedPromptTemplatesHash, current: currentPromptTemplatesHash }
+            //         });
+                    
+            //         // 只在有数据且哈希不匹配时，才认为数据发生了变化
+            //         // 如果savedHash为空，说明是第一次初始化，不应该触发修改时间更新
+            //         if (currentAIConfigHash && savedAIConfigHash && currentAIConfigHash !== savedAIConfigHash) {
+            //             console.log('[Storage Listener] 检测到AI配置数据变化，更新修改时间');
+            //             localStorage.setItem('allAIPlatformConfigs_hash', currentAIConfigHash);
+            //             localStorage.setItem('allAIPlatformConfigs_last_modified', Date.now().toString());
+            //         }
+                    
+            //         if (currentPromptTemplatesHash && savedPromptTemplatesHash && currentPromptTemplatesHash !== savedPromptTemplatesHash) {
+            //             console.log('[Storage Listener] 检测到提示词模板数据变化，更新修改时间');
+            //             localStorage.setItem('promptTemplates_hash', currentPromptTemplatesHash);
+            //             localStorage.setItem('promptTemplates_last_modified', Date.now().toString());
+            //         }
+                    
+            //         // 更新内存缓存
+            //         lastAIConfigHash = currentAIConfigHash;
+            //         lastPromptTemplatesHash = currentPromptTemplatesHash;
+                    
+            //         window.__mw_hashesInitialized = true;
+            //     } catch (e) {
+            //         console.warn('[Storage Listener] 初始化哈希值失败:', e);
+            //     }
+            // }
+
+            // // 页面加载完成后初始化
+            // if (document.readyState === 'loading') {
+            //     document.addEventListener('DOMContentLoaded', initializeHashes);
+            // } else {
+            //     initializeHashes();
+            // }
+            
+            // console.log('[Storage Listener] AI配置和提示词模板修改时间监听器已启动（简洁无重复版）');
+        
     </script>
     <!-- 云同步逻辑脚本（英文方案：Cloudflare Worker/R2） -->
     <script src="cloud-sync.js"></script>

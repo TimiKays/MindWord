@@ -1370,7 +1370,7 @@
                 const selectedPlatform = platformSelect.value;
                 if (!selectedPlatform) return;
 
-                // 创建当前平台的配置对象
+                // 创建当前平台的配置对象，确保包含平台名称
                 const platformConfig = {
                     apiKey: apiKeyInput.value,
                     cloudflareAccountId: cloudflareAccountId.value,
@@ -1378,13 +1378,15 @@
                     temperature: temperatureInput.value,
                     maxTokens: maxTokensInput.value,
                     // 保存常用模型设置
-                    favoriteModels: favoriteModels[selectedPlatform] || []
+                    favoriteModels: favoriteModels[selectedPlatform] || [],
+                    // 确保每次都包含平台名称，避免"一遍多一遍少"的问题
+                    platformName: allPlatformConfigs[selectedPlatform]?.platformName || (aiService.getPlatforms()[selectedPlatform]?.name) || selectedPlatform
                 };
 
                 // 更新配置集合
                 allPlatformConfigs[selectedPlatform] = platformConfig;
 
-                // 保存到本地存储
+                // 保存到本地存储（确保配置完整）
                 localStorage.setItem('allAIPlatformConfigs', JSON.stringify(allPlatformConfigs));
 
                 // 添加调试信息
@@ -1441,11 +1443,13 @@
                             azureEndpoint: '',
                             temperature: 0.7,
                             maxTokens: 1000,
-                            favoriteModels: ['GLM-4-Flash'] // 仅作为 UI 建议的默认模型名
+                            favoriteModels: ['GLM-4-Flash'], // 仅作为 UI 建议的默认模型名
+                            platformName: '智谱AI' // 确保默认配置也包含平台名称
                         }
                     };
 
                     // 将“空”配置保存到本地（不包含任何密钥）
+                    // 注意：现在默认配置已包含platformName，确保数据完整性
                     try {
                         localStorage.setItem('allAIPlatformConfigs', JSON.stringify(allPlatformConfigs));
                         // 仅保存默认模型名用于 UI 回显，不保存任何凭据
@@ -1455,6 +1459,7 @@
                     }
 
                     console.log('已创建安全的默认平台占位配置（不包含密钥），请在设置中填写 API 密钥或使用后端注入');
+                    console.log('默认配置已包含platformName，确保数据完整性');
                 }
 
                 // 自动选择已配置的平台
@@ -2600,7 +2605,14 @@
                             const json = JSON.parse(reader.result);
                             if (typeof json === 'object' && json) {
                                 allPlatformConfigs = json;
-                                localStorage.setItem('allAIPlatformConfigs', JSON.stringify(allPlatformConfigs));
+                                // 导入配置时确保数据完整 - 现在导入的配置也会包含platformName
+                            // 强制确保所有导入的配置都有platformName
+                            Object.keys(allPlatformConfigs).forEach(key => {
+                                if (allPlatformConfigs[key] && !allPlatformConfigs[key].platformName) {
+                                    allPlatformConfigs[key].platformName = (aiService.getPlatforms()[key]?.name) || key;
+                                }
+                            });
+                            localStorage.setItem('allAIPlatformConfigs', JSON.stringify(allPlatformConfigs));
                                 populateSavedPlatformsList();
                                 populateUsagePlatforms();
                                 showStatus('配置已导入', 'success');
@@ -3817,6 +3829,7 @@
                         e.stopPropagation();
                         if (!allPlatformConfigs[key]) return;
                         delete allPlatformConfigs[key];
+                        // 删除平台配置后保存完整配置 - 现在所有配置都包含platformName
                         localStorage.setItem('allAIPlatformConfigs', JSON.stringify(allPlatformConfigs));
                         if (favoriteModels && favoriteModels[key]) delete favoriteModels[key];
                         populateSavedPlatformsList();
@@ -3924,7 +3937,7 @@
 
                 // 如果仍没有 key，退出保存扩展逻辑
                 if (!currentKey) {
-                    localStorage.setItem('allAIPlatformConfigs', JSON.stringify(allPlatformConfigs));
+                    // 避免重复保存，直接返回
                     return;
                 }
 
@@ -3973,6 +3986,13 @@
                 }
 
                 // 写回存储并刷新侧栏（保存后再刷新）
+                // 现在所有配置都包含platformName，确保数据一致性
+                // 强制确保所有配置都有platformName，避免数据不一致
+                Object.keys(allPlatformConfigs).forEach(key => {
+                    if (allPlatformConfigs[key] && !allPlatformConfigs[key].platformName) {
+                        allPlatformConfigs[key].platformName = (aiService.getPlatforms()[key]?.name) || key;
+                    }
+                });
                 localStorage.setItem('allAIPlatformConfigs', JSON.stringify(allPlatformConfigs));
                 populateSavedPlatformsList();
 
