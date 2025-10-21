@@ -109,7 +109,7 @@ const i18nLocales = {
     footer: {
       copyright: '© 2025 MindWord. 保留所有权利。'
     },
-    
+
     // 导航栏
     nav: {
       features: '核心功能',
@@ -286,7 +286,9 @@ const i18nLocales = {
         syncFailed: '同步失败',
         confirmDelete: '确定要删除这个节点吗？',
         loading: '加载中...',
-        noData: '暂无数据'
+        noData: '暂无数据',
+        address: '地址',
+        notConfigured: '未配置'
       }
     },
 
@@ -296,7 +298,13 @@ const i18nLocales = {
       networkError: '网络错误，请检查网络连接',
       fileTooLarge: '文件过大，请减小文件大小',
       invalidFormat: '格式错误',
-      operationFailed: '操作失败'
+      operationFailed: '操作失败',
+      pageNotConfigured: '页面地址未配置',
+      setPageAddress: '请在 PAGE_CONFIG.${panelName}.url 中设置页面地址',
+      pageLoadFailed: '页面加载失败',
+      retry: '重试',
+      reloading: '正在重新加载',
+      keepOnePanel: '至少需要保留一个视图面板！'
     },
 
     // 认证相关
@@ -310,7 +318,25 @@ const i18nLocales = {
       capacityLimit: '容量上限：每用户 10MB（仅保留最新一份）',
       sync: '一键同步',
       clear: '清空备份',
-      close: '关闭'
+      close: '关闭',
+      latestBackup: '最新备份时间',
+      fileCount: '已备份文件数',
+      totalSize: '总体大小'
+    },
+
+    // 文档管理
+    docs: {
+      myDocuments: '我的文档',
+      newDoc: '新增',
+      exportAllZip: '全部导出ZIP',
+      importZip: '导入ZIP',
+      clearData: '清空数据',
+      registerLogin: '注册/登录',
+      personalAccount: '个人账户',
+      clearCloudData: '清空云数据',
+      deleteAllCloudBackups: '删除所有云端备份',
+      bidirectionalSync: '双向同步为最新',
+      oneClickSync: '一键同步'
     }
   },
 
@@ -320,7 +346,7 @@ const i18nLocales = {
       zh: '中文',
       en: 'EN'
     },
-    
+
     // 导航栏
     nav: {
       features: 'Features',
@@ -460,7 +486,7 @@ const i18nLocales = {
     footer: {
       copyright: '© 2025 MindWord. All rights reserved.'
     },
-  
+
     // 项目背景
     background: {
       title: 'Project Background',
@@ -604,7 +630,9 @@ const i18nLocales = {
         syncFailed: 'Sync failed',
         confirmDelete: 'Are you sure you want to delete this node?',
         loading: 'Loading...',
-        noData: 'No data'
+        noData: 'No data',
+        address: 'Address',
+        notConfigured: 'Not configured'
       }
     },
 
@@ -613,7 +641,13 @@ const i18nLocales = {
       networkError: 'Network error, please check your connection',
       fileTooLarge: 'File too large, please reduce file size',
       invalidFormat: 'Invalid format',
-      operationFailed: 'Operation failed'
+      operationFailed: 'Operation failed',
+      pageNotConfigured: 'Page address not configured',
+      setPageAddress: 'Please set page address in PAGE_CONFIG.${panelName}.url',
+      pageLoadFailed: 'Page load failed',
+      retry: 'Retry',
+      reloading: 'Reloading',
+      keepOnePanel: 'At least one view panel must be kept!'
     },
 
     // 认证相关
@@ -625,9 +659,27 @@ const i18nLocales = {
     cloud: {
       backupTitle: 'Cloud Backup',
       capacityLimit: 'Capacity limit: 10MB per user (latest version only)',
-      sync: 'One-click Sync',
-      clear: 'Clear Backup',
-      close: 'Close'
+      sync: 'Sync',
+      clear: 'Clear',
+      close: 'Close',
+      latestBackup: 'Latest backup time',
+      fileCount: 'Number of backed up files',
+      totalSize: 'Total size'
+    },
+
+    // 文档管理
+    docs: {
+      myDocuments: 'My Documents',
+      newDoc: 'New Document',
+      exportAllZip: 'Export All ZIP',
+      importZip: 'Import ZIP',
+      clearData: 'Clear Data',
+      registerLogin: 'Register/Login',
+      personalAccount: 'Personal Account',
+      clearCloudData: 'Clear Cloud Data',
+      deleteAllCloudBackups: 'Delete all cloud backups',
+      bidirectionalSync: 'Bidirectional sync is up to date',
+      oneClickSync: 'sync'
     }
   }
 };
