@@ -141,6 +141,7 @@
                     await mw_importZip(zipBlob);
                     try { localStorage.setItem('mw_last_change_time', Date.now().toString()); } catch (_) { }
                     showSuccess && showSuccess('已从云端恢复为最新');
+                    setTimeout(updateCloudSyncStatusMenu, 300);
                     return { action: 'download', cloud };
                 }
             }
@@ -154,6 +155,7 @@
             const res = await uploadLatestZip(zipBlob);
             try { localStorage.setItem('mw_last_change_time', Date.now().toString()); } catch (_) { }
             showSuccess && showSuccess('已上传云端最新备份');
+            setTimeout(updateCloudSyncStatusMenu, 300);
             return { action: 'upload', meta: res };
         } catch (e) {
             console.warn('[CloudSync] bidirectional failed', e);
@@ -185,6 +187,44 @@
         }
     }
 
+    // 更新个人菜单中的云同步状态
+    async function updateCloudSyncStatusMenu() {
+        const statusEl = document.getElementById('cloud-sync-status-menu');
+        const syncBtn = document.getElementById('cloud-sync-btn-menu');
+        if (!statusEl) return;
+
+        try {
+            const meta = await fetchLatestMeta();
+            if (!meta) {
+                statusEl.textContent = '双向同步为最新';
+                statusEl.style.color = '#666';
+                if (syncBtn) syncBtn.disabled = false;
+                return;
+            }
+
+            const docs = (typeof mw_loadDocs === 'function') ? mw_loadDocs() : [];
+            const fileCount = docs ? docs.length : 0;
+            const sizeBytes = meta.sizeBytes || 0;
+
+            statusEl.innerHTML = `文件: ${fileCount}个<br>${fmtBytes(sizeBytes)} / 10MB`;
+
+            // 根据文件大小改变颜色
+            if (sizeBytes > 9.5 * 1024 * 1024) {
+                statusEl.style.color = '#e53935';
+            } else if (sizeBytes > 8 * 1024 * 1024) {
+                statusEl.style.color = '#ff9800';
+            } else {
+                statusEl.style.color = '#666';
+            }
+
+            if (syncBtn) syncBtn.disabled = false;
+        } catch (e) {
+            statusEl.textContent = '获取失败';
+            statusEl.style.color = '#e53935';
+            if (syncBtn) syncBtn.disabled = true;
+        }
+    }
+
     // 事件绑定与显示控制
     function initCloudSyncUI() {
         const userBox = document.getElementById('auth-user');
@@ -195,11 +235,12 @@
         const modalSync = document.getElementById('cloud-sync-modal-sync');
         const modalClear = document.getElementById('cloud-sync-modal-clear');
         const modalClose = document.getElementById('cloud-sync-modal-close');
+        const menuSyncBtn = document.getElementById('cloud-sync-sync-btn-menu');
 
         // 显示控制：仅在已登录且语言为英文时显示
         try {
             const token = getSessionToken();
-            const lang = (function(){ try { return localStorage.getItem('mw_lang') || 'zh'; } catch(_) { return 'zh'; } })();
+            const lang = (function () { try { return localStorage.getItem('mw_lang') || 'zh'; } catch (_) { return 'zh'; } })();
             if (token && userBox && controls) {
                 controls.style.display = (lang === 'en') ? 'inline-flex' : 'none';
             } else if (controls) {
@@ -211,6 +252,9 @@
 
         if (syncBtn) {
             syncBtn.onclick = () => { bidirectionalSyncLatest(); };
+        }
+        if (menuSyncBtn) {
+            menuSyncBtn.onclick = () => { bidirectionalSyncLatest(); };
         }
         if (moreBtn && modal) {
             moreBtn.onclick = async () => {
@@ -231,6 +275,11 @@
                 await refreshModalInfo();
             };
         }
+
+        // 初始化个人菜单状态
+        setTimeout(() => {
+            updateCloudSyncStatusMenu();
+        }, 100);
     }
 
     // 初始化时机：DOM 就绪后执行一次；并在认证区刷新后再次尝试

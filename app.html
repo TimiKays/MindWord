@@ -177,17 +177,135 @@
             }
 
             #auth-username {
-                font-size: 11px !important;
-                max-width: 60px !important;
-                overflow: hidden !important;
-                text-overflow: ellipsis !important;
-                white-space: nowrap !important;
-            }
+            font-size: 11px !important;
+            max-width: 60px !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+        }
 
-            #auth-logout {
-                height: 32px !important;
+        #auth-logout {
+            height: 32px !important;
+            font-size: 11px !important;
+            padding: 0 8px !important;
+        }
+
+        /* 个人菜单下拉样式 */
+        .user-dropdown {
+            display: inline-flex;
+            align-items: center;
+            cursor: pointer;
+            padding: 6px 12px;
+            border-radius: 6px;
+            transition: background-color 0.2s;
+        }
+
+        .user-dropdown:hover {
+            background-color: #f8fafc;
+        }
+
+        .dropdown-arrow {
+            margin-left: 4px;
+            font-size: 12px;
+            transition: transform 0.2s;
+            color: #64748b;
+        }
+
+        .user-menu-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            min-width: 240px;
+            z-index: 1000;
+            display: none;
+            margin-top: 4px;
+        }
+
+        .menu-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f1f5f9;
+            background-color: #f8fafc;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .menu-username {
+            font-weight: 600;
+            color: #1e293b;
+            font-size: 16px;
+            margin-bottom: 2px;
+        }
+
+        .menu-email {
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .menu-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-bottom: 1px solid #f8fafc;
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+            color: #374151;
+        }
+
+        .menu-item:hover {
+            background-color: #f8fafc;
+        }
+
+        .menu-item:last-child {
+            border-bottom: none;
+            border-radius: 0 0 8px 8px;
+        }
+
+        .menu-item.danger {
+            color: #dc2626;
+        }
+
+        .menu-item.danger:hover {
+            background-color: #fef2f2;
+        }
+
+        .menu-icon {
+            margin-right: 10px;
+            width: 16px;
+            text-align: center;
+            color: #64748b;
+        }
+
+            /* 个人菜单移动端样式 */
+            .user-dropdown {
+                padding: 4px 8px !important;
+            }
+            
+            .user-menu-dropdown {
+                top: 32px !important;
+                right: 0 !important;
+                min-width: 200px !important;
+                max-width: 240px !important;
+            }
+            
+            .menu-header {
+                padding: 8px 12px !important;
+            }
+            
+            .menu-username {
+                font-size: 14px !important;
+            }
+            
+            .menu-email {
                 font-size: 11px !important;
-                padding: 0 8px !important;
+            }
+            
+            .menu-item {
+                padding: 6px 12px !important;
+                font-size: 12px !important;
             }
         }
     </style>
@@ -415,14 +533,20 @@
     <!-- 顶部导航栏 -->
     <header class="header">
         <div class="brand"
-            style="font-family: 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin-left: 50;   font-weight:700; font-size:26px;">
+            style="font-family: 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin-left: 50;   font-weight:700; font-size:26px; display:flex; align-items:center;">
             <span class="brand-clickable"
-                style="background: linear-gradient(0deg,#0b82e4 0%,#11c49d 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; cursor: pointer;"
+                style="background: linear-gradient(0deg,#0b82e4 0%,#11c49d 100%); -webkit-background-clip: text; background-clip: text; color: transparent;  cursor: pointer;"
                 onclick="window.location.href='index.html'" title="返回首页">
                 <img src="favicon.ico" alt="favicon"
                     style="width:32px;height:32px;vertical-align:middle;margin-right:8px;">
                 MindWord
             </span>
+            <!-- 语言切换 -->
+            <select id="lang-switch" title="Language"
+                style="height:30px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; color:#334155; font-size:12px; padding:0 8px; margin-left:15px;">
+                <option value="zh">中文</option>
+                <option value="en">English</option>
+            </select>
         </div>
         <div class="tabs">
             <div class="tab active" data-panel="editor" style="font-size:14px;"><svg t="1759394685575" class="icon"
@@ -459,34 +583,100 @@
             <span>专注</span>
         </button>
         <div class="header-right">
-            <!-- 语言切换 -->
-            <select id="lang-switch" title="Language"
-                style="height:30px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; color:#334155; font-size:12px; padding:0 8px; margin-right:8px;">
-                <option value="zh">中文</option>
-                <option value="en">English</option>
-            </select>
             <!-- 账号区：未登录显示"注册/登录"，已登录显示"用户名/退出登录" -->
             <div id="auth-area" style="display:inline-flex; align-items:center; gap:8px; margin-left:10px;">
                 <a id="auth-link" href="auth.html"
                     style="display:inline-flex; align-items:center; height:30px; padding:0 10px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; color:#334155; text-decoration:none; font-size:12px; cursor:pointer;">
                     注册/登录
                 </a>
-                <div id="auth-user" style="display:none; align-items:center; gap:8px;">
-                    <span id="auth-username" style="font-size:12px; color:#334155;"></span>
-                    <button id="auth-logout" class="btn btn-small" style="height:30px;">退出登录</button>
-                    <!-- 云同步控制区（英文）：Cloudflare Worker 方案 -->
-                    <div id="cloud-sync-controls"
-                        style="display:inline-flex; align-items:center; gap:6px; margin-left:6px;">
-                        <button id="cloud-sync-sync-btn" class="btn btn-small" title="双向同步为最新"
-                            style="height:30px;">同步</button>
-                        <button id="cloud-sync-more-btn" class="btn btn-small" title="更多"
-                            style="height:30px;">更多</button>
+                <div id="auth-user" style="display:none; align-items:center; gap:8px; position: relative;">
+                    <div class="user-dropdown" style="display:flex; align-items:center; gap:4px; cursor: pointer; position: relative;">
+                        <span id="auth-username" style="font-size:12px; color:#334155;"></span>
+                        <svg class="dropdown-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transition: transform 0.2s ease;">
+                            <path d="M6 9l6 6 6-6"/>
+                        </svg>
                     </div>
-                    <!-- 云同步控制区（中文）：LeanCloud Data 方案 -->
-                    <div id="lc-sync-controls" style="display:none; align-items:center; gap:6px; margin-left:6px;">
-                        <button id="lc-sync-btn" class="btn btn-small" style="height:30px;">一键同步</button>
-                        <button id="lc-clear-btn" class="btn btn-small"
-                            style="height:30px; background:#e74c3c; color:#fff;">清空云数据</button>
+                    
+                    <!-- 个人菜单下拉面板 -->
+                    <div class="user-menu-dropdown" style="display: none; position: absolute; top: 100%; right: 0; margin-top: 8px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); min-width: 200px; z-index: 1000;">
+                        <div class="user-menu-header" style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9;">
+                            <div style="font-size: 14px; font-weight: 600; color: #1e293b;" id="menu-username"></div>
+                            <div style="font-size: 12px; color: #64748b; margin-top: 2px;">个人账户</div>
+                        </div>
+                        
+                        <div class="user-menu-items" style="padding: 8px 0;">
+                            <!-- 云同步控制区（英文）：Cloudflare Worker 方案 -->
+                            <div class="menu-item" id="cloud-sync-controls-menu" style="display:flex; align-items:center; gap:8px; padding: 8px 16px; cursor: pointer; transition: background-color 0.15s ease;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                                    <line x1="12" y1="22.08" x2="12" y2="12"/>
+                                </svg>
+                                <div style="flex: 1;">
+                                    <div style="font-size: 13px; color: #374151;">云同步</div>
+                                    <div style="font-size: 11px; color: #9ca3af;" id="cloud-sync-status-menu">双向同步为最新</div>
+                                </div>
+                                <button id="cloud-sync-sync-btn-menu" class="btn btn-small" style="height:24px; font-size:11px; padding: 0 8px;">同步</button>
+                            </div>
+                            
+                            <!-- 云同步控制区（中文）：LeanCloud Data 方案 -->
+                            <div class="menu-item" id="lc-sync-controls-menu" style="display:none; align-items:center; gap:8px; padding: 8px 16px; cursor: pointer; transition: background-color 0.15s ease;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                                    <line x1="12" y1="22.08" x2="12" y2="12"/>
+                                </svg>
+                                <div style="flex: 1;">
+                                    <div style="font-size: 13px; color: #374151;">云同步</div>
+                                    <div style="font-size: 11px; color: #9ca3af;" id="lc-sync-status-menu">一键同步</div>
+                                </div>
+                                <button id="lc-sync-btn-menu" class="btn btn-small" style="height:24px; font-size:11px; padding: 0 8px;">同步</button>
+                            </div>
+                            
+                            <div class="menu-item" style="display:flex; align-items:center; gap:8px; padding: 8px 16px; cursor: pointer; transition: background-color 0.15s ease;" onclick="document.getElementById('lc-clear-btn-menu').click();">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14M10 11v6M14 11v6"/>
+                                </svg>
+                                <div style="flex: 1;">
+                                    <div style="font-size: 13px; color: #374151;">清空云数据</div>
+                                    <div style="font-size: 11px; color: #9ca3af;">删除所有云端备份</div>
+                                </div>
+                                <button id="lc-clear-btn-menu" class="btn btn-small" style="height:24px; font-size:11px; padding: 0 8px; background:#e74c3c; color:#fff;">清空</button>
+                            </div>
+                            
+                            <div class="menu-divider" style="height: 1px; background: #f1f5f9; margin: 8px 0;"></div>
+                            
+                            <div class="menu-item" style="display:flex; align-items:center; gap:8px; padding: 8px 16px; cursor: pointer; transition: background-color 0.15s ease;" onclick="document.getElementById('auth-logout-menu').click();">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
+                                </svg>
+                                <div style="font-size: 13px; color: #dc2626;">退出登录</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 隐藏的退出登录按钮（用于菜单调用） -->
+                    <button id="auth-logout-menu" style="display:none;"></button>
+                    
+                    <!-- 云同步弹窗（英文方案使用） -->
+                    <div id="cloud-sync-modal"
+                        style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;">
+                        <div
+                            style="background: white; padding: 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); max-width: 420px; width: 90%;">
+                            <h3 style="margin: 0 0 10px 0; color: #333;">云备份</h3>
+                            <div style="font-size: 13px; color: #555; margin-bottom: 12px;">
+                                <div>最新备份时间：<span id="cloud-sync-latest-time">—</span></div>
+                                <div>已备份文件数：<span id="cloud-sync-file-count">—</span></div>
+                                <div>总体大小：<span id="cloud-sync-total-size">—</span></div>
+                                <div style="color:#888; margin-top:6px;">容量上限：每用户 10MB（仅保留最新一份）</div>
+                            </div>
+                            <div style="display:flex; gap:8px; justify-content:flex-end;">
+                                <button id="cloud-sync-modal-sync" class="btn btn-small" style="height:30px;">一键同步</button>
+                                <button id="cloud-sync-modal-clear" class="btn btn-small"
+                                    style="height:30px; background:#e74c3c; color:#fff;">清空备份</button>
+                                <button id="cloud-sync-modal-close" class="btn btn-small" style="height:30px;">关闭</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -2540,6 +2730,9 @@
                     // 修复：优先使用user.username，因为localStorage中的数据username在根对象
                     var username = user.username || (user.get && (user.get('username') || user.get('email'))) || '已登录';
                     nameSpan.textContent = username;
+                    // 同时更新菜单中的用户名
+                    var menuUsername = document.getElementById('menu-username');
+                    if (menuUsername) menuUsername.textContent = username;
                     // 登录后隐藏"注册/登录"按钮，显示用户区域
                     if (link) link.style.display = 'none';
                     userBox.style.display = 'inline-flex';
@@ -2666,6 +2859,51 @@
                     refreshAuthUI();
                 }, 2000);
             }
+
+            // 个人菜单下拉功能
+            try {
+                const userDropdown = document.querySelector('.user-dropdown');
+                const userMenuDropdown = document.querySelector('.user-menu-dropdown');
+                const dropdownArrow = document.querySelector('.dropdown-arrow');
+                
+                if (userDropdown && userMenuDropdown) {
+                    // 点击用户名或箭头展开/收起菜单
+                    userDropdown.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        const isVisible = userMenuDropdown.style.display === 'block';
+                        userMenuDropdown.style.display = isVisible ? 'none' : 'block';
+                        if (dropdownArrow) {
+                            dropdownArrow.style.transform = isVisible ? 'rotate(0deg)' : 'rotate(180deg)';
+                        }
+                    });
+                    
+                    // 点击页面其他地方关闭菜单
+                    document.addEventListener('click', function() {
+                        userMenuDropdown.style.display = 'none';
+                        if (dropdownArrow) {
+                            dropdownArrow.style.transform = 'rotate(0deg)';
+                        }
+                    });
+                    
+                    // 点击菜单内部不关闭菜单
+                    userMenuDropdown.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                    });
+                    
+                    // 菜单项悬停效果
+                    const menuItems = userMenuDropdown.querySelectorAll('.menu-item');
+                    menuItems.forEach(item => {
+                        item.addEventListener('mouseenter', function() {
+                            this.style.backgroundColor = '#f8fafc';
+                        });
+                        item.addEventListener('mouseleave', function() {
+                            this.style.backgroundColor = 'transparent';
+                        });
+                    });
+                }
+            } catch (e) {
+                console.warn('[AUTH] 个人菜单初始化失败:', e);
+            }
         })();
     </script>
 
@@ -2678,9 +2916,21 @@
                 const authUser = document.getElementById('auth-user');
                 const enCtrls = document.getElementById('cloud-sync-controls');
                 const zhCtrls = document.getElementById('lc-sync-controls');
+                const enMenuCtrls = document.getElementById('cloud-sync-controls-menu');
+                const zhMenuCtrls = document.getElementById('lc-sync-controls-menu');
                 if (!authUser || authUser.style.display === 'none') return;
-                if (lang === 'zh') { if (enCtrls) enCtrls.style.display = 'none'; if (zhCtrls) zhCtrls.style.display = 'inline-flex'; }
-                else { if (enCtrls) enCtrls.style.display = 'inline-flex'; if (zhCtrls) zhCtrls.style.display = 'none'; }
+                if (lang === 'zh') { 
+                    if (enCtrls) enCtrls.style.display = 'none'; 
+                    if (zhCtrls) zhCtrls.style.display = 'inline-flex';
+                    if (enMenuCtrls) enMenuCtrls.style.display = 'none';
+                    if (zhMenuCtrls) zhMenuCtrls.style.display = 'flex';
+                }
+                else { 
+                    if (enCtrls) enCtrls.style.display = 'inline-flex'; 
+                    if (zhCtrls) zhCtrls.style.display = 'none';
+                    if (enMenuCtrls) enMenuCtrls.style.display = 'flex';
+                    if (zhMenuCtrls) zhMenuCtrls.style.display = 'none';
+                }
             }
             document.addEventListener('DOMContentLoaded', function () {
                 var sel = document.getElementById('lang-switch');

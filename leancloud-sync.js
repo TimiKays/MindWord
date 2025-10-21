@@ -593,6 +593,23 @@
 
       // 5. 刷新 UI
       if (typeof mw_renderList === 'function') mw_renderList();
+
+      // 6. 如果当前有正在编辑的文档，刷新数据展示
+      if (typeof mw_getActive === 'function' && typeof mw_notifyEditorLoad === 'function') {
+        const activeId = mw_getActive();
+        if (activeId && typeof mw_loadDocs === 'function') {
+          const docs = mw_loadDocs();
+          const currentDoc = docs.find(d => d.id === activeId);
+          if (currentDoc) {
+            // 刷新当前文档到各个面板
+            mw_notifyEditorLoad(currentDoc);
+            if (typeof mw_notifyPreviewLoad === 'function') mw_notifyPreviewLoad(currentDoc);
+            if (typeof mw_notifyMindmapLoad === 'function') mw_notifyMindmapLoad(currentDoc);
+            console.log('[SYNC] 已刷新当前编辑文档:', activeId);
+          }
+        }
+      }
+
       showSuccess('同步完成');
       setTimeout(updateSyncStatus, 300);
     } catch (e) {
@@ -624,8 +641,11 @@
 
   function initUIBindings() {
     const zhCtrls = document.getElementById('lc-sync-controls');
-    const syncBtn = document.getElementById('lc-sync-btn');
-    const clearBtn = document.getElementById('lc-clear-btn');
+
+    
+    // 个人菜单中的按钮
+    const menuSyncBtn = document.getElementById('lc-sync-btn-menu');
+    const menuClearBtn = document.getElementById('lc-clear-btn-menu');
 
     // 添加状态显示元素
     if (zhCtrls && !document.getElementById('lc-sync-status')) {
@@ -635,8 +655,15 @@
       zhCtrls.appendChild(statusDiv);
     }
 
-    if (syncBtn) syncBtn.onclick = () => bidirectionalSync();
-    if (clearBtn) clearBtn.onclick = () => clearCloud();
+
+    
+    // 绑定个人菜单按钮 - 使用addEventListener确保函数可访问
+    if (menuSyncBtn) {
+      menuSyncBtn.addEventListener('click', bidirectionalSync);
+    }
+    if (menuClearBtn) {
+      menuClearBtn.addEventListener('click', clearCloud);
+    }
 
     // 登录状态或语言变化时切换显示
     function refreshVisible() {
@@ -686,6 +713,15 @@
       // 定期更新状态（每30秒）
       setInterval(updateSyncStatus, 30000);
     }
+
+    // 初始化个人菜单状态
+    setTimeout(() => {
+      updateSyncStatus();
+      // 同时更新Cloudflare Worker的个人菜单状态
+      if (typeof window.__mw_initCloudSyncUI === 'function') {
+        window.__mw_initCloudSyncUI();
+      }
+    }, 100);
   });
 
   // 显示文件大小和同步状态
@@ -694,15 +730,15 @@
       const docs = getLocalDocs();
       const sizeCheck = checkFileSize(docs);
 
-      // 更新状态显示
+      // 更新状态显示（主界面）
       const statusElement = document.getElementById('lc-sync-status');
       if (statusElement) {
-        const totalSizeMB = (sizeCheck.totalSize / 1024 / 1024).toFixed(1);
+        const totalSizeMB = (sizeCheck.totalSize / 1024).toFixed(1);
         const fileCount = docs ? docs.length : 0;
 
         statusElement.innerHTML = `
           <small style="color: #666; font-size: 11px;">
-            文件: ${fileCount}个 | 大小: ${totalSizeMB}MB / 10MB
+            文件: ${fileCount}个<br>${totalSizeMB}KB / 10MB
           </small>
         `;
 
@@ -711,6 +747,24 @@
           statusElement.querySelector('small').style.color = '#e74c3c';
         } else if (sizeCheck.totalSize > 5 * 1024 * 1024) { // 超过5MB
           statusElement.querySelector('small').style.color = '#f39c12';
+        }
+      }
+
+      // 更新个人菜单中的状态显示
+      const menuStatusElement = document.getElementById('lc-sync-status-menu');
+      if (menuStatusElement) {
+        const totalSizeMB = (sizeCheck.totalSize / 1024).toFixed(1);
+        const fileCount = docs ? docs.length : 0;
+
+        menuStatusElement.innerHTML = `文件: ${fileCount}个<br>${totalSizeMB}KB / 10MB`;
+
+        // 根据使用情况改变颜色
+        if (sizeCheck.totalSize > 8 * 1024 * 1024) { // 超过8MB
+          menuStatusElement.style.color = '#e74c3c';
+        } else if (sizeCheck.totalSize > 5 * 1024 * 1024) { // 超过5MB
+          menuStatusElement.style.color = '#f39c12';
+        } else {
+          menuStatusElement.style.color = '#9ca3af';
         }
       }
 
@@ -725,6 +779,20 @@
           syncBtn.disabled = false;
           syncBtn.title = '一键同步';
           syncBtn.style.opacity = '1';
+        }
+      }
+
+      // 更新个人菜单中的同步按钮状态
+      const menuSyncBtn = document.getElementById('lc-sync-btn-menu');
+      if (menuSyncBtn) {
+        if (!sizeCheck.valid) {
+          menuSyncBtn.disabled = true;
+          menuSyncBtn.title = '文件大小检查失败：' + sizeCheck.errors.join('；');
+          menuSyncBtn.style.opacity = '0.6';
+        } else {
+          menuSyncBtn.disabled = false;
+          menuSyncBtn.title = '一键同步';
+          menuSyncBtn.style.opacity = '1';
         }
       }
 

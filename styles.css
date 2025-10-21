@@ -121,8 +121,8 @@ body {
 }
 
 #focus-toggle.active .focus-icon::before {
-    width: 12px !important;
-    height: 12px !important;
+    width: 8px !important;
+    height: 8px !important;
     font-size: 8px !important;
 }
 
@@ -216,7 +216,7 @@ iframe .btn:not([class*="btn-"]):hover {
     letter-spacing: -0.5px;
     background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
     -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+
     background-clip: text;
 }
 
@@ -867,19 +867,20 @@ iframe .btn:not([class*="btn-"]):hover {
         align-items: center;
         margin-left: auto;
     }
-    
+
     /* 移动端认证区域样式调整 */
     #auth-area {
         margin-left: 8px !important;
         margin-right: 8px !important;
     }
-    
-    #auth-link, #auth-user {
+
+    #auth-link,
+    #auth-user {
         height: 32px !important;
         font-size: 11px !important;
         padding: 0 8px !important;
     }
-    
+
     #auth-username {
         font-size: 11px !important;
         max-width: 60px !important;
@@ -887,13 +888,13 @@ iframe .btn:not([class*="btn-"]):hover {
         text-overflow: ellipsis !important;
         white-space: nowrap !important;
     }
-    
+
     #auth-logout {
         height: 32px !important;
         font-size: 11px !important;
         padding: 0 8px !important;
     }
-    
+
     /* 隐藏专注按钮以适应移动端空间 */
     #focus-toggle {
         display: none !important;
