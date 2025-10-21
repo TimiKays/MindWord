@@ -118,6 +118,8 @@
       style="margin-left:auto;display:flex;gap:12px;align-items:flex-end;justify-content:flex-end;">
       <span id="toggleNodeDetailsBtn" class="ico-btn state-on" role="button" tabindex="0" aria-pressed="true"
         title="详情面板" style="--ico: url('res/detail.svg'); "></span>
+      <span id="help-btn" class="ico-btn" role="button" tabindex="0" title="帮助"
+        style="--ico: url('../res/help.svg'); "></span>
       <label class="mw-toggle-showtype"
         style="display:none;flex-direction:column;align-items:center;font-size:12px;margin:0 4px;">
         <input id="toggleShowNodeTypeCheckbox" type="checkbox" style="width:18px;height:18px;margin-bottom:6px;">
@@ -383,6 +385,167 @@
     }
 
     try { window.showEmptyDetailsPrompt = showEmptyDetailsPrompt; } catch (e) { /* ignore */ }
+
+    // 显示思维导图帮助面板（显示编辑器的帮助内容）
+    function showMindmapHelp() {
+      // 创建模态框
+      const modal = document.createElement('div');
+      modal.style.cssText = [
+        'position: fixed',
+        'top: 0',
+        'left: 0',
+        'width: 100%',
+        'height: 100%',
+        'background-color: rgba(0, 0, 0, 0.5)',
+        'display: flex',
+        'align-items: center',
+        'justify-content: center',
+        'z-index: 10000',
+        'opacity: 0',
+        'visibility: hidden',
+        'transition: all 0.3s ease'
+      ].join(';');
+
+      const modalContent = document.createElement('div');
+      modalContent.style.cssText = [
+        'background-color: #fff',
+        'padding: 24px',
+        'max-width: 600px',
+        'max-height: 80vh',
+        'overflow-y: auto',
+        'box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3)',
+        'transform: scale(0.9)',
+        'transition: transform 0.3s ease',
+        'position: relative',
+        'margin: 0 auto'
+      ].join(';');
+
+      const modalHeader = document.createElement('div');
+      modalHeader.style.cssText = [
+        'margin-bottom: 16px',
+        'display: flex',
+        'align-items: center',
+        'justify-content: space-between'
+      ].join(';');
+
+      const modalTitle = document.createElement('h2');
+      modalTitle.textContent = '📚 编辑器帮助文档';
+      modalTitle.style.cssText = [
+        'font-size: 18px',
+        'font-weight: 600',
+        'color: #374151',
+        'margin: 0'
+      ].join(';');
+
+      const closeBtn = document.createElement('button');
+      closeBtn.innerHTML = '&times;';
+      closeBtn.style.cssText = [
+        'background: none',
+        'border: none',
+        'font-size: 24px',
+        'cursor: pointer',
+        'color: #6b7280',
+        'padding: 4px'
+      ].join(';');
+
+      const helpContent = document.createElement('div');
+      helpContent.style.cssText = [
+        'font-size: 14px',
+        'line-height: 1.6'
+      ].join(';');
+
+      helpContent.innerHTML = `
+        <div style="margin-bottom: 24px;">
+          <h3 style="color: #374151; margin-bottom: 12px; font-size: 16px; border-bottom: 2px solid #e5e7eb; padding-bottom: 6px;">⌨️ 快捷操作</h3>
+          <ul style="list-style: none; margin: 8px 0;">
+            <li style="padding: 4px 0; color: #4b5563;"><strong>点击节点</strong>：选中（高亮）</li>
+            <li style="padding: 4px 0; color: #4b5563;"><strong>双击节点</strong>：编辑</li>
+            <li style="padding: 4px 0; color: #4b5563;"><strong>Tab</strong>：添加子节点</li>
+            <li style="padding: 4px 0; color: #4b5563;"><strong>Enter</strong>：添加同级节点</li>
+            <li style="padding: 4px 0; color: #4b5563;"><strong>拖拽节点</strong> / 框选 / Space+拖动画布</li>
+            <li style="padding: 4px 0; color: #4b5563;"><strong>Ctrl + 滚轮</strong>：放大/缩小画布</li>
+            <li style="padding: 4px 0; color: #4b5563;"><strong>Delete/Backspace</strong>：删除选中节点</li>
+            <li style="padding: 4px 0; color: #4b5563;"><strong>Ctrl + S</strong>：保存到本地存储</li>
+            <li style="padding: 4px 0; color: #4b5563;"><strong>Ctrl + V</strong>：粘贴图片</li>
+          </ul>
+        </div>
+
+        <div style="margin-bottom: 24px;">
+          <h3 style="color: #374151; margin-bottom: 12px; font-size: 16px; border-bottom: 2px solid #e5e7eb; padding-bottom: 6px;">📝 支持的Markdown格式</h3>
+
+          <p style="color: #6b7280; margin-bottom: 8px;"><strong>节点类型（会生成思维导图节点）：</strong></p>
+          <ul style="list-style: none; margin: 8px 0;">
+            <li style="padding: 4px 0; color: #4b5563;"><code style="background-color: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-family: 'Monaco', 'Menlo', monospace; font-size: 13px; color: #dc2626;"># 标题</code> - 一级标题</li>
+            <li style="padding: 4px 0; color: #4b5563;"><code style="background-color: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-family: 'Monaco', 'Menlo', monospace; font-size: 13px; color: #dc2626;">## 标题</code> - 二级标题</li>
+            <li style="padding: 4px 0; color: #4b5563;"><code style="background-color: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-family: 'Monaco', 'Menlo', monospace; font-size: 13px; color: #dc2626;">### 标题</code> - 三级标题</li>
+            <li style="padding: 4px 0; color: #4b5563;"><code style="background-color: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-family: 'Monaco', 'Menlo', monospace; font-size: 13px; color: #dc2626;">- 无序列表</code> - 列表项</li>
+            <li style="padding: 4px 0; color: #4b5563;"><code style="background-color: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-family: 'Monaco', 'Menlo', monospace; font-size: 13px; color: #dc2626;">1. 有序列表</code> - 编号列表</li>
+          </ul>
+
+          <p style="color: #6b7280; margin-bottom: 8px;"><strong>非节点格式（作为节点备注）：</strong></p>
+          <ul style="list-style: none; margin: 8px 0;">
+            <li style="padding: 4px 0; color: #4b5563;">普通段落文本</li>
+            <li style="padding: 4px 0; color: #4b5563;"><code style="background-color: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-family: 'Monaco', 'Menlo', monospace; font-size: 13px; color: #dc2626;">**粗体**</code> - <strong>粗体</strong></li>
+            <li style="padding: 4px 0; color: #4b5563;"><code style="background-color: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-family: 'Monaco', 'Menlo', monospace; font-size: 13px; color: #dc2626;">*斜体*</code> - <em>斜体</em></li>
+            <li style="padding: 4px 0; color: #4b5563;"><code style="background-color: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-family: 'Monaco', 'Menlo', monospace; font-size: 13px; color: #dc2626;">\`代码\`</code> - <code style="background-color: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-family: 'Monaco', 'Menlo', monospace; font-size: 13px; color: #dc2626;">行内代码</code></li>
+            <li style="padding: 4px 0; color: #4b5563;"><code style="background-color: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-family: 'Monaco', 'Menlo', monospace; font-size: 13px; color: #dc2626;">> 引用</code> - 引用块</li>
+            <li style="padding: 4px 0; color: #4b5563;"><code style="background-color: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-family: 'Monaco', 'Menlo', monospace; font-size: 13px; color: #dc2626;">![图片](url)</code> - 图片</li>
+            <li style="padding: 4px 0; color: #4b5563;"><code style="background-color: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-family: 'Monaco', 'Menlo', monospace; font-size: 13px; color: #dc2626;">[链接](url)</code> - 超链接</li>
+            <li style="padding: 4px 0; color: #4b5563;">表格、代码块等</li>
+          </ul>
+        </div>
+
+        <div style="margin-bottom: 24px;">
+          <h3 style="color: #374151; margin-bottom: 12px; font-size: 16px; border-bottom: 2px solid #e5e7eb; padding-bottom: 6px;">🔧 调试功能</h3>
+          <ul style="list-style: none; margin: 8px 0;">
+            <li style="padding: 4px 0; color: #4b5563;"><strong>查看JSON</strong>：查看解析后的数据结构</li>
+            <li style="padding: 4px 0; color: #4b5563;">支持导出完整思维导图为图片</li>
+            
+          </ul>
+        </div>
+      `;
+
+      // 组装模态框
+      modalHeader.appendChild(modalTitle);
+      modalHeader.appendChild(closeBtn);
+      modalContent.appendChild(modalHeader);
+      modalContent.appendChild(helpContent);
+      modal.appendChild(modalContent);
+      document.body.appendChild(modal);
+
+      // 显示模态框
+      setTimeout(() => {
+        modal.style.opacity = '1';
+        modal.style.visibility = 'visible';
+        modalContent.style.transform = 'scale(1)';
+      }, 10);
+
+      // 关闭事件
+      const closeModal = () => {
+        modal.style.opacity = '0';
+        modal.style.visibility = 'hidden';
+        modalContent.style.transform = 'scale(0.9)';
+        setTimeout(() => {
+          document.body.removeChild(modal);
+        }, 300);
+      };
+
+      closeBtn.addEventListener('click', closeModal);
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          closeModal();
+        }
+      });
+
+      // ESC 键关闭
+      document.addEventListener('keydown', function escHandler(e) {
+        if (e.key === 'Escape') {
+          closeModal();
+          document.removeEventListener('keydown', escHandler);
+        }
+      });
+    }
+
     // 缩放中心修正：在鼠标/触摸位置设置 transform-origin，配合现有库缩放以该点为中心
     (function setupZoomOrigin() {
       const container = document.getElementById('fullScreenMindmap');
@@ -609,6 +772,20 @@
             }
           });
         }
+
+        // 帮助按钮
+        var helpBtn = document.getElementById('help-btn');
+        if (helpBtn) {
+          helpBtn.addEventListener('click', function () {
+            showMindmapHelp();
+          });
+          helpBtn.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              showMindmapHelp();
+            }
+          });
+        }
       });
 
       // 包装 showNodeDetails：若开关关闭则静默返回
@@ -640,7 +817,7 @@
     (function mw_post_init_fix() {
       try {
         function isMobileNow() {
-          var isSmallScreen = (window.matchMedia && window.matchMedia('(max-width: 768px)').matches);
+          var isSmallScreen = (window.matchMedia && window.matchMedia('(max-width: 1020px)').matches);
           var hasTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
           return isSmallScreen || (hasTouch && window.innerWidth <= 900);
         }

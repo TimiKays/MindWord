@@ -138,13 +138,14 @@
             width: 100%;
         }
 
-        /* 用户群体响应式布局 */
+        /* 用户群体响应式布局 - 简化适配逻辑 */
         .user-groups-container {
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
+            align-items: center;
             gap: 2rem;
-            max-width: 42rem;
+            max-width: 50rem;
             margin: 0 auto;
         }
 
@@ -152,44 +153,151 @@
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
+            align-items: center;
             gap: 2rem;
             width: 100%;
         }
 
-        /* 宽屏幕时显示为一排 */
-        @media (min-width: 768px) {
+        /* 用户群体布局 - 平滑过渡 */
+        @media (min-width: 769px) {
             .user-groups-container {
                 flex-direction: row;
                 gap: 2rem;
+                align-items: center;
+                justify-content: center;
             }
 
             .user-group-row {
                 width: auto;
                 flex-direction: row;
+                gap: 2rem;
+                justify-content: center;
+                align-items: center;
+            }
+
+            .user-group-row .flex-col {
+                flex: 0 0 auto;
+                min-width: 140px;
+                max-width: 160px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
             }
         }
 
-        /* 窄屏幕时显示为两排，每排两个 */
-        @media (max-width: 767px) {
+        /* 平板和手机 - 简化响应式 */
+        @media (max-width: 768px) {
             .user-groups-container {
                 flex-direction: column;
                 gap: 1.5rem;
+                align-items: center;
+                justify-content: center;
             }
 
             .user-group-row {
                 gap: 1.5rem;
                 flex-direction: row;
-            }
-        }
-
-        /* 更窄屏幕时的额外调整 */
-        @media (max-width: 400px) {
-            .user-group-row {
-                gap: 1rem;
+                justify-content: center;
+                align-items: center;
+                width: 100%;
+                max-width: 400px;
             }
 
             .user-group-row .flex-col {
+                flex: 1;
+                min-width: 120px;
+                max-width: 160px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+            }
+        }
+
+        /* 小屏手机优化 */
+        @media (max-width: 480px) {
+            .user-group-row {
+                gap: 1rem;
+                max-width: 320px;
+            }
+
+            .user-group-row .flex-col {
+                min-width: 110px;
+                max-width: 140px;
                 padding: 0.5rem;
+            }
+
+            .user-group-row .flex-col span {
+                font-size: 0.875rem;
+                line-height: 1.25rem;
+                text-align: center;
+                word-break: break-word;
+            }
+        }
+
+        /* 文本换行优化 */
+        .user-group-row .flex-col span {
+            text-align: center;
+            word-break: break-word;
+            hyphens: auto;
+            max-width: 100%;
+        }
+
+        /* 适用场景卡片移动端优化 */
+        @media (max-width: 1024px) {
+
+            /* 移动端下让适用场景卡片更宽更矮，每个独占一行 */
+            #scenarios .grid {
+                grid-template-columns: 1fr !important;
+                gap: 1.5rem;
+            }
+
+            #scenarios .grid>div {
+                padding: 1.25rem;
+                margin: 0 auto;
+                max-width: 100%;
+                width: 100%;
+            }
+
+            /* 优化图标大小 */
+            #scenarios .grid>div>div:first-child {
+                width: 3rem;
+                height: 3rem;
+                margin-bottom: 1rem;
+            }
+
+            #scenarios .grid>div>div:first-child i {
+                font-size: 1.25rem;
+            }
+
+            /* 优化标题大小 */
+            #scenarios .grid>div h3 {
+                font-size: 1.125rem;
+                margin-bottom: 0.75rem;
+            }
+
+            /* 优化描述文字 */
+            #scenarios .grid>div>p {
+                font-size: 0.875rem;
+                line-height: 1.5;
+            }
+
+            /* 优化适用人群部分 */
+            #scenarios .grid>div>div:last-child {
+                margin-top: 1rem;
+                padding-top: 1rem;
+            }
+
+            #scenarios .grid>div>div:last-child h4 {
+                font-size: 0.875rem;
+                margin-bottom: 0.5rem;
+            }
+
+            /* 优化标签大小 */
+            #scenarios .grid>div>div:last-child .flex-wrap span {
+                padding: 0.25rem 0.75rem;
+                font-size: 0.75rem;
             }
         }
     </style>
@@ -218,7 +326,7 @@
 
                 </div>
                 <!-- 导航标签 - 桌面端 -->
-                <nav class="hidden md:flex items-center space-x-6">
+                <nav class="hidden lg:flex items-center space-x-6">
                     <a href="#features" class="nav-link text-dark/80 hover:text-primary transition-colors"
                         data-i18n="nav.features">核心功能</a>
                     <a href="#scenarios" class="nav-link text-dark/80 hover:text-primary transition-colors"
@@ -235,7 +343,7 @@
                 <div class="flex items-center space-x-2">
                     <!-- 语言切换下拉框 - 桌面端 -->
                     <select id="lang-switch" title="Language" onchange="window.i18nManager.setLanguage(this.value)"
-                        class="hidden md:block h-8 border border-gray-300 rounded-md bg-white text-gray-700 text-sm px-2 py-1"
+                        class="hidden lg:block h-8 border border-gray-300 rounded-md bg-white text-gray-700 text-sm px-2 py-1"
                         style="min-width: 60px;">
                         <option value="zh" data-i18n="language.zh">中文</option>
                         <option value="en" data-i18n="language.en">EN</option>
@@ -243,13 +351,13 @@
 
                     <!-- 立即试用按钮 - 桌面端 -->
                     <a href="app.html"
-                        class="hidden md:block bg-primary hover:bg-primary/90 text-white px-4 py-1.5 rounded-lg font-medium transition-all shadow-md hover:shadow-lg text-sm"
+                        class="hidden lg:block bg-primary hover:bg-primary/90 text-white px-4 py-1.5 rounded-lg font-medium transition-all shadow-md hover:shadow-lg text-sm"
                         data-i18n="nav.tryNow">
                         立即试用
                     </a>
 
                     <!-- 移动端按钮组：立即体验 + 语言切换 + 菜单按钮 -->
-                    <div class="md:hidden flex items-center space-x-2">
+                    <div class="lg:hidden flex items-center space-x-2">
                         <!-- 立即体验按钮 - 移动端 -->
                         <a href="app.html"
                             class="bg-primary hover:bg-primary/90 text-white px-3 py-1.5 rounded-md font-medium text-sm transition-all shadow-md hover:shadow-lg"
@@ -275,7 +383,7 @@
         </div>
 
         <!-- 移动端导航菜单 -->
-        <div id="mobile-menu" class="md:hidden hidden bg-white border-t">
+        <div id="mobile-menu" class="lg:hidden hidden bg-white border-t">
             <div class="container mx-auto px-4 py-3 space-y-3">
                 <a href="#features" class="block py-2 text-dark/80 hover:text-primary transition-colors"
                     data-i18n="nav.features">核心功能</a>
@@ -376,13 +484,14 @@
                                 <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
                                     <i class="fa fa-pencil text-gray-700 text-xl"></i>
                                 </div>
-                                <span class="font-medium text-gray-800" data-i18n="hero.userGroups.writers">写作者</span>
+                                <span class="font-medium text-gray-800 text-center leading-tight"
+                                    data-i18n="hero.userGroups.writers">写作者</span>
                             </div>
                             <div class="flex flex-col items-center p-4">
                                 <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
                                     <i class="fa fa-cubes text-gray-700 text-xl"></i>
                                 </div>
-                                <span class="font-medium text-gray-800"
+                                <span class="font-medium text-gray-800 text-center leading-tight"
                                     data-i18n="hero.userGroups.productManagers">产品经理</span>
                             </div>
                         </div>
@@ -392,14 +501,14 @@
                                 <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
                                     <i class="fa fa-code text-gray-700 text-xl"></i>
                                 </div>
-                                <span class="font-medium text-gray-800"
+                                <span class="font-medium text-gray-800 text-center leading-tight"
                                     data-i18n="hero.userGroups.aiEnthusiasts">AI爱好者</span>
                             </div>
                             <div class="flex flex-col items-center p-4">
                                 <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
                                     <i class="fa fa-lightbulb-o text-gray-700 text-xl"></i>
                                 </div>
-                                <span class="font-medium text-gray-800"
+                                <span class="font-medium text-gray-800 text-center leading-tight"
                                     data-i18n="hero.userGroups.knowledgeWorkers">脑力工作者</span>
                             </div>
                         </div>
@@ -481,9 +590,9 @@
         <section id="features" class="py-20 bg-gray-50">
             <div class="container mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="max-w-3xl mx-auto text-center mb-16">
-                    <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold mb-6">核心功能</h2>
+                    <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold mb-6" data-i18n="features.title">核心功能</h2>
                     <div class="w-20 h-1 bg-primary mx-auto mb-8 rounded-full"></div>
-                    <p class="text-lg text-dark/70">
+                    <p class="text-lg text-dark/70" data-i18n="features.description">
                         MindWord 重新定义了结构化写作体验。通过将 Markdown结构与思维导图节点实时映射，实现可视化创作流程，让创作思路与正文完美融合。
                         配合 AI辅助功能，轻松完成头脑风暴、主题拆解、段落优化，最终生成文档。
                     </p>
@@ -493,17 +602,17 @@
                 <div class="max-w-5xl mx-auto">
                     <div class="mb-8 flex flex-wrap justify-center gap-4">
                         <button class="feature-tab active px-6 py-2 rounded-full bg-primary text-white font-medium"
-                            data-tab="markdown">
+                            data-tab="markdown" data-i18n="features.tabs.markdown">
                             Markdown编辑器
                         </button>
                         <button
                             class="feature-tab px-6 py-2 rounded-full bg-white text-dark font-medium hover:bg-gray-100 transition-colors"
-                            data-tab="mindmap">
+                            data-tab="mindmap" data-i18n="features.tabs.mindmap">
                             思维导图画布
                         </button>
                         <button
                             class="feature-tab px-6 py-2 rounded-full bg-white text-dark font-medium hover:bg-gray-100 transition-colors"
-                            data-tab="word">
+                            data-tab="word" data-i18n="features.tabs.word">
                             Word文件生成
                         </button>
                     </div>
@@ -514,9 +623,10 @@
                             <div class="flex flex-col lg:flex-row">
                                 <div class="lg:w-1/2 p-8 lg:p-12">
                                     <h3 class="text-2xl font-bold mb-6 text-primary">
-                                        <i class="fa fa-edit mr-2"></i> Markdown编辑器
+                                        <i class="fa fa-edit mr-2"></i> <span
+                                            data-i18n="features.markdown.title">Markdown编辑器</span>
                                     </h3>
-                                    <p class="text-dark/70 mb-8">
+                                    <p class="text-dark/70 mb-8" data-i18n="features.markdown.description">
                                         强大的数据收集与初始化功能，支持多种导入方式，让你从任何起点开始创作
                                     </p>
 
@@ -528,12 +638,16 @@
                                                     <i class="fa fa-plug text-primary"></i>
                                                 </div>
                                                 <div>
-                                                    <h4 class="font-bold text-lg mb-2">支持多种数据来源</h4>
+                                                    <h4 class="font-bold text-lg mb-2"
+                                                        data-i18n="features.markdown.dataSources.title">支持多种数据来源</h4>
                                                     <ul class="text-dark/70 space-y-1">
-                                                        <li>• 粘贴markdown纯文本</li>
-                                                        <li>• 粘贴富文本并自动转为Markdown</li>
-                                                        <li>• 粘贴图片</li>
-                                                        <li>• 上传md/zip（带图片）</li>
+                                                        <li data-i18n="features.markdown.dataSources.item1">•
+                                                            粘贴markdown纯文本</li>
+                                                        <li data-i18n="features.markdown.dataSources.item2">•
+                                                            粘贴富文本并自动转为Markdown</li>
+                                                        <li data-i18n="features.markdown.dataSources.item3">• 粘贴图片</li>
+                                                        <li data-i18n="features.markdown.dataSources.item4">•
+                                                            上传md/zip（带图片）</li>
                                                     </ul>
                                                 </div>
                                             </div>
@@ -546,8 +660,10 @@
                                                     <i class="fa fa-file-text-o text-primary"></i>
                                                 </div>
                                                 <div>
-                                                    <h4 class="font-bold text-lg mb-2">导入/导出源文件</h4>
-                                                    <p class="text-dark/70">
+                                                    <h4 class="font-bold text-lg mb-2"
+                                                        data-i18n="features.markdown.importExport.title">导入/导出源文件</h4>
+                                                    <p class="text-dark/70"
+                                                        data-i18n="features.markdown.importExport.desc">
                                                         支持导入/导出标准语法的md/zip（带图片），可反复修改与复用，不用担心被工具捆绑。
                                                     </p>
                                                 </div>
@@ -561,8 +677,10 @@
                                                     <i class="fa fa-lock text-primary"></i>
                                                 </div>
                                                 <div>
-                                                    <h4 class="font-bold text-lg mb-2">数据本地离线存储</h4>
-                                                    <p class="text-dark/70">
+                                                    <h4 class="font-bold text-lg mb-2"
+                                                        data-i18n="features.markdown.localStorage.title">数据本地离线存储</h4>
+                                                    <p class="text-dark/70"
+                                                        data-i18n="features.markdown.localStorage.desc">
                                                         所有数据本地存储（无服务器），安全可控，保护你的隐私和知识产权。
                                                     </p>
                                                 </div>
@@ -584,9 +702,10 @@
                             <div class="flex flex-col lg:flex-row">
                                 <div class="lg:w-1/2 p-8 lg:p-12">
                                     <h3 class="text-2xl font-bold mb-6 text-secondary">
-                                        <i class="fa fa-sitemap mr-2"></i> 思维导图画布
+                                        <i class="fa fa-sitemap mr-2"></i> <span
+                                            data-i18n="features.mindmap.title">思维导图画布</span>
                                     </h3>
-                                    <p class="text-dark/70 mb-8">
+                                    <p class="text-dark/70 mb-8" data-i18n="features.mindmap.description">
                                         可视化同步编辑文档结构，让你的创意和思路更加清晰有序
                                     </p>
 
@@ -598,8 +717,10 @@
                                                     <i class="fa fa-tree text-secondary"></i>
                                                 </div>
                                                 <div>
-                                                    <h4 class="font-bold text-lg mb-2">树形节点定义</h4>
-                                                    <p class="text-dark/70">
+                                                    <h4 class="font-bold text-lg mb-2"
+                                                        data-i18n="features.mindmap.nodeDefinition.title">树形节点定义</h4>
+                                                    <p class="text-dark/70"
+                                                        data-i18n="features.mindmap.nodeDefinition.desc">
                                                         Markdown 所有1到6级标题与有序/无序列表行作为节点标题，其他文本均作为节点的备注属性。
                                                     </p>
                                                 </div>
@@ -613,9 +734,10 @@
                                                     <i class="fa fa-exchange text-secondary"></i>
                                                 </div>
                                                 <div>
-                                                    <h4 class="font-bold text-lg mb-2">双向同步编辑</h4>
-                                                    <p class="text-dark/70">
-                                                        在Markdown文本与可视化思维导图的任一侧修改，另一侧即时更新，解决不同步问题。
+                                                    <h4 class="font-bold text-lg mb-2"
+                                                        data-i18n="features.mindmap.syncEdit.title">双向同步编辑</h4>
+                                                    <p class="text-dark/70" data-i18n="features.mindmap.syncEdit.desc">
+                                                        思维导图节点与Markdown文档标题双向同步，任意一端修改，另一端实时同步。
                                                     </p>
                                                 </div>
                                             </div>
@@ -628,8 +750,10 @@
                                                     <i class="fa fa-magic text-secondary"></i>
                                                 </div>
                                                 <div>
-                                                    <h4 class="font-bold text-lg mb-2">AI 生成子节点</h4>
-                                                    <p class="text-dark/70">
+                                                    <h4 class="font-bold text-lg mb-2"
+                                                        data-i18n="features.mindmap.aiSubnodes.title">AI 生成子节点</h4>
+                                                    <p class="text-dark/70"
+                                                        data-i18n="features.mindmap.aiSubnodes.desc">
                                                         在头脑风暴或细化主题时，可让AI基于某个节点一键生成子节点，并可手动采纳或编辑。
                                                     </p>
                                                 </div>
@@ -651,9 +775,10 @@
                             <div class="flex flex-col lg:flex-row">
                                 <div class="lg:w-1/2 p-8 lg:p-12">
                                     <h3 class="text-2xl font-bold mb-6 text-accent">
-                                        <i class="fa fa-file-word-o mr-2"></i> Word文件生成
+                                        <i class="fa fa-file-word-o mr-2"></i> <span
+                                            data-i18n="features.word.title">Word文件生成</span>
                                     </h3>
-                                    <p class="text-dark/70 mb-8">
+                                    <p class="text-dark/70 mb-8" data-i18n="features.word.description">
                                         输出日常办公文档形成闭环，满足正式场合的文档需求
                                     </p>
 
@@ -665,8 +790,10 @@
                                                     <i class="fa fa-file-text text-accent"></i>
                                                 </div>
                                                 <div>
-                                                    <h4 class="font-bold text-lg mb-2">预设模板</h4>
-                                                    <p class="text-dark/70">
+                                                    <h4 class="font-bold text-lg mb-2"
+                                                        data-i18n="features.word.presetTemplates.title">预设模板</h4>
+                                                    <p class="text-dark/70"
+                                                        data-i18n="features.word.presetTemplates.desc">
                                                         不需额外配置，直接基于预设模板样式一键生成word文件，快速满足基本需求。
                                                     </p>
                                                 </div>
@@ -680,8 +807,10 @@
                                                     <i class="fa fa-sliders text-accent"></i>
                                                 </div>
                                                 <div>
-                                                    <h4 class="font-bold text-lg mb-2">自定义模板</h4>
-                                                    <p class="text-dark/70">
+                                                    <h4 class="font-bold text-lg mb-2"
+                                                        data-i18n="features.word.customTemplates.title">自定义模板</h4>
+                                                    <p class="text-dark/70"
+                                                        data-i18n="features.word.customTemplates.desc">
                                                         对word样式有要求的用户，可自行下载模板并修改样式集，上传模板生成符合特定格式的文档。
                                                     </p>
                                                 </div>
@@ -695,8 +824,11 @@
                                                     <i class="fa fa-check-square-o text-accent"></i>
                                                 </div>
                                                 <div>
-                                                    <h4 class="font-bold text-lg mb-2">完整保留结构</h4>
-                                                    <p class="text-dark/70">
+                                                    <h4 class="font-bold text-lg mb-2"
+                                                        data-i18n="features.word.structurePreservation.title">完整保留结构
+                                                    </h4>
+                                                    <p class="text-dark/70"
+                                                        data-i18n="features.word.structurePreservation.desc">
                                                         生成的Word文档完整保留思维导图中的层级结构，格式规范，美观专业。
                                                     </p>
                                                 </div>
@@ -719,9 +851,9 @@
         <section id="scenarios" class="py-20 bg-white">
             <div class="container mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="max-w-3xl mx-auto text-center mb-16">
-                    <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold mb-6">适用场景</h2>
+                    <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold mb-6" data-i18n="scenarios.title">适用场景</h2>
                     <div class="w-20 h-1 bg-primary mx-auto mb-8 rounded-full"></div>
-                    <p class="text-lg text-dark/70">
+                    <p class="text-lg text-dark/70" data-i18n="scenarios.description">
                         无论你是学生、职场人士还是创作者，MindWord都能为你的工作和学习提供有力支持
                     </p>
                 </div>
@@ -732,16 +864,19 @@
                         <div class="w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center mb-6">
                             <i class="fa fa-graduation-cap text-gray-600 text-2xl"></i>
                         </div>
-                        <h3 class="text-xl font-bold mb-4">学习计划</h3>
-                        <p class="text-dark/70">
+                        <h3 class="text-xl font-bold mb-4" data-i18n="scenarios.learningPlan.title">学习计划</h3>
+                        <p class="text-dark/70" data-i18n="scenarios.learningPlan.desc">
                             根据对应知识结构生成学习计划，形成学习大纲+内容+笔记+进度，学完即可形成知识图谱。
                         </p>
                         <div class="mt-6 pt-6 border-t border-gray-200">
-                            <h4 class="font-medium mb-2">适用人群</h4>
+                            <h4 class="font-medium mb-2" data-i18n="scenarios.learningPlan.audience.title">适用人群</h4>
                             <div class="flex flex-wrap gap-2">
-                                <span class="px-3 py-1  bg-gray-100 text-gray-700  text-sm rounded-full">学生</span>
-                                <span class="px-3 py-1  bg-gray-100 text-gray-700 text-sm rounded-full">终身学习者</span>
-                                <span class="px-3 py-1  bg-gray-100 text-gray-700 text-sm rounded-full">研究者</span>
+                                <span class="px-3 py-1  bg-gray-100 text-gray-700  text-sm rounded-full"
+                                    data-i18n="scenarios.learningPlan.audience.student">学生</span>
+                                <span class="px-3 py-1  bg-gray-100 text-gray-700 text-sm rounded-full"
+                                    data-i18n="scenarios.learningPlan.audience.lifelongLearner">终身学习者</span>
+                                <span class="px-3 py-1  bg-gray-100 text-gray-700 text-sm rounded-full"
+                                    data-i18n="scenarios.learningPlan.audience.researcher">研究者</span>
                             </div>
                         </div>
                     </div>
@@ -751,16 +886,19 @@
                         <div class="w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center mb-6">
                             <i class="fa fa-cube text-gray-600 text-2xl"></i>
                         </div>
-                        <h3 class="text-xl font-bold mb-4">产品PRD</h3>
-                        <p class="text-dark/70">
+                        <h3 class="text-xl font-bold mb-4" data-i18n="scenarios.productPRD.title">产品PRD</h3>
+                        <p class="text-dark/70" data-i18n="scenarios.productPRD.desc">
                             生成AI友好的结构化需求文档：把一句话需求分解为可控的子任务与说明，逐步深化、可反复修改。
                         </p>
                         <div class="mt-6 pt-6 border-t border-gray-200">
-                            <h4 class="font-medium mb-2">适用人群</h4>
+                            <h4 class="font-medium mb-2" data-i18n="scenarios.productPRD.audience.title">适用人群</h4>
                             <div class="flex flex-wrap gap-2">
-                                <span class="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full">产品经理</span>
-                                <span class="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full">项目经理</span>
-                                <span class="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full">创业者</span>
+                                <span class="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full"
+                                    data-i18n="scenarios.productPRD.audience.productManager">产品经理</span>
+                                <span class="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full"
+                                    data-i18n="scenarios.productPRD.audience.projectManager">项目经理</span>
+                                <span class="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full"
+                                    data-i18n="scenarios.productPRD.audience.entrepreneur">创业者</span>
                             </div>
                         </div>
                     </div>
@@ -770,16 +908,19 @@
                         <div class="w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center mb-6">
                             <i class="fa fa-book text-gray-600 text-2xl"></i>
                         </div>
-                        <h3 class="text-xl font-bold mb-4">文章写作</h3>
-                        <p class="text-dark/70">
+                        <h3 class="text-xl font-bold mb-4" data-i18n="scenarios.articleWriting.title">文章写作</h3>
+                        <p class="text-dark/70" data-i18n="scenarios.articleWriting.desc">
                             基于大纲写作，随时可调整结构，逐步从思维导图到可发布的文稿，让创作过程更加流畅。
                         </p>
                         <div class="mt-6 pt-6 border-t border-gray-200">
-                            <h4 class="font-medium mb-2">适用人群</h4>
+                            <h4 class="font-medium mb-2" data-i18n="scenarios.articleWriting.audience.title">适用人群</h4>
                             <div class="flex flex-wrap gap-2">
-                                <span class="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full">作家</span>
-                                <span class="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full">自媒体</span>
-                                <span class="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full">内容创作者</span>
+                                <span class="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full"
+                                    data-i18n="scenarios.articleWriting.audience.writer">作家</span>
+                                <span class="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full"
+                                    data-i18n="scenarios.articleWriting.audience.selfMedia">自媒体</span>
+                                <span class="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full"
+                                    data-i18n="scenarios.articleWriting.audience.contentCreator">内容创作者</span>
                             </div>
                         </div>
                     </div>
@@ -791,9 +932,9 @@
         <section id="guide" class="py-20 bg-gray-50">
             <div class="container mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="max-w-3xl mx-auto text-center mb-16">
-                    <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold mb-6">快速上手</h2>
+                    <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold mb-6" data-i18n="quickGuide.title">快速上手</h2>
                     <div class="w-20 h-1 bg-primary mx-auto mb-8 rounded-full"></div>
-                    <p class="text-lg text-dark/70">
+                    <p class="text-lg text-dark/70" data-i18n="quickGuide.description">
                         只需简单几步，即可开始使用MindWord提升你的写作效率
                     </p>
                 </div>
@@ -809,16 +950,18 @@
                                     <div
                                         class="absolute left-0 top-0 w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold">
                                         1</div>
-                                    <h3 class="text-xl font-bold mb-3">初始化</h3>
-                                    <p class="text-dark/70">
+                                    <h3 class="text-xl font-bold mb-3" data-i18n="quickGuide.steps.step1.title">初始化</h3>
+                                    <p class="text-dark/70" data-i18n="quickGuide.steps.step1.description">
                                         上传 Markdown文件，或复制粘贴markdown或富文本，即可看到对应预览与思维导图。
                                     </p>
                                     <div class="mt-10 pt-6 border-t border-gray-100">
-                                        <h4 class="text-xl font-bold mb-4">示例 Markdown 片段</h4>
-                                        <p class="text-dark/70 mb-4">导入下面的 Markdown 片段会形成对应树状结构：</p>
-                                        <div
-                                            class="bg-gray-900 text-gray-100 p-4 rounded-lg font-mono text-sm overflow-x-auto">
-                                            <pre># 产品需求文档
+                                        <h4 class="text-xl font-bold mb-4"
+                                            data-i18n="quickGuide.steps.step1.exampleTitle">示例 Markdown 片段</h4>
+                                        <p class="text-dark/70 mb-4" data-i18n="quickGuide.steps.step1.importTip">导入下面的
+                                            Markdown 片段会形成对应树状结构：</p>
+                                        <div class="bg-gray-900  text-gray-100 p-4 rounded-lg
+                                            font-mono text-sm overflow-x-auto">
+                                            <pre data-i18n="quickGuide.steps.step1.exampleContent"># 产品需求文档
 ## 功能概述
 - 背景说明
 - 目标用户
@@ -838,19 +981,27 @@
                                     <div
                                         class="absolute left-0 top-0 w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold">
                                         2</div>
-                                    <h3 class="text-xl font-bold mb-3">编辑方式</h3>
-                                    <p class="text-dark/70 mb-4">
+                                    <h3 class="text-xl font-bold mb-3" data-i18n="quickGuide.steps.step2.title">编辑方式
+                                    </h3>
+                                    <p class="text-dark/70 mb-4" data-i18n="quickGuide.steps.step2.description">
                                         在右侧思维导图中双击节点编辑标题或备注，拖拽调整结构；在左侧 Markdown 编辑器中编辑对应部分，任一侧修改都会同步到另一侧。
                                     </p>
                                     <div class="bg-gray-50 p-4 rounded-lg">
-                                        <h4 class="font-medium mb-2">常用快捷与操作</h4>
+                                        <h4 class="font-medium mb-2" data-i18n="quickGuide.steps.step2.shortcutsTitle">
+                                            常用快捷与操作</h4>
                                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                                            <div>• 新建子级节点：选中节点后按Tab</div>
-                                            <div>• 新增同级节点：选中节点后按 Enter</div>
-                                            <div>• 删除节点：选中后节点按 Delete</div>
-                                            <div>• 撤销：Ctrl+z，可撤销最近10次</div>
-                                            <div>• 重做：Ctrl+Shift+Z</div>
-                                            <div>• 多选：支持鼠标框选</div>
+                                            <div data-i18n="quickGuide.steps.step2.shortcuts.newChild">•
+                                                新建子级节点：选中节点后按Tab</div>
+                                            <div data-i18n="quickGuide.steps.step2.shortcuts.newSibling">• 新增同级节点：选中节点后按
+                                                Enter</div>
+                                            <div data-i18n="quickGuide.steps.step2.shortcuts.deleteNode">• 删除节点：选中后节点按
+                                                Delete</div>
+                                            <div data-i18n="quickGuide.steps.step2.shortcuts.undo">• 撤销：Ctrl+z，可撤销最近10次
+                                            </div>
+                                            <div data-i18n="quickGuide.steps.step2.shortcuts.redo">• 重做：Ctrl+Shift+Z
+                                            </div>
+                                            <div data-i18n="quickGuide.steps.step2.shortcuts.multiSelect">• 多选：支持鼠标框选
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -860,8 +1011,8 @@
                                     <div
                                         class="absolute left-0 top-0 w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold">
                                         3</div>
-                                    <h3 class="text-xl font-bold mb-3">导出</h3>
-                                    <p class="text-dark/70">
+                                    <h3 class="text-xl font-bold mb-3" data-i18n="quickGuide.steps.step3.title">导出</h3>
+                                    <p class="text-dark/70" data-i18n="quickGuide.steps.step3.description">
                                         Markdown可导出为md文件，如果有图片将一起打包成zip文件。也可以直接导出为格式化的Word文档。
                                     </p>
                                 </div>
@@ -878,9 +1029,9 @@
         <section id="privacy" class="py-20 bg-white">
             <div class="container mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="max-w-3xl mx-auto text-center mb-16">
-                    <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold mb-6">隐私保障</h2>
+                    <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold mb-6" data-i18n="privacy.title">隐私保障</h2>
                     <div class="w-20 h-1 bg-primary mx-auto mb-8 rounded-full"></div>
-                    <p class="text-lg text-dark/70">
+                    <p class="text-lg text-dark/70" data-i18n="privacy.subtitle">
                         我们重视你的数据安全和隐私保护，让你使用得更加放心
                     </p>
                 </div>
@@ -893,8 +1044,8 @@
                                 <i class="fa fa-database text-secondary"></i>
                             </div>
                             <div>
-                                <h3 class="font-bold text-lg mb-2">本地存储</h3>
-                                <p class="text-dark/70">
+                                <h3 class="font-bold text-lg mb-2" data-i18n="privacy.localStorage.title">本地存储</h3>
+                                <p class="text-dark/70" data-i18n="privacy.localStorage.desc">
                                     所有文档与图片存储在本地浏览器缓存或本地文件（取决于导入方式），不上传任何服务器，确保你的数据安全。
                                 </p>
                             </div>
@@ -919,8 +1070,8 @@
                                 <i class="fa fa-exclamation-triangle text-amber-500"></i>
                             </div>
                             <div>
-                                <h3 class="font-bold text-lg mb-2">AI功能说明</h3>
-                                <p class="text-dark/70">
+                                <h3 class="font-bold text-lg mb-2" data-i18n="privacy.aiFunction.title">AI功能说明</h3>
+                                <p class="text-dark/70" data-i18n="privacy.aiFunction.desc">
                                     使用外部 AI 服务时，相关文本会发送到配置的 AI 平台处理，请知晓。
                                 </p>
                             </div>
@@ -934,15 +1085,16 @@
         <section id="download" class="py-20 bg-gradient-to-br from-primary to-secondary text-white">
             <div class="container mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="max-w-4xl mx-auto text-center">
-                    <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold mb-6">开始使用 MindWord</h2>
-                    <p class="text-white/80 text-lg mb-10 max-w-2xl mx-auto">
+                    <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold mb-6" data-i18n="getStarted.title">开始使用
+                        MindWord</h2>
+                    <p class="text-white/80 text-lg mb-10 max-w-2xl mx-auto" data-i18n="getStarted.subtitle">
                         立即体验思维导图与Markdown结合的高效写作方式，让你的创意和想法更有条理
                     </p>
 
                     <div class="flex flex-col sm:flex-row justify-center gap-4 mb-12">
                         <a href="app.html"
                             class="bg-white text-primary hover:bg-gray-100 px-8 py-4 rounded-lg font-medium transition-all shadow-lg hover:shadow-xl flex items-center justify-center">
-                            <i class="fa fa-globe mr-2"></i> 访问网页版
+                            <i class="fa fa-globe mr-2"></i> <span data-i18n="getStarted.webVersion">访问网页版</span>
                         </a>
                         <!-- <a href="#"
                             class="bg-transparent border-2 border-white text-white hover:bg-white/10 px-8 py-4 rounded-lg font-medium transition-all flex items-center justify-center">
@@ -953,7 +1105,7 @@
                     <div class="bg-white/10 backdrop-blur-sm rounded-xl p-6 max-w-lg mx-auto">
                         <p class="flex items-center justify-center mb-0">
                             <i class="fa fa-info-circle mr-2"></i>
-                            兼容PC和移动端，全平台一致体验
+                            <span data-i18n="getStarted.compatibility">兼容PC和移动端，全平台一致体验</span>
                         </p>
                     </div>
                 </div>
@@ -964,9 +1116,9 @@
         <section id="feedback" class="py-20 bg-white">
             <div class="container mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="max-w-3xl mx-auto text-center mb-16">
-                    <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold mb-6">反馈与建议</h2>
+                    <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold mb-6" data-i18n="feedback.title">反馈与建议</h2>
                     <div class="w-20 h-1 bg-primary mx-auto mb-8 rounded-full"></div>
-                    <p class="text-lg text-dark/70">
+                    <p class="text-lg text-dark/70" data-i18n="feedback.subtitle">
                         本产品由1名产品经理 + ChatGPT + KIMI 独立开发完成，如有任何问题或建议，欢迎联系我~
                     </p>
                 </div>
@@ -975,11 +1127,11 @@
                     <div class="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
                         <i class="fa fa-comments text-primary text-3xl"></i>
                     </div>
-                    <p class="text-dark/80 mb-6">
+                    <p class="text-dark/80 mb-6" data-i18n="feedback.contactInfo">
                         产品 | UI | 开发 | 测试 | 运维 | 客服
                     </p>
                     <div class="bg-white p-4 rounded-lg inline-block shadow-sm mb-6">
-                        <p class="font-medium text-lg">微信号：TimiKays</p>
+                        <p class="font-medium text-lg" data-i18n="feedback.wechat">微信号：TimiKays</p>
                     </div>
                     <p class="text-dark/60 text-sm">
 
@@ -1000,7 +1152,7 @@
                     </div> -->
                     <span class="text-xl font-bold">MindWord</span>
                 </div>
-                <p class="text-white/60 text-sm mb-4 md:mb-0">
+                <p class="text-white/60 text-sm mb-4 md:mb-0" data-i18n="footer.copyright">
                     &copy; 2025 MindWord. 保留所有权利。
                 </p>
                 <!-- <div class="flex space-x-6">
