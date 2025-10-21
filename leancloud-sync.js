@@ -370,134 +370,6 @@
     return await obj.save();
   }
 
-  // function toIdMap(arr) {
-  //   const map = new Map();
-  //   for (const d of (arr || [])) { if (d && d.id) map.set(d.id, d); }
-  //   return map;
-  // }
-
-  // // 执行同步操作
-  // async function executeSync(operations) {
-  //   const results = {
-  //     localUpdated: 0,
-  //     cloudUpdated: 0,
-  //     errors: []
-  //   };
-
-  //   try {
-  //     // 更新本地数据
-  //     if (operations.local.updateDocs.length > 0 || operations.local.addDocs.length > 0 || operations.local.deleteDocs.length > 0) {
-  //       const currentDocs = getLocalDocs();
-  //       let updatedDocs = [...currentDocs];
-
-  //       // 处理新增
-  //       for (const newDoc of operations.local.addDocs) {
-  //         const exists = updatedDocs.some(d => d.id === newDoc.id);
-  //         if (!exists) {
-  //           updatedDocs.push(newDoc);
-  //         }
-  //       }
-
-  //       // 处理更新
-  //       for (const newDoc of operations.local.updateDocs) {
-  //         const index = updatedDocs.findIndex(d => d.id === newDoc.id);
-  //         if (index >= 0) {
-  //           updatedDocs[index] = newDoc;
-  //         } else {
-  //           updatedDocs.push(newDoc);
-  //         }
-  //       }
-
-  //       // 处理删除 - 只保留ID和删除时间，移除其他数据以节省空间
-  //       for (const deleteDoc of operations.local.deleteDocs) {
-  //         const index = updatedDocs.findIndex(d => d.id === deleteDoc.id);
-  //         if (index >= 0) {
-  //           updatedDocs[index] = {
-  //             id: updatedDocs[index].id,
-  //             deletedAt: Date.now(),
-  //             updatedAt: Date.now()
-  //           };
-  //         }
-  //       }
-
-  //       saveLocalDocs(updatedDocs);
-  //       results.localUpdated += operations.local.updateDocs.length + operations.local.addDocs.length + operations.local.deleteDocs.length;
-  //     }
-
-  //     if (operations.local.updateAIConfig) {
-  //       // AI配置更新逻辑
-  //       const cloudData = await downloadCloud();
-  //       saveLocalAIConfig(cloudData.aiConfig || {});
-  //     }
-
-  //     if (operations.local.updateTemplates) {
-  //       // 提示词模板更新逻辑
-  //       const cloudData = await downloadCloud();
-  //       saveLocalPromptTemplates(cloudData.promptTemplates || []);
-  //     }
-
-  //     // 更新云端数据
-  //     if (operations.cloud.updateDocs.length > 0 || operations.cloud.addDocs.length > 0 || operations.cloud.deleteDocs.length > 0 || operations.cloud.updateAIConfig || operations.cloud.updateTemplates) {
-  //       const currentData = await fetchOrCreateRecord();
-
-  //       if (operations.cloud.updateDocs.length > 0 || operations.cloud.addDocs.length > 0 || operations.cloud.deleteDocs.length > 0) {
-  //         const currentDocs = currentData.get('docs') || [];
-  //         let updatedDocs = [...currentDocs];
-
-  //         // 处理新增
-  //         for (const newDoc of operations.cloud.addDocs) {
-  //           const exists = updatedDocs.some(d => d.id === newDoc.id);
-  //           if (!exists) {
-  //             updatedDocs.push(newDoc);
-  //           }
-  //         }
-
-  //         // 处理更新
-  //         for (const newDoc of operations.cloud.updateDocs) {
-  //           const index = updatedDocs.findIndex(d => d.id === newDoc.id);
-  //           if (index >= 0) {
-  //             updatedDocs[index] = newDoc;
-  //           } else {
-  //             updatedDocs.push(newDoc);
-  //           }
-  //         }
-
-  //         // 处理删除 - 只保留ID和删除时间，移除其他数据以节省空间
-  //         for (const deleteDoc of operations.cloud.deleteDocs) {
-  //           const index = updatedDocs.findIndex(d => d.id === deleteDoc.id);
-  //           if (index >= 0) {
-  //             updatedDocs[index] = {
-  //               id: updatedDocs[index].id,
-  //               deletedAt: Date.now(),
-  //               updatedAt: Date.now()
-  //             };
-  //           }
-  //         }
-
-  //         currentData.set('docs', updatedDocs);
-  //         currentData.set('docUpdatedAt', Date.now()); // 更新文档时间戳
-  //         results.cloudUpdated += operations.cloud.updateDocs.length + operations.cloud.addDocs.length + operations.cloud.deleteDocs.length;
-  //       }
-
-  //       if (operations.cloud.updateAIConfig) {
-  //         currentData.set('aiConfig', getLocalAIConfig());
-  //         currentData.set('configUpdatedAt', Date.now());
-  //       }
-
-  //       if (operations.cloud.updateTemplates) {
-  //         currentData.set('promptTemplates', getLocalPromptTemplates());
-  //         currentData.set('templateUpdatedAt', Date.now());
-  //       }
-
-  //       await currentData.save();
-  //     }
-
-  //   } catch (error) {
-  //     results.errors.push(error.message);
-  //   }
-
-  //   return results;
-  // }
 
   async function downloadCloud() {
     const obj = await fetchOrCreateRecord();
@@ -608,8 +480,46 @@
             console.log('[SYNC] 已刷新当前编辑文档:', activeId);
           }
         }
-      }
 
+        // 检查当前文档是否被删除，如果是则切换到第一个有效文档
+        const currentActiveId = mw_getActive();
+        if (currentActiveId) {
+          const docs = getLocalDocs();
+          const currentDoc = docs.find(d => d.id === currentActiveId);
+          if (!currentDoc || currentDoc.deletedAt) {
+            console.log('[SYNC] 当前文档已被删除，准备切换到第一个有效文档');
+            // 切换到第一个未删除的文档
+            const firstValidDoc = docs.find(d => !d.deletedAt);
+            if (firstValidDoc) {
+              mw_setActive(firstValidDoc.id);
+              mw_notifyEditorLoad(firstValidDoc);
+              mw_notifyPreviewLoad(firstValidDoc);
+              mw_notifyMindmapLoad(firstValidDoc);
+              console.log('[SYNC] 已切换到第一个有效文档:', firstValidDoc.id);
+            } else {
+              // 没有有效文档，创建新文档
+              const newId = 'doc_' + Date.now();
+              const newDoc = {
+                id: newId,
+                name: '未命名文档',
+                md: '# 未命名文档\n',
+                images: [],
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+                version: 1
+              };
+              docs.push(newDoc);
+              mw_saveDocs(docs);
+              mw_setActive(newId);
+              mw_renderList();
+              mw_notifyEditorLoad(newDoc);
+              mw_notifyPreviewLoad(newDoc);
+              mw_notifyMindmapLoad(newDoc);
+              console.log('[SYNC] 已创建新文档:', newId);
+            }
+          }
+        }
+      }
       showSuccess('同步完成');
       setTimeout(updateSyncStatus, 300);
     } catch (e) {
@@ -642,7 +552,7 @@
   function initUIBindings() {
     const zhCtrls = document.getElementById('lc-sync-controls');
 
-    
+
     // 个人菜单中的按钮
     const menuSyncBtn = document.getElementById('lc-sync-btn-menu');
     const menuClearBtn = document.getElementById('lc-clear-btn-menu');
@@ -656,7 +566,7 @@
     }
 
 
-    
+
     // 绑定个人菜单按钮 - 使用addEventListener确保函数可访问
     if (menuSyncBtn) {
       menuSyncBtn.addEventListener('click', bidirectionalSync);

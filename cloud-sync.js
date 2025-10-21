@@ -141,8 +141,50 @@
                     await mw_importZip(zipBlob);
                     try { localStorage.setItem('mw_last_change_time', Date.now().toString()); } catch (_) { }
                     showSuccess && showSuccess('已从云端恢复为最新');
-                    setTimeout(updateCloudSyncStatusMenu, 300);
-                    return { action: 'download', cloud };
+            setTimeout(updateCloudSyncStatusMenu, 300);
+            
+            // 检查当前文档是否被删除，如果是则切换到第一个有效文档
+            setTimeout(() => {
+              const currentActiveId = mw_getActive();
+              if (currentActiveId) {
+                const docs = (typeof mw_loadDocs === 'function') ? mw_loadDocs() : [];
+                const currentDoc = docs.find(d => d.id === currentActiveId);
+                if (!currentDoc || currentDoc.deletedAt) {
+                  console.log('[CloudSync] 当前文档已被删除，准备切换到第一个有效文档');
+                  // 切换到第一个未删除的文档
+                  const firstValidDoc = docs.find(d => !d.deletedAt);
+                  if (firstValidDoc) {
+                    mw_setActive(firstValidDoc.id);
+                    mw_notifyEditorLoad(firstValidDoc);
+                    mw_notifyPreviewLoad(firstValidDoc);
+                    mw_notifyMindmapLoad(firstValidDoc);
+                    console.log('[CloudSync] 已切换到第一个有效文档:', firstValidDoc.id);
+                  } else {
+                    // 没有有效文档，创建新文档
+                    const newId = 'doc_' + Date.now();
+                    const newDoc = {
+                      id: newId,
+                      name: '未命名文档',
+                      md: '# 未命名文档\n',
+                      images: [],
+                      createdAt: Date.now(),
+                      updatedAt: Date.now(),
+                      version: 1
+                    };
+                    docs.push(newDoc);
+                    mw_saveDocs(docs);
+                    mw_setActive(newId);
+                    mw_renderList();
+                    mw_notifyEditorLoad(newDoc);
+                    mw_notifyPreviewLoad(newDoc);
+                    mw_notifyMindmapLoad(newDoc);
+                    console.log('[CloudSync] 已创建新文档:', newId);
+                  }
+                }
+              }
+            }, 100);
+            
+            return { action: 'download', cloud };
                 }
             }
 
