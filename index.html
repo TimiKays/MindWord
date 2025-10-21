@@ -4,9 +4,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MindWord - 思维导图与Markdown结合的写作工具</title>
+    <title data-i18n="hero.title">MindWord - 思维导图与Markdown结合的写作工具</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="i18n/locales.js"></script>
+    <script src="i18n/i18n-manager.js"></script>
+
+    <!-- 确保页面加载完成后立即应用翻译 -->
+    <script>
+        // 在页面完全加载后立即应用翻译
+        function applyTranslationsWhenReady() {
+            if (window.i18nManager && window.i18nManager.isInitialized) {
+                // 如果i18n管理器已初始化，立即应用翻译
+                window.i18nManager.updatePageTranslations();
+                window.i18nManager.updatePageTitle();
+                window.i18nManager.updateLanguageButtons();
+            } else {
+                // 如果还未初始化，等待一下再试
+                setTimeout(applyTranslationsWhenReady, 100);
+            }
+        }
+
+        // 多种方式确保翻译被应用
+        if (document.readyState === 'complete') {
+            applyTranslationsWhenReady();
+        } else {
+            window.addEventListener('load', applyTranslationsWhenReady);
+            document.addEventListener('DOMContentLoaded', applyTranslationsWhenReady);
+        }
+
+        // 额外的保险机制
+        setTimeout(applyTranslationsWhenReady, 1000);
+    </script>
     <script>
         tailwind.config = {
             theme: {
@@ -108,6 +137,61 @@
         .nav-link:hover::after {
             width: 100%;
         }
+
+        /* 用户群体响应式布局 */
+        .user-groups-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 2rem;
+            max-width: 42rem;
+            margin: 0 auto;
+        }
+
+        .user-group-row {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 2rem;
+            width: 100%;
+        }
+
+        /* 宽屏幕时显示为一排 */
+        @media (min-width: 768px) {
+            .user-groups-container {
+                flex-direction: row;
+                gap: 2rem;
+            }
+
+            .user-group-row {
+                width: auto;
+                flex-direction: row;
+            }
+        }
+
+        /* 窄屏幕时显示为两排，每排两个 */
+        @media (max-width: 767px) {
+            .user-groups-container {
+                flex-direction: column;
+                gap: 1.5rem;
+            }
+
+            .user-group-row {
+                gap: 1.5rem;
+                flex-direction: row;
+            }
+        }
+
+        /* 更窄屏幕时的额外调整 */
+        @media (max-width: 400px) {
+            .user-group-row {
+                gap: 1rem;
+            }
+
+            .user-group-row .flex-col {
+                padding: 0.5rem;
+            }
+        }
     </style>
 </head>
 
@@ -115,50 +199,98 @@
     <!-- 导航栏 -->
     <header id="navbar" class="fixed w-full top-0 z-50 transition-all duration-300 bg-white/80 bg-blur shadow-sm">
         <div class="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center py-4">
-                <div class="flex items-center space-x-2">
-                    <div
-                        class="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-                        <img src="res/思维导图.svg" alt="MindWord" class="w-6 h-6 ">
+            <!-- 第一行：Logo和语言切换（左侧），立即试用按钮（右侧） -->
+            <div class="flex items-center justify-between py-3">
+                <!-- 左侧：Logo + 语言切换 -->
+                <div class="flex items-center space-x-4">
+                    <!-- Logo和品牌 -->
+                    <div class="flex items-center space-x-2">
+                        <div
+                            class="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+                            <img src="res/思维导图.svg" alt="MindWord" class="w-6 h-6 ">
+                        </div>
+                        <span
+                            class="text-xl font-bold bg-gradient-to-r from-primary to-secondary text-gradient">MindWord</span>
                     </div>
-                    <span
-                        class="text-xl font-bold bg-gradient-to-r from-primary to-secondary text-gradient">MindWord</span>
-                </div>
 
-                <!-- 桌面导航 -->
-                <nav class="hidden md:flex items-center space-x-8">
-                    <a href="#features" class="nav-link text-dark/80 hover:text-primary transition-colors">核心功能</a>
-                    <a href="#scenarios" class="nav-link text-dark/80 hover:text-primary transition-colors">适用场景</a>
-                    <a href="#getting-started"
-                        class="nav-link text-dark/80 hover:text-primary transition-colors">快速上手</a>
-                    <a href="#privacy" class="nav-link text-dark/80 hover:text-primary transition-colors">隐私保障</a>
-                    <a href="#feedback" class="nav-link text-dark/80 hover:text-primary transition-colors">反馈建议</a>
+
+
+
+                </div>
+                <!-- 导航标签 - 桌面端 -->
+                <nav class="hidden md:flex items-center space-x-6">
+                    <a href="#features" class="nav-link text-dark/80 hover:text-primary transition-colors"
+                        data-i18n="nav.features">核心功能</a>
+                    <a href="#scenarios" class="nav-link text-dark/80 hover:text-primary transition-colors"
+                        data-i18n="nav.scenarios">适用场景</a>
+                    <a href="#guide" class="nav-link text-dark/80 hover:text-primary transition-colors"
+                        data-i18n="nav.guide">快速上手</a>
+                    <a href="#privacy" class="nav-link text-dark/80 hover:text-primary transition-colors"
+                        data-i18n="nav.privacy">隐私保障</a>
+                    <a href="#feedback" class="nav-link text-dark/80 hover:text-primary transition-colors"
+                        data-i18n="nav.feedback">反馈建议</a>
                 </nav>
 
-                <div class="hidden md:block">
-                    <a href="app.html"
-                        class="bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-lg font-medium transition-all shadow-md hover:shadow-lg">
-                        立即体验
-                    </a>
-                </div>
+                <!-- 右侧：语言切换和立即试用按钮 -->
+                <div class="flex items-center space-x-2">
+                    <!-- 语言切换下拉框 - 桌面端 -->
+                    <select id="lang-switch" title="Language" onchange="window.i18nManager.setLanguage(this.value)"
+                        class="hidden md:block h-8 border border-gray-300 rounded-md bg-white text-gray-700 text-sm px-2 py-1"
+                        style="min-width: 60px;">
+                        <option value="zh" data-i18n="language.zh">中文</option>
+                        <option value="en" data-i18n="language.en">EN</option>
+                    </select>
 
-                <!-- 移动端菜单按钮 -->
-                <button id="menu-toggle" class="md:hidden text-dark p-2 rounded-md">
-                    <i class="fa fa-bars text-xl"></i>
-                </button>
+                    <!-- 立即试用按钮 - 桌面端 -->
+                    <a href="app.html"
+                        class="hidden md:block bg-primary hover:bg-primary/90 text-white px-4 py-1.5 rounded-lg font-medium transition-all shadow-md hover:shadow-lg text-sm"
+                        data-i18n="nav.tryNow">
+                        立即试用
+                    </a>
+
+                    <!-- 移动端按钮组：立即体验 + 语言切换 + 菜单按钮 -->
+                    <div class="md:hidden flex items-center space-x-2">
+                        <!-- 立即体验按钮 - 移动端 -->
+                        <a href="app.html"
+                            class="bg-primary hover:bg-primary/90 text-white px-3 py-1.5 rounded-md font-medium text-sm transition-all shadow-md hover:shadow-lg"
+                            data-i18n="nav.tryNow">
+                            立即体验
+                        </a>
+
+                        <!-- 语言切换下拉框 - 移动端 -->
+                        <select id="lang-switch-mobile" onchange="window.i18nManager.setLanguage(this.value)"
+                            class="h-7 border border-gray-300 rounded-md bg-white text-gray-700 text-xs px-1 py-0.5"
+                            style="min-width: 50px;">
+                            <option value="zh" data-i18n="language.zh">中文</option>
+                            <option value="en" data-i18n="language.en">EN</option>
+                        </select>
+
+                        <!-- 移动端菜单按钮 -->
+                        <button id="menu-toggle" class="text-dark p-2 rounded-md">
+                            <i class="fa fa-bars text-xl"></i>
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
 
         <!-- 移动端导航菜单 -->
         <div id="mobile-menu" class="md:hidden hidden bg-white border-t">
             <div class="container mx-auto px-4 py-3 space-y-3">
-                <a href="#features" class="block py-2 text-dark/80 hover:text-primary transition-colors">核心功能</a>
-                <a href="#scenarios" class="block py-2 text-dark/80 hover:text-primary transition-colors">适用场景</a>
-                <a href="#getting-started" class="block py-2 text-dark/80 hover:text-primary transition-colors">快速上手</a>
-                <a href="#privacy" class="block py-2 text-dark/80 hover:text-primary transition-colors">隐私保障</a>
-                <a href="#feedback" class="block py-2 text-dark/80 hover:text-primary transition-colors">反馈建议</a>
+                <a href="#features" class="block py-2 text-dark/80 hover:text-primary transition-colors"
+                    data-i18n="nav.features">核心功能</a>
+                <a href="#scenarios" class="block py-2 text-dark/80 hover:text-primary transition-colors"
+                    data-i18n="nav.scenarios">适用场景</a>
+                <a href="#guide" class="block py-2 text-dark/80 hover:text-primary transition-colors"
+                    data-i18n="nav.guide">快速上手</a>
+                <a href="#privacy" class="block py-2 text-dark/80 hover:text-primary transition-colors"
+                    data-i18n="nav.privacy">隐私保障</a>
+                <a href="#feedback" class="block py-2 text-dark/80 hover:text-primary transition-colors"
+                    data-i18n="nav.feedback">反馈建议</a>
+
                 <a href="app.html"
-                    class="block py-2 text-center bg-primary hover:bg-primary/90 text-white rounded-lg font-medium transition-colors">
+                    class="block py-2 text-center bg-primary hover:bg-primary/90 text-white rounded-lg font-medium transition-colors"
+                    data-i18n="nav.tryNow">
                     立即体验
                 </a>
             </div>
@@ -173,18 +305,21 @@
                 <div class="text-center mb-16">
                     <h1 class="text-[clamp(2rem,5vw,3.5rem)] font-bold leading-tight mb-6">
 
-                        <span class="bg-gradient-to-r from-primary to-secondary text-gradient">MindWord</span>
+                        <span class="bg-gradient-to-r from-primary to-secondary text-gradient"
+                            data-i18n="hero.title">MindWord</span>
                     </h1>
-                    <p class="text-lg text-dark/70 mb-8 max-w-xl mx-auto">
+                    <p class="text-lg text-dark/70 mb-8 max-w-xl mx-auto" data-i18n="hero.subtitle">
                         像画图一样写文档
                     </p>
                     <div class="flex flex-col sm:flex-row gap-4 justify-center">
                         <a href="app.html"
-                            class="bg-primary hover:bg-primary/90 text-white px-8 py-3 rounded-lg font-medium text-center transition-all shadow-lg hover:shadow-xl">
+                            class="bg-primary hover:bg-primary/90 text-white px-8 py-3 rounded-lg font-medium text-center transition-all shadow-lg hover:shadow-xl"
+                            data-i18n="nav.freeTrial">
                             免费体验 <i class="fa fa-arrow-right ml-2"></i>
                         </a>
                         <a href="#features"
-                            class="bg-white border border-dark/10 hover:border-primary text-dark px-8 py-3 rounded-lg font-medium text-center transition-all shadow-md hover:shadow-lg">
+                            class="bg-white border border-dark/10 hover:border-primary text-dark px-8 py-3 rounded-lg font-medium text-center transition-all shadow-md hover:shadow-lg"
+                            data-i18n="nav.featureIntro">
                             功能介绍 <i class="fa fa-info-circle ml-2"></i>
                         </a>
                     </div>
@@ -198,7 +333,7 @@
                         <div
                             class="absolute inset-0 bg-gradient-to-tr from-primary/20 to-secondary/20 rounded-3xl transform rotate-3 scale-105">
                         </div>
-                        <img src="res/screenShot-all.png" alt="MindWord产品界面展示"
+                        <img src="res/screenShot-all.png" alt="MindWord产品界面展示" data-i18n="hero.productShow.alt"
                             class="relative z-10 rounded-3xl shadow-2xl w-full">
                         <div
                             class="absolute -bottom-6 -left-6 bg-white p-4 rounded-xl shadow-lg z-20 border border-green-100">
@@ -208,8 +343,9 @@
                                     <i class="fa fa-check text-white"></i>
                                 </div>
                                 <div>
-                                    <p class="font-medium">拖拽式写作</p>
-                                    <p class="text-sm text-dark/60">文档与思维导图双向实时更新</p>
+                                    <p class="font-medium" data-i18n="hero.productShow.dragWriting">拖拽式写作</p>
+                                    <p class="text-sm text-dark/60" data-i18n="hero.productShow.dragWritingDesc">
+                                        文档与思维导图双向实时更新</p>
                                 </div>
                             </div>
                         </div>
@@ -221,8 +357,9 @@
                                     <i class="fa fa-lightbulb-o text-white"></i>
                                 </div>
                                 <div>
-                                    <p class="font-medium">AI辅助生成</p>
-                                    <p class="text-sm text-dark/60">快速重写或扩展章节</p>
+                                    <p class="font-medium" data-i18n="hero.productShow.aiAssist">AI辅助生成</p>
+                                    <p class="text-sm text-dark/60" data-i18n="hero.productShow.aiAssistDesc">快速重写或扩展章节
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -230,32 +367,42 @@
                 </div>
 
                 <!-- 用户群体 -->
-                <div class="text-center mb-16 mt-8"></div>
-                <p class="text-dark/50 uppercase tracking-wider mb-4"> </p>
-                <div class="flex flex-wrap justify-center gap-8">
-                    <div class="flex flex-col items-center p-4">
-                        <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
-                            <i class="fa fa-pencil text-gray-700 text-xl"></i>
+                <div class="text-center mb-16 mt-8">
+                    <p class="text-dark/50 uppercase tracking-wider mb-4" data-i18n="hero.userGroups.title">用户群体</p>
+                    <div class="user-groups-container">
+                        <!-- 第一排：写作者和产品经理 -->
+                        <div class="user-group-row">
+                            <div class="flex flex-col items-center p-4">
+                                <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                                    <i class="fa fa-pencil text-gray-700 text-xl"></i>
+                                </div>
+                                <span class="font-medium text-gray-800" data-i18n="hero.userGroups.writers">写作者</span>
+                            </div>
+                            <div class="flex flex-col items-center p-4">
+                                <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                                    <i class="fa fa-cubes text-gray-700 text-xl"></i>
+                                </div>
+                                <span class="font-medium text-gray-800"
+                                    data-i18n="hero.userGroups.productManagers">产品经理</span>
+                            </div>
                         </div>
-                        <span class="font-medium text-gray-800">写作者</span>
-                    </div>
-                    <div class="flex flex-col items-center p-4">
-                        <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
-                            <i class="fa fa-cubes text-gray-700 text-xl"></i>
+                        <!-- 第二排：AI爱好者和脑力工作者 -->
+                        <div class="user-group-row">
+                            <div class="flex flex-col items-center p-4">
+                                <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                                    <i class="fa fa-code text-gray-700 text-xl"></i>
+                                </div>
+                                <span class="font-medium text-gray-800"
+                                    data-i18n="hero.userGroups.aiEnthusiasts">AI爱好者</span>
+                            </div>
+                            <div class="flex flex-col items-center p-4">
+                                <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                                    <i class="fa fa-lightbulb-o text-gray-700 text-xl"></i>
+                                </div>
+                                <span class="font-medium text-gray-800"
+                                    data-i18n="hero.userGroups.knowledgeWorkers">脑力工作者</span>
+                            </div>
                         </div>
-                        <span class="font-medium text-gray-800">产品经理</span>
-                    </div>
-                    <div class="flex flex-col items-center p-4">
-                        <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
-                            <i class="fa fa-code text-gray-700 text-xl"></i>
-                        </div>
-                        <span class="font-medium text-gray-800">AI爱好者</span>
-                    </div>
-                    <div class="flex flex-col items-center p-4">
-                        <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
-                            <i class="fa fa-lightbulb-o text-gray-700 text-xl"></i>
-                        </div>
-                        <span class="font-medium text-gray-800">脑力工作者</span>
                     </div>
                 </div>
             </div>
@@ -266,9 +413,9 @@
         <section class="py-20 bg-white">
             <div class="container mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="max-w-3xl mx-auto text-center mb-16">
-                    <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold mb-6">项目背景</h2>
+                    <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold mb-6" data-i18n="background.title">项目背景</h2>
                     <div class="w-20 h-1 bg-primary mx-auto mb-8 rounded-full"></div>
-                    <p class="text-lg text-dark/70">
+                    <p class="text-lg text-dark/70" data-i18n="background.description">
                         你是否遇到过这样的困扰：好不容易在思维导图中梳理好框架，写文章时仍需要重写大纲；修改文章或导图另一侧不会变，导致框架与内容脱节？找AI头脑风暴，却难以融入已有文档？难以局部修改或深入探索？
                     </p>
                 </div>
@@ -277,48 +424,50 @@
                     <div class="flex flex-col md:flex-row gap-8">
                         <div class="md:w-1/2">
                             <div class="h-full flex flex-col justify-center">
-                                <h3 class="text-xl font-bold mb-4 text-primary">传统写作的痛点</h3>
+                                <h3 class="text-xl font-bold mb-4 text-primary"
+                                    data-i18n="background.traditionalPain.title">传统写作的痛点</h3>
                                 <ul class="space-y-4">
 
                                     <li class="flex items-start">
                                         <i class="fa fa-times-circle text-red-500 mt-1 mr-3"></i>
-                                        <span>思路与正文分离，难以保持一致性</span>
+                                        <span data-i18n="background.traditionalPain.point1">思路与正文分离，难以保持一致性</span>
                                     </li>
                                     <li class="flex items-start">
                                         <i class="fa fa-times-circle text-red-500 mt-1 mr-3"></i>
-                                        <span>格式调整繁琐，从草稿到正式文档耗时</span>
+                                        <span data-i18n="background.traditionalPain.point2">格式调整繁琐，从草稿到正式文档耗时</span>
                                     </li>
                                     <li class="flex items-start">
                                         <i class="fa fa-times-circle text-red-500 mt-1 mr-3"></i>
-                                        <span>AI辅助与手动编辑难以无缝结合</span>
+                                        <span data-i18n="background.traditionalPain.point3">AI辅助与手动编辑难以无缝结合</span>
                                     </li>
                                     <li class="flex items-start">
                                         <i class="fa fa-times-circle text-red-500 mt-1 mr-3"></i>
-                                        <span>想把AI回复或文章存到文档，却丢了格式</span>
+                                        <span data-i18n="background.traditionalPain.point4">想把AI回复或文章存到文档，却丢了格式</span>
                                     </li>
                                 </ul>
                             </div>
                         </div>
                         <div class="md:w-1/2">
                             <div class="h-full flex flex-col justify-center">
-                                <h3 class="text-xl font-bold mb-4 text-secondary">MindWord 的解决方案</h3>
+                                <h3 class="text-xl font-bold mb-4 text-secondary"
+                                    data-i18n="background.mindwordSolution.title">MindWord 的解决方案</h3>
                                 <ul class="space-y-4">
 
                                     <li class="flex items-start">
                                         <i class="fa fa-check-circle text-green-500 mt-1 mr-3"></i>
-                                        <span>拖拽式文档结构调整，即时双向同步</span>
+                                        <span data-i18n="background.mindwordSolution.point1">拖拽式文档结构调整，即时双向同步</span>
                                     </li>
                                     <li class="flex items-start">
                                         <i class="fa fa-check-circle text-green-500 mt-1 mr-3"></i>
-                                        <span>一键导出符合格式要求的Word文档</span>
+                                        <span data-i18n="background.mindwordSolution.point2">一键导出符合格式要求的Word文档</span>
                                     </li>
                                     <li class="flex items-start">
                                         <i class="fa fa-check-circle text-green-500 mt-1 mr-3"></i>
-                                        <span>AI辅助节点生成，无缝融入创作流程</span>
+                                        <span data-i18n="background.mindwordSolution.point3">AI辅助节点生成，无缝融入创作流程</span>
                                     </li>
                                     <li class="flex items-start">
                                         <i class="fa fa-check-circle text-green-500 mt-1 mr-3"></i>
-                                        <span>支持贴入富文本生成文档，保留格式和层级</span>
+                                        <span data-i18n="background.mindwordSolution.point4">支持贴入富文本生成文档，保留格式和层级</span>
                                     </li>
                                 </ul>
                             </div>
@@ -639,7 +788,7 @@
         </section>
 
         <!-- 快速上手 -->
-        <section id="getting-started" class="py-20 bg-gray-50">
+        <section id="guide" class="py-20 bg-gray-50">
             <div class="container mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="max-w-3xl mx-auto text-center mb-16">
                     <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold mb-6">快速上手</h2>

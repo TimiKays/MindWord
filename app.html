@@ -6,6 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MindWord</title>
     <link rel="stylesheet" href="styles.css">
+    <!-- 国际化支持 -->
+    <script src="i18n/locales.js"></script>
+    <script src="i18n/i18n-manager.js"></script>
     <!-- Bootstrap CSS for notifications -->
     <!-- <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet"> -->
     <style>
@@ -542,10 +545,10 @@
                 MindWord
             </span>
             <!-- 语言切换 -->
-            <select id="lang-switch" title="Language"
+            <select id="lang-switch" title="Language" onchange="window.i18nManager.setLanguage(this.value)"
                 style="height:30px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; color:#334155; font-size:12px; padding:0 8px; margin-left:15px;">
-                <option value="zh">中文</option>
-                <option value="en">English</option>
+                <option value="zh" >中文</option>
+                <option value="en" >EN</option>
             </select>
         </div>
         <div class="tabs">
@@ -557,7 +560,7 @@
                 </svg>
 
 
-                <span>文本编辑</span>
+                <span data-i18n="app.editor">文本编辑</span>
             </div>
             <div class="tab active" data-panel="preview" style="font-size:14px;"><svg t="1759394709317" class="icon"
                     viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1495">
@@ -565,7 +568,7 @@
                         d="M648.101506 803.835981a35.839821 35.839821 0 0 0-35.839821-35.839821H291.836621a35.839821 35.839821 0 1 0 0 72.106306h319.9984a35.839821 35.839821 0 0 0 36.266485-36.266485z m127.99936-159.9992a35.839821 35.839821 0 0 0-35.839821-35.839821H291.836621a35.839821 35.839821 0 1 0 0 72.106306h447.99776a35.839821 35.839821 0 0 0 36.266485-36.266485z m-191.99904-159.9992a35.839821 35.839821 0 0 0-35.839821-35.839821h-255.99872a35.839821 35.839821 0 1 0 0 72.106306h255.99872a35.839821 35.839821 0 0 0 35.839821-36.266485z m238.932139 469.330986H200.103746V72.106306H511.99552v239.785468A72.959635 72.959635 0 0 0 584.101826 383.99808h238.932139zM582.821833 110.506114l200.958995 201.812324h-200.958995z m291.83854 191.145711L597.328427 21.333227a76.799616 76.799616 0 0 0-14.506594-11.519943l-4.266646-2.133322h-2.986652A71.679642 71.679642 0 0 0 546.128683 0H200.957075A72.959635 72.959635 0 0 0 127.99744 72.106306v879.782268A72.959635 72.959635 0 0 0 200.957075 1023.99488h622.930219A71.252977 71.252977 0 0 0 895.9936 951.888574V352.424905a71.252977 71.252977 0 0 0-21.333227-50.77308z"
                         fill="#5E5C5C" p-id="1496"></path>
                 </svg>
-                <span>文档预览</span>
+                <span data-i18n="app.preview">文档预览</span>
             </div>
             <div class="tab active" data-panel="mindmap" style="font-size:14px;"><svg t="1759394646816" class="icon"
                     viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1189">
@@ -574,13 +577,13 @@
                         fill="#000000" fill-opacity=".65" p-id="1190"></path>
                 </svg>
 
-                <span>思维导图</span>
+                <span data-i18n="app.mindmap">思维导图</span>
             </div>
 
         </div>
         <button class="btn btn-small" id="focus-toggle" style="margin-left: 8px; padding: 4px 8px; font-size: 11px;">
             <div class="focus-icon"></div>
-            <span>专注</span>
+            <span data-i18n="app.focus">专注</span>
         </button>
         <div class="header-right">
             <!-- 账号区：未登录显示"注册/登录"，已登录显示"用户名/退出登录" -->
@@ -650,7 +653,7 @@
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
                                 </svg>
-                                <div style="font-size: 13px; color: #dc2626;">退出登录</div>
+                                <div style="font-size: 13px; color: #dc2626;" data-i18n="auth.logout">退出登录</div>
                             </div>
                         </div>
                     </div>
@@ -663,18 +666,18 @@
                         style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;">
                         <div
                             style="background: white; padding: 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); max-width: 420px; width: 90%;">
-                            <h3 style="margin: 0 0 10px 0; color: #333;">云备份</h3>
+                            <h3 style="margin: 0 0 10px 0; color: #333;" data-i18n="cloud.backupTitle">云备份</h3>
                             <div style="font-size: 13px; color: #555; margin-bottom: 12px;">
                                 <div>最新备份时间：<span id="cloud-sync-latest-time">—</span></div>
                                 <div>已备份文件数：<span id="cloud-sync-file-count">—</span></div>
                                 <div>总体大小：<span id="cloud-sync-total-size">—</span></div>
-                                <div style="color:#888; margin-top:6px;">容量上限：每用户 10MB（仅保留最新一份）</div>
+                                <div style="color:#888; margin-top:6px;" data-i18n="cloud.capacityLimit">容量上限：每用户 10MB（仅保留最新一份）</div>
                             </div>
                             <div style="display:flex; gap:8px; justify-content:flex-end;">
-                                <button id="cloud-sync-modal-sync" class="btn btn-small" style="height:30px;">一键同步</button>
+                                <button id="cloud-sync-modal-sync" class="btn btn-small" style="height:30px;" data-i18n="cloud.sync">一键同步</button>
                                 <button id="cloud-sync-modal-clear" class="btn btn-small"
-                                    style="height:30px; background:#e74c3c; color:#fff;">清空备份</button>
-                                <button id="cloud-sync-modal-close" class="btn btn-small" style="height:30px;">关闭</button>
+                                    style="height:30px; background:#e74c3c; color:#fff;" data-i18n="cloud.clear">清空备份</button>
+                                <button id="cloud-sync-modal-close" class="btn btn-small" style="height:30px;" data-i18n="cloud.close">关闭</button>
                             </div>
                         </div>
                     </div>
@@ -710,12 +713,12 @@
     <!-- 主内容区域 -->
     <main class="main-content" id="main-content">
         <!-- 专注模式提示 -->
-        <div class="focus-indicator">专注</div>
+        <div class="focus-indicator" data-i18n="app.focus">专注</div>
 
         <!-- MD编辑面板 -->
         <div class="panel editor-panel" id="editor-panel">
             <div class="panel-header">
-                <span>Markdown 编辑器</span>
+                <span data-i18n="app.editor">Markdown 编辑器</span>
                 <button class="btn btn-icon" onclick="togglePanel('editor')">&times;</button>
             </div>
             <div class="panel-content">
@@ -732,7 +735,7 @@
         <!-- MD预览面板 -->
         <div class="panel preview-panel" id="preview-panel">
             <div class="panel-header">
-                <span>Markdown 预览</span>
+                <span data-i18n="app.preview">Markdown 预览</span>
                 <button class="btn btn-icon" onclick="togglePanel('preview')">&times;</button>
             </div>
             <div class="panel-content">
@@ -749,7 +752,7 @@
         <!-- 思维导图面板 -->
         <div class="panel mindmap-panel" id="mindmap-panel">
             <div class="panel-header">
-                <span>思维导图</span>
+                <span data-i18n="app.mindmap">思维导图</span>
                 <button class="btn btn-icon" onclick="togglePanel('mindmap')">&times;</button>
             </div>
             <div class="panel-content">
@@ -2944,6 +2947,14 @@
                 applyLangToUI();
                 window.addEventListener('storage', function (e) { if (e.key && e.key.startsWith('AV/')) setTimeout(applyLangToUI, 200); });
                 window.__mw_applyLangToUI = applyLangToUI;
+                
+                // 初始化i18n管理器
+                if (window.i18nManager) {
+                    window.i18nManager.init();
+                    // 同步语言选择器状态
+                    const currentLang = window.i18nManager.getCurrentLanguage();
+                    if (sel) sel.value = currentLang;
+                }
             });
         })();
     </script>

@@ -282,7 +282,7 @@
   }
 
   // 落地：云端
-  async function applyTargetToCloud(target, cloudFullData) {
+  async function applyTargetToCloud(target, cloudFullData, cloudObj) {
     const user = AV.User.current();
     if (!user) throw new Error('未登录');
 
@@ -307,7 +307,8 @@
     }
 
 
-    const obj = await fetchOrCreateRecord();
+    // 使用传入的云端对象，避免重复下载
+    const obj = cloudObj || await fetchOrCreateRecord();
     obj.set('docs', mergedDocs);
     obj.set('aiConfig', target.aiConfig);
     obj.set('aiConfigHash', target.aiConfigHash);
@@ -461,7 +462,7 @@
 
       // 4. 落地：先写本地，再写云端（确保本地优先）
       applyTargetToLocal(targetFullData);
-      await applyTargetToCloud(targetFullData, cloudFullData);
+      await applyTargetToCloud(targetFullData, cloudFullData, cachedCloudRaw.obj);
 
       // 5. 刷新 UI
       if (typeof mw_renderList === 'function') mw_renderList();
