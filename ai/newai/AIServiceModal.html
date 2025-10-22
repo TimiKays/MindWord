@@ -2330,6 +2330,16 @@
                     // 默认以迷你模式启动
                     switchToUsageView(); // 先切换到使用视图
                     toggleMiniMode();    // 然后切换到迷你模式
+                    
+                    // 设置迷你输入框的提示文字
+                    const miniPrompt = modal.dataset.miniPrompt;
+                    if (typeof miniPrompt === 'string' && miniPrompt.trim()) {
+                        const miniInput = document.getElementById('miniInput');
+                        if (miniInput) {
+                            miniInput.placeholder = miniPrompt.trim();
+                        }
+                        delete modal.dataset.miniPrompt;
+                    }
                 } else {
                     switchToUsageView();
                 }
@@ -4430,7 +4440,7 @@
             };
 
             window.openAIServiceModal = function (options = {}) {
-                const { title, initialView, presetPrompt, requestId } = options;
+                const { title, initialView, presetPrompt, requestId, miniPrompt } = options;
 
                 // 设置标题
                 const titleEl = document.getElementById('modalTitle');
@@ -4451,6 +4461,9 @@
                     modal.dataset.requestId = requestId;
                 } else {
                     delete modal.dataset.requestId;
+                }
+                if (typeof miniPrompt === 'string') {
+                    modal.dataset.miniPrompt = miniPrompt;
                 }
 
                 openModal();
@@ -4507,7 +4520,7 @@
                     if (!msg || typeof msg !== 'object') return;
                     // 仅处理 AI_MODAL_OPEN 指令
                     if (msg.type === 'AI_MODAL_OPEN' && msg.payload) {
-                        const { title, initialView, presetPrompt, requestId, params } = msg.payload;
+                        const { title, initialView, presetPrompt, requestId, params, miniPrompt } = msg.payload;
                         console.debug('[aiModal] received AI_MODAL_OPEN', { requestId, title, initialView, params });
                         // 验证 params 是否为可用的对象或数组
                         let parsedParams = null;
@@ -4656,7 +4669,7 @@
 
                         // 最终打开 modal（带 requestId / presetPrompt），注意：modal 打开时不自动发送请求（除非 payload 指定 autoRun 或 mode==='direct'）
                         try {
-                            window.openAIServiceModal({ title, initialView, presetPrompt, requestId });
+                            window.openAIServiceModal({ title, initialView, presetPrompt, requestId, miniPrompt });
 
                             // 如果父 payload 指定要自动运行（兼容 headless 或 autoRun），仅在明确标记时触发
                             try {
