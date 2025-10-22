@@ -238,9 +238,16 @@
 
                         <!-- 输入与输出区域 -->
                         <div class="space-y-4 mt-4">
-                            <!-- 输入区域 -->
+                            <!-- 用户提示词输入区域 -->
                             <div class="w-full">
-                                <label class="form-label" for="usagePromptInput">输入</label>
+                                <label class="form-label" for="userPromptInput">用户提示词</label>
+                                <textarea id="userPromptInput" class="form-control h-20 sm:h-24"
+                                    placeholder="请输入用户特定要求（可选），将插入到模板中..."></textarea>
+                            </div>
+
+                            <!-- 系统提示词输入区域 -->
+                            <div class="w-full">
+                                <label class="form-label" for="usagePromptInput">系统提示词</label>
                                 <div class="flex justify-end items-center gap-2 text-xs text-gray-600 mt-1">
                                     <label class="inline-flex items-center cursor-pointer">
                                         <input type="checkbox" id="toggleTemplateViewChk" class="mr-1">
@@ -1880,7 +1887,71 @@
                     '<i class="fa fa-eye"></i>';
             }
 
+            // 构建占位符映射（优先使用 modal.dataset.presetParams，其次使用选中模板的 params）
+            function buildPlaceholdersMap() {
+                const placeholders = {};
+                let presetMap = null;
+                try {
+                    if (modal && modal.dataset && modal.dataset.presetParams) {
+                        presetMap = JSON.parse(modal.dataset.presetParams);
+                    }
+                } catch (e) { presetMap = null; }
 
+                // 从选中模板的 params 列表构建初始 keys
+                const sel = promptTemplateSelect?.options[promptTemplateSelect.selectedIndex];
+                const params = sel?.dataset?.params ? JSON.parse(sel.dataset.params) : [];
+
+                const chosenKey = (promptParamsSelect?.value || '').trim();
+
+                if (Array.isArray(params) && params.length > 0) {
+                    params.forEach(p => {
+                        const key = typeof p === 'string' ? p : (p?.name || '');
+                        if (!key) return;
+                        if (presetMap && Object.prototype.hasOwnProperty.call(presetMap, key)) {
+                            const v = presetMap[key];
+                            placeholders[key] = (v && typeof v === 'object') ? (v.value ?? '') : String(v ?? '');
+                        } else {
+                            placeholders[key] = (key === chosenKey && chosenKey) ? chosenKey : '';
+                        }
+                    });
+                } else if (presetMap) {
+                    // 当没有模板 params 时，使用 presetMap 中的所有键作为占位符
+                    Object.entries(presetMap).forEach(([k, v]) => {
+                        placeholders[k] = (v && typeof v === 'object') ? (v.value ?? '') : String(v ?? '');
+                    });
+                } else {
+                    // 兜底：从当前缓存的模板或 textarea 中提取占位符名
+                    try {
+                        const templateSource = (usagePromptInput && usagePromptInput.dataset && usagePromptInput.dataset.template) ? usagePromptInput.dataset.template : (usagePromptInput ? usagePromptInput.value : '');
+                        const re = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g;
+                        let m;
+                        const found = new Set();
+                        while ((m = re.exec(String(templateSource || ''))) !== null) {
+                            if (m[1]) found.add(m[1]);
+                        }
+                        Array.from(found).forEach(k => {
+                            placeholders[k] = (k === chosenKey && chosenKey) ? chosenKey : '';
+                        });
+                    } catch (e) { /* ignore */ }
+                }
+                // 合并 presetMap 中未在 params 声明的键，确保替换完整
+                if (presetMap && typeof presetMap === 'object') {
+                    Object.entries(presetMap).forEach(([k, v]) => {
+                        if (!Object.prototype.hasOwnProperty.call(placeholders, k)) {
+                            placeholders[k] = (v && typeof v === 'object') ? (v.value ?? '') : String(v ?? '');
+                        }
+                    });
+                }
+
+                // 获取用户输入的特定要求
+                const userPromptInput = document.getElementById('userPromptInput');
+                if (userPromptInput) {
+                    placeholders.userRequirement = userPromptInput.value || '';
+                }
+
+                console.log('[aiModal] Debug - buildPlaceholdersMap placeholders:', placeholders);
+                return placeholders;
+            }
 
             // 发送AI请求
             async function sendAIRequest() {
@@ -1912,9 +1983,22 @@
                     console.warn('[aiModal] auto fallback to proxy failed', e);
                 }
 
-                const prompt = (usagePromptInput && usagePromptInput.dataset && usagePromptInput.dataset.resolved)
-                    ? String(usagePromptInput.dataset.resolved)
-                    : (usagePromptInput ? usagePromptInput.value : '');
+                // 获取用户输入的基础prompt
+                let prompt = usagePromptInput ? usagePromptInput.value || '' : '';
+
+                // 每次都重新解析：使用完整的占位符映射来解析所有参数
+                const placeholders = buildPlaceholdersMap();
+                const result = resolveTemplatePlaceholders(prompt, placeholders, '{{name}}', { missingPolicy: 'keep' });
+                prompt = result.resolvedText;
+                // 缓存解析结果
+                if (usagePromptInput && usagePromptInput.dataset) {
+                    usagePromptInput.dataset.resolved = prompt;
+                }
+
+
+                console.log('[aiModal] Debug - SendAIRequest final prompt:', prompt);
+                console.log('[aiModal] Debug - usagePromptInput.dataset.resolved:', usagePromptInput?.dataset?.resolved);
+                console.log('[aiModal] Debug - usagePromptInput.value:', usagePromptInput?.value);
                 const temperature = parseFloat(temperatureInput.value);
                 const maxTokens = parseInt(maxTokensInput.value);
 
@@ -1947,6 +2031,14 @@
                     // 显示结果
                     showUsageStatus('请求成功完成', 'success');
                     usageResultContent.textContent = result;
+
+                    // 保存成功调用的平台和模型（只在真正调用成功后保存）
+                    if (usagePlatformSelect && usagePlatformSelect.value) {
+                        localStorage.setItem('lastUsedPlatform', usagePlatformSelect.value);
+                    }
+                    if (usageModelSelect && usageModelSelect.value && usagePlatformSelect && usagePlatformSelect.value) {
+                        localStorage.setItem(`lastUsedModel_${usagePlatformSelect.value}`, usageModelSelect.value);
+                    }
                     // 确保输出容器可见且可交互，避免被样式或属性禁用
                     if (usageResultContainer) {
                         usageResultContainer.classList.remove('hidden');
@@ -2554,10 +2646,6 @@
                 }
             } catch (e) { /* ignore */ }
             if (usageModelSelect) usageModelSelect.addEventListener('change', () => {
-                // 记忆模型选择（按平台维度存储）
-                if (platformSelect && usageModelSelect.value) {
-                    localStorage.setItem(`lastUsedModel_${platformSelect.value}`, usageModelSelect.value);
-                }
                 updateUsageSubmitButtonState();
             });
             if (cloudflareAccountId) cloudflareAccountId.addEventListener('input', () => {
@@ -2606,13 +2694,13 @@
                             if (typeof json === 'object' && json) {
                                 allPlatformConfigs = json;
                                 // 导入配置时确保数据完整 - 现在导入的配置也会包含platformName
-                            // 强制确保所有导入的配置都有platformName
-                            Object.keys(allPlatformConfigs).forEach(key => {
-                                if (allPlatformConfigs[key] && !allPlatformConfigs[key].platformName) {
-                                    allPlatformConfigs[key].platformName = (aiService.getPlatforms()[key]?.name) || key;
-                                }
-                            });
-                            localStorage.setItem('allAIPlatformConfigs', JSON.stringify(allPlatformConfigs));
+                                // 强制确保所有导入的配置都有platformName
+                                Object.keys(allPlatformConfigs).forEach(key => {
+                                    if (allPlatformConfigs[key] && !allPlatformConfigs[key].platformName) {
+                                        allPlatformConfigs[key].platformName = (aiService.getPlatforms()[key]?.name) || key;
+                                    }
+                                });
+                                localStorage.setItem('allAIPlatformConfigs', JSON.stringify(allPlatformConfigs));
                                 populateSavedPlatformsList();
                                 populateUsagePlatforms();
                                 showStatus('配置已导入', 'success');
@@ -2946,63 +3034,7 @@
                     return '';
                 }
 
-                // 构建占位符映射（优先使用 modal.dataset.presetParams，其次使用选中模板的 params）
-                function buildPlaceholdersMap() {
-                    const placeholders = {};
-                    let presetMap = null;
-                    try {
-                        if (modal && modal.dataset && modal.dataset.presetParams) {
-                            presetMap = JSON.parse(modal.dataset.presetParams);
-                        }
-                    } catch (e) { presetMap = null; }
 
-                    // 从选中模板的 params 列表构建初始 keys
-                    const sel = promptTemplateSelect?.options[promptTemplateSelect.selectedIndex];
-                    const params = sel?.dataset?.params ? JSON.parse(sel.dataset.params) : [];
-
-                    const chosenKey = (promptParamsSelect?.value || '').trim();
-
-                    if (Array.isArray(params) && params.length > 0) {
-                        params.forEach(p => {
-                            const key = typeof p === 'string' ? p : (p?.name || '');
-                            if (!key) return;
-                            if (presetMap && Object.prototype.hasOwnProperty.call(presetMap, key)) {
-                                const v = presetMap[key];
-                                placeholders[key] = (v && typeof v === 'object') ? (v.value ?? '') : String(v ?? '');
-                            } else {
-                                placeholders[key] = (key === chosenKey && chosenKey) ? chosenKey : '';
-                            }
-                        });
-                    } else if (presetMap) {
-                        // 当没有模板 params 时，使用 presetMap 中的所有键作为占位符
-                        Object.entries(presetMap).forEach(([k, v]) => {
-                            placeholders[k] = (v && typeof v === 'object') ? (v.value ?? '') : String(v ?? '');
-                        });
-                    } else {
-                        // 兜底：从当前缓存的模板或 textarea 中提取占位符名
-                        try {
-                            const templateSource = (usagePromptInput && usagePromptInput.dataset && usagePromptInput.dataset.template) ? usagePromptInput.dataset.template : (usagePromptInput ? usagePromptInput.value : '');
-                            const re = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g;
-                            let m;
-                            const found = new Set();
-                            while ((m = re.exec(String(templateSource || ''))) !== null) {
-                                if (m[1]) found.add(m[1]);
-                            }
-                            Array.from(found).forEach(k => {
-                                placeholders[k] = (k === chosenKey && chosenKey) ? chosenKey : '';
-                            });
-                        } catch (e) { /* ignore */ }
-                    }
-                    // 合并 presetMap 中未在 params 声明的键，确保替换完整
-                    if (presetMap && typeof presetMap === 'object') {
-                        Object.entries(presetMap).forEach(([k, v]) => {
-                            if (!Object.prototype.hasOwnProperty.call(placeholders, k)) {
-                                placeholders[k] = (v && typeof v === 'object') ? (v.value ?? '') : String(v ?? '');
-                            }
-                        });
-                    }
-                    return placeholders;
-                }
 
                 // 在文本中替换占位符，仅替换匹配的 {{key}} 部分，保留其他文本不变
                 function replacePlaceholdersInText(text, placeholders) {
@@ -3031,6 +3063,7 @@
                             usagePromptInput.dataset.template = baseSource;
 
                             const placeholders = buildPlaceholdersMap();
+                            console.log('[aiModal] Debug - syncTemplateAndResolved placeholders:', placeholders);
                             const res = resolveTemplatePlaceholders(baseSource, placeholders, '{{name}}', { missingPolicy: 'keep' });
                             usagePromptInput.dataset.resolved = (res && res.resolvedText) ? String(res.resolvedText) : '';
                         }
@@ -3076,6 +3109,7 @@
                     } else {
                         // 实际值视图：始终基于当前模板与参数重新解析，避免使用过期的 cachedResolved
                         const placeholders = buildPlaceholdersMap();
+                        console.log('[aiModal] Debug - applyView placeholders:', placeholders);
                         const currentText = usagePromptInput ? (usagePromptInput.value || '') : '';
                         const cachedTpl = (usagePromptInput && usagePromptInput.dataset && usagePromptInput.dataset.template) ? usagePromptInput.dataset.template : '';
                         const base = (cachedTpl && String(cachedTpl).trim() !== '') ? cachedTpl : currentText;
@@ -3085,6 +3119,7 @@
                                 console.warn('[aiModal][dbg] applyView skip replace: empty base', { basePreview: base });
                             } else {
                                 const replaced = replacePlaceholdersInText(base, placeholders);
+                                console.log('[aiModal] Debug - applyView replaced:', replaced);
                                 usagePromptInput.value = String(replaced).replace(/\r\n/g, "\n");
                                 // 覆盖缓存解析结果，确保与当前模板一致
                                 if (usagePromptInput && usagePromptInput.dataset) {
@@ -3162,10 +3197,6 @@
                 usagePlatformSelect.addEventListener('change', () => {
                     if (platformSelect) {
                         platformSelect.value = usagePlatformSelect.value;
-                        // 保存上次平台选择
-                        if (usagePlatformSelect.value) {
-                            localStorage.setItem('lastUsedPlatform', usagePlatformSelect.value);
-                        }
                         // 触发已有的处理流程
                         onPlatformChange();
                         // 更新使用界面模型下拉
@@ -4012,12 +4043,20 @@
                 if (window.AIServiceModalAutoOpen === true) openModal();
             };
 
+            // 折叠/展开配置区域（占位实现，避免未定义报错）
+            function expandConfig() {
+                // TODO: 实现折叠逻辑，或保留为空避免报错
+                console.debug('[expandConfig] 折叠/展开配置区域（未实现）');
+            }
+
             // 解析模板占位符：支持 {{name}} / ${name} / %name%
             function resolveTemplatePlaceholders(templateText, placeholders = {}, placeholderFormat = '{{name}}', options = {}) {
                 const { missingPolicy = 'error', defaultPlaceholderValue = '' } = options || {};
                 const text = String(templateText || '');
                 const usedPlaceholders = [];
                 const missingPlaceholders = [];
+
+                console.log('[aiModal] Debug - resolveTemplatePlaceholders input:', { templateText, placeholders, placeholderFormat });
 
                 // 选择正则模式
                 let regex;
@@ -4079,26 +4118,69 @@
                     // 确保 platformConfig 是对象副本，避免修改外部引用
                     platformConfig = Object.assign({}, platformConfig || {});
                     modelConfig = Object.assign({}, modelConfig || {});
-                    // 1) 若没有 provider，尝试从本组件 localStorage 中读取 allAIPlatformConfigs（同源场景）
+                    // 1) 若没有 provider，优先使用最近成功调用的平台，其次从 allAIPlatformConfigs 中选择
                     if (!platformConfig.provider) {
                         try {
-                            const s = localStorage.getItem('allAIPlatformConfigs');
-                            if (s) {
-                                const all = JSON.parse(s || '{}') || {};
-                                const keys = Object.keys(all || {});
-                                for (const k of keys) {
-                                    const c = all[k] || {};
+                            console.debug('[aiModal][runAIHeadless] 开始自动选择平台...');
+
+                            // 优先使用最近成功调用的平台
+                            const lastUsedPlatform = localStorage.getItem('lastUsedPlatform');
+                            console.debug('[aiModal][runAIHeadless] lastUsedPlatform:', lastUsedPlatform);
+
+                            if (lastUsedPlatform) {
+                                const s = localStorage.getItem('allAIPlatformConfigs');
+                                console.debug('[aiModal][runAIHeadless] allAIPlatformConfigs:', s);
+                                if (s) {
+                                    const all = JSON.parse(s || '{}') || {};
+                                    const c = all[lastUsedPlatform] || {};
+                                    console.debug('[aiModal][runAIHeadless] 平台配置:', c);
+
                                     const hasApiKey = c.apiKey && String(c.apiKey).trim() !== '';
-                                    const okCloudflare = (k !== 'cloudflare') || (c.cloudflareAccountId && String(c.cloudflareAccountId).trim() !== '');
-                                    const okAzure = (k !== 'azure') || (c.azureEndpoint && String(c.azureEndpoint).trim() !== '');
+                                    const okCloudflare = (lastUsedPlatform !== 'cloudflare') || (c.cloudflareAccountId && String(c.cloudflareAccountId).trim() !== '');
+                                    const okAzure = (lastUsedPlatform !== 'azure') || (c.azureEndpoint && String(c.azureEndpoint).trim() !== '');
+
+                                    console.debug('[aiModal][runAIHeadless] 验证结果 - hasApiKey:', hasApiKey, 'okCloudflare:', okCloudflare, 'okAzure:', okAzure);
+
                                     if (hasApiKey && okCloudflare && okAzure) {
-                                        platformConfig.provider = k;
+                                        platformConfig.provider = lastUsedPlatform;
                                         platformConfig.apiKey = platformConfig.apiKey || c.apiKey || '';
                                         if (c.azureEndpoint) platformConfig.azureEndpoint = platformConfig.azureEndpoint || c.azureEndpoint;
                                         if (c.cloudflareAccountId) platformConfig.cloudflareAccountId = platformConfig.cloudflareAccountId || c.cloudflareAccountId;
-                                        console.debug('[aiModal][runAIHeadless] auto-selected provider from localStorage:', k);
-                                        break;
+                                        console.debug('[aiModal][runAIHeadless] auto-selected provider from lastUsedPlatform:', lastUsedPlatform);
+                                    } else {
+                                        console.debug('[aiModal][runAIHeadless] lastUsedPlatform 验证失败');
                                     }
+                                } else {
+                                    console.debug('[aiModal][runAIHeadless] allAIPlatformConfigs 不存在');
+                                }
+                            } else {
+                                console.debug('[aiModal][runAIHeadless] lastUsedPlatform 不存在');
+                            }
+
+                            // 如果最近成功调用的平台不可用，回退到原来的逻辑
+                            if (!platformConfig.provider) {
+                                console.debug('[aiModal][runAIHeadless] 回退到从 allAIPlatformConfigs 选择');
+                                const s = localStorage.getItem('allAIPlatformConfigs');
+                                if (s) {
+                                    const all = JSON.parse(s || '{}') || {};
+                                    const keys = Object.keys(all || {});
+                                    console.debug('[aiModal][runAIHeadless] 可用平台:', keys);
+                                    for (const k of keys) {
+                                        const c = all[k] || {};
+                                        const hasApiKey = c.apiKey && String(c.apiKey).trim() !== '';
+                                        const okCloudflare = (k !== 'cloudflare') || (c.cloudflareAccountId && String(c.cloudflareAccountId).trim() !== '');
+                                        const okAzure = (k !== 'azure') || (c.azureEndpoint && String(c.azureEndpoint).trim() !== '');
+                                        if (hasApiKey && okCloudflare && okAzure) {
+                                            platformConfig.provider = k;
+                                            platformConfig.apiKey = platformConfig.apiKey || c.apiKey || '';
+                                            if (c.azureEndpoint) platformConfig.azureEndpoint = platformConfig.azureEndpoint || c.azureEndpoint;
+                                            if (c.cloudflareAccountId) platformConfig.cloudflareAccountId = platformConfig.cloudflareAccountId || c.cloudflareAccountId;
+                                            console.debug('[aiModal][runAIHeadless] auto-selected provider from localStorage:', k);
+                                            break;
+                                        }
+                                    }
+                                } else {
+                                    console.debug('[aiModal][runAIHeadless] allAIPlatformConfigs 不存在，无法选择平台');
                                 }
                             }
                         } catch (e) {
@@ -4109,34 +4191,54 @@
                     // 3) 若没有 model，尝试从 lastUsedModel_{provider} 或 aiService.getModels(provider) 中补齐
                     if (!modelConfig.model) {
                         try {
+                            console.debug('[aiModal][runAIHeadless] 开始自动选择模型...');
                             const prov = platformConfig.provider;
+                            console.debug('[aiModal][runAIHeadless] 当前平台:', prov);
+
                             if (prov) {
                                 try {
                                     const lastKey = `lastUsedModel_${prov}`;
                                     const lastModel = localStorage.getItem(lastKey);
+                                    console.debug('[aiModal][runAIHeadless] lastUsedModel key:', lastKey, 'value:', lastModel);
                                     if (lastModel) {
                                         modelConfig.model = lastModel;
                                         console.debug('[aiModal][runAIHeadless] auto-selected model from lastUsedModel:', lastModel);
+                                    } else {
+                                        console.debug('[aiModal][runAIHeadless] 没有找到 lastUsedModel');
                                     }
                                 } catch (_) { /* ignore */ }
+
                                 if (!modelConfig.model) {
                                     try {
                                         const fav = (window.favoriteModels && window.favoriteModels[prov]) || [];
+                                        console.debug('[aiModal][runAIHeadless] favoriteModels:', fav);
                                         if (Array.isArray(fav) && fav.length > 0) {
                                             modelConfig.model = fav[0];
                                             console.debug('[aiModal][runAIHeadless] auto-selected model from favoriteModels:', modelConfig.model);
+                                        } else {
+                                            console.debug('[aiModal][runAIHeadless] 没有 favoriteModels');
                                         }
                                     } catch (_) { /* ignore */ }
                                 }
+
                                 if (!modelConfig.model) {
                                     try {
                                         const ms = aiService.getModels(prov) || [];
+                                        console.debug('[aiModal][runAIHeadless] aiService.getModels result:', ms);
                                         if (Array.isArray(ms) && ms.length > 0) {
                                             modelConfig.model = ms[0];
                                             console.debug('[aiModal][runAIHeadless] auto-selected model from aiService.getModels:', modelConfig.model);
+                                        } else {
+                                            console.debug('[aiModal][runAIHeadless] aiService.getModels 没有返回模型');
                                         }
                                     } catch (_) { /* ignore */ }
                                 }
+
+                                if (!modelConfig.model) {
+                                    console.debug('[aiModal][runAIHeadless] 无法自动选择模型');
+                                }
+                            } else {
+                                console.debug('[aiModal][runAIHeadless] 没有平台信息，无法选择模型');
                             }
                         } catch (e) {
                             console.debug('[aiModal][runAIHeadless] auto-select model failed:', e);
@@ -4523,6 +4625,15 @@
                     if (msg.type !== 'AI_MODAL_RUN_HEADLESS' || !msg.requestId) return;
 
                     const payload = msg.payload || {};
+                    console.debug('[AI_MODAL_RUN_HEADLESS] 收到请求', {
+                        requestId: msg.requestId,
+                        payload: {
+                            platformConfig: payload.platformConfig,
+                            modelConfig: payload.modelConfig,
+                            templateData: payload.templateData,
+                            options: payload.options
+                        }
+                    });
                     try {
                         // 调用已存在的 runAIHeadless 接口（在同一 iframe 内）
                         const result = await window.runAIHeadless({
@@ -4531,10 +4642,18 @@
                             templateData: payload.templateData || {},
                             options: payload.options || {}
                         });
-                        // 成功回传
-                        try { e.source.postMessage({ type: 'AI_MODAL_RUN_RESULT', requestId: msg.requestId, status: 'ok', detail: result }, '*'); } catch (_) { /* noop */ }
+                        console.debug('[AI_MODAL_RUN_HEADLESS] 调用成功', { requestId: msg.requestId, result });
+                        // 成功回传 - 提取关键信息供测试页面使用
+                        const responseDetail = {
+                            platform: result.platformConfig?.provider || 'unknown',
+                            model: result.modelConfig?.model || 'unknown',
+                            text: result.result || '',
+                            fullResult: result
+                        };
+                        try { e.source.postMessage({ type: 'AI_MODAL_RUN_RESULT', requestId: msg.requestId, status: 'ok', detail: responseDetail }, '*'); } catch (_) { /* noop */ }
                     } catch (err) {
                         const msgText = err && err.message ? err.message : String(err);
+                        console.error('[AI_MODAL_RUN_HEADLESS] 调用失败', { requestId: msg.requestId, error: msgText });
                         try { e.source.postMessage({ type: 'AI_MODAL_RUN_RESULT', requestId: msg.requestId, status: 'error', detail: { message: msgText } }, '*'); } catch (_) { /* noop */ }
                     }
                 } catch (err) {

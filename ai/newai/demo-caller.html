@@ -275,6 +275,33 @@
                         console.warn('[父页] 未找到请求来源 for headless', msg.requestId);
                     }
                 }
+
+                // 处理 AI_MODAL_SAVE_OUTPUT 消息（保存并应用按钮）
+                if (msg.type === 'AI_MODAL_SAVE_OUTPUT' && msg.requestId) {
+                    console.log('[父页] AI_MODAL_SAVE_OUTPUT 收到', msg.requestId, msg.output);
+                    const srcWin = reqMap.get(msg.requestId);
+                    // 隐藏 aiModalFrame（关闭 modal）
+                    try { aiFrame.style.display = 'none'; } catch (_) { }
+                    
+                    // 将其包装为 AI_MODAL_RESULT 并转发给原始子 iframe
+                    const outMsg = {
+                        type: 'AI_MODAL_RESULT',
+                        requestId: msg.requestId,
+                        status: 'ok',
+                        detail: { output: msg.output }
+                    };
+                    if (srcWin) {
+                        try {
+                            srcWin.postMessage(outMsg, '*');
+                            console.log('[父页] 已转发保存并应用结果到子 iframe', msg.requestId);
+                        } catch (err) {
+                            console.warn('[父页] 转发保存并应用结果失败', err);
+                        }
+                        reqMap.delete(msg.requestId);
+                    } else {
+                        console.warn('[父页] 未找到请求来源 for save output', msg.requestId);
+                    }
+                }
             } catch (err) {
                 console.warn('父页面 message handler error', err);
             }
