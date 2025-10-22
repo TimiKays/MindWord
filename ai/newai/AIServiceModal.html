@@ -298,7 +298,7 @@
                             <div class="w-full">
                                 <label class="form-label" for="userPromptInput">用户提示词</label>
                                 <textarea id="userPromptInput" class="form-control h-20 sm:h-24"
-                                    placeholder="请输入用户特定要求（可选），将插入到模板中..."></textarea>
+                                    placeholder="请输入您的特定要求（可选），如果没有可直接点击发送。"></textarea>
                             </div>
 
                             <!-- 系统提示词输入区域 -->
@@ -4820,6 +4820,9 @@
                         minimizeButton.innerHTML = '<i class="fa fa-compress"></i>';
                         minimizeButton.title = '最小化';
                     }
+
+                    // 同步迷你模式的输入到完整模式
+                    syncFromMiniMode();
                 }
             }
 
@@ -4830,6 +4833,24 @@
 
                 if (userPromptInput && miniInput) {
                     miniInput.value = userPromptInput.value;
+                    // 同步占位符
+                    if (userPromptInput.placeholder) {
+                        miniInput.placeholder = userPromptInput.placeholder;
+                    }
+                }
+            }
+
+            // 同步迷你模式到完整模式
+            function syncFromMiniMode() {
+                const userPromptInput = document.getElementById('userPromptInput');
+                const miniInput = document.getElementById('miniInput');
+
+                if (userPromptInput && miniInput) {
+                    userPromptInput.value = miniInput.value;
+                    // 同步占位符
+                    if (miniInput.placeholder) {
+                        userPromptInput.placeholder = miniInput.placeholder;
+                    }
                 }
             }
 
@@ -4848,6 +4869,10 @@
                 const userPromptInput = document.getElementById('userPromptInput');
                 if (userPromptInput) {
                     userPromptInput.value = miniInput.value;
+                    // 同步占位符
+                    if (miniInput.placeholder) {
+                        userPromptInput.placeholder = miniInput.placeholder;
+                    }
                 }
 
                 // 使用现有的AI请求逻辑
