@@ -99,7 +99,7 @@ export class ConverterManager {
    */
   mdToNodeTree(markdown) {
     const ast = this.mdToAst(markdown);
-    return this.astToNodeTreeConverter(ast);
+    return this.astToNodeTreeConverter.convert(ast);
   }
 
   /**
@@ -107,7 +107,7 @@ export class ConverterManager {
    */
   nodeTreeToMd(nodeTree) {
     const ast = this.nodeTreeToAst(nodeTree);
-    return this.astToMdConverter(ast);
+    return this.astToMdConverter.convert(ast);
   }
 
   /**

@@ -654,38 +654,18 @@ function expandWithAI() {
             var normalized = (parsed || '').replace(/\r/g, '').replace(/\[OUTPUT\]|\[\/OUTPUT\]/gi, '');
 
             // detect markdown
-            var looksLikeMarkdown = /(^\s*#{1,6}\s+)|(^\s*[-\*\+]\s+)|(^\s*\d+[\.\、]\s+)/m.test(normalized);
+            // var looksLikeMarkdown = /(^\s*#{1,6}\s+)|(^\s*[-\*\+]\s+)|(^\s*\d+[\.\、]\s+)/m.test(normalized);
+            var looksLikeMarkdown = true;
             var converterInserted = false;
 
             if (looksLikeMarkdown) {
-              // dynamic load md->AST converter
-              var tryLoadConverter = function () {
-                return import('../converter/md-to-ast.js').catch(function (e1) {
-                  return import('./converter/md-to-ast.js').catch(function (e2) { return null; });
-                });
-              };
-              var mdmod = null;
-              tryLoadConverter().then(function (mod) {
-                mdmod = mod;
-                if (mdmod && mdmod.MdToAstConverter) {
-                  try {
-                    const conv = new mdmod.MdToAstConverter();
-                    const ast = conv.convert(normalized);
-                    var nodeTree = null;
-                    try {
-                      // priority: window.converter.astToNodeTree
-                      if (window && window.converter && typeof window.converter.astToNodeTree === 'function') {
-                        nodeTree = window.converter.astToNodeTree(ast);
-                      } else {
-                        // dynamic import converter.js
-                        try {
-                          var convModule = null;
-                          try { convModule = import('../converter/converter.js'); } catch (_) { try { convModule = import('./converter/converter.js'); } catch (__) { convModule = null; } }
-                          if (convModule && convModule.default && typeof convModule.default.astToNodeTree === 'function') nodeTree = convModule.default.astToNodeTree(ast);
-                          else if (convModule && typeof convModule.astToNodeTree === 'function') nodeTree = convModule.astToNodeTree(ast);
-                        } catch (eConv) { nodeTree = null; }
-                      }
-                    } catch (e) { nodeTree = null; }
+              // 直接使用父页面全局converter，无需重复加载
+              if (window && window.converter && typeof window.converter.mdToNodeTree === 'function') {
+                try {
+                  // 使用父页面converter直接处理markdown
+                  const nodeTree = window.converter.mdToNodeTree(normalized);
+
+                  if (nodeTree) {
 
                     // helper: insert children from nodeTree
                     function insertNodeTreeChildrenLocal(parentIdLocal, ntNodeLocal, requestIdLocal) {
@@ -696,189 +676,113 @@ function expandWithAI() {
                       } catch (e) { }
                     }
 
-                    if (nodeTree) {
-                      var requestedAction = (payload && payload.actionType) ? payload.actionType : 'create_child';
-                      if (requestedAction && requestedAction !== 'create_child') {
-                        try {
-                          if (requestedAction === 'generate_initial_tree') {
-                            try {
-                              if (typeof applyAIAction === 'function') {
-                                applyAIAction('generate_initial_tree', {
-                                  selectedNode: selectedNode,
-                                  itemsToInsert: [],
-                                  parsedText: normalized,
-                                  placeholders: (payload && payload.templateData && payload.templateData.placeholders) ? payload.templateData.placeholders : {}
-                                });
-                              }
-                            } catch (e) { }
-                            return;
-                          }
-
-                          if (requestedAction === 'create_sibling') {
-                            try {
-                              var parentId = null;
-                              try {
-                                var selNodeObj = jm.get_node ? jm.get_node(selectedNode.id) : selectedNode;
-                                if (selNodeObj && selNodeObj.parent) parentId = selNodeObj.parent;
-                                else if (jm.get_parent) {
-                                  var p = jm.get_parent(selectedNode.id);
-                                  if (p && p.id) parentId = p.id;
-                                }
-                              } catch (e) { parentId = null; }
-                              if (!parentId) parentId = selectedNode.id;
-                              var wrapper = { children: (nodeTree && nodeTree.children) ? nodeTree.children : [] };
-                              insertNodeTreeChildren(parentId, wrapper, requestId || null);
-                              try { _show('success', '已插入同级节点'); } catch (_) { }
-                              try { if (typeof debouncedSave === 'function') debouncedSave(); } catch (_) { }
-                              return;
-                            } catch (e) { }
-                          }
-
-                          // else fallback to items extraction and applyAIAction
-                          if (typeof applyAIAction === 'function') {
-                            var extractItemsFromNodeTree = function (nt) {
-                              var res = [];
-                              if (!nt) return res;
-                              var children = nt.children || (nt.data && nt.data.children) || [];
-                              if (!Array.isArray(children)) return res;
-                              children.forEach(function (c) {
-                                try {
-                                  var title = c.topic || (c.data && (c.data.topic || c.data.title)) || c.title || '';
-                                  if (!title && c.data && c.data.raw) title = String(c.data.raw || '').split('\n').map(function (s) { return s.trim(); }).filter(Boolean)[0] || '';
-                                  if (title) {
-                                    var it = { topic: title };
-                                    if (c.data && c.data.raw) it.raw = c.data.raw;
-                                    res.push(it);
-                                  }
-                                } catch (e) { }
+                    var requestedAction = (payload && payload.actionType) ? payload.actionType : 'create_child';
+                    if (requestedAction && requestedAction !== 'create_child') {
+                      try {
+                        if (requestedAction === 'generate_initial_tree') {
+                          try {
+                            if (typeof applyAIAction === 'function') {
+                              applyAIAction('generate_initial_tree', {
+                                selectedNode: selectedNode,
+                                itemsToInsert: [],
+                                parsedText: normalized,
+                                placeholders: (payload && payload.templateData && payload.templateData.placeholders) ? payload.templateData.placeholders : {}
                               });
-                              return res;
-                            };
-                            var items = extractItemsFromNodeTree(nodeTree);
-                            applyAIAction(requestedAction, {
-                              selectedNode: selectedNode,
-                              itemsToInsert: items,
-                              childNodes: items,
-                              childTitles: items.map(function (it) { return it.topic || ''; }),
-                              parsedText: normalized,
-                              placeholders: (payload && payload.templateData && payload.templateData.placeholders) ? payload.templateData.placeholders : {}
-                            });
-                            try { _show('success', '已通过 converter.astToNodeTree 解析并分发为 ' + items.length + ' 项'); } catch (_) { }
+                            }
+                          } catch (e) { }
+                          return;
+                        }
+
+                        if (requestedAction === 'create_sibling') {
+                          try {
+                            var parentId = null;
+                            try {
+                              var selNodeObj = jm.get_node ? jm.get_node(selectedNode.id) : selectedNode;
+                              if (selNodeObj && selNodeObj.parent) parentId = selNodeObj.parent;
+                              else if (jm.get_parent) {
+                                var p = jm.get_parent(selectedNode.id);
+                                if (p && p.id) parentId = p.id;
+                              }
+                            } catch (e) { parentId = null; }
+                            if (!parentId) parentId = selectedNode.id;
+                            var wrapper = { children: (nodeTree && nodeTree.children) ? nodeTree.children : [] };
+                            insertNodeTreeChildren(parentId, wrapper, requestId || null);
+                            try { _show('success', '已插入同级节点'); } catch (_) { }
                             try { if (typeof debouncedSave === 'function') debouncedSave(); } catch (_) { }
                             return;
-                          }
-                        } catch (e) { }
-                      }
-                      // default: insert as subtree under selectedNode
-                      insertNodeTreeChildren(selectedNode.id, nodeTree, requestId || null);
-                      try { _show('success', '已通过 converter.astToNodeTree 解析并插入子树'); } catch (_) { }
-                      try { if (typeof debouncedSave === 'function') debouncedSave(); } catch (_) { }
-                      return;
+                          } catch (e) { }
+                        }
+
+                        // else fallback to items extraction and applyAIAction
+                        if (typeof applyAIAction === 'function') {
+                          var extractItemsFromNodeTree = function (nt) {
+                            var res = [];
+                            if (!nt) return res;
+                            var children = nt.children || (nt.data && nt.data.children) || [];
+                            if (!Array.isArray(children)) return res;
+                            children.forEach(function (c) {
+                              try {
+                                var title = c.topic || (c.data && (c.data.topic || c.data.title)) || c.title || '';
+                                if (!title && c.data && c.data.raw) title = String(c.data.raw || '').split('\n').map(function (s) { return s.trim(); }).filter(Boolean)[0] || '';
+                                if (title) {
+                                  var it = { topic: title };
+                                  if (c.data && c.data.raw) it.raw = c.data.raw;
+                                  res.push(it);
+                                }
+                              } catch (e) { }
+                            });
+                            return res;
+                          };
+                          var items = extractItemsFromNodeTree(nodeTree);
+                          applyAIAction(requestedAction, {
+                            selectedNode: selectedNode,
+                            itemsToInsert: items,
+                            childNodes: items,
+                            childTitles: items.map(function (it) { return it.topic || ''; }),
+                            parsedText: normalized,
+                            placeholders: (payload && payload.templateData && payload.templateData.placeholders) ? payload.templateData.placeholders : {}
+                          });
+                          try { _show('success', '已通过 converter.astToNodeTree 解析并分发为 ' + items.length + ' 项'); } catch (_) { }
+                          try { if (typeof debouncedSave === 'function') debouncedSave(); } catch (_) { }
+                          return;
+                        }
+                      } catch (e) { }
                     }
-                  } catch (convErr) {
-                    // md->AST or astToNodeTree failed: fallback to raw processing below
+                    // default: insert as subtree under selectedNode
+                    insertNodeTreeChildren(selectedNode.id, nodeTree, requestId || null);
+                    try { _show('success', '已通过 converter.mdToNodeTree 解析并插入子树'); } catch (_) { }
+                    try { if (typeof debouncedSave === 'function') debouncedSave(); } catch (_) { }
+                    return;
                   }
+                } catch (convErr) {
+                  // md->NodeTree failed: fallback to raw processing below
                 }
-                // end mdmod processing
-                converterInserted = false;
-              }).catch(function (err) {
-                // dynamic import failed, will fallback to raw
-                converterInserted = false;
-              });
+                converterInserted = true; // 标记已成功通过converter处理
+              }
             }
             // end looksLikeMarkdown branch
-            // if converterInserted is false or md not recognized or module not available -> fallback to original line-based parsing
-            // fallback parsing (originally commented but we will reuse original fallback behavior)
-            // parse into childNodes and childTitles
-            var rawLines = normalized.split('\n');
-            var childNodes = [];
-            var childTitles = [];
-            var lastNode = null;
 
-            rawLines.forEach(function (raw) {
-              if (!raw || !raw.trim()) return;
-              var line = raw.replace(/\t/g, '  ');
-              var trimmed = line.trim();
 
-              // header like "# Title" -> level = header length
-              var headerMatch = trimmed.match(/^(#{1,6})\s+(.*)$/);
-              if (headerMatch) {
-                var level = headerMatch[1].length;
-                var topic = headerMatch[2].trim();
-                if (topic) {
-                  var nodeObj = { topic: topic, level: level, notes: '' };
-                  childNodes.push(nodeObj);
-                  childTitles.push(topic);
-                  lastNode = nodeObj;
-                }
-                return;
-              }
 
-              // list items
-              var listMatch = line.match(/^(\s*)(?:[-\*\+]|(\d+)[\.、])\s+(.*)$/);
-              if (listMatch) {
-                var indent = listMatch[1].length;
-                var levelFromIndent = Math.floor(indent / 2) + 1;
-                var topic = (listMatch[3] || '').trim();
-                if (topic) {
-                  var nodeObj = { topic: topic, level: levelFromIndent, notes: '' };
-                  childNodes.push(nodeObj);
-                  childTitles.push(topic);
-                  lastNode = nodeObj;
-                }
-                return;
-              }
 
-              // other lines -> append to lastNode notes
-              var nonTitleText = trimmed;
-              if (nonTitleText) {
-                if (lastNode) {
-                  lastNode.notes = lastNode.notes ? (lastNode.notes + '\n' + nonTitleText) : nonTitleText;
-                } else if (childNodes.length > 0) {
-                  var prev = childNodes[childNodes.length - 1];
-                  if (prev) {
-                    prev.notes = prev.notes ? (prev.notes + '\n' + nonTitleText) : nonTitleText;
-                    lastNode = prev;
-                  }
-                } else {
-                  var nodeObj2 = { topic: nonTitleText, level: 1, notes: '' };
-                  childNodes.push(nodeObj2);
-                  childTitles.push(nonTitleText);
-                  lastNode = nodeObj2;
-                }
-              }
+            // 如果converter处理失败，显示错误信息并返回
+            if (!converterInserted) {
+              _show('error', 'AI 内容解析失败，请检查内容格式');
               return;
-            }); // end rawLines.forEach
-
-            if (childTitles.length === 0) {
-              // fallback to paragraph split
-              var paras = normalized.split(/\n{2,}/).map(function (s) { return (s || '').trim(); }).filter(function (s) { return !!s; });
-              paras.forEach(function (p) {
-                var firstLine = (p.split('\n')[0] || '').trim();
-                if (firstLine) childTitles.push(firstLine);
-              });
             }
-
-            // dispatch per actionType
-            var itemsToInsert = (typeof childNodes !== 'undefined' && Array.isArray(childNodes) && childNodes.length > 0) ? childNodes : childTitles;
-            applyAIAction((payload && payload.actionType) ? payload.actionType : 'create_child', {
-              selectedNode: selectedNode,
-              itemsToInsert: itemsToInsert,
-              childNodes: childNodes,
-              childTitles: childTitles,
-              parsedText: normalized,
-              placeholders: (payload && payload.templateData && payload.templateData.placeholders) ? payload.templateData.placeholders : {}
-            });
-            try { _show('success', 'AI 处理完成，解析到 ' + childTitles.length + ' 项'); } catch (_) { }
-            return;
 
           } catch (err) {
             _show('error', '处理 AI 结果失败');
           }
         } else {
-          // error
+          // error or cancel
           const detailMsg = (msg.detail && msg.detail.message) ? msg.detail.message : 'AI 返回错误';
-          _show('error', 'AI 生成失败: ' + detailMsg);
+          // 用户主动关闭弹窗时不显示错误提示
+          if (detailMsg === 'user_closed') {
+            // 静默处理，不显示任何提示
+          } else {
+            _show('error', 'AI 生成失败: ' + detailMsg);
+          }
         }
       } catch (e) {
         // swallow internal onMessage error

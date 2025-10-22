@@ -141,6 +141,36 @@
             .model-option-highlight {
                 @apply bg-yellow-100;
             }
+            
+            /* 迷你模式样式 */
+            .modal-container.mini-mode {
+                @apply max-w-sm h-auto;
+            }
+            .mini-header {
+                @apply px-4 py-2 border-b flex justify-between items-center;
+            }
+            .mini-body {
+                @apply px-4 py-3;
+            }
+            .mini-input-container {
+                @apply flex gap-2 items-end;
+            }
+            .mini-prompt-input {
+                @apply flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary resize-none overflow-hidden;
+                min-height: 40px;
+                max-height: 120px;
+            }
+            .mini-send-btn {
+                @apply px-3 py-2 rounded-md font-medium cursor-pointer transition-colors bg-primary text-white hover:bg-primary/90 flex items-center justify-center;
+                min-width: 60px;
+                height: 40px;
+            }
+            .mini-send-btn.loading {
+                @apply bg-gray-400 cursor-not-allowed;
+            }
+            .hidden {
+                display: none !important;
+            }
         }
     </style>
 </head>
@@ -153,13 +183,39 @@
 
     <!-- AI服务弹窗组件 -->
     <div id="aiServiceModal" class="modal-backdrop hidden">
-        <div class="modal-container">
-            <!-- 弹窗头部 -->
-            <div class="modal-header">
+        <div class="modal-container" id="modalContainer">
+            <!-- 完整模式头部 -->
+            <div class="modal-header" id="fullHeader">
                 <h3 id="modalTitle" class="text-xl font-bold text-neutral">AI服务调用工具</h3>
-                <button id="closeModalBtn" class="text-gray-500 hover:text-gray-700">
-                    <i class="fa fa-times text-xl"></i>
-                </button>
+                <div class="flex items-center gap-2">
+                    <button id="minimizeButton" class="text-gray-500 hover:text-gray-700 transition-colors"
+                        title="切换到迷你模式">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
+                        </svg>
+                    </button>
+                    <button id="closeModalBtn" class="text-gray-500 hover:text-gray-700">
+                        <i class="fa fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 迷你模式头部 -->
+            <div class="mini-header hidden" id="miniHeader">
+                <h3 id="miniModalTitle" class="text-lg font-bold text-neutral">AI服务</h3>
+                <div class="flex items-center gap-2">
+                    <button id="expandButton" class="text-gray-500 hover:text-gray-700 transition-colors"
+                        title="切换到完整模式">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4">
+                            </path>
+                        </svg>
+                    </button>
+                    <button id="closeMiniModalBtn" class="text-gray-500 hover:text-gray-700">
+                        <i class="fa fa-times text-lg"></i>
+                    </button>
+                </div>
             </div>
 
             <!-- 弹窗主体 -->
@@ -523,6 +579,25 @@
                         </div>
                     </div>
 
+                    <!-- 迷你模式界面 -->
+                    <div id="aiMiniView" class="view-container hidden">
+                        <div class="flex items-center gap-2 p-2">
+                            <!-- 输入框 -->
+                            <textarea id="miniInput" class="form-control flex-1 h-10 text-sm resize-none"
+                                placeholder="输入提示词..."></textarea>
+
+                            <!-- 发送按钮 -->
+                            <button type="button" id="miniExpandBtn" class="btn btn-primary btn-sm h-10 px-3"
+                                title="发送">
+                                <i class="fa fa-paper-plane"></i>
+                            </button>
+                        </div>
+
+                        <!-- 状态栏 -->
+                        <div class="px-2 pb-2">
+                            <span id="miniStatus" class="text-xs text-gray-500">就绪</span>
+                        </div>
+                    </div>
 
             </div>
         </div>
@@ -2070,6 +2145,25 @@
                     // 注意：为避免父页面收到自动成功消息后关闭弹窗，
                     // 这里不再自动发送 AI_MODAL_RESULT status:'success' 给父窗口。
                     // 如果需要由父页面得到结果并关闭弹窗，应由保存/应用按钮或外部调用方显式触发。
+                    // 例外：迷你模式下自动发送结果并关闭弹窗
+                    if (isMiniMode) {
+                        try {
+                            const rid = modal?.dataset?.requestId || null;
+                            window.parent?.postMessage({
+                                type: 'AI_MODAL_RESULT',
+                                requestId: rid,
+                                status: 'ok',
+                                detail: {
+                                    platform: result.platformConfig?.provider || 'unknown',
+                                    model: result.modelConfig?.model || 'unknown',
+                                    text: result
+
+                                }
+                            }, '*');
+                            // 延迟关闭弹窗，确保消息发送完成
+                            setTimeout(() => closeModal(), 100);
+                        } catch (_) { /* noop */ }
+                    }
 
                     // 滚动到结果区域
                     usageResultContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -2167,8 +2261,8 @@
                     delete modal.dataset.presetPrompt;
                 }
 
-                // 读取初始视图：usage/config/template
-                const initialView = modal.dataset.initialView || 'usage';
+                // 读取初始视图：usage/config/template/mini
+                const initialView = modal.dataset.initialView || 'mini';
 
                 // 在打开时尽早缓存 template（若 dataset.template 为空且 textarea 有可用内容）
                 try {
@@ -2222,6 +2316,10 @@
                     switchToConfigView();
                 } else if (initialView === 'template') {
                     switchToTemplateConfigView();
+                } else if (initialView === 'mini') {
+                    // 默认以迷你模式启动
+                    switchToUsageView(); // 先切换到使用视图
+                    toggleMiniMode();    // 然后切换到迷你模式
                 } else {
                     switchToUsageView();
                 }
@@ -2307,6 +2405,9 @@
                 emitEvent('onClose', { reason: 'user' });
                 // 隐藏弹窗
                 modal.classList.add('hidden');
+                // 重置迷你模式状态，确保下次打开时从初始状态开始
+                isMiniMode = false;
+                modal.classList.remove('mini-mode');
                 // 在关闭时恢复到“占位符模式”，并把输入框回写为真正模板，避免下次打开误把实际值缓存为模板
 
                 const chk = document.getElementById('toggleTemplateViewChk');
@@ -4647,8 +4748,8 @@
                         const responseDetail = {
                             platform: result.platformConfig?.provider || 'unknown',
                             model: result.modelConfig?.model || 'unknown',
-                            text: result.result || '',
-                            fullResult: result
+                            text: result
+
                         };
                         try { e.source.postMessage({ type: 'AI_MODAL_RUN_RESULT', requestId: msg.requestId, status: 'ok', detail: responseDetail }, '*'); } catch (_) { /* noop */ }
                     } catch (err) {
@@ -4660,6 +4761,147 @@
                     console.warn('AI_MODAL_RUN_HEADLESS listener error', err);
                 }
             }, false);
+
+            // 迷你模式功能
+            let isMiniMode = false;
+
+            // 切换迷你模式
+            function toggleMiniMode() {
+                isMiniMode = !isMiniMode;
+                const modal = document.getElementById('aiServiceModal');
+                const miniView = document.getElementById('aiMiniView');
+                const usageView = document.getElementById('aiUsageView');
+                const configView = document.getElementById('aiConfigView');
+                const templateConfigView = document.getElementById('templateConfigView');
+                const minimizeButton = document.getElementById('minimizeButton');
+
+                if (isMiniMode) {
+                    // 切换到迷你模式
+                    modal.classList.add('mini-mode');
+                    miniView.classList.remove('hidden');
+                    usageView.classList.add('hidden');
+                    configView.classList.add('hidden');
+                    templateConfigView.classList.add('hidden');
+
+                    // 更新按钮图标为最大化
+                    if (minimizeButton) {
+                        minimizeButton.innerHTML = '<i class="fa fa-expand"></i>';
+                        minimizeButton.title = '最大化';
+                    }
+
+                    // 同步当前配置到迷你模式
+                    syncToMiniMode();
+                } else {
+                    // 切换到正常模式
+                    modal.classList.remove('mini-mode');
+                    miniView.classList.add('hidden');
+                    usageView.classList.remove('hidden');
+
+                    // 更新按钮图标为最小化
+                    if (minimizeButton) {
+                        minimizeButton.innerHTML = '<i class="fa fa-compress"></i>';
+                        minimizeButton.title = '最小化';
+                    }
+                }
+            }
+
+            // 同步配置到迷你模式
+            function syncToMiniMode() {
+                const userPromptInput = document.getElementById('userPromptInput');
+                const miniInput = document.getElementById('miniInput');
+
+                if (userPromptInput && miniInput) {
+                    miniInput.value = userPromptInput.value;
+                }
+            }
+
+            // 迷你模式发送请求
+            async function sendMiniRequest() {
+                const miniInput = document.getElementById('miniInput');
+                const miniStatus = document.getElementById('miniStatus');
+                const miniExpandBtn = document.getElementById('miniExpandBtn');
+
+                if (!miniInput || !miniInput.value.trim()) {
+                    if (miniStatus) {
+                        miniStatus.textContent = '请输入提示词';
+                        miniStatus.className = 'text-xs text-yellow-600';
+                    }
+                    return;
+                }
+
+                // 同步输入到用户提示词输入框
+                const userPromptInput = document.getElementById('userPromptInput');
+                if (userPromptInput) {
+                    userPromptInput.value = miniInput.value;
+                }
+
+                // 使用现有的AI请求逻辑
+                try {
+                    // 显示加载状态 - 添加旋转动画
+                    if (miniExpandBtn) {
+                        miniExpandBtn.disabled = true;
+                        miniExpandBtn.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i>';
+                        miniExpandBtn.classList.add('loading');
+                    }
+
+                    if (miniStatus) {
+                        miniStatus.textContent = '正在发送请求...';
+                        miniStatus.className = 'text-xs text-blue-600';
+                    }
+
+                    // 调用现有的发送函数
+                    if (typeof sendAIRequest === 'function') {
+                        await sendAIRequest();
+                    } else {
+                        // 如果没有sendAIRequest函数，模拟点击发送按钮
+                        const usageSubmitBtn = document.getElementById('usageSubmitBtn');
+                        if (usageSubmitBtn) {
+                            usageSubmitBtn.click();
+                        }
+                    }
+
+                    if (miniStatus) {
+                        miniStatus.textContent = '请求已发送';
+                        miniStatus.className = 'text-xs text-green-600';
+                    }
+                } catch (error) {
+                    if (miniStatus) {
+                        miniStatus.textContent = '发送失败: ' + error.message;
+                        miniStatus.className = 'text-xs text-red-600';
+                    }
+                } finally {
+                    // 恢复按钮状态
+                    if (miniExpandBtn) {
+                        miniExpandBtn.disabled = false;
+                        miniExpandBtn.innerHTML = '<i class="fa fa-paper-plane"></i>';
+                        miniExpandBtn.classList.remove('loading');
+                    }
+                }
+            }
+
+            // 绑定迷你模式事件
+            document.addEventListener('DOMContentLoaded', function () {
+                const minimizeButton = document.getElementById('minimizeButton');
+                const miniExpandBtn = document.getElementById('miniExpandBtn');
+                const miniInput = document.getElementById('miniInput');
+
+                if (minimizeButton) {
+                    minimizeButton.addEventListener('click', toggleMiniMode);
+                }
+
+                if (miniExpandBtn) {
+                    miniExpandBtn.addEventListener('click', sendMiniRequest);
+                }
+
+                if (miniInput) {
+                    miniInput.addEventListener('keypress', function (e) {
+                        if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey) {
+                            e.preventDefault();
+                            sendMiniRequest();
+                        }
+                    });
+                }
+            });
         </script>
 </body>
 

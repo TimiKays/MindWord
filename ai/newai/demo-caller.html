@@ -227,10 +227,13 @@
 
                     // 否则按原有流程显示 aiModalFrame（modal 模式）
                     try { aiFrame.style.display = 'block'; aiFrame.focus(); } catch (_) { }
-                    // 转发给 aiModalFrame（payload 带 requestId）
+                    // 转发给 aiModalFrame（payload 带 requestId），默认使用迷你模式
                     aiFrame.contentWindow.postMessage({
                         type: 'AI_MODAL_OPEN',
-                        payload: Object.assign({}, msg.payload || {}, { requestId: msg.requestId })
+                        payload: Object.assign({}, msg.payload || {}, { 
+                            requestId: msg.requestId,
+                            initialView: 'mini'
+                        })
                     }, '*');
                     console.log('[父页] 转发到 aiModalFrame', msg.requestId);
                 }

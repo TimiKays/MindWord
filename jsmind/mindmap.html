@@ -165,10 +165,10 @@
           <span class="ico-btn" role="button" onclick="quickDeleteNode()" tabindex="0" title="删除节点"
             style="--ico: url('../res/删除.svg');"></span>
           <span class="ico-btn" role="button"
-            onclick="(function(){try{function genId(){return 'r_'+Math.random().toString(36).slice(2,10);}var requestId=genId();var payload={initialView:'config',platformConfig:{},modelConfig:{},options:{}};if(typeof window.openAIServiceModal==='function'){try{window.openAIServiceModal(Object.assign({},payload,{requestId:requestId}));return;}catch(e){console.warn('openAIServiceModal failed',e);} }try{window.parent.postMessage({type:'AI_MODAL_OPEN_REQUEST',requestId:requestId,payload:payload},'*');}catch(e){console.error('send AI config open request failed',e);} }catch(e){console.warn(e);} })()"
+            onclick="(function(){try{function genId(){return 'r_'+Math.random().toString(36).slice(2,10);}var requestId=genId();var payload={initialView:'config',platformConfig:{},modelConfig:{},options:{},mode:'mini'};if(typeof window.openAIServiceModal==='function'){try{window.openAIServiceModal(Object.assign({},payload,{requestId:requestId}));return;}catch(e){console.warn('openAIServiceModal failed',e);} }try{window.parent.postMessage({type:'AI_MODAL_OPEN_REQUEST',requestId:requestId,payload:payload},'*');}catch(e){console.error('send AI config open request failed',e);} }catch(e){console.warn(e);} })()"
             tabindex="0" title="AI配置" style="--ico: url('../res/setting.svg');"></span>
           <!-- <button class="btn"
-            onclick="(function(){try{function genId(){return 'r_'+Math.random().toString(36).slice(2,10);}var requestId=genId();var payload={initialView:'config',platformConfig:{},modelConfig:{},options:{}};if(typeof window.openAIServiceModal==='function'){try{window.openAIServiceModal(Object.assign({},payload,{requestId:requestId}));return;}catch(e){console.warn('openAIServiceModal failed',e);} }try{window.parent.postMessage({type:'AI_MODAL_OPEN_REQUEST',requestId:requestId,payload:payload},'*');}catch(e){console.error('send AI config open request failed',e);} }catch(e){console.warn(e);} })()"
+            onclick="(function(){try{function genId(){return 'r_'+Math.random().toString(36).slice(2,10);}var requestId=genId();var payload={initialView:'config',platformConfig:{},modelConfig:{},options:{},mode:'mini'};if(typeof window.openAIServiceModal==='function'){try{window.openAIServiceModal(Object.assign({},payload,{requestId:requestId}));return;}catch(e){console.warn('openAIServiceModal failed',e);} }try{window.parent.postMessage({type:'AI_MODAL_OPEN_REQUEST',requestId:requestId,payload:payload},'*');}catch(e){console.error('send AI config open request failed',e);} }catch(e){console.warn(e);} })()"
             style="flex: 0 0 40px; background: #ffffff;" title="AI配置">⚙️</button> -->
         </div>
 
@@ -1156,9 +1156,9 @@
             wrap.appendChild(box);
             return box;
           }
-          btnEdit = addBtn('修改', '../res/edit.svg');
+          // btnEdit = addBtn('修改', '../res/edit.svg');
           btnAIChild = addBtn('AI扩写子节点', '../res/添加子级.svg');
-          btnDelete = addBtn('删除节点', '../res/删除.svg');
+          // btnDelete = addBtn('删除节点', '../res/删除.svg');
         })();
 
         document.body.appendChild(wrap);
@@ -1281,8 +1281,8 @@
                   var el = getNodeElById(sid);
                   if (el) showFor(el);
                 } else {
-                  // 无选中：若也无悬停，隐藏
-                  if (!activeNodeEl) hide();
+                  // 无选中时直接隐藏按钮
+                  hide();
                 }
               } else if (sid && wrap.style.display === 'none') {
                 // 选中存在但未显示，补一次
