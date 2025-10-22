@@ -584,7 +584,7 @@
                         <div class="flex items-center gap-2 p-2">
                             <!-- 输入框 -->
                             <textarea id="miniInput" class="form-control flex-1 h-10 text-sm resize-none"
-                                placeholder="输入提示词..."></textarea>
+                                placeholder="如无额外要求，可直接点击发送按钮开始生成。"></textarea>
 
                             <!-- 发送按钮 -->
                             <button type="button" id="miniExpandBtn" class="btn btn-primary btn-sm h-10 px-3"
@@ -2058,17 +2058,27 @@
                     console.warn('[aiModal] auto fallback to proxy failed', e);
                 }
 
-                // 获取用户输入的基础prompt
-                let prompt = usagePromptInput ? usagePromptInput.value || '' : '';
+                // 获取系统提示词和用户提示词
+                const userPromptInput = document.getElementById('userPromptInput');
 
+                // 获取系统提示词（来自usagePromptInput替换占位符之后的）
+                const systemPrompt = usagePromptInput ? usagePromptInput.dataset.resolved.trim() : '';
+
+                // 获取用户提示词
+                let userPrompt = userPromptInput ? userPromptInput.value.trim() : '';
+
+                // 对用户提示词应用模板解析
                 // 每次都重新解析：使用完整的占位符映射来解析所有参数
                 const placeholders = buildPlaceholdersMap();
-                const result = resolveTemplatePlaceholders(prompt, placeholders, '{{name}}', { missingPolicy: 'keep' });
-                prompt = result.resolvedText;
-                // 缓存解析结果
-                if (usagePromptInput && usagePromptInput.dataset) {
-                    usagePromptInput.dataset.resolved = prompt;
-                }
+                const user_result = resolveTemplatePlaceholders(userPrompt, placeholders, '{{name}}', { missingPolicy: 'keep' });
+                userPrompt = user_result.resolvedText;
+
+
+
+                // 直接用字符串拼接系统提示词和用户提示词，保持文字连贯
+                const combinedPrompt = '请结合用户提示词和系统提示词完成相关任务。**用户提示词**：' + userPrompt + '\n\n**系统提示词**：' + systemPrompt;
+
+                let prompt = combinedPrompt;
 
 
                 console.log('[aiModal] Debug - SendAIRequest final prompt:', prompt);
@@ -4821,11 +4831,8 @@
                 const miniStatus = document.getElementById('miniStatus');
                 const miniExpandBtn = document.getElementById('miniExpandBtn');
 
-                if (!miniInput || !miniInput.value.trim()) {
-                    if (miniStatus) {
-                        miniStatus.textContent = '请输入提示词';
-                        miniStatus.className = 'text-xs text-yellow-600';
-                    }
+                // 迷你模式下允许空提示词发送
+                if (!miniInput) {
                     return;
                 }
 
