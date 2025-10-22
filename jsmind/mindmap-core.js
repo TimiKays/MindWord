@@ -1965,7 +1965,7 @@ function setupBoxSelection() {
       )) {
         button.style.display = isSingleSelect ? 'inline-block' : 'none';
       }
-      // "生成初始树"按钮不受控制，始终显示
+      // 生成初始树按钮（迷你模式）不受控制，始终显示
     });
   }
 

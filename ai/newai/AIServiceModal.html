@@ -2163,12 +2163,7 @@
                                 type: 'AI_MODAL_RESULT',
                                 requestId: rid,
                                 status: 'ok',
-                                detail: {
-                                    platform: result.platformConfig?.provider || 'unknown',
-                                    model: result.modelConfig?.model || 'unknown',
-                                    text: result
-
-                                }
+                                output: result
                             }, '*');
                             // 延迟关闭弹窗，确保消息发送完成
                             setTimeout(() => closeModal(), 100);
@@ -2330,7 +2325,7 @@
                     // 默认以迷你模式启动
                     switchToUsageView(); // 先切换到使用视图
                     toggleMiniMode();    // 然后切换到迷你模式
-                    
+
                     // 设置迷你输入框的提示文字
                     const miniPrompt = modal.dataset.miniPrompt;
                     if (typeof miniPrompt === 'string' && miniPrompt.trim()) {
@@ -2651,7 +2646,7 @@
                         const output = (usageResultContent && usageResultContent.textContent) ? usageResultContent.textContent : '';
                         const rid = modal?.dataset?.requestId || null;
                         window.parent?.postMessage({
-                            type: 'AI_MODAL_SAVE_OUTPUT',
+                            type: 'AI_MODAL_RESULT',
                             requestId: rid,
                             output
                         }, '*');
@@ -4766,7 +4761,7 @@
                             templateData: payload.templateData || {},
                             options: payload.options || {}
                         });
-                        console.debug('[AI_MODAL_RUN_HEADLESS] 调用成功', { requestId: msg.requestId, result });
+                        console.debug('[AI_MODAL_RESULT] 调用成功', { requestId: msg.requestId, result });
                         // 成功回传 - 提取关键信息供测试页面使用
                         const responseDetail = {
                             platform: result.platformConfig?.provider || 'unknown',

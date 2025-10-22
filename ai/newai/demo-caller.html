@@ -230,7 +230,7 @@
                     // 转发给 aiModalFrame（payload 带 requestId），默认使用迷你模式
                     aiFrame.contentWindow.postMessage({
                         type: 'AI_MODAL_OPEN',
-                        payload: Object.assign({}, msg.payload || {}, { 
+                        payload: Object.assign({}, msg.payload || {}, {
                             requestId: msg.requestId,
                             initialView: 'mini'
                         })
@@ -279,13 +279,13 @@
                     }
                 }
 
-                // 处理 AI_MODAL_SAVE_OUTPUT 消息（保存并应用按钮）
-                if (msg.type === 'AI_MODAL_SAVE_OUTPUT' && msg.requestId) {
-                    console.log('[父页] AI_MODAL_SAVE_OUTPUT 收到', msg.requestId, msg.output);
+                // 处理 AI_MODAL_RESULT 消息（保存并应用按钮）
+                if (msg.type === 'AI_MODAL_RESULT' && msg.requestId) {
+                    console.log('[父页] AI_MODAL_RESULT 收到', msg.requestId, msg.output);
                     const srcWin = reqMap.get(msg.requestId);
                     // 隐藏 aiModalFrame（关闭 modal）
                     try { aiFrame.style.display = 'none'; } catch (_) { }
-                    
+
                     // 将其包装为 AI_MODAL_RESULT 并转发给原始子 iframe
                     const outMsg = {
                         type: 'AI_MODAL_RESULT',

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>TemplateKey Test</title>
+</head>
+
+<body>
+    <h1>TemplateKey 测试页面</h1>
+    <button onclick="testTemplateKey()">测试 TemplateKey 传递</button>
+    <div id="result"></div>
+
+    <script>
+        function testTemplateKey() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '测试中...';
+
+            // 监听AI_MODAL_RESULT消息
+            window.addEventListener('message', function (e) {
+                if (e.data.type === 'AI_MODAL_RESULT') {
+                    resultDiv.innerHTML = '<p style="color: green;">收到结果: ' + JSON.stringify(e.data, null, 2) + '</p>';
+                }
+            });
+
+            // 发送AI_MODAL_OPEN_REQUEST消息
+            window.parent.postMessage({
+                type: 'AI_MODAL_OPEN_REQUEST',
+                requestId: 'test_' + Date.now(),
+                payload: {
+                    title: '生成初始树',
+                    actionType: 'generate_initial_tree',
+                    initialView: 'mini',
+                    miniPrompt: '请输入思维导图主题',
+                    templateKey: '生成初始树',
+                    placeholders: {
+                        name: {
+                            value: '测试主题',
+                            desc: '思维导图主题'
+                        }
+                    },
+                    autoRun: false
+                }
+            }, '*');
+
+            resultDiv.innerHTML = '<p style="color: blue;">消息已发送，等待AI组件响应...</p>';
+        }
+
+        // 输出当前页面信息
+        document.write('<p>当前页面URL: ' + window.location.href + '</p>');
+        document.write('<p>父页面URL: ' + (window.parent !== window ? window.parent.location.href : '无父页面') + '</p>');
+    </script>
+</body>
+
+</html>

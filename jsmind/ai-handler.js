@@ -625,9 +625,9 @@ function expandWithAI() {
     const onMessage = function (e) {
       try {
         const msg = e && e.data;
-        var isSave = !!(msg && msg.type === 'AI_MODAL_SAVE_OUTPUT');
+        var isSave = !!(msg && msg.type === 'AI_MODAL_RESULT');
         var okId = !!(msg && ((msg.requestId === requestId) || (isSave && !msg.requestId && window.__mw_ai_active_requestId === requestId)));
-        if (!msg || (msg.type !== 'AI_MODAL_RESULT' && msg.type !== 'AI_MODAL_SAVE_OUTPUT') || !okId) return;
+        if (!msg || (msg.type !== 'AI_MODAL_RESULT' && msg.type !== 'AI_MODAL_RESULT') || !okId) return;
 
         if (msg.type === 'AI_MODAL_RESULT' && msg.status === 'cancel') {
           try { if (window.__mw_handled_requests && window.__mw_handled_requests[requestId]) return; } catch (_) { }
@@ -638,10 +638,11 @@ function expandWithAI() {
         clearTimeout(timeoutT);
         try { delete window.__mw_ai_active_requestId; } catch (_) { }
 
-        if (msg.type === 'AI_MODAL_SAVE_OUTPUT' || msg.status === 'ok') {
+        if (msg.type === 'AI_MODAL_RESULT' && (msg.status === 'ok' || msg.status === 'success')) {
           try {
             const detail = msg.detail || {};
-            const outText = detail.output || detail.text || (detail.result && detail.result.text) || msg.output || '';
+            // 支持迷你模式下的 output 字段和传统模式的 detail.text 字段
+            const outText = msg.output || detail.output || detail.text || (detail.result && detail.result.text) || '';
             if (!outText) { _show('warn', 'AI 未返回有效内容'); return; }
 
             // mark handled
@@ -705,12 +706,34 @@ function expandWithAI() {
                               }
                             } catch (e) { parentId = null; }
                             if (!parentId) parentId = selectedNode.id;
-                            var wrapper = { children: (nodeTree && nodeTree.children) ? nodeTree.children : [] };
+                            
+                            // 调试：查看nodeTree的结构
+                            console.log('DEBUG: nodeTree structure:', nodeTree);
+                            console.log('DEBUG: nodeTree.children:', nodeTree && nodeTree.children);
+                            console.log('DEBUG: nodeTree.data:', nodeTree && nodeTree.data);
+                            
+                            // 尝试多种方式获取子节点：nodeTree.data.children是对的。
+                            var children = [];
+                            if (nodeTree) {
+                              if (nodeTree.children && Array.isArray(nodeTree.children)) {
+                                children = nodeTree.children;
+                              } else if (nodeTree.data && nodeTree.data.children && Array.isArray(nodeTree.data.children)) {
+                                children = nodeTree.data.children;
+                              } else if (Array.isArray(nodeTree)) {
+                                // nodeTree本身就是数组
+                                children = nodeTree;
+                              }
+                            }
+                            
+                            console.log('DEBUG: extracted children:', children);
+                            var wrapper = { children: children };
                             insertNodeTreeChildren(parentId, wrapper, requestId || null);
                             try { _show('success', '已插入同级节点'); } catch (_) { }
                             try { if (typeof debouncedSave === 'function') debouncedSave(); } catch (_) { }
                             return;
-                          } catch (e) { }
+                          } catch (e) { 
+                            console.error('DEBUG: create_sibling error:', e);
+                          }
                         }
 
                         // else fallback to items extraction and applyAIAction
@@ -855,19 +878,176 @@ function aiExpandNotes() {
   expandWithAI();
 }
 
-function aiGenerateInitialTree() {
+// 老的aiGenerateInitialTree函数已删除，统一使用aiGenerateInitialTreeMini函数
+
+/**
+ * 直接调用AI组件的迷你模式生成初始树
+ * 绕过初始弹窗，让用户直接在AI组件的迷你模式下输入主题
+ * @param {Object} options - 可选参数
+ * @param {string} options.templateKey - 提示词模板键名，默认为'生成初始树'
+ * @param {string} options.miniPrompt - 迷你输入框的占位符文字，默认为'请输入思维导图主题'
+ * @param {Object} options.placeholders - 额外的占位符参数
+ * @param {boolean} options.autoRun - 是否自动运行（默认false，等待用户输入）
+ * @example
+ * // 基本用法
+ * aiGenerateInitialTreeMini();
+ * 
+ * // 自定义提示词和占位符
+ * aiGenerateInitialTreeMini({
+ *   templateKey: '生成学习大纲',
+ *   miniPrompt: '请输入学习主题',
+ *   placeholders: { type: '学习' }
+ * });
+ */
+function aiGenerateInitialTreeMini(options) {
   try {
-    var theme = prompt('请输入初始主题（根节点）');
-    if (!theme) { _show('warn', '请输入主题'); return; }
+    // 设置默认参数
+    options = options || {};
+    var templateKey = options.templateKey || '生成初始树';
+    var miniPrompt = options.miniPrompt || '请输入思维导图主题';
+
+    // 选择根节点
+    var selectedNode = null;
     try {
       var root = jm.get_root && jm.get_root();
-      if (root && root.id) jm.select_node(root.id);
-    } catch (_) { }
+      if (root && root.id) {
+        jm.select_node(root.id);
+        selectedNode = root;
+      }
+    } catch (_) { 
+      // 如果无法获取根节点，创建一个临时节点对象
+      selectedNode = { id: 'root', topic: '' };
+    }
+
+    // 生成请求ID（关键：用于匹配请求和响应）
+    var requestId = _genRequestId();
+    try { window.__mw_ai_active_requestId = requestId; } catch (_) { }
+    try { window.__mw_handled_requests = window.__mw_handled_requests || {}; } catch (_) { window.__mw_handled_requests = {}; }
+
+    // 设置必要的全局变量（供AIServiceModal.html使用）
     window.__mw_next_actionType = 'generate_initial_tree';
-    window.__mw_next_templateKey = '生成初始树';
-    window.__mw_next_placeholders = { name: { desc: '初始主题', value: theme } };
-    expandWithAI();
-  } catch (e) { _show('error', '生成初始树失败'); }
+    window.__mw_next_templateKey = templateKey;
+    window.__mw_next_placeholders = Object.assign({
+      name: { desc: '初始主题', value: '' } // 值将在迷你模式中由用户输入
+    }, options.placeholders || {});
+
+    // 构建发送到AI模态框的payload
+    var payload = {
+      actionType: 'generate_initial_tree',
+      templateKey: templateKey,
+      title: '生成初始树',
+      initialView: 'mini', // 关键：指定迷你模式
+      miniPrompt: miniPrompt, // 迷你输入框的占位符
+      placeholders: window.__mw_next_placeholders,
+      autoRun: options.autoRun || false // 是否自动运行
+    };
+
+    // 消息处理函数（复制自expandWithAI，用于处理AI响应）
+    const onMessage = function (e) {
+      try {
+        const msg = e && e.data;
+        var isSave = !!(msg && msg.type === 'AI_MODAL_RESULT');
+        var okId = !!(msg && ((msg.requestId === requestId) || (isSave && !msg.requestId && window.__mw_ai_active_requestId === requestId)));
+        if (!msg || (msg.type !== 'AI_MODAL_RESULT' && msg.type !== 'AI_MODAL_RESULT') || !okId) return;
+
+        if (msg.type === 'AI_MODAL_RESULT' && msg.status === 'cancel') {
+          try { if (window.__mw_handled_requests && window.__mw_handled_requests[requestId]) return; } catch (_) { }
+        }
+
+        // cleanup
+        window.removeEventListener('message', onMessage);
+        clearTimeout(timeoutT);
+        try { delete window.__mw_ai_active_requestId; } catch (_) { }
+
+        if (msg.type === 'AI_MODAL_RESULT' || msg.status === 'ok') {
+          try {
+            const detail = msg.detail || {};
+            const outText = detail.output || detail.text || (detail.result && detail.result.text) || msg.output || '';
+            if (!outText) { _show('warn', 'AI 未返回有效内容'); return; }
+
+            // mark handled
+            try { window.__mw_handled_requests[requestId] = true; window.__mw_lastHandledId = requestId; } catch (_) { }
+
+            // extract output (remove [OUTPUT] wrapper if present)
+            let parsed = outText;
+            const m = /\[OUTPUT\]([\s\S]*)\[\/OUTPUT\]/i.exec(outText);
+            if (m && m[1]) parsed = m[1].trim();
+            var normalized = (parsed || '').replace(/\r/g, '').replace(/\[OUTPUT\]|\[\/OUTPUT\]/gi, '');
+
+            // 处理AI结果 - 直接调用applyAIAction
+            try {
+              if (typeof applyAIAction === 'function') {
+                applyAIAction('generate_initial_tree', {
+                  selectedNode: selectedNode,
+                  itemsToInsert: [],
+                  parsedText: normalized,
+                  placeholders: window.__mw_next_placeholders
+                });
+              } else {
+                // 如果applyAIAction不可用，使用备用方案
+                _show('success', 'AI 内容已生成，请手动处理: ' + normalized.substring(0, 100));
+              }
+            } catch (e) {
+              console.error('[ai-handler] applyAIAction failed:', e);
+              _show('error', '应用AI结果失败: ' + e.message);
+            }
+
+          } catch (e) {
+            _show('error', '处理 AI 结果失败');
+            console.error('[ai-handler] 处理AI结果失败:', e);
+          }
+        } else {
+          // error or cancel
+          const detailMsg = (msg.detail && msg.detail.message) ? msg.detail.message : 'AI 返回错误';
+          if (detailMsg === 'user_closed') {
+            // 静默处理，不显示任何提示
+          } else {
+            _show('error', 'AI 生成失败: ' + detailMsg);
+          }
+        }
+      } catch (e) {
+        // swallow internal onMessage error
+        console.error('[ai-handler] onMessage error:', e);
+      }
+    }; // end onMessage
+
+    // 设置超时处理（30秒）
+    const timeoutT = setTimeout(function () {
+      try {
+        window.removeEventListener('message', onMessage);
+        const isEmbedded = (window.parent && window.parent !== window);
+        if (isEmbedded) {
+          // parent/modal should handle
+          return;
+        }
+        _show('error', 'AI 响应超时（30s）');
+      } catch (e) { }
+    }, 30000);
+
+    // 添加消息监听器
+    window.addEventListener('message', onMessage);
+
+    // 发送打开AI模态框的请求，指定迷你模式
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({
+        type: 'AI_MODAL_OPEN_REQUEST',
+        requestId: requestId,
+        payload: payload
+      }, '*');
+
+      console.log('[ai-handler] 已发送迷你模式AI模态框请求', {requestId: requestId, payload: payload});
+    } else {
+      // 如果没有父窗口，清理监听器并使用expandWithAI
+      window.removeEventListener('message', onMessage);
+      clearTimeout(timeoutT);
+      console.warn('[ai-handler] 未找到父窗口，回退到标准模式');
+      expandWithAI();
+    }
+
+  } catch (e) {
+    _show('error', '调用AI迷你模式失败: ' + e.message);
+    console.error('[ai-handler] aiGenerateInitialTreeMini error:', e);
+  }
 }
 
 // end of file
