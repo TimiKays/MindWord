@@ -2160,7 +2160,9 @@
                         try {
                             const rid = modal?.dataset?.requestId || null;
                             window.parent?.postMessage({
+
                                 type: 'AI_MODAL_RESULT',
+                                actionType: modal.dataset.actionType || '',
                                 requestId: rid,
                                 status: 'ok',
                                 output: result
@@ -2196,6 +2198,7 @@
                         // 不要让父页面在收到错误后自动关闭弹窗：增加 keepOpen 字段以便父页面判断
                         window.parent?.postMessage({
                             type: 'AI_MODAL_RESULT',
+                            actionType: modal.dataset.actionType || '',
                             requestId: rid,
                             status: 'error',
                             detail: { message: msg },
@@ -2414,10 +2417,10 @@
 
             // 关闭弹窗
             function closeModal() {
-                // 关闭时不进行隐式保存副作用 — 仅在用户确认为保存时调用保存逻辑
-                console.log('[aiModal] closeModal called, requestId=', modal?.dataset?.requestId);
-                // 派发关闭事件
-                emitEvent('onClose', { reason: 'user' });
+                // // 关闭时不进行隐式保存副作用 — 仅在用户确认为保存时调用保存逻辑
+                // console.log('[aiModal] closeModal called, requestId=', modal?.dataset?.requestId);
+                // // 派发关闭事件
+                // emitEvent('onClose', { reason: 'user' });
                 // 隐藏弹窗
                 modal.classList.add('hidden');
                 // 重置迷你模式状态，确保下次打开时从初始状态开始
@@ -2434,29 +2437,29 @@
                 }
                 if (modeTextEl) modeTextEl.textContent = '占位符';
 
-                // 通知父窗口此次为用户取消/关闭（以便父页隐藏顶层 aiFrame 并恢复焦点）
-                // 若是通过“保存并应用”触发的关闭（已设置 suppress 标记），则不要发送 cancel
-                try {
-                    const suppress = (modal?.dataset?.suppressCancelOnClose === '1') || !!window._suppressAICancel;
-                    // 清理标记，避免影响后续打开
-                    try { if (modal?.dataset) delete modal.dataset.suppressCancelOnClose; } catch (_) { /* noop */ }
-                    try { window._suppressAICancel = false; } catch (_) { /* noop */ }
+                // // 通知父窗口此次为用户取消/关闭（以便父页隐藏顶层 aiFrame 并恢复焦点）
+                // // 若是通过“保存并应用”触发的关闭（已设置 suppress 标记），则不要发送 cancel
+                // try {
+                //     const suppress = (modal?.dataset?.suppressCancelOnClose === '1') || !!window._suppressAICancel;
+                //     // 清理标记，避免影响后续打开
+                //     try { if (modal?.dataset) delete modal.dataset.suppressCancelOnClose; } catch (_) { /* noop */ }
+                //     try { window._suppressAICancel = false; } catch (_) { /* noop */ }
 
-                    if (!suppress) {
-                        const rid = modal?.dataset?.requestId || null;
-                        window.parent?.postMessage({
-                            type: 'AI_MODAL_RESULT',
-                            requestId: rid,
-                            status: 'cancel',
-                            detail: { message: 'user_closed' }
-                        }, '*');
-                    } else {
-                        // 已保存并应用的正常关闭：不发送 cancel
-                        try { console.debug('[aiModal] closeModal suppressed cancel due to save/apply'); } catch (_) { /* noop */ }
-                    }
-                } catch (err) {
-                    console.warn('[aiModal] postMessage close failed', err);
-                }
+                //     if (!suppress) {
+                //         const rid = modal?.dataset?.requestId || null;
+                //         window.parent?.postMessage({
+                //             type: 'AI_MODAL_RESULT',
+                //             requestId: rid,
+                //             status: 'cancel',
+                //             detail: { message: 'user_closed' }
+                //         }, '*');
+                //     } else {
+                //         // 已保存并应用的正常关闭：不发送 cancel
+                //         try { console.debug('[aiModal] closeModal suppressed cancel due to save/apply'); } catch (_) { /* noop */ }
+                //     }
+                // } catch (err) {
+                //     console.warn('[aiModal] postMessage close failed', err);
+                // }
             }
 
             // 切换到AI使用界面
@@ -2647,6 +2650,7 @@
                         const rid = modal?.dataset?.requestId || null;
                         window.parent?.postMessage({
                             type: 'AI_MODAL_RESULT',
+                            actionType: modal.dataset.actionType || '',
                             requestId: rid,
                             output
                         }, '*');
@@ -3008,6 +3012,7 @@
                             // 预览错误也不要触发父页面立即关闭：加上 keepOpen 标识
                             window.parent?.postMessage({
                                 type: 'AI_MODAL_RESULT',
+
                                 requestId: rid,
                                 status: 'error',
                                 detail: { message: msg, phase: 'preview' },
@@ -4305,8 +4310,13 @@
                     if (!msg || typeof msg !== 'object') return;
                     // 仅处理 AI_MODAL_OPEN 指令
                     if (msg.type === 'AI_MODAL_OPEN' && msg.payload) {
-                        const { title, initialView, presetPrompt, requestId, params, miniPrompt, mode } = msg.payload;
-                        console.debug('[aiModal] received AI_MODAL_OPEN', { requestId, title, initialView, params });
+                        const { actionType, title, initialView, presetPrompt, requestId, params, miniPrompt, mode } = msg.payload;
+                        console.debug('[aiModal] received AI_MODAL_OPEN', { actionType, requestId, title, initialView, params });
+                        
+                        // 存储 actionType 以便后续使用
+                        if (actionType) {
+                            modal.dataset.actionType = actionType;
+                        }
                         // 验证 params 是否为可用的对象或数组
                         let parsedParams = null;
                         try {
@@ -4327,6 +4337,7 @@
                             try {
                                 window.parent?.postMessage({
                                     type: 'AI_MODAL_RESULT',
+
                                     requestId: requestId || null,
                                     status: 'error',
                                     detail: { message: msgText, phase: 'open', rawParams: params }
@@ -4342,6 +4353,7 @@
                             try {
                                 window.parent?.postMessage({
                                     type: 'AI_MODAL_RESULT',
+
                                     requestId: requestId || null,
                                     status: 'error',
                                     detail: { message: msgText, phase: 'open', rawParams: params }
@@ -4531,6 +4543,7 @@
                             try {
                                 window.parent?.postMessage({
                                     type: 'AI_MODAL_RESULT',
+
                                     requestId: requestId || null,
                                     status: 'error',
                                     detail: { message: '[aiModal] open fail: ' + (err.message || String(err)), phase: 'open' }
