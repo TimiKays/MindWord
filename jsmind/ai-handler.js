@@ -131,6 +131,17 @@ function applyAIAction(actionType, ctx) {
       return;
     }
 
+    // AI操作前保存状态（用于撤销管理）
+    let preActionState = null;
+    if (window.undoManager && typeof window.undoManager.recordIfChanged === 'function') {
+      try {
+        // 先记录当前状态
+        window.undoManager.recordIfChanged();
+      } catch (e) {
+        console.warn('[AI] 无法记录操作前状态:', e);
+      }
+    }
+
     const items = Array.isArray(ctx.itemsToInsert) ? ctx.itemsToInsert : [];
 
     // --- addMany: enhanced batch insertion (保留原行为) ---
@@ -189,6 +200,15 @@ function applyAIAction(actionType, ctx) {
             /* ignore single node insert error */
           }
         });
+        
+        // 批量插入完成后记录状态变化（用于撤销管理）
+        if (window.undoManager && typeof window.undoManager.recordIfChanged === 'function') {
+          try {
+            window.undoManager.recordIfChanged();
+          } catch (e) {
+            console.warn('[AI] 无法记录批量插入节点后的状态:', e);
+          }
+        }
       }
 
       try {
@@ -245,6 +265,15 @@ function applyAIAction(actionType, ctx) {
           } catch (e2) { /* ignore */ }
         });
       }
+      
+      // 批量插入完成后记录状态变化（用于撤销管理）
+      if (window.undoManager && typeof window.undoManager.recordIfChanged === 'function') {
+        try {
+          window.undoManager.recordIfChanged();
+        } catch (e) {
+          console.warn('[AI] 无法记录批量插入节点后的状态:', e);
+        }
+      }
     }; // end addMany
 
     // dispatch actions (preserve original behaviors)
@@ -262,6 +291,15 @@ function applyAIAction(actionType, ctx) {
           // 根无法添加同级，降级为添加子级并提示
           addMany(sel.id);
           try { _show('warn', '根节点无法添加同级，已改为添加子级'); } catch (_) { }
+        }
+        
+        // AI操作完成后记录状态变化（用于撤销管理）
+        if (window.undoManager && typeof window.undoManager.recordIfChanged === 'function') {
+          try {
+            window.undoManager.recordIfChanged();
+          } catch (e) {
+            console.warn('[AI] 无法记录创建同级节点后的状态:', e);
+          }
         }
         break;
       }
@@ -288,6 +326,15 @@ function applyAIAction(actionType, ctx) {
             try { if (typeof saveToLocalStorage === 'function') saveToLocalStorage(); } catch (_) { }
             try { if (typeof showAutoUpdateIndicator === 'function') showAutoUpdateIndicator(); } catch (_) { }
             try { if (typeof debouncedSave === 'function') debouncedSave(); } catch (_) { }
+            
+            // AI操作完成后记录状态变化（用于撤销管理）
+            if (window.undoManager && typeof window.undoManager.recordIfChanged === 'function') {
+              try {
+                window.undoManager.recordIfChanged();
+              } catch (e) {
+                console.warn('[AI] 无法记录备注更新后的状态:', e);
+              }
+            }
           }
         } catch (e) {
           _show('error', '更新备注失败');
@@ -865,18 +912,45 @@ function expandWithAI() {
 
 // ------------- 入口快捷函数（保留原调用方式） -----------------
 function aiCreateChild() {
+  // AI操作前保存状态（用于撤销管理）
+  if (window.undoManager && typeof window.undoManager.recordIfChanged === 'function') {
+    try {
+      window.undoManager.recordIfChanged();
+    } catch (e) {
+      console.warn('[AI] 无法记录创建子节点前的状态:', e);
+    }
+  }
+  
   window.__mw_next_actionType = 'create_child';
   window.__mw_next_templateKey = '扩展子节点';
   expandWithAI();
 }
 
 function aiCreateSibling() {
+  // AI操作前保存状态（用于撤销管理）
+  if (window.undoManager && typeof window.undoManager.recordIfChanged === 'function') {
+    try {
+      window.undoManager.recordIfChanged();
+    } catch (e) {
+      console.warn('[AI] 无法记录创建同级节点前的状态:', e);
+    }
+  }
+  
   window.__mw_next_actionType = 'create_sibling';
   window.__mw_next_templateKey = '创建同级';
   expandWithAI();
 }
 
 function aiExpandNotes() {
+  // AI操作前保存状态（用于撤销管理）
+  if (window.undoManager && typeof window.undoManager.recordIfChanged === 'function') {
+    try {
+      window.undoManager.recordIfChanged();
+    } catch (e) {
+      console.warn('[AI] 无法记录扩写备注前的状态:', e);
+    }
+  }
+  
   window.__mw_next_actionType = 'expand_notes';
   window.__mw_next_templateKey = '扩写备注';
   expandWithAI();
@@ -905,6 +979,15 @@ function aiExpandNotes() {
  */
 function aiGenerateInitialTreeMini(options) {
   try {
+    // AI操作前保存状态（用于撤销管理）
+    if (window.undoManager && typeof window.undoManager.recordIfChanged === 'function') {
+      try {
+        window.undoManager.recordIfChanged();
+      } catch (e) {
+        console.warn('[AI] 无法记录生成初始树前的状态:', e);
+      }
+    }
+    
     // 设置默认参数
     options = options || {};
     var templateKey = options.templateKey || '生成初始树';
@@ -1053,5 +1136,167 @@ function aiGenerateInitialTreeMini(options) {
     console.error('[ai-handler] aiGenerateInitialTreeMini error:', e);
   }
 }
+
+// 多节点AI操作管理器
+class MultiNodeAIManager {
+  constructor() {
+    this.pendingOperations = new Map(); // 存储待处理的节点操作
+    this.operationBatchId = null; // 当前批处理ID
+  }
+
+  // 开始多节点AI操作批处理
+  startMultiNodeBatch(nodeIds, operationType) {
+    this.operationBatchId = 'batch_' + Date.now();
+    
+    // 保存批处理前的整体状态
+    if (window.undoManager && window.undoManager.recordIfChanged) {
+      try {
+        window.undoManager.recordIfChanged();
+      } catch (e) {
+        console.warn('[AI] 无法记录多节点批处理前的状态:', e);
+      }
+    }
+    
+    this.pendingOperations.set(this.operationBatchId, {
+      nodeIds: nodeIds,
+      operationType: operationType,
+      startTime: Date.now(),
+      completedNodes: new Set(),
+      results: new Map()
+    });
+    
+    return this.operationBatchId;
+  }
+
+  // 记录单个节点完成
+  recordNodeComplete(batchId, nodeId, result) {
+    const batch = this.pendingOperations.get(batchId);
+    if (!batch) return;
+
+    batch.completedNodes.add(nodeId);
+    batch.results.set(nodeId, result);
+
+    // 检查是否所有节点都完成
+    if (batch.completedNodes.size === batch.nodeIds.length) {
+      this.completeBatch(batchId);
+    }
+  }
+
+  // 完成整个批处理
+  completeBatch(batchId) {
+    const batch = this.pendingOperations.get(batchId);
+    if (!batch) return;
+
+    // 批处理完成后记录最终状态
+    setTimeout(() => {
+      if (window.undoManager && window.undoManager.recordIfChanged) {
+        try {
+          window.undoManager.recordIfChanged();
+        } catch (e) {
+          console.warn('[AI] 无法记录多节点批处理后的状态:', e);
+        }
+      }
+    }, 100); // 延迟确保所有DOM更新完成
+
+    // 清理批处理记录
+    this.pendingOperations.delete(batchId);
+    this.operationBatchId = null;
+    
+    console.log(`[AI] 多节点批处理完成: ${batchId}, 处理了 ${batch.completedNodes.size} 个节点`);
+  }
+
+  // 取消批处理
+  cancelBatch(batchId) {
+    const batch = this.pendingOperations.get(batchId);
+    if (!batch) return;
+
+    console.log(`[AI] 取消多节点批处理: ${batchId}`);
+    this.pendingOperations.delete(batchId);
+    
+    if (this.operationBatchId === batchId) {
+      this.operationBatchId = null;
+    }
+  }
+
+  // 获取当前活动的批处理
+  getActiveBatch() {
+    if (!this.operationBatchId) return null;
+    return this.pendingOperations.get(this.operationBatchId);
+  }
+}
+
+// 全局实例
+window.multiNodeAIManager = new MultiNodeAIManager();
+
+// 多节点AI操作函数
+function aiMultiNodeExpand(nodeIds, operationType = 'expand_notes') {
+  if (!Array.isArray(nodeIds) || nodeIds.length === 0) {
+    console.warn('[AI] 没有指定要处理的节点');
+    return;
+  }
+
+  const batchId = window.multiNodeAIManager.startMultiNodeBatch(nodeIds, operationType);
+  
+  console.log(`[AI] 开始多节点批处理: ${batchId}, 节点数: ${nodeIds.length}`);
+
+  // 为每个节点创建AI操作
+  nodeIds.forEach((nodeId, index) => {
+    setTimeout(() => {
+      try {
+        // 选择节点
+        jm.select_node(nodeId);
+        
+        // 设置批处理ID
+        window.__mw_multi_node_batch_id = batchId;
+        window.__mw_multi_node_node_id = nodeId;
+        
+        // 调用相应的AI操作
+        switch (operationType) {
+          case 'expand_notes':
+            aiExpandNotes();
+            break;
+          case 'create_child':
+            aiCreateChild();
+            break;
+          case 'create_sibling':
+            aiCreateSibling();
+            break;
+          default:
+            console.warn(`[AI] 不支持的操作类型: ${operationType}`);
+        }
+      } catch (e) {
+        console.error(`[AI] 处理节点 ${nodeId} 失败:`, e);
+        window.multiNodeAIManager.recordNodeComplete(batchId, nodeId, { success: false, error: e.message });
+      }
+    }, index * 500); // 错开处理时间，避免并发问题
+  });
+
+  return batchId;
+}
+
+// 修改原有的AI结果处理逻辑，支持多节点批处理
+const originalApplyAIAction = window.applyAIAction;
+window.applyAIAction = function(actionType, context) {
+  const result = originalApplyAIAction.call(this, actionType, context);
+  
+  // 检查是否是多节点批处理的一部分
+  const batchId = window.__mw_multi_node_batch_id;
+  const nodeId = window.__mw_multi_node_node_id;
+  
+  if (batchId && nodeId) {
+    // 记录节点处理完成
+    window.multiNodeAIManager.recordNodeComplete(batchId, nodeId, { 
+      success: true, 
+      actionType: actionType,
+      timestamp: Date.now()
+    });
+    
+    // 清理批处理标记
+    delete window.__mw_multi_node_batch_id;
+    delete window.__mw_multi_node_node_id;
+  }
+  
+  return result;
+};
 
 // end of file
