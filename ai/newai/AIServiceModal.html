@@ -4222,217 +4222,7 @@
                 return resolveTemplatePlaceholders(templateText, placeholders, placeholderFormat, options);
             };
 
-            // headless 直连：不渲染UI，直接替换并调用 AI
-            window.runAIHeadless = async function ({
-                platformConfig = {},
-                modelConfig = {},
-                templateData = {},
-                options = {}
-            } = {}) {
-                // 自动补齐：若调用方未提供 provider 或 model，优先从组件自身存储（localStorage）中选取第一个已保存且完整的平台与对应模型。
-                try {
-                    // 确保 platformConfig 是对象副本，避免修改外部引用
-                    platformConfig = Object.assign({}, platformConfig || {});
-                    modelConfig = Object.assign({}, modelConfig || {});
-                    // 1) 若没有 provider，优先使用最近成功调用的平台，其次从 allAIPlatformConfigs 中选择
-                    if (!platformConfig.provider) {
-                        try {
-                            console.debug('[aiModal][runAIHeadless] 开始自动选择平台...');
 
-                            // 优先使用最近成功调用的平台
-                            const lastUsedPlatform = localStorage.getItem('lastUsedPlatform');
-                            console.debug('[aiModal][runAIHeadless] lastUsedPlatform:', lastUsedPlatform);
-
-                            if (lastUsedPlatform) {
-                                const s = localStorage.getItem('allAIPlatformConfigs');
-                                console.debug('[aiModal][runAIHeadless] allAIPlatformConfigs:', s);
-                                if (s) {
-                                    const all = JSON.parse(s || '{}') || {};
-                                    const c = all[lastUsedPlatform] || {};
-                                    console.debug('[aiModal][runAIHeadless] 平台配置:', c);
-
-                                    const hasApiKey = c.apiKey && String(c.apiKey).trim() !== '';
-                                    const okCloudflare = (lastUsedPlatform !== 'cloudflare') || (c.cloudflareAccountId && String(c.cloudflareAccountId).trim() !== '');
-                                    const okAzure = (lastUsedPlatform !== 'azure') || (c.azureEndpoint && String(c.azureEndpoint).trim() !== '');
-
-                                    console.debug('[aiModal][runAIHeadless] 验证结果 - hasApiKey:', hasApiKey, 'okCloudflare:', okCloudflare, 'okAzure:', okAzure);
-
-                                    if (hasApiKey && okCloudflare && okAzure) {
-                                        platformConfig.provider = lastUsedPlatform;
-                                        platformConfig.apiKey = platformConfig.apiKey || c.apiKey || '';
-                                        if (c.azureEndpoint) platformConfig.azureEndpoint = platformConfig.azureEndpoint || c.azureEndpoint;
-                                        if (c.cloudflareAccountId) platformConfig.cloudflareAccountId = platformConfig.cloudflareAccountId || c.cloudflareAccountId;
-                                        console.debug('[aiModal][runAIHeadless] auto-selected provider from lastUsedPlatform:', lastUsedPlatform);
-                                    } else {
-                                        console.debug('[aiModal][runAIHeadless] lastUsedPlatform 验证失败');
-                                    }
-                                } else {
-                                    console.debug('[aiModal][runAIHeadless] allAIPlatformConfigs 不存在');
-                                }
-                            } else {
-                                console.debug('[aiModal][runAIHeadless] lastUsedPlatform 不存在');
-                            }
-
-                            // 如果最近成功调用的平台不可用，回退到原来的逻辑
-                            if (!platformConfig.provider) {
-                                console.debug('[aiModal][runAIHeadless] 回退到从 allAIPlatformConfigs 选择');
-                                const s = localStorage.getItem('allAIPlatformConfigs');
-                                if (s) {
-                                    const all = JSON.parse(s || '{}') || {};
-                                    const keys = Object.keys(all || {});
-                                    console.debug('[aiModal][runAIHeadless] 可用平台:', keys);
-                                    for (const k of keys) {
-                                        const c = all[k] || {};
-                                        const hasApiKey = c.apiKey && String(c.apiKey).trim() !== '';
-                                        const okCloudflare = (k !== 'cloudflare') || (c.cloudflareAccountId && String(c.cloudflareAccountId).trim() !== '');
-                                        const okAzure = (k !== 'azure') || (c.azureEndpoint && String(c.azureEndpoint).trim() !== '');
-                                        if (hasApiKey && okCloudflare && okAzure) {
-                                            platformConfig.provider = k;
-                                            platformConfig.apiKey = platformConfig.apiKey || c.apiKey || '';
-                                            if (c.azureEndpoint) platformConfig.azureEndpoint = platformConfig.azureEndpoint || c.azureEndpoint;
-                                            if (c.cloudflareAccountId) platformConfig.cloudflareAccountId = platformConfig.cloudflareAccountId || c.cloudflareAccountId;
-                                            console.debug('[aiModal][runAIHeadless] auto-selected provider from localStorage:', k);
-                                            break;
-                                        }
-                                    }
-                                } else {
-                                    console.debug('[aiModal][runAIHeadless] allAIPlatformConfigs 不存在，无法选择平台');
-                                }
-                            }
-                        } catch (e) {
-                            console.debug('[aiModal][runAIHeadless] read allAIPlatformConfigs failed:', e);
-                        }
-                    }
-                    // 2) 若仍无 provider，则保留原有流程（后续会报错）
-                    // 3) 若没有 model，尝试从 lastUsedModel_{provider} 或 aiService.getModels(provider) 中补齐
-                    if (!modelConfig.model) {
-                        try {
-                            console.debug('[aiModal][runAIHeadless] 开始自动选择模型...');
-                            const prov = platformConfig.provider;
-                            console.debug('[aiModal][runAIHeadless] 当前平台:', prov);
-
-                            if (prov) {
-                                try {
-                                    const lastKey = `lastUsedModel_${prov}`;
-                                    const lastModel = localStorage.getItem(lastKey);
-                                    console.debug('[aiModal][runAIHeadless] lastUsedModel key:', lastKey, 'value:', lastModel);
-                                    if (lastModel) {
-                                        modelConfig.model = lastModel;
-                                        console.debug('[aiModal][runAIHeadless] auto-selected model from lastUsedModel:', lastModel);
-                                    } else {
-                                        console.debug('[aiModal][runAIHeadless] 没有找到 lastUsedModel');
-                                    }
-                                } catch (_) { /* ignore */ }
-
-                                if (!modelConfig.model) {
-                                    try {
-                                        const fav = (window.favoriteModels && window.favoriteModels[prov]) || [];
-                                        console.debug('[aiModal][runAIHeadless] favoriteModels:', fav);
-                                        if (Array.isArray(fav) && fav.length > 0) {
-                                            modelConfig.model = fav[0];
-                                            console.debug('[aiModal][runAIHeadless] auto-selected model from favoriteModels:', modelConfig.model);
-                                        } else {
-                                            console.debug('[aiModal][runAIHeadless] 没有 favoriteModels');
-                                        }
-                                    } catch (_) { /* ignore */ }
-                                }
-
-                                if (!modelConfig.model) {
-                                    try {
-                                        const ms = aiService.getModels(prov) || [];
-                                        console.debug('[aiModal][runAIHeadless] aiService.getModels result:', ms);
-                                        if (Array.isArray(ms) && ms.length > 0) {
-                                            modelConfig.model = ms[0];
-                                            console.debug('[aiModal][runAIHeadless] auto-selected model from aiService.getModels:', modelConfig.model);
-                                        } else {
-                                            console.debug('[aiModal][runAIHeadless] aiService.getModels 没有返回模型');
-                                        }
-                                    } catch (_) { /* ignore */ }
-                                }
-
-                                if (!modelConfig.model) {
-                                    console.debug('[aiModal][runAIHeadless] 无法自动选择模型');
-                                }
-                            } else {
-                                console.debug('[aiModal][runAIHeadless] 没有平台信息，无法选择模型');
-                            }
-                        } catch (e) {
-                            console.debug('[aiModal][runAIHeadless] auto-select model failed:', e);
-                        }
-                    }
-                } catch (err) {
-                    console.debug('[aiModal][runAIHeadless] preparatory auto-fill failed:', err);
-                }
-
-                const { provider, endpoint, apiKey, extra = {} } = platformConfig || {};
-                const { model, temperature = 0.7, max_tokens = 1000, top_p, stop, extra: modelExtra = {} } = modelConfig || {};
-                const { templateText = '', placeholders = {}, placeholderFormat = '{{name}}', templateId } = templateData || {};
-                const { validateStrict = true, missingPolicy = 'error', defaultPlaceholderValue = '', dryRun = false } = options || {};
-
-                // 基础校验
-                if (!provider) throw { code: 'INVALID_CONFIG', message: '缺少 provider', detail: {} };
-                if (!apiKey) throw { code: 'INVALID_CONFIG', message: '缺少 apiKey', detail: {} };
-                if (!model && provider !== 'anthropic') throw { code: 'INVALID_CONFIG', message: '缺少模型名', detail: {} };
-                if (!templateText) throw { code: 'MISSING_TEMPLATE', message: '未提供模板文本', detail: { templateId } };
-
-                // 平台特定校验
-                if (provider === 'azure' && !endpoint) {
-                    throw { code: 'INVALID_CONFIG', message: 'Azure 需要 endpoint', detail: {} };
-                }
-                if (provider === 'cloudflare' && !extra?.cloudflareAccountId) {
-                    throw { code: 'INVALID_CONFIG', message: 'Cloudflare 需要账户ID', detail: {} };
-                }
-
-                // 解析模板
-                const { resolvedText, usedPlaceholders, missingPlaceholders } =
-                    resolveTemplatePlaceholders(templateText, placeholders, placeholderFormat, {
-                        validateStrict,
-                        missingPolicy,
-                        defaultPlaceholderValue
-                    });
-
-                // dryRun：仅返回解析结果
-                if (dryRun) {
-                    return {
-                        platformConfig,
-                        modelConfig,
-                        resolvedText,
-                        usedPlaceholders,
-                        missingPlaceholders,
-                        templateMeta: { templateId }
-                    };
-                }
-
-                // 配置 aiService
-                aiService.configure({
-                    platform: provider,
-                    model: model || '', // anthropic 情况下允许空，方法内处理
-                    apiKey,
-                    azureEndpoint: provider === 'azure' ? endpoint : null,
-                    cloudflareAccountId: provider === 'cloudflare' ? extra?.cloudflareAccountId : null
-                });
-
-                // 发送
-                try {
-                    const result = await aiService.generate({
-                        prompt: resolvedText,
-                        temperature,
-                        maxTokens: typeof max_tokens === 'number' ? max_tokens : 1000
-                    });
-
-                    return {
-                        platformConfig,
-                        modelConfig,
-                        resolvedText,
-                        usedPlaceholders,
-                        missingPlaceholders,
-                        templateMeta: { templateId },
-                        result
-                    };
-                } catch (e) {
-                    throw { code: 'SEND_FAILED', message: e?.message || String(e), detail: e };
-                }
-            };
 
             window.openAIServiceModal = function (options = {}) {
                 const { title, initialView, presetPrompt, requestId, miniPrompt } = options;
@@ -4515,7 +4305,7 @@
                     if (!msg || typeof msg !== 'object') return;
                     // 仅处理 AI_MODAL_OPEN 指令
                     if (msg.type === 'AI_MODAL_OPEN' && msg.payload) {
-                        const { title, initialView, presetPrompt, requestId, params, miniPrompt } = msg.payload;
+                        const { title, initialView, presetPrompt, requestId, params, miniPrompt, mode } = msg.payload;
                         console.debug('[aiModal] received AI_MODAL_OPEN', { requestId, title, initialView, params });
                         // 验证 params 是否为可用的对象或数组
                         let parsedParams = null;
@@ -4662,9 +4452,28 @@
                             console.warn('[aiModal] handle templateData on open failed', err);
                         }
 
-                        // 最终打开 modal（带 requestId / presetPrompt），注意：modal 打开时不自动发送请求（除非 payload 指定 autoRun 或 mode==='direct'）
+                        // silent 模式：强制 mini 模式并打标
+                        if (mode === 'silent') {
+                            modal.dataset.silentMode = '1';
+                            // 强制 initialView 为 mini
+                            msg.payload.initialView = 'mini';
+                        }
                         try {
                             window.openAIServiceModal({ title, initialView, presetPrompt, requestId, miniPrompt });
+
+                            // silent 模式：打开后立即自动发送
+                            if (mode === 'silent') {
+                                // 等一小段事件队列，确保 UI 切到 mini
+                                setTimeout(() => {
+                                    const miniSendBtn = document.getElementById('miniSendBtn');
+                                    if (miniSendBtn) miniSendBtn.click();
+                                    else {
+                                        // 降级：点主发送按钮
+                                        const usageSubmitBtn = document.getElementById('usageSubmitBtn');
+                                        if (usageSubmitBtn) usageSubmitBtn.click();
+                                    }
+                                }, 0);
+                            }
 
                             // 如果父 payload 指定要自动运行（兼容 headless 或 autoRun），仅在明确标记时触发
                             try {
@@ -4734,51 +4543,7 @@
                 }
             }, false);
 
-            // 远程调用（无弹窗，headless 模式）监听器
-            // 接收消息格式：{ type: 'AI_MODAL_RUN_HEADLESS', requestId, payload: { platformConfig, modelConfig, templateData, options } }
-            // 返回消息：{ type: 'AI_MODAL_RUN_RESULT', requestId, status: 'ok'|'error', detail }
-            window.addEventListener('message', async (e) => {
-                try {
-                    const msg = e?.data;
-                    if (!msg || typeof msg !== 'object') return;
-                    if (msg.type !== 'AI_MODAL_RUN_HEADLESS' || !msg.requestId) return;
 
-                    const payload = msg.payload || {};
-                    console.debug('[AI_MODAL_RUN_HEADLESS] 收到请求', {
-                        requestId: msg.requestId,
-                        payload: {
-                            platformConfig: payload.platformConfig,
-                            modelConfig: payload.modelConfig,
-                            templateData: payload.templateData,
-                            options: payload.options
-                        }
-                    });
-                    try {
-                        // 调用已存在的 runAIHeadless 接口（在同一 iframe 内）
-                        const result = await window.runAIHeadless({
-                            platformConfig: payload.platformConfig || {},
-                            modelConfig: payload.modelConfig || {},
-                            templateData: payload.templateData || {},
-                            options: payload.options || {}
-                        });
-                        console.debug('[AI_MODAL_RESULT] 调用成功', { requestId: msg.requestId, result });
-                        // 成功回传 - 提取关键信息供测试页面使用
-                        const responseDetail = {
-                            platform: result.platformConfig?.provider || 'unknown',
-                            model: result.modelConfig?.model || 'unknown',
-                            text: result
-
-                        };
-                        try { e.source.postMessage({ type: 'AI_MODAL_RUN_RESULT', requestId: msg.requestId, status: 'ok', detail: responseDetail }, '*'); } catch (_) { /* noop */ }
-                    } catch (err) {
-                        const msgText = err && err.message ? err.message : String(err);
-                        console.error('[AI_MODAL_RUN_HEADLESS] 调用失败', { requestId: msg.requestId, error: msgText });
-                        try { e.source.postMessage({ type: 'AI_MODAL_RUN_RESULT', requestId: msg.requestId, status: 'error', detail: { message: msgText } }, '*'); } catch (_) { /* noop */ }
-                    }
-                } catch (err) {
-                    console.warn('AI_MODAL_RUN_HEADLESS listener error', err);
-                }
-            }, false);
 
             // 迷你模式功能
             let isMiniMode = false;

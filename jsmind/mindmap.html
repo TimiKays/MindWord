@@ -125,6 +125,8 @@
     <!-- 右侧三个简单复选框：详情面板 / 显示节点类型 / 显示列表节点 -->
     <div id="toolbarToggles"
       style="margin-left:auto;display:flex;gap:12px;align-items:flex-end;justify-content:flex-end;">
+      <span id="toggleQuickAIBtn" class="ico-btn state-off" role="button" tabindex="0" aria-pressed="false"
+        title="快速AI生成：开启时将关闭AI弹窗，直接生成内容" style="--ico: url('res/kuaisu.svg'); "></span>
       <span id="toggleNodeDetailsBtn" class="ico-btn state-on" role="button" tabindex="0" aria-pressed="true"
         title="详情面板" style="--ico: url('res/detail.svg'); "></span>
       <span id="help-btn" class="ico-btn" role="button" tabindex="0" title="帮助"
@@ -310,9 +312,9 @@
           console.warn('撤销管理器未初始化');
           showInfo && showInfo('撤销功能暂不可用');
         }
-      } catch (e) { 
+      } catch (e) {
         console.error('撤销失败:', e);
-        showError && showError('撤销失败'); 
+        showError && showError('撤销失败');
       }
     }
 
@@ -329,16 +331,16 @@
           console.warn('撤销管理器未初始化');
           showInfo && showInfo('重做功能暂不可用');
         }
-      } catch (e) { 
+      } catch (e) {
         console.error('重做失败:', e);
-        showError && showError('重做失败'); 
+        showError && showError('重做失败');
       }
     }
 
     function openConfigModal() {
       try {
         // 使用与节点详情面板中配置图标相同的功能
-        (function(){try{function genId(){return 'r_'+Math.random().toString(36).slice(2,10);}var requestId=genId();var payload={initialView:'config',platformConfig:{},modelConfig:{},options:{},mode:'mini'};if(typeof window.openAIServiceModal==='function'){try{window.openAIServiceModal(Object.assign({},payload,{requestId:requestId}));return;}catch(e){console.warn('openAIServiceModal failed',e);} }try{window.parent.postMessage({type:'AI_MODAL_OPEN_REQUEST',requestId:requestId,payload:payload},'*');}catch(e){console.error('send AI config open request failed',e);} }catch(e){console.warn(e);} })();
+        (function () { try { function genId() { return 'r_' + Math.random().toString(36).slice(2, 10); } var requestId = genId(); var payload = { initialView: 'config', platformConfig: {}, modelConfig: {}, options: {}, mode: 'mini' }; if (typeof window.openAIServiceModal === 'function') { try { window.openAIServiceModal(Object.assign({}, payload, { requestId: requestId })); return; } catch (e) { console.warn('openAIServiceModal failed', e); } } try { window.parent.postMessage({ type: 'AI_MODAL_OPEN_REQUEST', requestId: requestId, payload: payload }, '*'); } catch (e) { console.error('send AI config open request failed', e); } } catch (e) { console.warn(e); } })();
       } catch (e) { showError && showError('打开配置失败'); }
     }
 
@@ -840,6 +842,43 @@
               showMindmapHelp();
             }
           });
+        }
+
+        // 快速AI生成开关
+        var quickAIBtn = document.getElementById('toggleQuickAIBtn');
+        if (quickAIBtn) {
+          // 初始化状态
+          window.__quickAIEnabled = false;
+
+          // 更新UI状态
+          function updateQuickAIButton() {
+            var enabled = !!window.__quickAIEnabled;
+            quickAIBtn.classList.remove('state-on', 'state-off');
+            quickAIBtn.classList.add(enabled ? 'state-on' : 'state-off');
+            quickAIBtn.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+
+            // 更新提示文字
+            var statusText = enabled ? '快速AI生成：已开启，将直接生成内容' : '快速AI生成：开启时将关闭AI弹窗，直接生成内容';
+            quickAIBtn.setAttribute('title', statusText);
+          }
+
+          // 点击事件处理
+          quickAIBtn.addEventListener('click', function () {
+            window.__quickAIEnabled = !window.__quickAIEnabled;
+            updateQuickAIButton();
+          });
+
+          // 键盘事件处理
+          quickAIBtn.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              window.__quickAIEnabled = !window.__quickAIEnabled;
+              updateQuickAIButton();
+            }
+          });
+
+          // 初始化UI
+          updateQuickAIButton();
         }
       });
 

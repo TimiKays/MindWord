@@ -188,11 +188,10 @@
                         try {
                             console.log('[父页] 即将向 aiModalFrame.postMessage 发送 headless 请求', msg.requestId);
                             aiFrame.contentWindow.postMessage({
-                                type: 'AI_MODAL_RUN_HEADLESS',
-                                requestId: msg.requestId,
-                                payload: headlessPayload
+                                type: 'AI_MODAL_OPEN',
+                                payload: Object.assign({}, headlessPayload, { requestId: msg.requestId, mode: 'silent' })
                             }, '*');
-                            console.log('[父页] 已发送 AI_MODAL_RUN_HEADLESS 到 aiModalFrame', msg.requestId);
+                            console.log('[父页] 已发送 AI_MODAL_OPEN(mode:silent) 到 aiModalFrame', msg.requestId);
                             // 注册超时回退
                             const t = setTimeout(() => {
                                 try {

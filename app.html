@@ -1737,6 +1737,27 @@
                                 templateText: msg.payload.template || '',
                                 placeholders: msg.payload.params || {}
                             };
+                            
+                            // Handle templateKey - load template content if templateKey is provided
+                            if (msg.payload.templateKey && !(_tplRaw && typeof _tplRaw.templateText === 'string' && _tplRaw.templateText.trim())) {
+                                try {
+                                    // Try to get template content from the iframe's template system
+                                    var aiFrame = document.getElementById('aiModalFrame');
+                                    if (aiFrame && aiFrame.contentWindow && aiFrame.contentWindow.promptTemplates) {
+                                        var templates = aiFrame.contentWindow.promptTemplates;
+                                        for (var i = 0; i < templates.length; i++) {
+                                            if (templates[i].name === msg.payload.templateKey) {
+                                                _tplRaw.templateText = templates[i].content || '';
+                                                console.log('[INDEX] Loaded template content for key:', msg.payload.templateKey);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                } catch (err) { 
+                                    console.warn('[INDEX] Failed to load template content for key:', msg.payload.templateKey, err); 
+                                }
+                            }
+                            
                             try {
                                 if (!(_tplRaw && typeof _tplRaw.templateText === 'string' && _tplRaw.templateText.trim())) {
                                     var ph = (_tplRaw && _tplRaw.placeholders) ? _tplRaw.placeholders : (msg.payload.placeholders || msg.payload.params || {});
@@ -1756,12 +1777,16 @@
                                 templateData: _tplRaw,
                                 options: msg.payload.options || {}
                             };
+                            
+                            // Pass templateKey if provided
+                            if (msg.payload.templateKey) {
+                                headlessPayload.templateData.templateKey = msg.payload.templateKey;
+                            }
 
                             try {
                                 aiFrame.contentWindow.postMessage({
-                                    type: 'AI_MODAL_RUN_HEADLESS',
-                                    requestId: msg.requestId,
-                                    payload: headlessPayload
+                                    type: 'AI_MODAL_OPEN',
+                                    payload: Object.assign({}, headlessPayload, { requestId: msg.requestId, mode: 'silent' })
                                 }, '*');
                                 var HEADLESS_TIMEOUT_MS = 15000;
                                 var t = setTimeout(function () {

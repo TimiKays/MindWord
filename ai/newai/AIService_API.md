@@ -6,9 +6,9 @@
 请求与响应总览  
 - 请求类型（子 -> 父）: AI_MODAL_OPEN_REQUEST  
 - 父转发给 aiModalFrame（modal）: AI_MODAL_OPEN（payload 带 requestId）  
-- 父 headless 转发（无弹窗）: AI_MODAL_RUN_HEADLESS（payload 带 requestId）  
+- 父 headless 转发（无弹窗）: AI_MODAL_OPEN（payload 带 requestId, mode:'silent'）  
 - aiModalFrame 返回（modal）: AI_MODAL_RESULT（带 requestId, status, detail）  
-- aiModalFrame 返回（headless）: AI_MODAL_RUN_RESULT（带 requestId, status, detail）  
+- aiModalFrame 返回（headless）: AI_MODAL_RESULT（带 requestId, status, detail）  
 - 父统一转发回子 iframe: AI_MODAL_RESULT
 
 两种调用模式（区别与适用场景）
