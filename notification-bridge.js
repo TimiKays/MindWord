@@ -155,28 +155,28 @@ function rearrangeNotifications() {
 /**
  * 显示成功通知
  */
-function showSuccess(message, duration = 3000) {
+function showSuccess(message, duration = 1500) {
     sendNotification(message, 'success', duration);
 }
 
 /**
  * 显示错误通知
  */
-function showError(message, duration = 5000) {
+function showError(message, duration = 3000) {
     sendNotification(message, 'danger', duration);
 }
 
 /**
  * 显示警告通知
  */
-function showWarning(message, duration = 4000) {
+function showWarning(message, duration = 2000) {
     sendNotification(message, 'warning', duration);
 }
 
 /**
  * 显示信息通知
  */
-function showInfo(message, duration = 3000) {
+function showInfo(message, duration = 2000) {
     sendNotification(message, 'info', duration);
 }
 

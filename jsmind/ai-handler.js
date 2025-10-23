@@ -706,12 +706,12 @@ function expandWithAI() {
                               }
                             } catch (e) { parentId = null; }
                             if (!parentId) parentId = selectedNode.id;
-                            
+
                             // 调试：查看nodeTree的结构
                             console.log('DEBUG: nodeTree structure:', nodeTree);
                             console.log('DEBUG: nodeTree.children:', nodeTree && nodeTree.children);
                             console.log('DEBUG: nodeTree.data:', nodeTree && nodeTree.data);
-                            
+
                             // 尝试多种方式获取子节点：nodeTree.data.children是对的。
                             var children = [];
                             if (nodeTree) {
@@ -724,14 +724,18 @@ function expandWithAI() {
                                 children = nodeTree;
                               }
                             }
-                            
+
                             console.log('DEBUG: extracted children:', children);
                             var wrapper = { children: children };
-                            insertNodeTreeChildren(parentId, wrapper, requestId || null);
-                            try { _show('success', '已插入同级节点'); } catch (_) { }
-                            try { if (typeof debouncedSave === 'function') debouncedSave(); } catch (_) { }
+
+                            try {
+                              insertNodeTreeChildren(parentId, wrapper, requestId || null);
+                              _show('success', '已插入同级节点');
+                              if (typeof debouncedSave === 'function') debouncedSave();
+                            } catch (e) { console.error('DEBUG: insertNodeTreeChildren error:', e); }
+
                             return;
-                          } catch (e) { 
+                          } catch (e) {
                             console.error('DEBUG: create_sibling error:', e);
                           }
                         }
@@ -914,7 +918,7 @@ function aiGenerateInitialTreeMini(options) {
         jm.select_node(root.id);
         selectedNode = root;
       }
-    } catch (_) { 
+    } catch (_) {
       // 如果无法获取根节点，创建一个临时节点对象
       selectedNode = { id: 'root', topic: '' };
     }
@@ -1035,7 +1039,7 @@ function aiGenerateInitialTreeMini(options) {
         payload: payload
       }, '*');
 
-      console.log('[ai-handler] 已发送迷你模式AI模态框请求', {requestId: requestId, payload: payload});
+      console.log('[ai-handler] 已发送迷你模式AI模态框请求', { requestId: requestId, payload: payload });
     } else {
       // 如果没有父窗口，清理监听器并使用expandWithAI
       window.removeEventListener('message', onMessage);

@@ -569,6 +569,9 @@
             return; // 数据没有变化，不需要重新渲染
           }
 
+          // 只在数据变化时显示状态消息，避免重复通知
+          const isFirstLoad = lastMarkdownData === null && lastImagesData === null;
+          
           // 更新缓存
           lastMarkdownData = markdownData;
           lastImagesData = imagesData;
@@ -580,7 +583,10 @@
             previewEl.innerHTML = htmlContent;
             try { addHeadingIds(previewEl); } catch (e) { }
             try { handleTocClicks(previewEl); } catch (e) { }
-            status('已加载 Markdown 数据');
+            // 只在非首次加载时显示状态消息
+            if (!isFirstLoad) {
+              status('已加载 Markdown 数据');
+            }
           } else {
             previewEl.innerHTML = '<div class="empty-preview">未找到 mindword_markdown_data 数据</div>';
             status('未找到 localStorage 中的 mindword_markdown_data');
