@@ -31,6 +31,11 @@
   <div class="toolbar">
     <!-- 批量操作工具栏 -->
 
+    <!-- 撤销重做按钮 -->
+    <span class="ico-btn" role="button" onclick="undoMindmap()" tabindex="0" title="撤销"
+      style="--ico: url('res/undo.svg'); "></span>
+    <span class="ico-btn" role="button" onclick="redoMindmap()" tabindex="0" title="重做"
+      style="--ico: url('res/redo.svg'); "></span>
 
     <span class="ico-btn" role="button" onclick="downloadMindmap()" tabindex="0" title="下载图片"
       style="--ico: url('res/download.svg'); "></span>
@@ -105,6 +110,10 @@
         <!-- 已移除重复的底部清除按钮（仅保留网格中的第一个清除按钮） -->
       </div>
     </div>
+
+    <!-- 配置按钮 -->
+    <span class="ico-btn" role="button" onclick="openConfigModal()" tabindex="0" title="配置"
+      style="--ico: url('res/setting.svg'); "></span>
 
     <!-- batchOperations 保留在 DOM 中但会被移动到画布左上（通过脚本在非移动端显示） -->
     <div id="batchOperations"
@@ -285,6 +294,52 @@
           }
         }
       } catch (e) { showError && showError('删除失败'); }
+    }
+
+    // 撤销重做功能实现
+    function undoMindmap() {
+      try {
+        if (window.undoManager && typeof window.undoManager.undo === 'function') {
+          const result = window.undoManager.undo();
+          if (result) {
+            showInfo && showInfo('已撤销');
+          } else {
+            showInfo && showInfo('没有可撤销的操作');
+          }
+        } else {
+          console.warn('撤销管理器未初始化');
+          showInfo && showInfo('撤销功能暂不可用');
+        }
+      } catch (e) { 
+        console.error('撤销失败:', e);
+        showError && showError('撤销失败'); 
+      }
+    }
+
+    function redoMindmap() {
+      try {
+        if (window.undoManager && typeof window.undoManager.redo === 'function') {
+          const result = window.undoManager.redo();
+          if (result) {
+            showInfo && showInfo('已重做');
+          } else {
+            showInfo && showInfo('没有可重做的操作');
+          }
+        } else {
+          console.warn('撤销管理器未初始化');
+          showInfo && showInfo('重做功能暂不可用');
+        }
+      } catch (e) { 
+        console.error('重做失败:', e);
+        showError && showError('重做失败'); 
+      }
+    }
+
+    function openConfigModal() {
+      try {
+        // 使用与节点详情面板中配置图标相同的功能
+        (function(){try{function genId(){return 'r_'+Math.random().toString(36).slice(2,10);}var requestId=genId();var payload={initialView:'config',platformConfig:{},modelConfig:{},options:{},mode:'mini'};if(typeof window.openAIServiceModal==='function'){try{window.openAIServiceModal(Object.assign({},payload,{requestId:requestId}));return;}catch(e){console.warn('openAIServiceModal failed',e);} }try{window.parent.postMessage({type:'AI_MODAL_OPEN_REQUEST',requestId:requestId,payload:payload},'*');}catch(e){console.error('send AI config open request failed',e);} }catch(e){console.warn(e);} })();
+      } catch (e) { showError && showError('打开配置失败'); }
     }
 
 
