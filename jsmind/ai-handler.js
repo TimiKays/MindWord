@@ -38,22 +38,30 @@ const onMessage = function (event) {
     // 请求ID匹配
     var okId = !!(msg && ((msg.requestId === window.__tmp_rid) || (isSave && !msg.requestId && window.__mw_ai_active_requestId === requestId)));
     // 三个任意一个不满足就不处理了
-    if (!msg || msg.type !== 'AI_MODAL_RESULT' || !okId) return;
+    if (!msg || msg.type !== 'AI_MODAL_RESULT' || !okId) {
+      console.info('ID不匹配或不是AI组件的消息，不需处理：', msg);
+      return
+    };
 
     // 如果是取消且在用户已处理的请求ID中，直接返回
     if (msg.type === 'AI_MODAL_RESULT' && msg.status === 'cancel') {
-      try { if (window.__mw_handled_requests && window.__mw_handled_requests[requestId]) return; } catch (_) { }
+      try {
+        if (window.__mw_handled_requests && window.__mw_handled_requests[requestId]) {
+          console.warn('该消息是取消状态已处理过了：', requestId);
+          return
+        };
+      } catch (_) { }
     }
 
-    // 清理监听和计时，并消费该条消息ID
-    // window.removeEventListener('message', onMessage);
-    delete window.__tmp_rid;        // 收完包把 listener 和临时的消息id变量一起清掉
+    // 消费该条消息ID
+    console.info('基础校验通过，开始处理该消息：', msg);
+    delete window.__tmp_rid;
     // clearTimeout(timeoutT);
     try { delete window.__mw_ai_active_requestId; } catch (_) { }
 
     if (msg.type === 'AI_MODAL_RESULT' && (msg.status === 'ok' || msg.status === 'success')) {
       try {
-
+        console.info('是AI组件返回的处理成功消息：', msg);
         const currentSelectedNode = jm.get_selected_node ? jm.get_selected_node() : null;
         const detail = msg.detail || {};
         // 不同AI平台会把返回结果放在不同的字段中，这里尝试提取
@@ -79,6 +87,7 @@ const onMessage = function (event) {
         var looksLikeMarkdown = true;
         var converterInserted = false;
 
+        // 转为nodetree
         if (looksLikeMarkdown) {
           // 直接使用父页面全局converter，无需重复加载
           if (window && window.converter && typeof window.converter.mdToNodeTree === 'function') {
@@ -88,78 +97,41 @@ const onMessage = function (event) {
 
               if (nodeTree) {
 
-                // helper: insert children from nodeTree
-                function insertNodeTreeChildrenLocal(parentIdLocal, ntNodeLocal, requestIdLocal) {
-                  if (!ntNodeLocal) return;
-                  // reuse global insertNodeTreeChildren to preserve original behavior
-                  try {
-                    insertNodeTreeChildren(parentIdLocal, ntNodeLocal, requestIdLocal);
-                  } catch (e) { }
-                }
-
+                // 获取操作类型
                 var requestedAction = msg.actionType || msg.type;
                 console.log('🟡 ai-handler.js 获取操作类型:', requestedAction, '原始msg.type:', msg.type, 'msg.actionType:', msg.actionType);
                 if (requestedAction && requestedAction !== 'create_child') {
                   try {
+
+                    // 生成初始树
                     if (requestedAction === 'generate_initial_tree') {
                       try {
-                        // Get the currently selected node since selectedNode is not available in this scope
 
-                        if (typeof applyAIAction === 'function') {
-                          applyAIAction('generate_initial_tree', {
-                            selectedNode: currentSelectedNode,
-                            itemsToInsert: [],
-                            parsedText: normalized,
-                            // placeholders: (payload && payload.templateData && payload.templateData.placeholders) ? payload.templateData.placeholders : {}
-                          });
-                        }
-                      } catch (e) { }
+                        // 直接使用 jm.show() 替换整个思维导图
+                        jm.show(nodeTree);
+                        _show('success', '已生成初始思维导图');
+                        if (typeof debouncedSave === 'function') debouncedSave();
+
+                      } catch (e) {
+                        console.error('生成初始树失败:', e);
+                      }
                       return;
                     }
 
+                    // 创建同级节点
                     if (requestedAction === 'create_sibling') {
                       try {
-                        // Get the currently selected node since selectedNode is not available in this scope
-                        const currentSelectedNode = jm.get_selected_node ? jm.get_selected_node() : null;
-                        if (!currentSelectedNode) {
-                          _show('warn', '请先选择一个节点');
-                          return;
-                        }
+
+                        // 拿父级ID
                         var parentId = null;
                         try {
-                          var selNodeObj = jm.get_node ? jm.get_node(currentSelectedNode.id) : currentSelectedNode;
-                          if (selNodeObj && selNodeObj.parent) parentId = selNodeObj.parent;
-                          else if (jm.get_parent) {
-                            var p = jm.get_parent(currentSelectedNode.id);
-                            if (p && p.id) parentId = p.id;
-                          }
+                          parentId = currentSelectedNode.parent;
                         } catch (e) { parentId = null; }
-                        if (!parentId) parentId = currentSelectedNode.id;
 
-                        // 调试：查看nodeTree的结构
-                        console.log('DEBUG: nodeTree structure:', nodeTree);
-                        console.log('DEBUG: nodeTree.children:', nodeTree && nodeTree.children);
-                        console.log('DEBUG: nodeTree.data:', nodeTree && nodeTree.data);
-
-                        // 尝试多种方式获取子节点：nodeTree.data.children是对的。
-                        var children = [];
-                        if (nodeTree) {
-                          if (nodeTree.children && Array.isArray(nodeTree.children)) {
-                            children = nodeTree.children;
-                          } else if (nodeTree.data && nodeTree.data.children && Array.isArray(nodeTree.data.children)) {
-                            children = nodeTree.data.children;
-                          } else if (Array.isArray(nodeTree)) {
-                            // nodeTree本身就是数组
-                            children = nodeTree;
-                          }
-                        }
-
-                        console.log('DEBUG: extracted children:', children);
-                        var wrapper = { children: children };
-
+                        // 把子树插入当前节点的父级下
                         try {
-                          insertNodeTreeChildren(parentId, wrapper, requestId || null);
-                          _show('success', '已插入同级节点');
+                          insertNodeTreeChildren(parentId, nodeTree, requestId || null);
+                          _show('success', '已通过 converter.mdToNodeTree 解析并插入同级节点');
                           if (typeof debouncedSave === 'function') debouncedSave();
                         } catch (e) { console.error('DEBUG: insertNodeTreeChildren error:', e); }
 
@@ -169,35 +141,10 @@ const onMessage = function (event) {
                       }
                     }
 
-                    // 清理逻辑：直接使用完整的nodeTree结构，不再提取items
-                    // 因为nodeTree已经是结构化的数据，直接传递给applyAIAction更高效
-                    // if (typeof applyAIAction === 'function') {
-                    //   // Get the currently selected node since selectedNode is not available in this scope
-                    //   const currentSelectedNode = jm.get_selected_node ? jm.get_selected_node() : null;
-                    //   if (!currentSelectedNode) {
-                    //     _show('warn', '请先选择一个节点');
-                    //     return;
-                    //   }
-                    //   // 直接传递完整的nodeTree，保留所有字段包括notes
-                    //   applyAIAction(requestedAction, {
-                    //     selectedNode: currentSelectedNode,
-                    //     nodeTree: nodeTree,  // 传递完整的结构化数据
-                    //     parsedText: normalized,
-                    //     placeholders: (payload && payload.templateData && payload.templateData.placeholders) ? payload.templateData.placeholders : {}
-                    //   });
-                    //   try { _show('success', '已通过 converter.astToNodeTree 解析并分发为结构化数据'); } catch (_) { }
-                    //   try { if (typeof debouncedSave === 'function') debouncedSave(); } catch (_) { }
-                    //   return;
-                    // }
                   } catch (e) { }
                 }
-                // // default: insert as subtree under selectedNode
-                // // Get the currently selected node since selectedNode is not available in this scope
-                // const currentSelectedNode = jm.get_selected_node ? jm.get_selected_node() : null;
-                // if (!currentSelectedNode) {
-                //   _show('warn', '请先选择一个节点');
-                //   return;
-                // }
+
+                // 默认操作类型：create_child
                 insertNodeTreeChildren(currentSelectedNode.id, nodeTree, requestId || null);
                 try { _show('success', '已通过 converter.mdToNodeTree 解析并插入子树'); } catch (_) { }
                 try { if (typeof debouncedSave === 'function') debouncedSave(); } catch (_) { }
@@ -209,7 +156,6 @@ const onMessage = function (event) {
             converterInserted = true; // 标记已成功通过converter处理
           }
         }
-        // end looksLikeMarkdown branch
 
         // 如果converter处理失败，显示错误信息并返回
         if (!converterInserted) {
@@ -236,22 +182,6 @@ const onMessage = function (event) {
   }
 }; // end onMessage
 
-
-// // 设置超时处理（30秒）
-// const timeoutT = setTimeout(function () {
-//   try {
-//     window.removeEventListener('message', onMessage);
-//     delete window.__tmp_rid;        // 收完包把 listener 和临时的消息id变量一起清掉
-//     const isEmbedded = (window.parent && window.parent !== window);
-//     if (isEmbedded) {
-//       // parent/modal should handle
-//       return;
-//     }
-//     _show('error', 'AI 响应超时（30s）');
-//   } catch (e) { }
-//   // 超时也要把临时变量清掉，防止旧 ID 残留
-//   delete window.__tmp_rid;
-// }, 30000);
 
 // // 添加消息监听器
 window.addEventListener('message', onMessage);

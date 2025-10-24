@@ -1631,7 +1631,7 @@
             window.addEventListener('message', handleNotificationMessage);
             // 调试：打印所有收到的原始 message，便于排查 mindmap -> index -> editor 的消息流
             window.addEventListener('message', function (e) {
-                try { console.log('[INDEX RAW MESSAGE]', e && e.data); } catch (err) { }
+                try { console.log('[INDEX RAW MESSAGE]收到消息', e && e.data); } catch (err) { }
             }, { passive: true });
 
             console.log('📌 Markdown Studio 已初始化');
@@ -1846,16 +1846,19 @@
                         console.log('[INDEX] AI_MODAL_RESULT', msg.requestId, 'actionType:', msg.actionType);
                         var srcWinSave = window.__ai_req_map.get(msg.requestId);
                         try { var fsave = document.getElementById('aiModalFrame'); if (fsave) fsave.style.display = 'none'; } catch (_) { }
-                        var outMsgSave = {
-                            type: 'AI_MODAL_RESULT',
-                            actionType: msg.actionType,
-                            requestId: msg.requestId,
-                            status: 'ok',
-                            detail: { output: msg.output }
-                        };
+
+                        // 构造消息？
+
+                        // var outMsgSave = {
+                        //     type: 'AI_MODAL_RESULT',
+                        //     actionType: msg.actionType,
+                        //     requestId: msg.requestId,
+                        //     status: 'ok',
+                        //     detail: { output: msg.output }
+                        // };
                         if (srcWinSave) {
                             try {
-                                srcWinSave.postMessage(outMsgSave, '*');
+                                srcWinSave.postMessage(msg, '*');
                                 window.__ai_req_map.delete(msg.requestId);
                                 console.log('[INDEX] forwarded AI_MODAL_RESULT as RESULT to source', msg.requestId, 'with actionType:', msg.actionType);
                             } catch (e) {
