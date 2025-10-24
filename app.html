@@ -1788,7 +1788,7 @@
                                     type: 'AI_MODAL_OPEN',
                                     payload: Object.assign({}, headlessPayload, { requestId: msg.requestId, mode: 'silent' })
                                 }, '*');
-                                var HEADLESS_TIMEOUT_MS = 15000;
+                                var HEADLESS_TIMEOUT_MS = 30000;
                                 var t = setTimeout(function () {
                                     try {
                                         var src = window.__ai_req_map.get(msg.requestId);

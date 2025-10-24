@@ -2721,11 +2721,14 @@
                             // 使用textarea的value获取内容，完美保留换行符
                             output = usageResultContent.value || '';
                         }
+
+
                         const rid = modal?.dataset?.requestId || null;
                         const message = {
                             type: 'AI_MODAL_RESULT',
                             actionType: modal.dataset.actionType || '',
                             requestId: rid,
+                            status: 'ok',
                             output
                         };
                         console.log('🔵 AIServiceModal 发送消息:', JSON.stringify(message, null, 2));
