@@ -1843,11 +1843,12 @@
 
                     // handle AI_MODAL_RESULT: when modal's "保存并应用" sends output, forward it as a RESULT to the original requester
                     if (msg.type === 'AI_MODAL_RESULT' && msg.requestId) {
-                        console.log('[INDEX] AI_MODAL_RESULT', msg.requestId);
+                        console.log('[INDEX] AI_MODAL_RESULT', msg.requestId, 'actionType:', msg.actionType);
                         var srcWinSave = window.__ai_req_map.get(msg.requestId);
                         try { var fsave = document.getElementById('aiModalFrame'); if (fsave) fsave.style.display = 'none'; } catch (_) { }
                         var outMsgSave = {
                             type: 'AI_MODAL_RESULT',
+                            actionType: msg.actionType,
                             requestId: msg.requestId,
                             status: 'ok',
                             detail: { output: msg.output }
@@ -1856,7 +1857,7 @@
                             try {
                                 srcWinSave.postMessage(outMsgSave, '*');
                                 window.__ai_req_map.delete(msg.requestId);
-                                console.log('[INDEX] forwarded AI_MODAL_RESULT as RESULT to source', msg.requestId);
+                                console.log('[INDEX] forwarded AI_MODAL_RESULT as RESULT to source', msg.requestId, 'with actionType:', msg.actionType);
                             } catch (e) {
                                 console.warn('[INDEX] forward save output failed', e);
                             }
@@ -1868,7 +1869,7 @@
 
                     // modal result
                     if (msg.type === 'AI_MODAL_RESULT' && msg.requestId) {
-                        console.log('[INDEX] AI_MODAL_RESULT', msg.requestId, msg.status);
+                        console.log('[INDEX] AI_MODAL_RESULT', msg.requestId, msg.status, 'actionType:', msg.actionType);
                         var srcWin = window.__ai_req_map.get(msg.requestId);
                         // 仅在消息没有要求保留（keepOpen）时才隐藏 aiModalFrame。
                         // 如果 msg.keepOpen === true，则保持弹窗打开（错误时 modal 会发送 keepOpen:true）
@@ -1879,7 +1880,12 @@
                             }
                         } catch (_) { }
                         if (srcWin) {
-                            try { srcWin.postMessage(msg, '*'); } catch (e) { console.warn('[INDEX] forward result failed', e); }
+                            try { 
+                                srcWin.postMessage(msg, '*'); 
+                                console.log('[INDEX] forwarded AI_MODAL_RESULT to source', msg.requestId, 'with actionType:', msg.actionType);
+                            } catch (e) { 
+                                console.warn('[INDEX] forward result failed', e); 
+                            }
                             window.__ai_req_map.delete(msg.requestId);
                         } else {
                             console.warn('[INDEX] source not found for', msg.requestId);
@@ -2546,6 +2552,58 @@
                 });
             }
 
+            // 点击外部区域（包括iframe）自动收起侧滑栏
+            function setupClickOutsideHandler() {
+                let isProcessingClick = false;
+                
+                // 处理点击事件
+                function handleClickOutside(event) {
+                    if (isProcessingClick) return;
+                    
+                    const sidebar = document.getElementById('doc-sidebar');
+                    const menuBtn = document.getElementById('doc-menu-btn');
+                    
+                    if (!sidebar || !sidebar.classList.contains('open')) return;
+                    
+                    // 检查点击是否在侧滑栏内部或菜单按钮上
+                    const isClickInsideSidebar = sidebar.contains(event.target);
+                    const isClickOnMenuBtn = menuBtn && (event.target === menuBtn || menuBtn.contains(event.target));
+                    
+                    if (!isClickInsideSidebar && !isClickOnMenuBtn) {
+                        isProcessingClick = true;
+                        mw_toggleSidebar(false);
+                        setTimeout(() => { isProcessingClick = false; }, 100);
+                    }
+                }
+                
+                // 处理窗口失焦事件（处理iframe点击）
+                function handleWindowBlur() {
+                    const sidebar = document.getElementById('doc-sidebar');
+                    if (sidebar && sidebar.classList.contains('open')) {
+                        // 延迟检查，确保iframe点击被捕获
+                        setTimeout(() => {
+                            mw_toggleSidebar(false);
+                        }, 50);
+                    }
+                }
+                
+                // 绑定事件
+                document.addEventListener('click', handleClickOutside, true);
+                window.addEventListener('blur', handleWindowBlur);
+                
+                // 返回清理函数
+                return function cleanup() {
+                    document.removeEventListener('click', handleClickOutside, true);
+                    window.removeEventListener('blur', handleWindowBlur);
+                };
+            }
+            
+            // 初始化点击外部区域处理
+            const cleanupClickHandler = setupClickOutsideHandler();
+            
+            // 页面卸载时清理事件监听
+            window.addEventListener('beforeunload', cleanupClickHandler);
+
             // 初始渲染一次（不强制打开）
             mw_renderList();
         })();
@@ -2907,7 +2965,7 @@
                 }, 2000);
             }
 
-            // 个人菜单下拉功能
+            // 个人菜单下拉功能（增强版，支持点击外部区域自动关闭，包括iframe）
             try {
                 const userDropdown = document.querySelector('.user-dropdown');
                 const userMenuDropdown = document.querySelector('.user-menu-dropdown');
@@ -2922,13 +2980,12 @@
                         if (dropdownArrow) {
                             dropdownArrow.style.transform = isVisible ? 'rotate(0deg)' : 'rotate(180deg)';
                         }
-                    });
-                    
-                    // 点击页面其他地方关闭菜单
-                    document.addEventListener('click', function() {
-                        userMenuDropdown.style.display = 'none';
-                        if (dropdownArrow) {
-                            dropdownArrow.style.transform = 'rotate(0deg)';
+                        
+                        // 如果菜单打开，设置点击外部关闭处理
+                        if (!isVisible) {
+                            setupUserMenuClickOutsideHandler();
+                        } else {
+                            removeUserMenuClickOutsideHandler();
                         }
                     });
                     
@@ -2946,6 +3003,69 @@
                         item.addEventListener('mouseleave', function() {
                             this.style.backgroundColor = 'transparent';
                         });
+                    });
+                    
+                    // 点击外部区域自动关闭菜单（增强版，支持iframe）
+                    let userMenuClickOutsideHandler = null;
+                    let userMenuWindowBlurHandler = null;
+                    
+                    function setupUserMenuClickOutsideHandler() {
+                        if (userMenuClickOutsideHandler) return; // 避免重复绑定
+                        
+                        let isProcessingClick = false;
+                        
+                        // 处理点击事件
+                        userMenuClickOutsideHandler = function(event) {
+                            if (isProcessingClick) return;
+                            
+                            // 检查点击是否在菜单内部或触发按钮上
+                            const isClickInsideMenu = userMenuDropdown.contains(event.target);
+                            const isClickOnDropdown = userDropdown.contains(event.target);
+                            
+                            if (!isClickInsideMenu && !isClickOnDropdown) {
+                                isProcessingClick = true;
+                                closeUserMenu();
+                                setTimeout(() => { isProcessingClick = false; }, 100);
+                            }
+                        };
+                        
+                        // 处理窗口失焦事件（处理iframe点击）
+                        userMenuWindowBlurHandler = function() {
+                            // 延迟检查，确保iframe点击被捕获
+                            setTimeout(() => {
+                                closeUserMenu();
+                            }, 50);
+                        };
+                        
+                        // 绑定事件（使用捕获阶段确保优先处理）
+                        document.addEventListener('click', userMenuClickOutsideHandler, true);
+                        window.addEventListener('blur', userMenuWindowBlurHandler);
+                    }
+                    
+                    function removeUserMenuClickOutsideHandler() {
+                        if (userMenuClickOutsideHandler) {
+                            document.removeEventListener('click', userMenuClickOutsideHandler, true);
+                            userMenuClickOutsideHandler = null;
+                        }
+                        if (userMenuWindowBlurHandler) {
+                            window.removeEventListener('blur', userMenuWindowBlurHandler);
+                            userMenuWindowBlurHandler = null;
+                        }
+                    }
+                    
+                    function closeUserMenu() {
+                        userMenuDropdown.style.display = 'none';
+                        if (dropdownArrow) {
+                            dropdownArrow.style.transform = 'rotate(0deg)';
+                        }
+                        removeUserMenuClickOutsideHandler();
+                    }
+                    
+                    // 添加ESC键关闭菜单支持
+                    document.addEventListener('keydown', function(e) {
+                        if (e.key === 'Escape' && userMenuDropdown.style.display === 'block') {
+                            closeUserMenu();
+                        }
                     });
                 }
             } catch (e) {

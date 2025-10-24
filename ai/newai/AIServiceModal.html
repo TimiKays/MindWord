@@ -168,6 +168,32 @@
             .mini-send-btn.loading {
                 @apply bg-gray-400 cursor-not-allowed;
             }
+            
+            /* 输出区域文本域样式 - 让它看起来更像内容区域 */
+            #usageResultContent {
+                @apply bg-transparent border-none outline-none resize-none p-0 m-0;
+                font-family: inherit;
+                font-size: inherit;
+                line-height: inherit;
+                color: inherit;
+                background-color: transparent;
+                /* 移除文本域的默认外观 */
+                -webkit-appearance: none;
+                -moz-appearance: none;
+                appearance: none;
+                /* 确保文本域看起来像普通内容 */
+                cursor: text;
+            }
+            
+            #usageResultContent:focus {
+                @apply outline-none ring-0;
+            }
+            
+            /* 让文本域的滚动行为更自然 */
+            #usageResultContainer {
+                @apply relative;
+            }
+            
             .hidden {
                 display: none !important;
             }
@@ -327,8 +353,9 @@
                                 <label class="form-label">输出</label>
                                 <div id="usageResultContainer"
                                     class="bg-neutral-light p-3 rounded-md h-40 sm:h-52 overflow-y-auto">
-                                    <div id="usageResultContent" class="whitespace-pre-wrap break-words"
-                                        contenteditable="true" aria-multiline="true"></div>
+                                    <textarea id="usageResultContent"
+                                        class="whitespace-pre-wrap break-words w-full h-full bg-transparent border-none outline-none resize-none leading-relaxed"
+                                        placeholder="AI输出结果将显示在这里..." rows="1"></textarea>
                                 </div>
                                 <div class="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 mt-3">
                                     <button id="saveApplyOutputBtn" type="button"
@@ -2115,7 +2142,7 @@
 
                     // 显示结果
                     showUsageStatus('请求成功完成', 'success');
-                    usageResultContent.textContent = result;
+                    usageResultContent.value = result;
 
                     // 保存成功调用的平台和模型（只在真正调用成功后保存）
                     if (usagePlatformSelect && usagePlatformSelect.value) {
@@ -2178,7 +2205,7 @@
                     // 失败时也将错误写入输出区域，并显示
                     const msg = (error && error.message) ? error.message : String(error);
                     showUsageStatus(`请求失败: ${msg}`, 'error');
-                    usageResultContent.textContent = `错误：${msg}`;
+                    usageResultContent.value = `错误：${msg}`;
                     // 确保输出容器可见且可交互，避免被样式或属性禁用
                     if (usageResultContainer) {
                         usageResultContainer.classList.remove('hidden');
@@ -2342,6 +2369,9 @@
                     switchToUsageView();
                 }
 
+                // // 初始化textarea自动调整功能
+                // initTextareaAutoResize();
+
                 // 恢复上次使用的 平台 与 模型（若存在）
                 try {
                     (function restoreLastSelection() {
@@ -2415,6 +2445,45 @@
                 } catch (e) { /* noop */ }
             }
 
+            // // 自动调整textarea高度以适应内容
+            // function autoResizeTextarea(textarea) {
+            //     if (!textarea) return;
+            //     // 重置高度，然后计算实际需要的滚动高度
+            //     textarea.style.height = 'auto';
+            //     const scrollHeight = textarea.scrollHeight;
+            //     // 设置新高度，但不超过容器的最大高度
+            //     const maxHeight = textarea.parentElement.clientHeight - 24; // 减去padding
+            //     const newHeight = Math.min(scrollHeight, maxHeight);
+            //     textarea.style.height = newHeight + 'px';
+            // }
+
+            // // 初始化textarea自动调整功能
+            // function initTextareaAutoResize() {
+            //     const textarea = document.getElementById('usageResultContent');
+            //     if (!textarea) return;
+
+            //     // 监听输入事件
+            //     textarea.addEventListener('input', function() {
+            //         autoResizeTextarea(this);
+            //     });
+
+            //     // 监听值变化（当通过JavaScript设置值时）
+            //     const originalSetter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;
+            //     const originalGetter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').get;
+            //     Object.defineProperty(textarea, 'value', {
+            //         set: function(newValue) {
+            //             originalSetter.call(this, newValue);
+            //             autoResizeTextarea(this);
+            //         },
+            //         get: function() {
+            //             return originalGetter.call(this);
+            //         }
+            //     });
+
+            //     // 初始调整
+            //     setTimeout(() => autoResizeTextarea(textarea), 100);
+            // }
+
             // 关闭弹窗
             function closeModal() {
                 // // 关闭时不进行隐式保存副作用 — 仅在用户确认为保存时调用保存逻辑
@@ -2437,29 +2506,29 @@
                 }
                 if (modeTextEl) modeTextEl.textContent = '占位符';
 
-                // // 通知父窗口此次为用户取消/关闭（以便父页隐藏顶层 aiFrame 并恢复焦点）
-                // // 若是通过“保存并应用”触发的关闭（已设置 suppress 标记），则不要发送 cancel
-                // try {
-                //     const suppress = (modal?.dataset?.suppressCancelOnClose === '1') || !!window._suppressAICancel;
-                //     // 清理标记，避免影响后续打开
-                //     try { if (modal?.dataset) delete modal.dataset.suppressCancelOnClose; } catch (_) { /* noop */ }
-                //     try { window._suppressAICancel = false; } catch (_) { /* noop */ }
+                // 通知父窗口此次为用户取消/关闭（以便父页隐藏顶层 aiFrame 并恢复焦点）
+                // 若是通过“保存并应用”触发的关闭（已设置 suppress 标记），则不要发送 cancel
+                try {
+                    const suppress = (modal?.dataset?.suppressCancelOnClose === '1') || !!window._suppressAICancel;
+                    // 清理标记，避免影响后续打开
+                    try { if (modal?.dataset) delete modal.dataset.suppressCancelOnClose; } catch (_) { /* noop */ }
+                    try { window._suppressAICancel = false; } catch (_) { /* noop */ }
 
-                //     if (!suppress) {
-                //         const rid = modal?.dataset?.requestId || null;
-                //         window.parent?.postMessage({
-                //             type: 'AI_MODAL_RESULT',
-                //             requestId: rid,
-                //             status: 'cancel',
-                //             detail: { message: 'user_closed' }
-                //         }, '*');
-                //     } else {
-                //         // 已保存并应用的正常关闭：不发送 cancel
-                //         try { console.debug('[aiModal] closeModal suppressed cancel due to save/apply'); } catch (_) { /* noop */ }
-                //     }
-                // } catch (err) {
-                //     console.warn('[aiModal] postMessage close failed', err);
-                // }
+                    if (!suppress) {
+                        const rid = modal?.dataset?.requestId || null;
+                        window.parent?.postMessage({
+                            type: 'AI_MODAL_RESULT',
+                            requestId: rid,
+                            status: 'cancel',
+                            detail: { message: 'user_closed' }
+                        }, '*');
+                    } else {
+                        // 已保存并应用的正常关闭：不发送 cancel
+                        try { console.debug('[aiModal] closeModal suppressed cancel due to save/apply'); } catch (_) { /* noop */ }
+                    }
+                } catch (err) {
+                    console.warn('[aiModal] postMessage close failed', err);
+                }
             }
 
             // 切换到AI使用界面
@@ -2646,14 +2715,21 @@
                 saveApplyOutputBtn.addEventListener('click', (e) => {
                     e.preventDefault();
                     try {
-                        const output = (usageResultContent && usageResultContent.textContent) ? usageResultContent.textContent : '';
+                        // 简化处理：contenteditable div应该作为纯文本编辑器使用
+                        let output = '';
+                        if (usageResultContent) {
+                            // 使用textarea的value获取内容，完美保留换行符
+                            output = usageResultContent.value || '';
+                        }
                         const rid = modal?.dataset?.requestId || null;
-                        window.parent?.postMessage({
+                        const message = {
                             type: 'AI_MODAL_RESULT',
                             actionType: modal.dataset.actionType || '',
                             requestId: rid,
                             output
-                        }, '*');
+                        };
+                        console.log('🔵 AIServiceModal 发送消息:', JSON.stringify(message, null, 2));
+                        window.parent?.postMessage(message, '*');
                     } catch (err) {
                         console.warn('[aiModal] saveApply postMessage failed', err);
                     }
@@ -4312,7 +4388,7 @@
                     if (msg.type === 'AI_MODAL_OPEN' && msg.payload) {
                         const { actionType, title, initialView, presetPrompt, requestId, params, miniPrompt, mode } = msg.payload;
                         console.debug('[aiModal] received AI_MODAL_OPEN', { actionType, requestId, title, initialView, params });
-                        
+
                         // 存储 actionType 以便后续使用
                         if (actionType) {
                             modal.dataset.actionType = actionType;

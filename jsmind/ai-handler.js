@@ -31,6 +31,7 @@ const onMessage = function (event) {
   try {
     // 验证消息，并从事件对象中提取消息数据
     const msg = event && event.data;  //拆包
+    console.log('🟢 ai-handler.js 接收消息:', JSON.stringify(msg, null, 2));
     var isSave = !!(msg && msg.type === 'AI_MODAL_RESULT'); //是AI模块的返回结果
     // 获取请求ID
     var requestId = msg && msg.requestId;
@@ -52,6 +53,8 @@ const onMessage = function (event) {
 
     if (msg.type === 'AI_MODAL_RESULT' && (msg.status === 'ok' || msg.status === 'success')) {
       try {
+
+        const currentSelectedNode = jm.get_selected_node ? jm.get_selected_node() : null;
         const detail = msg.detail || {};
         // 不同AI平台会把返回结果放在不同的字段中，这里尝试提取
         // 支持迷你模式下的 output 字段和传统模式的 detail.text 字段
@@ -94,13 +97,14 @@ const onMessage = function (event) {
                   } catch (e) { }
                 }
 
-                var requestedAction = msg.type;
+                var requestedAction = msg.actionType || msg.type;
+                console.log('🟡 ai-handler.js 获取操作类型:', requestedAction, '原始msg.type:', msg.type, 'msg.actionType:', msg.actionType);
                 if (requestedAction && requestedAction !== 'create_child') {
                   try {
                     if (requestedAction === 'generate_initial_tree') {
                       try {
                         // Get the currently selected node since selectedNode is not available in this scope
-                        const currentSelectedNode = jm.get_selected_node ? jm.get_selected_node() : null;
+
                         if (typeof applyAIAction === 'function') {
                           applyAIAction('generate_initial_tree', {
                             selectedNode: currentSelectedNode,
@@ -165,54 +169,35 @@ const onMessage = function (event) {
                       }
                     }
 
-                    // else fallback to items extraction and applyAIAction
-                    if (typeof applyAIAction === 'function') {
-                      var extractItemsFromNodeTree = function (nt) {
-                        var res = [];
-                        if (!nt) return res;
-                        var children = nt.children || (nt.data && nt.data.children) || [];
-                        if (!Array.isArray(children)) return res;
-                        children.forEach(function (c) {
-                          try {
-                            var title = c.topic || (c.data && (c.data.topic || c.data.title)) || c.title || '';
-                            if (!title && c.data && c.data.raw) title = String(c.data.raw || '').split('\n').map(function (s) { return s.trim(); }).filter(Boolean)[0] || '';
-                            if (title) {
-                              var it = { topic: title };
-                              if (c.data && c.data.raw) it.raw = c.data.raw;
-                              res.push(it);
-                            }
-                          } catch (e) { }
-                        });
-                        return res;
-                      };
-                      // Get the currently selected node since selectedNode is not available in this scope
-                      const currentSelectedNode = jm.get_selected_node ? jm.get_selected_node() : null;
-                      if (!currentSelectedNode) {
-                        _show('warn', '请先选择一个节点');
-                        return;
-                      }
-                      var items = extractItemsFromNodeTree(nodeTree);
-                      applyAIAction(requestedAction, {
-                        selectedNode: currentSelectedNode,
-                        itemsToInsert: items,
-                        childNodes: items,
-                        childTitles: items.map(function (it) { return it.topic || ''; }),
-                        parsedText: normalized,
-                        placeholders: (payload && payload.templateData && payload.templateData.placeholders) ? payload.templateData.placeholders : {}
-                      });
-                      try { _show('success', '已通过 converter.astToNodeTree 解析并分发为 ' + items.length + ' 项'); } catch (_) { }
-                      try { if (typeof debouncedSave === 'function') debouncedSave(); } catch (_) { }
-                      return;
-                    }
+                    // 清理逻辑：直接使用完整的nodeTree结构，不再提取items
+                    // 因为nodeTree已经是结构化的数据，直接传递给applyAIAction更高效
+                    // if (typeof applyAIAction === 'function') {
+                    //   // Get the currently selected node since selectedNode is not available in this scope
+                    //   const currentSelectedNode = jm.get_selected_node ? jm.get_selected_node() : null;
+                    //   if (!currentSelectedNode) {
+                    //     _show('warn', '请先选择一个节点');
+                    //     return;
+                    //   }
+                    //   // 直接传递完整的nodeTree，保留所有字段包括notes
+                    //   applyAIAction(requestedAction, {
+                    //     selectedNode: currentSelectedNode,
+                    //     nodeTree: nodeTree,  // 传递完整的结构化数据
+                    //     parsedText: normalized,
+                    //     placeholders: (payload && payload.templateData && payload.templateData.placeholders) ? payload.templateData.placeholders : {}
+                    //   });
+                    //   try { _show('success', '已通过 converter.astToNodeTree 解析并分发为结构化数据'); } catch (_) { }
+                    //   try { if (typeof debouncedSave === 'function') debouncedSave(); } catch (_) { }
+                    //   return;
+                    // }
                   } catch (e) { }
                 }
-                // default: insert as subtree under selectedNode
-                // Get the currently selected node since selectedNode is not available in this scope
-                const currentSelectedNode = jm.get_selected_node ? jm.get_selected_node() : null;
-                if (!currentSelectedNode) {
-                  _show('warn', '请先选择一个节点');
-                  return;
-                }
+                // // default: insert as subtree under selectedNode
+                // // Get the currently selected node since selectedNode is not available in this scope
+                // const currentSelectedNode = jm.get_selected_node ? jm.get_selected_node() : null;
+                // if (!currentSelectedNode) {
+                //   _show('warn', '请先选择一个节点');
+                //   return;
+                // }
                 insertNodeTreeChildren(currentSelectedNode.id, nodeTree, requestId || null);
                 try { _show('success', '已通过 converter.mdToNodeTree 解析并插入子树'); } catch (_) { }
                 try { if (typeof debouncedSave === 'function') debouncedSave(); } catch (_) { }
@@ -376,7 +361,7 @@ function _buildPlaceholders(selectedNode) {
  但把子功能拆成小函数并复用原逻辑（addMany / parseTextToItems / buildTreeFromItems / insertTreeNodes 等）
  */
 function applyAIAction(actionType, ctx) {
-  // ctx expected: { selectedNode, itemsToInsert, childNodes, childTitles, parsedText, placeholders }
+  // ctx expected: { selectedNode, itemsToInsert, childNodes, childTitles, parsedText, placeholders, nodeTree }
   try {
     const sel = ctx.selectedNode;
     if (!sel) {
@@ -395,7 +380,16 @@ function applyAIAction(actionType, ctx) {
       }
     }
 
-    const items = Array.isArray(ctx.itemsToInsert) ? ctx.itemsToInsert : [];
+    // 优先使用nodeTree，如果没有则使用itemsToInsert
+    let items = [];
+    if (ctx.nodeTree) {
+      // 如果有nodeTree，提取其中的子节点作为items
+      const children = ctx.nodeTree.children || (ctx.nodeTree.data && ctx.nodeTree.data.children) || [];
+      items = Array.isArray(children) ? children : [];
+    } else {
+      // 回退到原来的itemsToInsert逻辑
+      items = Array.isArray(ctx.itemsToInsert) ? ctx.itemsToInsert : [];
+    }
 
     // --- addMany: enhanced batch insertion (保留原行为) ---
     const addMany = function (parentId) {
@@ -442,6 +436,7 @@ function applyAIAction(actionType, ctx) {
             const nodeData = {};
             if (n.raw) nodeData.raw = n.raw;
             if (n.level !== undefined && n.level !== null) nodeData.level = n.level;
+            if (n.notes) nodeData.notes = n.notes;
             try {
               if (Object.keys(nodeData).length > 0) jm.add_node(parentIdLocal, nid, topicStr, nodeData);
               else jm.add_node(parentIdLocal, nid, topicStr);
@@ -676,141 +671,6 @@ function applyAIAction(actionType, ctx) {
 
 // -------------------- md->AST 转换与 nodeTree 插入（保留原复杂插入逻辑） --------------------
 
-// Insert nodeTree's children into parentId with careful handling (locks, setNodeLevel, dedupe, normalize)
-function insertNodeTreeChildren(parentId, ntNode, requestId) {
-  if (!ntNode) return;
-  // local lock map
-  try { window._mw_ai_inserting_requests = window._mw_ai_inserting_requests || {}; } catch (e) { window._mw_ai_inserting_requests = {}; }
-  if (requestId && window._mw_ai_inserting_requests[requestId]) return;
-  if (requestId) { try { window._mw_ai_inserting_requests[requestId] = true; } catch (_) { window._mw_ai_inserting_requests[requestId] = true; } }
-  else { try { if (window.__mw_ai_inserting) return; } catch (_) { } try { window.__mw_ai_inserting = true; } catch (_) { } }
-
-  try {
-    var children = ntNode.children || (ntNode.data && ntNode.data.children) || [];
-    if (!Array.isArray(children)) return;
-
-    // determine target level (try core getNodeLevel or use node.data.level)
-    var targetLevel = null;
-    try {
-      var targetNodeObj = (parentId && jm.get_node) ? jm.get_node(parentId) : null;
-      if (targetNodeObj && targetNodeObj.data && (targetNodeObj.data.level !== undefined && targetNodeObj.data.level !== null)) {
-        targetLevel = parseInt(targetNodeObj.data.level, 10);
-      } else if (typeof window.getNodeLevel === 'function') {
-        targetLevel = window.getNodeLevel(targetNodeObj) || null;
-      }
-    } catch (e) { targetLevel = null; }
-    if (targetLevel === null || isNaN(targetLevel)) targetLevel = 1;
-
-    // helper: sibling exists under parent?
-    function siblingExists(pid, topic) {
-      try {
-        if (!pid || !topic) return false;
-        var pObj = jm.get_node ? jm.get_node(pid) : null;
-        var kids = (pObj && Array.isArray(pObj.children)) ? pObj.children : [];
-        for (var i = 0; i < kids.length; i++) {
-          var c = kids[i];
-          if (!c) continue;
-          try { if (String((c.topic || '')).trim() === String(topic).trim()) return true; } catch (e) { }
-        }
-      } catch (e) { }
-      return false;
-    }
-
-    // recursive insertion
-    function _insert(pid, nodes, depthOffset) {
-      if (!Array.isArray(nodes) || nodes.length === 0) return;
-      nodes.forEach(function (child) {
-        try {
-          var topic = child.topic || (child.data && (child.data.topic || child.data.title)) || (child.title || '');
-          if (!topic && child.data && child.data.raw) {
-            var fl = String(child.data.raw || '').split('\n').map(function (s) { return s.trim(); }).filter(Boolean)[0] || '';
-            topic = fl.length > 120 ? fl.slice(0, 120) + '...' : fl;
-          }
-          var hasChildren = Array.isArray(child.children) && child.children.length > 0;
-          if (!topic && hasChildren) { _insert(pid, child.children, depthOffset); return; }
-          if (!topic && !hasChildren) return;
-
-          // dedupe: skip if same topic exists under pid
-          if (siblingExists(pid, topic)) {
-            // find existKid and insert its children to merge if needed
-            try {
-              var pObj = jm.get_node ? jm.get_node(pid) : null;
-              var existKid = null;
-              if (pObj && Array.isArray(pObj.children)) {
-                for (var ii = 0; ii < pObj.children.length; ii++) {
-                  var kk = pObj.children[ii];
-                  if (kk && String((kk.topic || '')).trim() === String(topic).trim()) { existKid = kk; break; }
-                }
-              }
-              if (existKid) {
-                var existId = existKid.id;
-                if (hasChildren) _insert(existId, child.children, depthOffset + 1);
-              }
-            } catch (e) { }
-            return;
-          }
-
-          // generate new node id and nodeData
-          var nid = 'n_' + Math.random().toString(36).slice(2, 9);
-          var nodeData = {};
-          try { if (child.data) nodeData = Object.assign({}, child.data); } catch (_) { nodeData = {}; }
-          try { if (nodeData.raw && typeof nodeData.raw === 'string' && nodeData.raw.length > 600) delete nodeData.raw; } catch (_) { }
-
-          try {
-            if (nodeData.level !== undefined && nodeData.level !== null) {
-              var requested = parseInt(nodeData.level, 10) || 0;
-              nodeData.level = Math.max(1, targetLevel + requested);
-            } else {
-              // don't force level, leave to setNodeLevel or normalize later
-            }
-          } catch (e) { }
-
-          try {
-            if (Object.keys(nodeData).length > 0) jm.add_node(pid, nid, topic, nodeData);
-            else jm.add_node(pid, nid, topic);
-          } catch (e) {
-            try { jm.add_node(pid, nid, topic); } catch (e2) { return; }
-          }
-
-          // core post-processing: setNodeLevel / applySiblingOrParentType if available
-          try {
-            if (typeof window.setNodeLevel === 'function') {
-              if (nodeData && nodeData.level !== undefined && nodeData.level !== null) {
-                try { window.setNodeLevel(nid, nodeData.level); } catch (_) { }
-              } else {
-                try { window.setNodeLevel(nid, Math.max(1, targetLevel + (depthOffset || 0))); } catch (_) { }
-              }
-            }
-            if (typeof window.applySiblingOrParentType === 'function') {
-              try { window.applySiblingOrParentType(nid); } catch (_) { }
-            }
-          } catch (e) { }
-
-          // recursive insert children
-          if (hasChildren) _insert(nid, child.children, (depthOffset || 0) + 1);
-
-        } catch (e) {
-          // ignore single child insert error
-        }
-      });
-    } // end _insert
-
-    _insert(parentId, children, 1);
-
-    // try normalize/adjust functions
-    try {
-      if (typeof window.adjustChildrenHeadingLevel === 'function') try { window.adjustChildrenHeadingLevel(parentId); } catch (e) { }
-      if (typeof window.normalizeSubtreeUnderList === 'function') try { window.normalizeSubtreeUnderList(parentId); } catch (e) { }
-    } catch (e) { }
-
-    try { if (typeof debouncedSave === 'function') debouncedSave(); } catch (_) { }
-
-  } finally {
-    // release locks
-    try { if (requestId) delete window._mw_ai_inserting_requests[requestId]; } catch (e) { }
-    try { delete window.__mw_ai_inserting; } catch (e) { }
-  }
-} // end insertNodeTreeChildren
 
 
 /*
