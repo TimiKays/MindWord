@@ -14,7 +14,10 @@
  * 5. 数据规范化：自动调整格式和层级
  */
 function insertNodeTreeChildren(parentId, ntNode, requestId) {
-  ntNode = ntNode.data;
+  // 如果requestId以"paste_"开头，保持ntNode不变（用于复制粘贴功能）
+  if (!requestId.startsWith('paste_')) {
+    ntNode = ntNode.data;
+  }
   // 参数验证：空节点直接返回
   if (!ntNode) return;
 
@@ -341,3 +344,180 @@ function insertNodeTreeChildren(parentId, ntNode, requestId) {
     }
   }
 } // end insertNodeTreeChildren
+
+/**
+ * 递归获取节点及其所有子孙节点
+ * 用于复制粘贴功能，获取完整的节点树结构
+ * 
+ * @param {string|object} nodeOrId - 起始节点ID或节点对象
+ * @param {boolean} includeSelf - 是否包含起始节点本身，默认为true
+ * @returns {object|null} 返回包含节点及其所有子孙的完整树结构，如果节点不存在则返回null
+ */
+function getNodeTreeRecursive(nodeOrId, includeSelf = true) {
+  try {
+    // 获取jsmind实例
+    const jm = window.jm;
+    if (!jm || typeof jm.get_node !== 'function') {
+      console.warn('jsmind实例未找到或get_node方法不可用');
+      return null;
+    }
+
+    // 获取节点对象
+    let node;
+    if (typeof nodeOrId === 'object' && nodeOrId.id) {
+      node = nodeOrId;
+    } else if (typeof nodeOrId === 'string') {
+      node = jm.get_node(nodeOrId);
+    } else {
+      console.warn('无效的节点参数:', nodeOrId);
+      return null;
+    }
+
+    if (!node) {
+      console.warn('节点未找到:', nodeOrId);
+      return null;
+    }
+
+    /**
+     * 递归构建节点树
+     * @param {object} currentNode - 当前节点
+     * @param {number} depth - 当前深度（用于调试）
+     * @returns {object} 节点树结构
+     */
+    function buildNodeTree(currentNode, depth = 0) {
+      if (!currentNode) return null;
+
+      try {
+        // 构建当前节点的数据对象
+        const nodeData = {};
+
+        // 复制基础属性
+        if (currentNode.id) nodeData.id = currentNode.id;
+        if (currentNode.topic) nodeData.topic = currentNode.topic;
+        if (currentNode.notes) nodeData.notes = currentNode.notes;
+
+        // 复制扩展数据（存储在node.data中）
+        if (currentNode.data && typeof currentNode.data === 'object') {
+          nodeData.data = JSON.parse(JSON.stringify(currentNode.data));
+        }
+
+        // 处理子节点
+        if (currentNode.children && Array.isArray(currentNode.children) && currentNode.children.length > 0) {
+          nodeData.children = [];
+
+          // 递归处理每个子节点
+          currentNode.children.forEach(child => {
+            if (child && child.id) {
+              const childTree = buildNodeTree(child, depth + 1);
+              if (childTree) {
+                nodeData.children.push(childTree);
+              }
+            }
+          });
+
+          // 如果没有任何有效的子节点，移除children属性
+          if (nodeData.children.length === 0) {
+            delete nodeData.children;
+          }
+        }
+
+        return nodeData;
+      } catch (error) {
+        console.error(`构建节点树失败（深度 ${depth}）:`, error);
+        return null;
+      }
+    }
+
+    // 构建完整的节点树
+    const result = buildNodeTree(node);
+
+    // 如果不需要包含起始节点本身，只返回其子节点
+    if (!includeSelf && result && result.children) {
+      return { children: result.children };
+    }
+
+    return result;
+
+  } catch (error) {
+    console.error('获取节点树失败:', error);
+    return null;
+  }
+}
+
+/**
+ * 获取节点下的所有子孙节点ID列表
+ * 用于批量操作，快速获取所有相关节点ID
+ * 
+ * @param {string|object} nodeOrId - 起始节点ID或节点对象
+ * @param {boolean} includeSelf - 是否包含起始节点本身，默认为true
+ * @returns {Array<string>} 节点ID数组，按层级顺序排列
+ */
+function getAllDescendantIds(nodeOrId, includeSelf = true) {
+  try {
+    // 获取jsmind实例
+    const jm = window.jm;
+    if (!jm || typeof jm.get_node !== 'function') {
+      console.warn('jsmind实例未找到或get_node方法不可用');
+      return [];
+    }
+
+    // 获取节点对象
+    let node;
+    if (typeof nodeOrId === 'object' && nodeOrId.id) {
+      node = nodeOrId;
+    } else if (typeof nodeOrId === 'string') {
+      node = jm.get_node(nodeOrId);
+    } else {
+      console.warn('无效的节点参数:', nodeOrId);
+      return [];
+    }
+
+    if (!node) {
+      console.warn('节点未找到:', nodeOrId);
+      return [];
+    }
+
+    const resultIds = [];
+
+    /**
+     * 递归收集所有节点ID
+     * @param {object} currentNode - 当前节点
+     * @param {number} depth - 当前深度
+     */
+    function collectNodeIds(currentNode, depth = 0) {
+      if (!currentNode || !currentNode.id) return;
+
+      // 添加当前节点ID
+      resultIds.push(currentNode.id);
+
+      // 递归处理子节点
+      if (currentNode.children && Array.isArray(currentNode.children)) {
+        currentNode.children.forEach(child => {
+          if (child && child.id) {
+            collectNodeIds(child, depth + 1);
+          }
+        });
+      }
+    }
+
+    // 开始收集
+    if (includeSelf) {
+      collectNodeIds(node);
+    } else {
+      // 只收集子节点
+      if (node.children && Array.isArray(node.children)) {
+        node.children.forEach(child => {
+          if (child && child.id) {
+            collectNodeIds(child, 1);
+          }
+        });
+      }
+    }
+
+    return resultIds;
+
+  } catch (error) {
+    console.error('获取所有子孙节点ID失败:', error);
+    return [];
+  }
+}

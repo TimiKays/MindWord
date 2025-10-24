@@ -277,6 +277,9 @@ let currentNodeTree = null;
 // 全局 MW 状态容器（集中多选集合等共享状态，避免在多个作用域重复创建）
 window.MW = window.MW || {};
 window.MW.multiSelected = window.MW.multiSelected || new Set();
+// 复制粘贴功能的全局变量
+window.MW.copiedNodes = window.MW.copiedNodes || []; // 存储复制的节点树数据
+window.MW.copyTimestamp = window.MW.copyTimestamp || 0; // 复制时间戳，用于调试和验证
 
 // 全局轻量调度器：按 name 去重、防抖调度回调（幂等注入，便于替换散落的 setTimeout）
 (function () {
@@ -2644,6 +2647,220 @@ function setupBoxSelection() {
         if (typeof debouncedSave === 'function') debouncedSave();
         // 延迟恢复视口，等DOM与jsMind重建完成
         setTimeout(function () { try { restoreViewport(); } catch (e) { } }, 160);
+      }
+    }
+  }, true);
+
+  // 复制功能（Ctrl+C）- 复制选中的节点及其子级
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+      // 检查是否有选中的节点
+      const selectedNodes = window.getMultiSelection ? window.getMultiSelection() : [];
+      const currentNode = window.jm && window.jm.get_selected_node ? window.jm.get_selected_node() : null;
+
+      // 如果有选中节点（多选或单选）
+      if ((Array.isArray(selectedNodes) && selectedNodes.length > 0) || currentNode) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        try {
+          // 获取要复制的节点列表
+          const nodesToCopy = [];
+
+          if (Array.isArray(selectedNodes) && selectedNodes.length > 0) {
+            // 多选模式：复制所有选中的节点
+            selectedNodes.forEach(nodeId => {
+              if (nodeId && nodeId !== 'root') {
+                const node = window.jm.get_node(nodeId);
+                if (node) {
+                  nodesToCopy.push(node);
+                }
+              }
+            });
+          } else if (currentNode && currentNode.id !== 'root') {
+            // 单选模式：复制当前选中的节点
+            nodesToCopy.push(currentNode);
+          }
+
+          if (nodesToCopy.length === 0) {
+            console.log('[复制] 没有有效的节点可复制');
+            return;
+          }
+
+          // 使用getNodeTreeRecursive获取每个节点及其子级的完整数据
+          const copiedData = [];
+          nodesToCopy.forEach(node => {
+            const nodeTree = getNodeTreeRecursive(node, true);
+            if (nodeTree) {
+              copiedData.push(nodeTree);
+            }
+          });
+
+          if (copiedData.length > 0) {
+            // 存储复制的数据到全局变量
+            window.MW.copiedNodes = copiedData;
+            window.MW.copyTimestamp = Date.now();
+
+            // 同时复制到系统剪贴板（便于调试和外部使用）
+            const clipboardText = JSON.stringify(copiedData, null, 2);
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(clipboardText).then(() => {
+                console.log(`[复制] 成功复制 ${copiedData.length} 个节点到剪贴板`);
+                if (window.showSuccess) {
+                  showSuccess(`已复制 ${copiedData.length} 个节点`);
+                }
+              }).catch(err => {
+                console.warn('[复制] 复制到系统剪贴板失败:', err);
+                console.log('[复制] 复制的节点数据:', clipboardText);
+                if (window.showSuccess) {
+                  showSuccess(`已复制 ${copiedData.length} 个节点（无法访问系统剪贴板）`);
+                }
+              });
+            } else {
+              // 降级方案：显示在控制台
+              console.log('[复制] 复制的节点数据:', clipboardText);
+              if (window.showSuccess) {
+                showSuccess(`已复制 ${copiedData.length} 个节点`);
+              }
+            }
+          } else {
+            console.warn('[复制] 未能获取节点数据');
+          }
+        } catch (error) {
+          console.error('[复制] 复制节点失败:', error);
+          if (window.showError) {
+            showError('复制节点失败');
+          }
+        }
+      }
+    }
+  }, true);
+
+  // 粘贴功能（Ctrl+V）- 将复制的节点插入到目标节点下
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+      // 检查是否有复制的数据
+      if (!window.MW.copiedNodes || !Array.isArray(window.MW.copiedNodes) || window.MW.copiedNodes.length === 0) {
+        console.log('[粘贴] 没有可复制的数据');
+        if (window.showWarning) {
+          showWarning('请先复制节点');
+        }
+        return;
+      }
+
+      // 获取目标节点（当前选中的节点）
+      const targetNode = window.jm && window.jm.get_selected_node ? window.jm.get_selected_node() : null;
+      if (!targetNode || !targetNode.id) {
+        console.log('[粘贴] 没有选中的目标节点');
+        if (window.showWarning) {
+          showWarning('请先选择要粘贴到的目标节点');
+        }
+        return;
+      }
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      
+      try {
+        console.log(`[粘贴] 开始粘贴 ${window.MW.copiedNodes.length} 个节点到目标节点: ${targetNode.topic}`);
+
+        // 保存视口以便粘贴后恢复位置
+        try { saveViewport(); } catch (e) { }
+
+        let pastedCount = 0;
+
+        // 遍历所有要粘贴的节点
+        window.MW.copiedNodes.forEach((nodeData, index) => {
+          try {
+            // 为复制的节点生成新的ID（避免重复）
+            const generateNewId = (originalId) => {
+              if (!originalId) return 'node_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+              return originalId + '_copy_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+            };
+
+            // 递归更新节点树中的所有ID
+            const updateNodeIds = (node) => {
+              if (node && node.id) {
+                node.id = generateNewId(node.id);
+              }
+              if (node.children && Array.isArray(node.children)) {
+                node.children.forEach(child => updateNodeIds(child));
+              }
+            };
+
+            // 创建节点数据的深拷贝并更新ID
+            const copiedNodeData = JSON.parse(JSON.stringify(nodeData));
+            updateNodeIds(copiedNodeData);
+
+            // 使用insertNodeTreeChildren插入节点树
+            if (typeof insertNodeTreeChildren === 'function') {
+              // 构建完整的节点树对象（包含当前节点及其子节点）
+              const nodeTree = {
+                topic: copiedNodeData.topic,
+                notes: copiedNodeData.notes,
+                data: copiedNodeData.data,
+                children: copiedNodeData.children || []
+              };
+
+              // 插入节点及其子节点
+              insertNodeTreeChildren(targetNode.id, nodeTree, 'paste_' + Date.now());
+              pastedCount++;
+              console.log(`[粘贴] 成功粘贴节点: ${copiedNodeData.topic}`);
+            } else {
+              // 降级方案：直接添加节点
+              const newNodeId = generateNewId(copiedNodeData.id);
+              window.jm.add_node(targetNode.id, newNodeId, copiedNodeData.topic);
+
+              // 如果有备注，设置备注
+              if (copiedNodeData.notes) {
+                const newNode = window.jm.get_node(newNodeId);
+                if (newNode) {
+                  newNode.notes = copiedNodeData.notes;
+                }
+              }
+
+              pastedCount++;
+              console.log(`[粘贴] 使用降级方案粘贴节点: ${copiedNodeData.topic}`);
+            }
+          } catch (error) {
+            console.error(`[粘贴] 粘贴节点失败（索引 ${index}）:`, error);
+          }
+        });
+
+        if (pastedCount > 0) {
+          console.log(`[粘贴] 成功粘贴 ${pastedCount} 个节点`);
+          if (window.showSuccess) {
+            showSuccess(`成功粘贴 ${pastedCount} 个节点`);
+          }
+
+          // 触发保存
+          if (typeof debouncedSave === 'function') {
+            debouncedSave();
+          }
+
+          // 延迟恢复视口，等DOM更新完成
+          setTimeout(function () {
+            try {
+              restoreViewport();
+              // 可选：选中第一个粘贴的节点
+              // 由于ID已变更，这里不自动选中新节点
+            } catch (e) {
+              console.warn('[粘贴] 恢复视口失败:', e);
+            }
+          }, 160);
+        } else {
+          console.warn('[粘贴] 没有成功粘贴任何节点');
+          if (window.showError) {
+            showError('粘贴节点失败');
+          }
+        }
+
+      } catch (error) {
+        console.error('[粘贴] 粘贴过程失败:', error);
+        if (window.showError) {
+          showError('粘贴节点失败');
+        }
       }
     }
   }, true);
