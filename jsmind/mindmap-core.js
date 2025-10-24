@@ -1346,6 +1346,10 @@ function handleAutoUpdate() {
     }
 
     if (hasChanges) {
+      // 如果备注有变化，需要调用update_node来触发视图更新（包括备注图标）
+      if (newNotes !== prevNotes) {
+        jm.update_node(selected.id, selected.topic);
+      }
       refreshAllNotesDisplay();
       saveToLocalStorage();
       showAutoUpdateIndicator();
@@ -1515,6 +1519,8 @@ function updateNodeNotes() {
     // 直接更新根级别的notes字段（与其他代码保持一致）
     selected.data.notes = newNotes;
     hasChanges = true;
+    // 如果备注有变化，需要调用update_node来触发视图更新（包括备注图标）
+    jm.update_node(selected.id, selected.topic);
   }
 
   // 如果没有变化，提示用户
