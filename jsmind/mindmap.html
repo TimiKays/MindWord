@@ -1416,6 +1416,17 @@
           btnAIChild.addEventListener('click', function (e) {
             e.stopPropagation();
             ensureSelect();
+
+            // 检查是否启用了快速AI生成
+            if (window.__quickAIEnabled) {
+              // 添加加载状态
+              btnAIChild.classList.add('loading');
+              btnAIChild.style.pointerEvents = 'none'; // 防止重复点击
+
+              // 保存按钮引用到全局，以便在AI响应处理时可以访问
+              window.__mw_ai_loading_button = btnAIChild;
+            }
+
             try { aiCreateChild(); } catch (_) { /* ignore */ }
           });
           btnAIChild.addEventListener('keydown', function (e) {

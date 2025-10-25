@@ -1033,3 +1033,41 @@ iframe .btn:not([class*="btn-"]):hover {
         display: none !important;
     }
 }
+
+/* ===================================
+   AI按钮加载动画样式
+   =================================== */
+.mw-fab.loading {
+    position: relative;
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+.mw-fab.loading .ico-btn {
+    /* 隐藏原图标 */
+    opacity: 0;
+}
+
+.mw-fab.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #e5e7eb;
+    border-top: 2px solid #2563eb;
+    border-radius: 50%;
+    animation: mw-fab-spin 1s linear infinite;
+}
+
+@keyframes mw-fab-spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}

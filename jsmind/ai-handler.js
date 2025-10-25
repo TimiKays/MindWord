@@ -34,12 +34,19 @@ const onMessage = function (event) {
     console.log('🟢 ai-handler.js 接收消息:', JSON.stringify(msg, null, 2));
     var isSave = !!(msg && msg.type === 'AI_MODAL_RESULT'); //是AI模块的返回结果
     // 获取请求ID
-    var requestId = msg && msg.requestId;
+    var requestId = msg.requestId;
     // 请求ID匹配
-    var okId = !!(msg && ((msg.requestId === window.__tmp_rid) || (isSave && !msg.requestId && window.__mw_ai_active_requestId === requestId)));
+    var okId = !!((requestId === window.__tmp_rid) || (requestId === window.__mw_ai_active_requestId));
+
     // 三个任意一个不满足就不处理了
     if (!msg || msg.type !== 'AI_MODAL_RESULT' || !okId) {
-      console.info('ID不匹配或不是AI组件的消息，不需处理：', msg);
+      console.info('ID不匹配或不是AI组件的消息，不需处理：', {
+        msg: msg,
+        msgRequestId: requestId,
+        tmpRid: window.__tmp_rid,
+        activeRequestId: window.__mw_ai_active_requestId,
+        isMatching: okId
+      });
       return
     };
 
@@ -62,6 +69,16 @@ const onMessage = function (event) {
     if (msg.type === 'AI_MODAL_RESULT' && (msg.status === 'ok' || msg.status === 'success')) {
       try {
         console.info('是AI组件返回的处理成功消息：', msg);
+
+        // 停止加载动画并恢复按钮状态
+        try {
+          if (window.__mw_ai_loading_button) {
+            window.__mw_ai_loading_button.classList.remove('loading');
+            window.__mw_ai_loading_button.style.pointerEvents = '';
+            delete window.__mw_ai_loading_button;
+          }
+        } catch (_) { }
+
         const currentSelectedNode = jm.get_selected_node ? jm.get_selected_node() : null;
         const detail = msg.detail || {};
         // 不同AI平台会把返回结果放在不同的字段中，这里尝试提取
@@ -209,6 +226,15 @@ const onMessage = function (event) {
       }
     } else {
       // error or cancel
+      // 停止加载动画并恢复按钮状态
+      try {
+        if (window.__mw_ai_loading_button) {
+          window.__mw_ai_loading_button.classList.remove('loading');
+          window.__mw_ai_loading_button.style.pointerEvents = '';
+          delete window.__mw_ai_loading_button;
+        }
+      } catch (_) { }
+
       const detailMsg = (msg.detail && msg.detail.message) ? msg.detail.message : 'AI 返回错误';
       // 用户主动关闭弹窗时不显示错误提示
       if (detailMsg === 'user_closed') {
