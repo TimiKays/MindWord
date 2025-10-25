@@ -1,7 +1,7 @@
 // ============================================================
 // ai-handler.js （重构且保留全部细节行为）
 // - 外部接口保持不变： aiCreateChild, aiCreateSibling, aiExpandNotes, aiGenerateInitialTree
-// - 保留模板读取、占位符注入、md->AST->nodeTree 转换、insertNodeTreeChildren、applyAIAction 分发等
+// - 保留模板读取、占位符注入、md->AST->nodeTree 转换、insertNodeTreeChildren分发等
 // - 精简日志，仅保留必要的用户提示（showError/showWarning/showSuccess）
 // - 兼容原有全局函数与变量（jm, debouncedSave, window.converter, setNodeLevel, ...）
 // ============================================================
@@ -81,68 +81,108 @@ const onMessage = function (event) {
         if (m && m[1]) parsed = m[1].trim();
         var normalized = (parsed || '').replace(/\r/g, '').replace(/\[OUTPUT\]|\[\/OUTPUT\]/gi, '');
 
-        // 处理AI结果 - 直接调用applyAIAction，里面会根据actionType判断进一步处理方式
-        // detect markdown
-        // var looksLikeMarkdown = /(^\s*#{1,6}\s+)|(^\s*[-\*\+]\s+)|(^\s*\d+[\.\、]\s+)/m.test(normalized);
-        var looksLikeMarkdown = true;
+        // 获取操作类型
+        var requestedAction = msg.actionType || msg.type;
+        console.log('🟡 ai-handler.js 获取操作类型:', requestedAction, '原始msg.type:', msg.type, 'msg.actionType:', msg.actionType);
+
+        if (requestedAction === 'expand_notes') {
+          var node = currentSelectedNode;
+          if (node) {
+            node.data = node.data || {};
+            var newText = normalized;
+            // 获取节点已有的备注内容（如果不存在则为空字符串）
+            var oldText = '';
+            try {
+              oldText = String((node.data && node.data.notes) || '').replace(/\r/g, '');
+            } catch (_) {
+              oldText = '';
+            }
+
+            // 合并新旧备注：如果已有内容，先移除末尾空白，添加换行符，再追加新内容
+            if (oldText) {
+              // 移除旧内容末尾的空白字符，添加两个换行符，然后追加新内容
+              node.data.notes = oldText.replace(/\s+$/, '') + '\n\n' + newText;
+            } else {
+              // 如果没有旧内容，直接使用新内容
+              node.data.notes = newText;
+            }
+            try { node.notes = node.data.notes; } catch (_) { }
+            jm.update_node(node.id, node.topic || '');
+            // 同步详情面板 textarea 并触发输入事件以复用保存流程
+            try {
+              var ta = document.getElementById('nodeNotes');
+              if (ta) {
+                ta.value = node.data.notes || '';
+                ta.dispatchEvent(new Event('input', { bubbles: true }));
+              }
+            } catch (_) { }
+            try { if (typeof refreshAllNotesDisplay === 'function') refreshAllNotesDisplay(); } catch (_) { }
+            try { if (typeof saveToLocalStorage === 'function') saveToLocalStorage(); } catch (_) { }
+            try { if (typeof showAutoUpdateIndicator === 'function') showAutoUpdateIndicator(); } catch (_) { }
+            try { if (typeof debouncedSave === 'function') debouncedSave(); } catch (_) { }
+
+            // AI操作完成后记录状态变化（用于撤销管理）
+            if (window.undoManager && typeof window.undoManager.recordIfChanged === 'function') {
+              try {
+                window.undoManager.recordIfChanged();
+              } catch (e) {
+                console.warn('[AI] 无法记录备注更新后的状态:', e);
+              }
+            }
+          }
+        }
+
+
+        // 处理AI结果（非备注）
         var converterInserted = false;
 
-        // 转为nodetree
-        if (looksLikeMarkdown) {
-          // 直接使用父页面全局converter，无需重复加载
-          if (window && window.converter && typeof window.converter.mdToNodeTree === 'function') {
-            try {
-              // 使用父页面converter直接处理markdown
-              const nodeTree = window.converter.mdToNodeTree(normalized);
+        /// 转为nodetree
+        if (window && window.converter && typeof window.converter.mdToNodeTree === 'function') {
+          try {
+            // 使用父页面converter直接处理markdown
+            const nodeTree = window.converter.mdToNodeTree(normalized);
 
-              if (nodeTree) {
+            if (nodeTree) {
+              // 生成初始树
+              if (requestedAction === 'generate_initial_tree') {
+                try {
 
-                // 获取操作类型
-                var requestedAction = msg.actionType || msg.type;
-                console.log('🟡 ai-handler.js 获取操作类型:', requestedAction, '原始msg.type:', msg.type, 'msg.actionType:', msg.actionType);
-                if (requestedAction && requestedAction !== 'create_child') {
-                  try {
+                  // 直接使用 jm.show() 替换整个思维导图
+                  jm.show(nodeTree);
+                  _show('success', '已生成初始思维导图');
+                  if (typeof debouncedSave === 'function') debouncedSave();
 
-                    // 生成初始树
-                    if (requestedAction === 'generate_initial_tree') {
-                      try {
-
-                        // 直接使用 jm.show() 替换整个思维导图
-                        jm.show(nodeTree);
-                        _show('success', '已生成初始思维导图');
-                        if (typeof debouncedSave === 'function') debouncedSave();
-
-                      } catch (e) {
-                        console.error('生成初始树失败:', e);
-                      }
-                      return;
-                    }
-
-                    // 创建同级节点
-                    if (requestedAction === 'create_sibling') {
-                      try {
-
-                        // 拿父级ID
-                        var parentId = null;
-                        try {
-                          parentId = currentSelectedNode.parent;
-                        } catch (e) { parentId = null; }
-
-                        // 把子树插入当前节点的父级下
-                        try {
-                          insertNodeTreeChildren(parentId, nodeTree, requestId || null);
-                          _show('success', '已通过 converter.mdToNodeTree 解析并插入同级节点');
-                          if (typeof debouncedSave === 'function') debouncedSave();
-                        } catch (e) { console.error('DEBUG: insertNodeTreeChildren error:', e); }
-
-                        return;
-                      } catch (e) {
-                        console.error('DEBUG: create_sibling error:', e);
-                      }
-                    }
-
-                  } catch (e) { }
+                } catch (e) {
+                  console.error('生成初始树失败:', e);
                 }
+                return;
+              }
+
+              // 创建同级节点
+              if (requestedAction === 'create_sibling') {
+                try {
+
+                  // 拿父级ID
+                  var parentId = null;
+                  try {
+                    parentId = currentSelectedNode.parent;
+                  } catch (e) { parentId = null; }
+
+                  // 把子树插入当前节点的父级下
+                  try {
+                    insertNodeTreeChildren(parentId, nodeTree, requestId || null);
+                    _show('success', '已通过 converter.mdToNodeTree 解析并插入同级节点');
+                    if (typeof debouncedSave === 'function') debouncedSave();
+                  } catch (e) { console.error('DEBUG: insertNodeTreeChildren error:', e); }
+
+                  return;
+                } catch (e) {
+                  console.error('DEBUG: create_sibling error:', e);
+                }
+              }
+
+              // 创建子节点
+              if (requestedAction === 'create_child') {
 
                 // 默认操作类型：create_child
                 insertNodeTreeChildren(currentSelectedNode.id, nodeTree, requestId || null);
@@ -150,12 +190,13 @@ const onMessage = function (event) {
                 try { if (typeof debouncedSave === 'function') debouncedSave(); } catch (_) { }
                 return;
               }
-            } catch (convErr) {
-              console.error('DEBUG: mdToNodeTree error:', convErr);
             }
-            converterInserted = true; // 标记已成功通过converter处理
+          } catch (convErr) {
+            console.error('DEBUG: mdToNodeTree error:', convErr);
           }
+          converterInserted = true; // 标记已成功通过converter处理
         }
+
 
         // 如果converter处理失败，显示错误信息并返回
         if (!converterInserted) {
@@ -185,6 +226,7 @@ const onMessage = function (event) {
 
 // // 添加消息监听器
 window.addEventListener('message', onMessage);
+
 
 function _safe(fn, fallback) {
   try { return fn(); } catch (e) { return fallback; }
@@ -483,42 +525,14 @@ function applyAIAction(actionType, ctx) {
       }
       case 'expand_notes': {
         try {
-          var node = jm.get_node ? jm.get_node(sel.id) : sel;
-          if (node) {
-            node.data = node.data || {};
-            var newText = String(ctx.parsedText || '').replace(/\r/g, '').trim();
-            var oldText = '';
-            try { oldText = String((node.data && node.data.notes) || '').replace(/\r/g, ''); } catch (_) { oldText = ''; }
-            node.data.notes = oldText ? (oldText.replace(/\s+$/, '') + '\n\n' + newText) : newText;
-            try { node.notes = node.data.notes; } catch (_) { }
-            jm.update_node(node.id, node.topic || '');
-            // 同步详情面板 textarea 并触发输入事件以复用保存流程
-            try {
-              var ta = document.getElementById('nodeNotes');
-              if (ta) {
-                ta.value = node.data.notes || '';
-                ta.dispatchEvent(new Event('input', { bubbles: true }));
-              }
-            } catch (_) { }
-            try { if (typeof refreshAllNotesDisplay === 'function') refreshAllNotesDisplay(); } catch (_) { }
-            try { if (typeof saveToLocalStorage === 'function') saveToLocalStorage(); } catch (_) { }
-            try { if (typeof showAutoUpdateIndicator === 'function') showAutoUpdateIndicator(); } catch (_) { }
-            try { if (typeof debouncedSave === 'function') debouncedSave(); } catch (_) { }
 
-            // AI操作完成后记录状态变化（用于撤销管理）
-            if (window.undoManager && typeof window.undoManager.recordIfChanged === 'function') {
-              try {
-                window.undoManager.recordIfChanged();
-              } catch (e) {
-                console.warn('[AI] 无法记录备注更新后的状态:', e);
-              }
-            }
-          }
         } catch (e) {
           _show('error', '更新备注失败');
         }
         break;
       }
+
+
       case 'generate_initial_tree': {
         try {
 
@@ -610,7 +624,7 @@ function applyAIAction(actionType, ctx) {
  * 2. 生成唯一请求ID
  * 3. 准备模板和占位符数据
  * 4. 发送 AI 请求
- * 5. 处理 AI 响应
+ * 5. 绑定 AI 响应事件
 */
 function expandWithAI() {
   try {
@@ -790,6 +804,7 @@ function expandWithAI() {
     console.error('[AI] 扩写出错:', e);
   }
 } // end expandWithAI
+
 
 // ------------- 入口快捷函数（保留原调用方式） -----------------
 function aiCreateChild() {
