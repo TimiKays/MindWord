@@ -189,9 +189,13 @@
                 @apply outline-none ring-0;
             }
             
-            /* 让文本域的滚动行为更自然 */
-            #usageResultContainer {
-                @apply relative;
+            /* 为输出文本框添加浅边框 */
+            #usageResultContent {
+                border: 1px solid #e5e7eb !important; /* 浅灰色边框 */
+            }
+            
+            #usageResultContent:focus {
+                border-color: #3b82f6 !important; /* 聚焦时蓝色边框 */
             }
             
             .hidden {
@@ -351,12 +355,9 @@
                             <!-- 输出区域 -->
                             <div class="w-full">
                                 <label class="form-label">输出</label>
-                                <div id="usageResultContainer"
-                                    class="bg-neutral-light p-3 rounded-md h-40 sm:h-52 overflow-y-auto">
-                                    <textarea id="usageResultContent"
-                                        class="whitespace-pre-wrap break-words w-full h-full bg-transparent border-none outline-none resize-none leading-relaxed"
-                                        placeholder="AI输出结果将显示在这里..." rows="1"></textarea>
-                                </div>
+                                <textarea id="usageResultContent"
+                                    class="whitespace-pre-wrap break-words w-full h-40 sm:h-52 bg-neutral-light p-3 rounded-md overflow-y-auto outline-none resize-none leading-relaxed"
+                                    placeholder="AI输出结果将显示在这里..." rows="1"></textarea>
                                 <div class="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 mt-3">
                                     <button id="saveApplyOutputBtn" type="button"
                                         class="btn btn-primary w-full sm:w-auto touch-manipulation">
@@ -1415,7 +1416,6 @@
             const usagePromptInput = document.getElementById('usagePromptInput');
             const openConfigViewBtn = document.getElementById('openConfigViewBtn');
             const usageStatusIndicator = document.getElementById('usageStatusIndicator');
-            const usageResultContainer = document.getElementById('usageResultContainer');
             const usageResultContent = document.getElementById('usageResultContent');
             const usageCancelBtn = document.getElementById('usageCancelBtn');
             const usageSubmitBtn = document.getElementById('usageSubmitBtn');
@@ -2161,7 +2161,7 @@
                     usageSubmitBtn.disabled = false;
                     usageSubmitBtn.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i>处理中...';
                     showUsageStatus('正在向AI发送请求...', 'info');
-                    usageResultContainer.classList.add('hidden');
+                    usageResultContent.classList.add('hidden');
 
                     // 调用AI生成内容
                     const result = await aiService.generate({
@@ -2182,11 +2182,11 @@
                         localStorage.setItem(`lastUsedModel_${usagePlatformSelect.value}`, usageModelSelect.value);
                     }
                     // 确保输出容器可见且可交互，避免被样式或属性禁用
-                    if (usageResultContainer) {
-                        usageResultContainer.classList.remove('hidden');
-                        try { usageResultContainer.style.pointerEvents = 'auto'; } catch (_) { /* noop */ }
-                        try { usageResultContainer.removeAttribute('aria-hidden'); } catch (_) { /* noop */ }
-                        try { usageResultContainer.classList.remove('opacity-50'); } catch (_) { /* noop */ }
+                    if (usageResultContent) {
+                        usageResultContent.classList.remove('hidden');
+                        try { usageResultContent.style.pointerEvents = 'auto'; } catch (_) { /* noop */ }
+                        try { usageResultContent.removeAttribute('aria-hidden'); } catch (_) { /* noop */ }
+                        try { usageResultContent.classList.remove('opacity-50'); } catch (_) { /* noop */ }
                     }
                     // 确保保存/应用按钮可用
                     try { if (saveApplyOutputBtn) saveApplyOutputBtn.disabled = false; } catch (_) { /* noop */ }
@@ -2230,18 +2230,18 @@
                     }
 
                     // 滚动到结果区域
-                    usageResultContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    usageResultContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 } catch (error) {
                     // 失败时也将错误写入输出区域，并显示
                     const msg = (error && error.message) ? error.message : String(error);
                     showUsageStatus(`请求失败: ${msg}`, 'error');
                     usageResultContent.value = `错误：${msg}`;
                     // 确保输出容器可见且可交互，避免被样式或属性禁用
-                    if (usageResultContainer) {
-                        usageResultContainer.classList.remove('hidden');
-                        try { usageResultContainer.style.pointerEvents = 'auto'; } catch (_) { /* noop */ }
-                        try { usageResultContainer.removeAttribute('aria-hidden'); } catch (_) { /* noop */ }
-                        try { usageResultContainer.classList.remove('opacity-50'); } catch (_) { /* noop */ }
+                    if (usageResultContent) {
+                        usageResultContent.classList.remove('hidden');
+                        try { usageResultContent.style.pointerEvents = 'auto'; } catch (_) { /* noop */ }
+                        try { usageResultContent.removeAttribute('aria-hidden'); } catch (_) { /* noop */ }
+                        try { usageResultContent.classList.remove('opacity-50'); } catch (_) { /* noop */ }
                     }
                     // 确保保存/应用按钮可用（即便出错，用户可能仍想复制或查看原始错误）
                     try { if (saveApplyOutputBtn) saveApplyOutputBtn.disabled = false; } catch (_) { /* noop */ }
@@ -3132,7 +3132,7 @@
                         }
                         showUsageStatus('预览失败：' + msg, 'error');
                         usageResultContent.textContent = '预览失败：' + msg;
-                        usageResultContainer.classList.remove('hidden');
+                        usageResultContent.classList.remove('hidden');
                     }
                 });
             })();

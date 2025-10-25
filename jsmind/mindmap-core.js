@@ -2742,9 +2742,9 @@ function setupBoxSelection() {
       // 获取选中的节点
       const selectedNodes = window.getMultiSelection ? window.getMultiSelection() : [];
       const singleNode = window.jm && window.jm.get_selected_node ? window.jm.get_selected_node() : null;
-      
+
       let nodesToCut = [];
-      
+
       if (selectedNodes && selectedNodes.length > 0) {
         // 使用多选节点
         nodesToCut = selectedNodes;
@@ -2752,7 +2752,7 @@ function setupBoxSelection() {
         // 使用单选节点（排除根节点）
         nodesToCut = [singleNode.id];
       }
-      
+
       if (nodesToCut.length === 0) {
         console.log('[剪切] 没有选中的节点');
         if (window.showWarning) {
@@ -2760,16 +2760,16 @@ function setupBoxSelection() {
         }
         return;
       }
-      
+
       e.preventDefault();
       e.stopPropagation();
-      
+
       try {
         console.log(`[剪切] 开始剪切 ${nodesToCut.length} 个节点`);
-        
+
         // 第一步：复制节点（复用复制功能的逻辑）
         const copiedNodes = [];
-        
+
         nodesToCut.forEach(nodeId => {
           const node = window.jm.get_node(nodeId);
           if (node && node.id) {
@@ -2778,7 +2778,7 @@ function setupBoxSelection() {
             console.log(`[剪切] 复制节点: ${node.topic}`);
           }
         });
-        
+
         if (copiedNodes.length === 0) {
           console.warn('[剪切] 没有成功复制任何节点');
           if (window.showError) {
@@ -2786,11 +2786,11 @@ function setupBoxSelection() {
           }
           return;
         }
-        
+
         // 将复制的节点存储到全局变量
         window.MW.copiedNodes = copiedNodes;
         window.MW.copyTimestamp = Date.now();
-        
+
         // 第二步：删除原节点
         let deletedCount = 0;
         nodesToCut.forEach(nodeId => {
@@ -2804,22 +2804,22 @@ function setupBoxSelection() {
             }
           }
         });
-        
+
         console.log(`[剪切] 成功剪切 ${deletedCount} 个节点`);
         if (window.showSuccess) {
           showSuccess(`成功剪切 ${deletedCount} 个节点`);
         }
-        
+
         // 清除多选状态
         if (typeof window.clearMultiSelection === 'function') {
           window.clearMultiSelection();
         }
-        
+
         // 触发保存
         if (typeof debouncedSave === 'function') {
           debouncedSave();
         }
-        
+
       } catch (error) {
         console.error('[剪切] 剪切过程失败:', error);
         if (window.showError) {
@@ -2835,12 +2835,12 @@ function setupBoxSelection() {
       // 检查是否正在编辑节点详情（节点主题或备注输入框）或内联编辑器
       const activeElement = document.activeElement;
       if (activeElement && (
-        activeElement.id === 'nodeTopic' || 
+        activeElement.id === 'nodeTopic' ||
         activeElement.id === 'nodeNotes' ||
-        (activeElement.tagName && activeElement.tagName.toLowerCase() === 'textarea' && 
-         (activeElement.closest('#nodeDetails') || activeElement.closest('.node-details-panel'))) ||
-        (activeElement.tagName && activeElement.tagName.toLowerCase() === 'input' && 
-         activeElement.classList && activeElement.classList.contains('jsmind-editor'))
+        (activeElement.tagName && activeElement.tagName.toLowerCase() === 'textarea' &&
+          (activeElement.closest('#nodeDetails') || activeElement.closest('.node-details-panel'))) ||
+        (activeElement.tagName && activeElement.tagName.toLowerCase() === 'input' &&
+          activeElement.classList && activeElement.classList.contains('jsmind-editor'))
       )) {
         // 如果在节点详情编辑模式或内联编辑模式下，允许默认的文本粘贴行为
         console.log('[粘贴] 检测到编辑模式，跳过节点粘贴，允许文本粘贴');
@@ -2869,7 +2869,7 @@ function setupBoxSelection() {
       e.preventDefault();
       e.stopPropagation();
 
-      
+
       try {
         console.log(`[粘贴] 开始粘贴 ${window.MW.copiedNodes.length} 个节点到目标节点: ${targetNode.topic}`);
 
