@@ -2832,6 +2832,21 @@ function setupBoxSelection() {
   // 粘贴功能（Ctrl+V）- 将复制的节点插入到目标节点下
   document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+      // 检查是否正在编辑节点详情（节点主题或备注输入框）或内联编辑器
+      const activeElement = document.activeElement;
+      if (activeElement && (
+        activeElement.id === 'nodeTopic' || 
+        activeElement.id === 'nodeNotes' ||
+        (activeElement.tagName && activeElement.tagName.toLowerCase() === 'textarea' && 
+         (activeElement.closest('#nodeDetails') || activeElement.closest('.node-details-panel'))) ||
+        (activeElement.tagName && activeElement.tagName.toLowerCase() === 'input' && 
+         activeElement.classList && activeElement.classList.contains('jsmind-editor'))
+      )) {
+        // 如果在节点详情编辑模式或内联编辑模式下，允许默认的文本粘贴行为
+        console.log('[粘贴] 检测到编辑模式，跳过节点粘贴，允许文本粘贴');
+        return;
+      }
+
       // 检查是否有复制的数据
       if (!window.MW.copiedNodes || !Array.isArray(window.MW.copiedNodes) || window.MW.copiedNodes.length === 0) {
         console.log('[粘贴] 没有可复制的数据');
