@@ -80,9 +80,9 @@
                     reqMap.set(msg.requestId, e.source);
 
                     // 如果子页面要求直接返回（no modal），父页面可以直接处理或模拟返回，
-                    // 这里支持 mode:'direct' 的快速响应（不显示 aiModalFrame）
-                    if (msg.payload && msg.payload.mode === 'direct') {
-                        console.log('[父页] 直接模式（direct），转为 headless 请求到 aiModalFrame（不弹窗）', msg.requestId, 'from', e.origin || '(unknown origin)');
+                    // 这里支持 mode:'silent' 的快速响应（不显示 aiModalFrame）
+                    if (msg.payload && msg.payload.mode === 'silent') {
+                        console.log('[父页] 直接模式（silent），转为 headless 请求到 aiModalFrame（不弹窗）', msg.requestId, 'from', e.origin || '(unknown origin)');
                         // 构造 headless payload（兼容旧字段）
                         let platformCfgRaw = msg.payload.platformConfig || msg.payload.platform || {};
                         // 优先使用调用方提供的 provider；若未提供，尝试从 aiModalFrame 已保存的配置中选取第一个“完整配置”的平台（包含 apiKey 等）。

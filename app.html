@@ -1659,8 +1659,8 @@
         })();
 
         /* ==== AI 弹窗父层托管注入（来自 ai/newai/demo-caller.html 的适配实现） ====
-           子 iframe 通过 postMessage({ type:'AI_MODAL_OPEN_REQUEST', requestId, payload }, '*')
-           调用位于 ai/newai/AIServiceModal.html 的 AIServiceModal。支持 modal 与 headless（direct）。
+           子 iframe 通过 postMessage({ type:'AI_MODAL_OPEN', requestId, payload }, '*')
+           调用位于 ai/newai/AIServiceModal.html 的 AIServiceModal。支持 modal 与 silent
         */
         (function injectAiModalHost() {
             try {
@@ -1692,12 +1692,12 @@
                     var msg = e && e.data;
                     if (!msg || typeof msg !== 'object') return;
 
-                    if (msg.type === 'AI_MODAL_OPEN_REQUEST' && msg.requestId) {
-                        console.log('[INDEX] AI_MODAL_OPEN_REQUEST', msg.requestId, msg.payload);
+                    if (msg.type === 'AI_MODAL_OPEN' && msg.requestId) {
+                        console.log('[INDEX] AI_MODAL_OPEN', msg.requestId, msg.payload);
                         window.__ai_req_map.set(msg.requestId, e.source);
                         var aiFrame = document.getElementById('aiModalFrame');
 
-                        if (msg.payload && msg.payload.mode === 'direct') {
+                        if (msg.payload && msg.payload.mode === 'silent') {
                             // headless handling (kept for compatibility)
                             var platformCfgRaw = msg.payload.platformConfig || msg.payload.platform || {};
                             var platformConfig = Object.assign({}, platformCfgRaw);
@@ -1771,23 +1771,16 @@
                                 }
                             } catch (err) { console.warn('[INDEX] fill templateText failed', err); }
 
-                            var headlessPayload = {
-                                platformConfig: platformConfig,
-                                modelConfig: msg.payload.modelConfig || msg.payload.model || {},
-                                templateData: _tplRaw,
-                                options: msg.payload.options || {}
-                            };
-                            
-                            // Pass templateKey if provided
-                            if (msg.payload.templateKey) {
-                                headlessPayload.templateData.templateKey = msg.payload.templateKey;
-                            }
+                            // // 保留原始payload的所有字段，避免字段丢失
+                            // var headlessPayload = Object.assign({}, msg.payload || {}, {
+                            //     platformConfig: platformConfig,
+                            //     modelConfig: msg.payload.modelConfig || msg.payload.model || {},
+                            //     templateData: _tplRaw,
+                            //     options: msg.payload.options || {}
+                            // });
 
                             try {
-                                aiFrame.contentWindow.postMessage({
-                                    type: 'AI_MODAL_OPEN',
-                                    payload: Object.assign({}, headlessPayload, { requestId: msg.requestId, mode: 'silent' })
-                                }, '*');
+                                aiFrame.contentWindow.postMessage(msg);
                                 var HEADLESS_TIMEOUT_MS = 30000;
                                 var t = setTimeout(function () {
                                     try {
@@ -1795,6 +1788,7 @@
                                         if (src) {
                                             src.postMessage({
                                                 type: 'AI_MODAL_RESULT',
+
                                                 requestId: msg.requestId,
                                                 status: 'error',
                                                 detail: { message: 'headless call timeout' }

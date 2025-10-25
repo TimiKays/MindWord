@@ -2185,12 +2185,12 @@
                     // 例外：迷你模式下自动发送结果并关闭弹窗
                     if (isMiniMode) {
                         try {
-                            const rid = modal?.dataset?.requestId || null;
+
                             window.parent?.postMessage({
 
                                 type: 'AI_MODAL_RESULT',
                                 actionType: modal.dataset.actionType || '',
-                                requestId: rid,
+                                requestId: modal.dataset.requestId || null,
                                 status: 'ok',
                                 output: result
                             }, '*');
@@ -2221,12 +2221,12 @@
 
                     // 回传失败给父窗口
                     try {
-                        const rid = modal?.dataset?.requestId || null;
+
                         // 不要让父页面在收到错误后自动关闭弹窗：增加 keepOpen 字段以便父页面判断
                         window.parent?.postMessage({
                             type: 'AI_MODAL_RESULT',
                             actionType: modal.dataset.actionType || '',
-                            requestId: rid,
+                            requestId: modal.dataset.requestId || null,
                             status: 'error',
                             detail: { message: msg },
                             keepOpen: true
@@ -2723,11 +2723,11 @@
                         }
 
 
-                        const rid = modal?.dataset?.requestId || null;
+
                         const message = {
                             type: 'AI_MODAL_RESULT',
                             actionType: modal.dataset.actionType || '',
-                            requestId: rid,
+                            requestId: modal.dataset.requestId || null,
                             status: 'ok',
                             output
                         };
@@ -4385,16 +4385,20 @@
             // 监听父页面转发的打开请求（来自 demo 父页面）
             window.addEventListener('message', (e) => {
                 try {
+                    console.log('收到message：', e);
                     const msg = e?.data;
                     if (!msg || typeof msg !== 'object') return;
                     // 仅处理 AI_MODAL_OPEN 指令
                     if (msg.type === 'AI_MODAL_OPEN' && msg.payload) {
-                        const { actionType, title, initialView, presetPrompt, requestId, params, miniPrompt, mode } = msg.payload;
+                        const requestId = msg.requestId || msg.payload.requestId;
+                        const { actionType, title, initialView, presetPrompt, params, miniPrompt, mode } = msg.payload;
+
                         console.debug('[aiModal] received AI_MODAL_OPEN', { actionType, requestId, title, initialView, params });
 
                         // 存储 actionType 以便后续使用
                         if (actionType) {
                             modal.dataset.actionType = actionType;
+                            modal.dataset.requestId = requestId;
                         }
                         // 验证 params 是否为可用的对象或数组
                         let parsedParams = null;
@@ -4568,11 +4572,11 @@
 
                             // 如果父 payload 指定要自动运行（兼容 headless 或 autoRun），仅在明确标记时触发
                             try {
-                                const shouldAutoRun = !!(msg.payload && msg.payload.mode === 'direct');
+                                const shouldAutoRun = !!(msg.payload && msg.payload.mode === 'silent');
                                 if (shouldAutoRun) {
-                                    // 若 autoRun 或 direct，则触发一次预览或发送（dryRun:false 表示真正发送）
-                                    // 但为了安全，优先触发组件内的 runAIHeadless（若 mode==='direct'）或直接点击发送按钮（模拟用户交互）
-                                    if (msg.payload.mode === 'direct') {
+                                    // 若 autoRun 或 silent，则触发一次预览或发送（dryRun:false 表示真正发送）
+                                    // 但为了安全，优先触发组件内的 runAIHeadless（若 mode==='silent'）或直接点击发送按钮（模拟用户交互）
+                                    if (msg.payload.mode === 'silent') {
                                         // headless path: instruct parent to run headless via runAIHeadless inside iframe
                                         // 这里不自动调用 usageSubmitBtn.click()，而是触发组件内的 headless path if available
                                         try {

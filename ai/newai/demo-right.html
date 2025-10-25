@@ -32,12 +32,12 @@
 
 <body>
     <h4>右侧：直接获取回应（不弹窗）</h4>
-    <p>示例将发送一个直接模式请求（mode:'direct'），结果在下方显示。</p>
+    <p>示例将发送一个直接模式请求（mode:'silent'），结果在下方显示。</p>
 
     <label>输入（将作为 single param）：
         <input id="value" placeholder="要发送的值" style="width:100%;padding:6px">
     </label>
-    <button id="send">发送（direct）</button>
+    <button id="send">发送（silent）</button>
 
     <div class="result"><strong>响应：</strong>
         <pre id="out">（空）</pre>
@@ -61,7 +61,7 @@
             }
             window.addEventListener('message', onMsg, false);
 
-            const payload = { mode: 'direct', params: { input: { desc: '右侧输入', value } } };
+            const payload = { mode: 'silent', params: { input: { desc: '右侧输入', value } } };
             window.parent.postMessage({ type: 'AI_MODAL_OPEN_REQUEST', requestId, payload }, '*');
         });
     </script>

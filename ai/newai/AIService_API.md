@@ -1,7 +1,7 @@
 # AI 弹窗组件（父页面托管）调用文档
 
 概述  
-父页面（demo-caller.html）为子 iframe 提供了两种调用 AI 服务的方式：modal（弹窗）与 headless（direct，无弹窗）。子页面通过 postMessage 向父页面发送请求，父页面负责转发到 aiModalFrame（AIServiceModal.html），并将结果回传给发起方。
+父页面（demo-caller.html）为子 iframe 提供了两种调用 AI 服务的方式：modal（弹窗）与 headless（silent，无弹窗）。子页面通过 postMessage 向父页面发送请求，父页面负责转发到 aiModalFrame（AIServiceModal.html），并将结果回传给发起方。
 
 请求与响应总览  
 - 请求类型（子 -> 父）: AI_MODAL_OPEN_REQUEST  
@@ -15,19 +15,19 @@
 1. Modal（默认）
 - 行为：父页面展示 aiModalFrame（弹窗），用户在弹窗内配置或确认后运行，由 aiModalFrame 发回结果。
 - 适用：需要用户交互、选择模型/平台或查看执行过程的场景。
-- 发起方式：子页面发送 AI_MODAL_OPEN_REQUEST，payload 不含 mode 或 mode !== 'direct'。
+- 发起方式：子页面发送 AI_MODAL_OPEN_REQUEST，payload 不含 mode 或 mode !== 'silent'。
 
-2. Headless / Direct（无弹窗）
+2. Headless / silent（无弹窗）
 - 行为：父页面在后台将请求转发给 aiModalFrame 并不显示弹窗（modal 隐藏或不打开），直接等待结果并回传给子 iframe。
 - 适用：子页面希望以编程方式直接获取结果、或在已知平台配置（apiKey 等）后快速调用。
-- 发起方式：在请求中加入 payload.mode = 'direct'。
+- 发起方式：在请求中加入 payload.mode = 'silent'。
 
 请求字段（子 -> 父）
 字段说明（payload 位于 AI_MODAL_OPEN_REQUEST.payload）：
 - requestId (string)  
   - 唯一请求标识（子端负责生成），格式示例：r_xxx
 - mode (optional, string)  
-  - 'direct' 表示 headless，无弹窗；缺省或其它表示 modal。
+  - 'silent' 表示 headless，无弹窗；缺省或其它表示 modal。
 - platformConfig (object)  
   - 可选。指定调用平台（provider, apiKey, azureEndpoint, cloudflareAccountId 等）。若未提供，父页面会尝试从 aiModalFrame.localStorage 选择已保存的平台（同源可用）。
 - modelConfig (object)  
@@ -57,12 +57,12 @@
   }
 }
 
-示例（Headless / Direct）
+示例（Headless / silent）
 {
   "type": "AI_MODAL_OPEN_REQUEST",
-  "requestId": "r_direct_01",
+  "requestId": "r_silent_01",
   "payload": {
-    "mode": "direct",
+    "mode": "silent",
     "platformConfig": { "provider": "openrouter", "apiKey": "sk-..." },
     "modelConfig": {},
     "templateData": {
@@ -84,7 +84,7 @@
 
 常见错误与处理建议
 - "未提供模板文本"：确保 templateData.templateText 非空；若只提供 placeholders，请将输入放入 templateText 或使用 "{{input}}" 模板并提供 placeholders。父页面已尽力补齐，但最好在调用端保证 templateText 有合理值。
-- 无可用 platformConfig：如果 mode='direct' 且未提供 platformConfig，父页会尝试从 aiModalFrame.localStorage 读取已保存平台；若仍未找到，会打开配置视图并返回错误。建议在 headless 调用时传入完整 platformConfig（含 apiKey 或 azureEndpoint 等）。
+- 无可用 platformConfig：如果 mode='silent' 且未提供 platformConfig，父页会尝试从 aiModalFrame.localStorage 读取已保存平台；若仍未找到，会打开配置视图并返回错误。建议在 headless 调用时传入完整 platformConfig（含 apiKey 或 azureEndpoint 等）。
 - headless 超时：父页面默认 15s 超时回退（可在父脚本中调整）。若需要更长运行时间，请在 options 中注明并确保后端支持。
 
 调试建议

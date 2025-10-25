@@ -779,11 +779,11 @@ function expandWithAI() {
 
       // 如果快速AI开关开启，使用无弹窗模式
       if (window.__quickAIEnabled) {
-        payload.mode = 'direct';
+        payload.mode = 'silent';
       }
 
       window.parent.postMessage({
-        type: 'AI_MODAL_OPEN_REQUEST',
+        type: 'AI_MODAL_OPEN',
         actionType: payload.actionType,
         requestId: requestId,
         payload: payload
@@ -941,7 +941,7 @@ function aiGenerateInitialTreeMini(options) {
     // 发送打开AI模态框的请求，父窗口会通过迷你模式打开弹窗
     if (window.parent && window.parent !== window) {
       window.parent.postMessage({
-        type: 'AI_MODAL_OPEN_REQUEST',
+        type: 'AI_MODAL_OPEN',
         actionType: payload.actionType,
         requestId: requestId,
         payload: payload
