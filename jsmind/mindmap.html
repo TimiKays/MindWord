@@ -1132,7 +1132,7 @@
 
         // 对每个节点的 topic 前面插入 emoji（若已存在表情则替换）
         // 使用宽松的 emoji 去除正则（兼容性差时也能工作）
-        var emojiStrip = /^[^\w\u4e00-\u9fff\s]+/u;
+        var emojiStrip = /^[^\w\u4e00-\u9fff\s\u2000-\u206F\u2E00-\u2E7F\u3000-\u303F\u3200-\u32FF\uFE00-\uFE0F\uFE30-\uFE4F\u1F000-\u1F9FF]+/u;
         ids.forEach(function (id) {
           try {
             var node = jm.get_node(id);
@@ -1173,7 +1173,7 @@
           return;
         }
 
-        var emojiStrip = /^[^\w\u4e00-\u9fff\s]+/u;
+        var emojiStrip = /^[^\w\u4e00-\u9fff\s\u2000-\u206F\u2E00-\u2E7F\u3000-\u303F\u3200-\u32FF\uFE00-\uFE0F\uFE30-\uFE4F\u1F000-\u1F9FF]+/u;
         ids.forEach(function (id) {
           try {
             var node = jm.get_node(id);
