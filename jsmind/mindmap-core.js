@@ -2736,6 +2736,99 @@ function setupBoxSelection() {
     }
   }, true);
 
+  // 剪切功能（Ctrl+X）- 复制并删除选中的节点
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'x') {
+      // 获取选中的节点
+      const selectedNodes = window.getMultiSelection ? window.getMultiSelection() : [];
+      const singleNode = window.jm && window.jm.get_selected_node ? window.jm.get_selected_node() : null;
+      
+      let nodesToCut = [];
+      
+      if (selectedNodes && selectedNodes.length > 0) {
+        // 使用多选节点
+        nodesToCut = selectedNodes;
+      } else if (singleNode && singleNode.id && singleNode.id !== 'root') {
+        // 使用单选节点（排除根节点）
+        nodesToCut = [singleNode.id];
+      }
+      
+      if (nodesToCut.length === 0) {
+        console.log('[剪切] 没有选中的节点');
+        if (window.showWarning) {
+          showWarning('请先选择要剪切的节点');
+        }
+        return;
+      }
+      
+      e.preventDefault();
+      e.stopPropagation();
+      
+      try {
+        console.log(`[剪切] 开始剪切 ${nodesToCut.length} 个节点`);
+        
+        // 第一步：复制节点（复用复制功能的逻辑）
+        const copiedNodes = [];
+        
+        nodesToCut.forEach(nodeId => {
+          const node = window.jm.get_node(nodeId);
+          if (node && node.id) {
+            const nodeData = getNodeTreeRecursive(node);
+            copiedNodes.push(nodeData);
+            console.log(`[剪切] 复制节点: ${node.topic}`);
+          }
+        });
+        
+        if (copiedNodes.length === 0) {
+          console.warn('[剪切] 没有成功复制任何节点');
+          if (window.showError) {
+            showError('剪切节点失败');
+          }
+          return;
+        }
+        
+        // 将复制的节点存储到全局变量
+        window.MW.copiedNodes = copiedNodes;
+        window.MW.copyTimestamp = Date.now();
+        
+        // 第二步：删除原节点
+        let deletedCount = 0;
+        nodesToCut.forEach(nodeId => {
+          if (nodeId && nodeId !== 'root') {
+            try {
+              window.jm.remove_node(nodeId);
+              deletedCount++;
+              console.log(`[剪切] 删除原节点: ${nodeId}`);
+            } catch (error) {
+              console.error(`[剪切] 删除节点失败: ${nodeId}`, error);
+            }
+          }
+        });
+        
+        console.log(`[剪切] 成功剪切 ${deletedCount} 个节点`);
+        if (window.showSuccess) {
+          showSuccess(`成功剪切 ${deletedCount} 个节点`);
+        }
+        
+        // 清除多选状态
+        if (typeof window.clearMultiSelection === 'function') {
+          window.clearMultiSelection();
+        }
+        
+        // 触发保存
+        if (typeof debouncedSave === 'function') {
+          debouncedSave();
+        }
+        
+      } catch (error) {
+        console.error('[剪切] 剪切过程失败:', error);
+        if (window.showError) {
+          showError('剪切节点失败');
+        }
+      }
+    }
+  }, true);
+
   // 粘贴功能（Ctrl+V）- 将复制的节点插入到目标节点下
   document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
