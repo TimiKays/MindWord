@@ -141,50 +141,63 @@
                     await mw_importZip(zipBlob);
                     try { localStorage.setItem('mw_last_change_time', Date.now().toString()); } catch (_) { }
                     showSuccess && showSuccess('已从云端恢复为最新');
-            setTimeout(updateCloudSyncStatusMenu, 300);
-            
-            // 检查当前文档是否被删除，如果是则切换到第一个有效文档
-            setTimeout(() => {
-              const currentActiveId = mw_getActive();
-              if (currentActiveId) {
-                const docs = (typeof mw_loadDocs === 'function') ? mw_loadDocs() : [];
-                const currentDoc = docs.find(d => d.id === currentActiveId);
-                if (!currentDoc || currentDoc.deletedAt) {
-                  console.log('[CloudSync] 当前文档已被删除，准备切换到第一个有效文档');
-                  // 切换到第一个未删除的文档
-                  const firstValidDoc = docs.find(d => !d.deletedAt);
-                  if (firstValidDoc) {
-                    mw_setActive(firstValidDoc.id);
-                    mw_notifyEditorLoad(firstValidDoc);
-                    mw_notifyPreviewLoad(firstValidDoc);
-                    mw_notifyMindmapLoad(firstValidDoc);
-                    console.log('[CloudSync] 已切换到第一个有效文档:', firstValidDoc.id);
-                  } else {
-                    // 没有有效文档，创建新文档
-                    const newId = 'doc_' + Date.now();
-                    const newDoc = {
-                      id: newId,
-                      name: '未命名文档',
-                      md: '# 未命名文档\n',
-                      images: [],
-                      createdAt: Date.now(),
-                      updatedAt: Date.now(),
-                      version: 1
-                    };
-                    docs.push(newDoc);
-                    mw_saveDocs(docs);
-                    mw_setActive(newId);
-                    mw_renderList();
-                    mw_notifyEditorLoad(newDoc);
-                    mw_notifyPreviewLoad(newDoc);
-                    mw_notifyMindmapLoad(newDoc);
-                    console.log('[CloudSync] 已创建新文档:', newId);
-                  }
-                }
-              }
-            }, 100);
-            
-            return { action: 'download', cloud };
+
+                    // 缓存同步数据到本地
+                    try {
+                        const meta = await fetchLatestMeta();
+                        if (meta && meta.fileCount !== undefined && meta.sizeBytes !== undefined) {
+                            localStorage.setItem('mw_cloud_sync_cache_en', JSON.stringify({
+                                fileCount: meta.fileCount,
+                                sizeBytes: meta.sizeBytes,
+                                updatedAt: meta.updatedAt || new Date().toISOString()
+                            }));
+                        }
+                    } catch (_) { }
+
+                    setTimeout(updateCloudSyncStatusMenu, 300);
+
+                    // 检查当前文档是否被删除，如果是则切换到第一个有效文档
+                    setTimeout(() => {
+                        const currentActiveId = mw_getActive();
+                        if (currentActiveId) {
+                            const docs = (typeof mw_loadDocs === 'function') ? mw_loadDocs() : [];
+                            const currentDoc = docs.find(d => d.id === currentActiveId);
+                            if (!currentDoc || currentDoc.deletedAt) {
+                                console.log('[CloudSync] 当前文档已被删除，准备切换到第一个有效文档');
+                                // 切换到第一个未删除的文档
+                                const firstValidDoc = docs.find(d => !d.deletedAt);
+                                if (firstValidDoc) {
+                                    mw_setActive(firstValidDoc.id);
+                                    mw_notifyEditorLoad(firstValidDoc);
+                                    mw_notifyPreviewLoad(firstValidDoc);
+                                    mw_notifyMindmapLoad(firstValidDoc);
+                                    console.log('[CloudSync] 已切换到第一个有效文档:', firstValidDoc.id);
+                                } else {
+                                    // 没有有效文档，创建新文档
+                                    const newId = 'doc_' + Date.now();
+                                    const newDoc = {
+                                        id: newId,
+                                        name: '未命名文档',
+                                        md: '# 未命名文档\n',
+                                        images: [],
+                                        createdAt: Date.now(),
+                                        updatedAt: Date.now(),
+                                        version: 1
+                                    };
+                                    docs.push(newDoc);
+                                    mw_saveDocs(docs);
+                                    mw_setActive(newId);
+                                    mw_renderList();
+                                    mw_notifyEditorLoad(newDoc);
+                                    mw_notifyPreviewLoad(newDoc);
+                                    mw_notifyMindmapLoad(newDoc);
+                                    console.log('[CloudSync] 已创建新文档:', newId);
+                                }
+                            }
+                        }
+                    }, 100);
+
+                    return { action: 'download', cloud };
                 }
             }
 
@@ -197,6 +210,18 @@
             const res = await uploadLatestZip(zipBlob);
             try { localStorage.setItem('mw_last_change_time', Date.now().toString()); } catch (_) { }
             showSuccess && showSuccess('已上传云端最新备份');
+
+            // 缓存同步数据到本地
+            try {
+                const docs = (typeof mw_loadDocs === 'function') ? mw_loadDocs() : [];
+                const fileCount = docs ? docs.length : 0;
+                localStorage.setItem('mw_cloud_sync_cache_en', JSON.stringify({
+                    fileCount: fileCount,
+                    sizeBytes: zipBlob.size,
+                    updatedAt: new Date().toISOString()
+                }));
+            } catch (_) { }
+
             setTimeout(updateCloudSyncStatusMenu, 300);
             return { action: 'upload', meta: res };
         } catch (e) {
@@ -236,6 +261,63 @@
         if (!statusEl) return;
 
         try {
+            // 根据当前语言选择对应的缓存键
+            const currentLang = (function () { try { return localStorage.getItem('mw_lang') || 'zh'; } catch (_) { return 'zh'; } })();
+            const cacheKey = currentLang === 'en' ? 'mw_cloud_sync_cache_en' : 'mw_cloud_sync_cache_cn';
+
+            // 首先尝试从本地缓存获取数据
+            let cachedData = null;
+            try {
+                const cached = localStorage.getItem(cacheKey);
+                if (cached) {
+                    cachedData = JSON.parse(cached);
+                }
+            } catch (_) { }
+
+            // 如果有缓存数据，直接使用缓存数据
+            if (cachedData && cachedData.fileCount !== undefined && cachedData.sizeBytes !== undefined) {
+                const fileCount = cachedData.fileCount || 0;
+                const sizeBytes = cachedData.sizeBytes || 0;
+                const updatedAt = cachedData.updatedAt || cachedData.timestamp;
+
+                let timeText = '';
+                if (updatedAt) {
+                    const date = new Date(updatedAt);
+                    const now = new Date();
+                    const diffMs = now - date;
+                    const diffMins = Math.floor(diffMs / 60000);
+                    const diffHours = Math.floor(diffMs / 3600000);
+                    const diffDays = Math.floor(diffMs / 86400000);
+
+                    if (diffMins < 1) {
+                        timeText = '刚刚';
+                    } else if (diffMins < 60) {
+                        timeText = `${diffMins}分钟前`;
+                    } else if (diffHours < 24) {
+                        timeText = `${diffHours}小时前`;
+                    } else if (diffDays < 7) {
+                        timeText = `${diffDays}天前`;
+                    } else {
+                        timeText = date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+                    }
+                }
+
+                statusEl.innerHTML = `文件: ${fileCount}个<br>${fmtBytes(sizeBytes)} / 10MB${timeText ? '<br>备份: ' + timeText : ''}`;
+
+                // 根据文件大小改变颜色
+                if (sizeBytes > 9.5 * 1024 * 1024) {
+                    statusEl.style.color = '#e53935';
+                } else if (sizeBytes > 8 * 1024 * 1024) {
+                    statusEl.style.color = '#ff9800';
+                } else {
+                    statusEl.style.color = '#666';
+                }
+
+                if (syncBtn) syncBtn.disabled = false;
+                return;
+            }
+
+            // 如果没有缓存数据，尝试从云端获取
             const meta = await fetchLatestMeta();
             if (!meta) {
                 statusEl.textContent = '双向同步为最新';
@@ -245,10 +327,40 @@
             }
 
             const docs = (typeof mw_loadDocs === 'function') ? mw_loadDocs() : [];
-            const fileCount = docs ? docs.length : 0;
+            // 过滤掉已删除的文档，只统计有效文档
+            const validDocs = docs ? docs.filter(doc => !doc.deletedAt) : [];
+            const fileCount = validDocs.length;
             const sizeBytes = meta.sizeBytes || 0;
+            const updatedAt = meta.updatedAt || new Date().toISOString();
 
-            statusEl.innerHTML = `文件: ${fileCount}个<br>${fmtBytes(sizeBytes)} / 10MB`;
+            // 保存到缓存，下次可以直接使用
+            const cacheData = { fileCount, sizeBytes, updatedAt };
+            localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+
+            // 计算相对时间
+            let timeText = '';
+            if (updatedAt) {
+                const date = new Date(updatedAt);
+                const now = new Date();
+                const diffMs = now - date;
+                const diffMins = Math.floor(diffMs / 60000);
+                const diffHours = Math.floor(diffMs / 3600000);
+                const diffDays = Math.floor(diffMs / 86400000);
+
+                if (diffMins < 1) {
+                    timeText = '刚刚';
+                } else if (diffMins < 60) {
+                    timeText = `${diffMins}分钟前`;
+                } else if (diffHours < 24) {
+                    timeText = `${diffHours}小时前`;
+                } else if (diffDays < 7) {
+                    timeText = `${diffDays}天前`;
+                } else {
+                    timeText = date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+                }
+            }
+
+            statusEl.innerHTML = `文件: ${fileCount}个<br>${fmtBytes(sizeBytes)} / 10MB${timeText ? '<br>备份: ' + timeText : ''}`;
 
             // 根据文件大小改变颜色
             if (sizeBytes > 9.5 * 1024 * 1024) {
@@ -331,4 +443,7 @@
     });
     // 暴露手动刷新入口供现有 refreshAuthUI 调用（如需）
     window.__mw_initCloudSyncUI = initCloudSyncUI;
+
+    // 将更新函数暴露到全局作用域，供其他文件调用
+    window.updateCloudSyncStatusMenu = updateCloudSyncStatusMenu;
 })();

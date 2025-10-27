@@ -360,15 +360,15 @@
                     <div class="lg:hidden flex items-center space-x-2">
                         <!-- 立即体验按钮 - 移动端 -->
                         <a href="app.html"
-                            class="bg-primary hover:bg-primary/90 text-white px-3 py-1.5 rounded-md font-medium text-sm transition-all shadow-md hover:shadow-lg"
+                            class="bg-primary hover:bg-primary/90 text-white px-3 py-2 rounded-md font-medium text-sm transition-all shadow-md hover:shadow-lg h-9 flex items-center"
                             data-i18n="nav.tryNow">
                             立即体验
                         </a>
 
                         <!-- 语言切换下拉框 - 移动端 -->
                         <select id="lang-switch-mobile" onchange="window.i18nManager.setLanguage(this.value)"
-                            class="h-7 border border-gray-300 rounded-md bg-white text-gray-700 text-xs px-1 py-0.5"
-                            style="min-width: 50px;">
+                            class="h-9 border border-gray-300 rounded-md bg-white text-gray-700 text-xs px-2 hover:border-primary transition-colors"
+                            style="min-width: 60px;">
                             <option value="zh" data-i18n="language.zh">中文</option>
                             <option value="en" data-i18n="language.en">EN</option>
                         </select>
@@ -419,7 +419,7 @@
                     <p class="text-lg text-dark/70 mb-8 max-w-xl mx-auto" data-i18n="hero.subtitle">
                         像画图一样写文档
                     </p>
-                    <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <div class="flex flex-row gap-4 justify-center flex-wrap">
                         <a href="app.html"
                             class="bg-primary hover:bg-primary/90 text-white px-8 py-3 rounded-lg font-medium text-center transition-all shadow-lg hover:shadow-xl"
                             data-i18n="nav.freeTrial">
@@ -475,7 +475,7 @@
                 </div>
 
                 <!-- 用户群体 -->
-                <div class="text-center mb-16 mt-8">
+                <div class="text-center mt-16">
                     <p class="text-dark/50 uppercase tracking-wider mb-4" data-i18n="hero.userGroups.title">用户群体</p>
                     <div class="user-groups-container">
                         <!-- 第一排：写作者和产品经理 -->
@@ -600,18 +600,19 @@
 
                 <!-- 功能标签页 -->
                 <div class="max-w-5xl mx-auto">
-                    <div class="mb-8 flex flex-wrap justify-center gap-4">
-                        <button class="feature-tab active px-6 py-2 rounded-full bg-primary text-white font-medium"
+                    <div class="mb-8 flex flex-row justify-center gap-2 flex-nowrap">
+                        <button
+                            class="feature-tab active px-4 py-2 rounded-full bg-primary text-white font-medium text-sm whitespace-nowrap"
                             data-tab="markdown" data-i18n="features.tabs.markdown">
                             Markdown编辑器
                         </button>
                         <button
-                            class="feature-tab px-6 py-2 rounded-full bg-white text-dark font-medium hover:bg-gray-100 transition-colors"
+                            class="feature-tab px-4 py-2 rounded-full bg-white text-dark font-medium hover:bg-gray-100 transition-colors text-sm whitespace-nowrap"
                             data-tab="mindmap" data-i18n="features.tabs.mindmap">
                             思维导图画布
                         </button>
                         <button
-                            class="feature-tab px-6 py-2 rounded-full bg-white text-dark font-medium hover:bg-gray-100 transition-colors"
+                            class="feature-tab px-4 py-2 rounded-full bg-white text-dark font-medium hover:bg-gray-100 transition-colors text-sm whitespace-nowrap"
                             data-tab="word" data-i18n="features.tabs.word">
                             Word文件生成
                         </button>

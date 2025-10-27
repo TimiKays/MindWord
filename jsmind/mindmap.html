@@ -1177,15 +1177,15 @@
         var numberEmojiPattern = /^[0-9]\uFE0F\u20E3/;
         // 通用emoji模式
         var emojiStrip = /^[^\w\u4e00-\u9fff\s\u2000-\u206F\u2E00-\u2E7F\u3000-\u303F\u3200-\u32FF\uFE00-\uFE0F\uFE30-\uFE4F\u1F000-\u1F9FF]+/u;
-
+        
         ids.forEach(function (id) {
           try {
             var node = jm.get_node(id);
             if (!node) return;
             var topic = node.topic || '';
-
+            
             console.log("清除前topic:", topic);
-
+            
             // 先尝试移除序号emoji
             if (numberEmojiPattern.test(topic)) {
               topic = topic.replace(numberEmojiPattern, '').trim();
@@ -1196,7 +1196,7 @@
               topic = topic.replace(emojiStrip, '').trim();
               console.log("使用通用emoji模式清除:", originalTopic, "->", topic);
             }
-
+            
             jm.update_node(node.id, topic);
             console.log("最终更新为:", topic);
           } catch (e) { console.warn('清除图标失败', e); }

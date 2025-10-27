@@ -2849,8 +2849,13 @@
             // 退出登录
             try {
                 var logoutBtn = document.getElementById('auth-logout');
-                if (logoutBtn) {
-                    logoutBtn.addEventListener('click', function () {
+                var hiddenLogoutBtn = document.getElementById('auth-logout-menu');
+                console.log('[AUTH] 退出登录按钮检查 - 可见按钮:', !!logoutBtn, '隐藏按钮:', !!hiddenLogoutBtn);
+                
+                // 优先绑定隐藏按钮的事件，因为可见菜单项是通过onclick触发隐藏按钮的
+                if (hiddenLogoutBtn) {
+                    console.log('[AUTH] 绑定隐藏退出登录按钮事件');
+                    hiddenLogoutBtn.addEventListener('click', function () {
                         // 创建自定义对话框
                         var dialogHtml = `
                             <div id="logout-dialog" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; display: flex; align-items: center; justify-content: center;">
@@ -2939,9 +2944,11 @@
                                 handleLogoutChoice('cancel');
                             }
                         });
+
+                        console.log('[AUTH] 退出登录对话框已创建并绑定事件');
                     });
                 }
-            } catch (e) { console.warn(e); }
+            } catch (e) { console.warn('[AUTH] 退出登录初始化错误:', e); }
 
             // 首次渲染
             refreshAuthUI();
@@ -2960,6 +2967,53 @@
                     console.log('[AUTH] 从登录页面返回，再次刷新认证状态');
                     refreshAuthUI();
                 }, 2000);
+                
+                // 登录后根据当前语言自动执行同步
+                setTimeout(function () {
+                    console.log('[AUTH] 登录后自动同步检测');
+                    try {
+                        const currentLang = (function() { 
+                            try { 
+                                return localStorage.getItem('mw_lang') || 'zh'; 
+                            } catch (_) { 
+                                return 'zh'; 
+                            } 
+                        })();
+                        
+                        if (currentLang === 'zh') {
+                            // 中文模式：使用LeanCloud同步
+                            if (window.MW_LC_SYNC && typeof window.MW_LC_SYNC.sync === 'function') {
+                                console.log('[AUTH] 检测到中文模式，执行LeanCloud自动同步');
+                                window.MW_LC_SYNC.sync();
+                            } else {
+                                console.log('[AUTH] LeanCloud同步未准备好，等待初始化');
+                                // 如果同步功能还没准备好，稍后再试
+                                setTimeout(function() {
+                                    if (window.MW_LC_SYNC && typeof window.MW_LC_SYNC.sync === 'function') {
+                                        console.log('[AUTH] 重试LeanCloud自动同步');
+                                        window.MW_LC_SYNC.sync();
+                                    }
+                                }, 3000);
+                            }
+                        } else {
+                            // 英文模式：使用Cloudflare Worker同步
+                            if (typeof window.bidirectionalSyncLatest === 'function') {
+                                console.log('[AUTH] 检测到英文模式，执行Cloudflare Worker自动同步');
+                                window.bidirectionalSyncLatest();
+                            } else {
+                                console.log('[AUTH] Cloudflare Worker同步未准备好，等待初始化');
+                                setTimeout(function() {
+                                    if (typeof window.bidirectionalSyncLatest === 'function') {
+                                        console.log('[AUTH] 重试Cloudflare Worker自动同步');
+                                        window.bidirectionalSyncLatest();
+                                    }
+                                }, 3000);
+                            }
+                        }
+                    } catch (error) {
+                        console.error('[AUTH] 自动同步失败:', error);
+                    }
+                }, 4000); // 比认证状态刷新稍晚一些，确保所有组件都初始化完成
             }
 
             // 个人菜单下拉功能（增强版，支持点击外部区域自动关闭，包括iframe）
@@ -2981,6 +3035,16 @@
                         // 如果菜单打开，设置点击外部关闭处理
                         if (!isVisible) {
                             setupUserMenuClickOutsideHandler();
+                            
+                            // 菜单打开时刷新云同步状态
+                            setTimeout(() => {
+                                if (typeof window.updateCloudSyncStatusMenu === 'function') {
+                                    window.updateCloudSyncStatusMenu();
+                                }
+                                if (typeof window.MW_LC_SYNC !== 'undefined' && typeof window.MW_LC_SYNC.updateStatus === 'function') {
+                                    window.MW_LC_SYNC.updateStatus();
+                                }
+                            }, 100);
                         } else {
                             removeUserMenuClickOutsideHandler();
                         }

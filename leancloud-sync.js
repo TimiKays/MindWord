@@ -521,6 +521,17 @@
           }
         }
       }
+      // 缓存同步数据到本地（中文版使用独立缓存键）
+      try {
+        const docs = getLocalDocs();
+        const fileCount = docs ? docs.length : 0;
+        localStorage.setItem('mw_cloud_sync_cache_cn', JSON.stringify({
+          fileCount: fileCount,
+          sizeBytes: sizeCheck.totalSize,
+          updatedAt: new Date().toISOString()
+        }));
+      } catch (_) { }
+
       showSuccess('同步完成');
       setTimeout(updateSyncStatus, 300);
     } catch (e) {
@@ -638,14 +649,111 @@
   // 显示文件大小和同步状态
   function updateSyncStatus() {
     try {
+      // 根据当前语言选择对应的缓存键
+      const currentLang = getLang();
+      const cacheKey = currentLang === 'en' ? 'mw_cloud_sync_cache_en' : 'mw_cloud_sync_cache_cn';
+
+      // 首先尝试从本地缓存获取数据
+      let cachedData = null;
+      try {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          cachedData = JSON.parse(cached);
+        }
+      } catch (_) { }
+
+      // 如果有缓存数据，优先使用缓存数据
+      if (cachedData && cachedData.fileCount !== undefined && cachedData.sizeBytes !== undefined) {
+        const fileCount = cachedData.fileCount || 0;
+        const sizeBytes = cachedData.sizeBytes || 0;
+        const totalSizeKB = (sizeBytes / 1024).toFixed(1);
+        const updatedAt = cachedData.updatedAt || cachedData.timestamp;
+
+        // 计算相对时间
+        let timeText = '';
+        if (updatedAt) {
+          const date = new Date(updatedAt);
+          const now = new Date();
+          const diffMs = now - date;
+          const diffMins = Math.floor(diffMs / 60000);
+          const diffHours = Math.floor(diffMs / 3600000);
+          const diffDays = Math.floor(diffMs / 86400000);
+
+          if (diffMins < 1) {
+            timeText = '刚刚';
+          } else if (diffMins < 60) {
+            timeText = `${diffMins}分钟前`;
+          } else if (diffHours < 24) {
+            timeText = `${diffHours}小时前`;
+          } else if (diffDays < 7) {
+            timeText = `${diffDays}天前`;
+          } else {
+            timeText = date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+          }
+        }
+
+        // 更新状态显示（主界面）
+        const statusElement = document.getElementById('lc-sync-status');
+        if (statusElement) {
+          statusElement.innerHTML = `
+            <small style="color: #666; font-size: 11px;">
+              文件: ${fileCount}个<br>${totalSizeKB}KB / 10MB${timeText ? '<br>备份: ' + timeText : ''}
+            </small>
+          `;
+
+          // 根据使用情况改变颜色
+          if (sizeBytes > 8 * 1024 * 1024) { // 超过8MB
+            statusElement.querySelector('small').style.color = '#e74c3c';
+          } else if (sizeBytes > 5 * 1024 * 1024) { // 超过5MB
+            statusElement.querySelector('small').style.color = '#f39c12';
+          }
+        }
+
+        // 更新个人菜单中的状态显示
+        const menuStatusElement = document.getElementById('lc-sync-status-menu');
+        if (menuStatusElement) {
+          menuStatusElement.innerHTML = `文件: ${fileCount}个<br>${totalSizeKB}KB / 10MB${timeText ? '<br>备份: ' + timeText : ''}`;
+
+          // 根据使用情况改变颜色
+          if (sizeBytes > 8 * 1024 * 1024) { // 超过8MB
+            menuStatusElement.style.color = '#e74c3c';
+          } else if (sizeBytes > 5 * 1024 * 1024) { // 超过5MB
+            menuStatusElement.style.color = '#f39c12';
+          } else {
+            menuStatusElement.style.color = '#9ca3af';
+          }
+        }
+
+        // 更新按钮状态
+        const syncBtn = document.getElementById('lc-sync-btn');
+        if (syncBtn) {
+          syncBtn.disabled = false;
+          syncBtn.title = '一键同步';
+          syncBtn.style.opacity = '1';
+        }
+
+        // 更新个人菜单中的同步按钮状态
+        const menuSyncBtn = document.getElementById('lc-sync-btn-menu');
+        if (menuSyncBtn) {
+          menuSyncBtn.disabled = false;
+          menuSyncBtn.title = '一键同步';
+          menuSyncBtn.style.opacity = '1';
+        }
+
+        return;
+      }
+
+      // 如果没有缓存数据，使用原有的本地数据逻辑
       const docs = getLocalDocs();
-      const sizeCheck = checkFileSize(docs);
+      // 过滤掉已删除的文档，只统计有效文档
+      const validDocs = docs ? docs.filter(doc => !doc.deletedAt) : [];
+      const sizeCheck = checkFileSize(validDocs);
 
       // 更新状态显示（主界面）
       const statusElement = document.getElementById('lc-sync-status');
       if (statusElement) {
         const totalSizeMB = (sizeCheck.totalSize / 1024).toFixed(1);
-        const fileCount = docs ? docs.length : 0;
+        const fileCount = validDocs.length;
 
         statusElement.innerHTML = `
           <small style="color: #666; font-size: 11px;">
@@ -665,7 +773,7 @@
       const menuStatusElement = document.getElementById('lc-sync-status-menu');
       if (menuStatusElement) {
         const totalSizeMB = (sizeCheck.totalSize / 1024).toFixed(1);
-        const fileCount = docs ? docs.length : 0;
+        const fileCount = validDocs.length;
 
         menuStatusElement.innerHTML = `文件: ${fileCount}个<br>${totalSizeMB}KB / 10MB`;
 

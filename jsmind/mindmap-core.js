@@ -2654,6 +2654,21 @@ function setupBoxSelection() {
   // 复制功能（Ctrl+C）- 复制选中的节点及其子级
   document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+      // 检查是否正在编辑节点详情（节点主题或备注输入框）或内联编辑器
+      const activeElement = document.activeElement;
+      if (activeElement && (
+        activeElement.id === 'nodeTopic' ||
+        activeElement.id === 'nodeNotes' ||
+        (activeElement.tagName && activeElement.tagName.toLowerCase() === 'textarea' &&
+          (activeElement.closest('#nodeDetails') || activeElement.closest('.node-details-panel'))) ||
+        (activeElement.tagName && activeElement.tagName.toLowerCase() === 'input' &&
+          activeElement.classList && activeElement.classList.contains('jsmind-editor'))
+      )) {
+        // 如果在节点详情编辑模式或内联编辑模式下，允许默认的文本复制行为
+        console.log('[复制] 检测到编辑模式，跳过节点复制，允许文本复制');
+        return;
+      }
+
       // 检查是否有选中的节点
       const selectedNodes = window.getMultiSelection ? window.getMultiSelection() : [];
       const currentNode = window.jm && window.jm.get_selected_node ? window.jm.get_selected_node() : null;
@@ -2739,6 +2754,23 @@ function setupBoxSelection() {
   // 剪切功能（Ctrl+X）- 复制并删除选中的节点
   document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'x') {
+
+      // 检查是否正在编辑节点详情（节点主题或备注输入框）或内联编辑器
+      const activeElement = document.activeElement;
+      if (activeElement && (
+        activeElement.id === 'nodeTopic' ||
+        activeElement.id === 'nodeNotes' ||
+        (activeElement.tagName && activeElement.tagName.toLowerCase() === 'textarea' &&
+          (activeElement.closest('#nodeDetails') || activeElement.closest('.node-details-panel'))) ||
+        (activeElement.tagName && activeElement.tagName.toLowerCase() === 'input' &&
+          activeElement.classList && activeElement.classList.contains('jsmind-editor'))
+      )) {
+        // 如果在节点详情编辑模式或内联编辑模式下，允许默认的文本剪切行为
+        console.log('[剪切‘] 检测到编辑模式，跳过节点剪切，允许文本剪切');
+        return;
+      }
+
+
       // 获取选中的节点
       const selectedNodes = window.getMultiSelection ? window.getMultiSelection() : [];
       const singleNode = window.jm && window.jm.get_selected_node ? window.jm.get_selected_node() : null;

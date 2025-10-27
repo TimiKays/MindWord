@@ -15,7 +15,7 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #b0cdfc 0%, #c9fdd9 100%);
+            background: #ffffff;
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -221,8 +221,7 @@
 
         .back:hover {
             color: #5a67d8;
-            background: rgba(102, 126, 234, 0.1);
-            transform: translateX(-2px);
+
         }
 
         /* 弹窗样式 */
@@ -399,7 +398,7 @@
     <!-- 返回应用链接 - 移动到登录注册面板下方 -->
 
     <a class="back" href="app.html"
-        style="display: inline-block; padding: 12px 24px; background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border-radius: 25px; text-decoration: none; color: #fff; font-size: 14px; transition: all 0.3s ease; border: 1px solid rgba(255, 255, 255, 0.2);">返回应用</a>
+        style="display: inline-block; padding: 12px 24px; text-decoration: none; color: #53a8cf; font-size: 14px; transition: all 0.3s ease; ">返回应用</a>
     </div>
     </div>
 
@@ -447,6 +446,30 @@
                     document.querySelectorAll('form').forEach(function (f) { f.classList.remove('active'); });
                     document.getElementById('f-' + t).classList.add('active');
                 });
+            });
+
+            // 为登录表单添加Enter键提交功能
+            document.getElementById('login-pass').addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    document.getElementById('btn-login').click();
+                }
+            });
+
+            // 为注册表单的确认密码输入框添加Enter键提交功能
+            document.getElementById('signup-pass-confirm').addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    document.getElementById('btn-signup').click();
+                }
+            });
+
+            // 为重置密码表单的邮箱输入框添加Enter键提交功能
+            document.getElementById('reset-email').addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    document.getElementById('btn-reset').click();
+                }
             });
 
             // 登录（仅支持邮箱+密码登录，检查邮箱验证状态）
