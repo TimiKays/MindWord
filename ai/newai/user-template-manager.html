@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户提示词模板管理</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <style>
+        /* 自定义样式 */
+        .template-card {
+            transition: all 0.3s ease;
+            border: 1px solid #e5e7eb;
+        }
+
+        .template-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .template-card {
+            height: auto;
+            align-self: start;
+        }
+
+
+
+        .template-card-actions {
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .template-card:hover .template-card-actions {
+            opacity: 1;
+        }
+
+        .category-tag {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .type-tag {
+            background: #d1d5db;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            max-width: 95vw;
+            max-height: 90vh;
+            width: 1200px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .grid-container {
+            columns: 3;
+            column-gap: 1.5rem;
+            padding: 1rem;
+            column-fill: balance;
+        }
+
+        @media (max-width: 1024px) {
+            .grid-container {
+                columns: 2;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .grid-container {
+                columns: 1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .grid-container {
+                columns: 1;
+                column-gap: 1rem;
+                padding: 0.5rem;
+            }
+
+            .modal-content {
+                max-width: 95vw;
+                max-height: 95vh;
+                margin: 1rem;
+                width: auto;
+            }
+
+            /* 移动端头部优化 */
+            .bg-white.shadow-sm.border-b .max-w-7xl {
+                @apply px-3;
+            }
+
+            .bg-white.shadow-sm.border-b h-16 {
+                @apply h-12;
+            }
+
+            .bg-white.shadow-sm.border-b h1 {
+                @apply text-lg;
+            }
+
+            /* 标签页移动端优化 */
+            .border-b.border-gray-200 .-mb-px {
+                @apply space-x-4;
+            }
+
+            .tab-button {
+                @apply text-sm px-2 py-1;
+            }
+
+            /* 筛选区域移动端优化 */
+            .bg-white.rounded-lg.shadow-sm.p-4 {
+                @apply p-3;
+            }
+
+            .bg-white.rounded-lg.shadow-sm.p-4 .flex {
+                @apply flex-col gap-2;
+            }
+
+            .bg-white.rounded-lg.shadow-sm.p-4 input {
+                @apply text-sm;
+            }
+
+            /* 模板卡片移动端优化 */
+            .template-card {
+                @apply p-3;
+            }
+
+            .template-card h3 {
+                @apply text-base;
+            }
+
+            .template-card p {
+                @apply text-sm;
+            }
+
+            /* 详情模态框移动端优化 */
+            .modal-overlay .modal-content {
+                @apply mx-2 my-2 max-h-[90vh];
+            }
+
+            .modal-overlay .flex.justify-between.items-center.p-6 {
+                @apply p-4;
+            }
+
+            .modal-overlay .flex-1.overflow-y-auto.p-6 {
+                @apply p-4;
+            }
+        }
+
+        @media (max-width: 480px) {
+
+            /* 超小屏幕优化 */
+            .bg-white.shadow-sm.border-b .max-w-7xl {
+                @apply px-2;
+            }
+
+            .bg-white.shadow-sm.border-b h-16 {
+                @apply h-10;
+            }
+
+            .bg-white.shadow-sm.border-b h1 {
+                @apply text-base;
+            }
+
+            .tab-button {
+                @apply text-xs px-1 py-1;
+            }
+
+            .bg-white.rounded-lg.shadow-sm.p-4 {
+                @apply p-2;
+            }
+
+            .template-card {
+                @apply p-2;
+            }
+
+            .template-card h3 {
+                @apply text-sm;
+            }
+
+            .modal-overlay .modal-content {
+                @apply mx-1 my-1 max-h-[85vh];
+            }
+
+            .modal-overlay .flex.justify-between.items-center.p-6 {
+                @apply p-3;
+            }
+
+            .modal-overlay .flex-1.overflow-y-auto.p-6 {
+                @apply p-3;
+            }
+        }
+
+        .filter-button {
+            transition: all 0.2s ease;
+            border: 2px solid transparent;
+        }
+
+        .filter-button.active {
+            border-color: #3b82f6;
+            background: #3b82f6;
+            color: white;
+        }
+
+        .filter-button:hover {
+            transform: translateY(-1px);
+        }
+
+        /* 模板内容预览区域样式 */
+        .template-content-preview {
+            height: auto;
+            min-height: 60px;
+        }
+
+        .template-content-preview p {
+            margin: 0;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            line-height: 1.5;
+        }
+
+        /* 瀑布流效果优化 */
+        .template-card {
+            break-inside: avoid;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            width: 100%;
+            display: inline-block;
+        }
+
+        .template-card:hover {
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+            transform: translateY(-2px);
+        }
+
+        /* 滚动条样式 */
+        .custom-scrollbar {
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 #f1f5f9;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+    <!-- 头部导航已移除 - 由外层模态框提供 -->
+
+    <!-- 主要内容区域 -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <!-- 标签页切换 -->
+        <div class="mb-6">
+            <div class="border-b border-gray-200">
+                <nav class="-mb-px flex space-x-8">
+                    <button class="tab-button active py-2 px-1 border-b-2 border-blue-500 font-medium text-blue-600"
+                        data-tab="market">
+                        <i class="fa fa-shopping-bag mr-2"></i>模板市场
+                    </button>
+                    <button
+                        class="tab-button py-2 px-1 border-b-2 border-transparent font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-colors"
+                        data-tab="my">
+                        <i class="fa fa-user mr-2"></i>我的模板
+                    </button>
+                </nav>
+            </div>
+        </div>
+
+        <!-- 筛选条件区域 -->
+        <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
+            <div class="flex flex-wrap items-center gap-4">
+                <div class="flex items-center space-x-2">
+                    <span class="text-sm font-medium text-gray-700">模板类型：</span>
+                    <div id="typeFilters" class="flex flex-wrap gap-2">
+                        <button
+                            class="filter-button active px-3 py-1 rounded-full text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            data-type="all">
+                            全部
+                        </button>
+                    </div>
+                </div>
+                <div class="flex-1"></div>
+                <div class="flex items-center space-x-2">
+                    <input type="text" id="searchInput" placeholder="搜索模板..."
+                        class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <button id="clearSearchBtn" class="px-3 py-2 text-gray-500 hover:text-gray-700">
+                        <i class="fa fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 模板列表区域 -->
+        <div id="templateList" class="grid-container custom-scrollbar">
+            <!-- 模板卡片将在这里动态生成 -->
+        </div>
+
+        <!-- 空状态 -->
+        <div id="emptyState" class="text-center py-12 hidden">
+            <i class="fa fa-inbox text-6xl text-gray-300 mb-4"></i>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">暂无模板</h3>
+            <p class="text-gray-500">当前分类下没有找到相关模板</p>
+        </div>
+    </div>
+
+    <!-- 模板详情弹窗 -->
+    <div id="templateDetailModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="flex justify-between items-center p-6 border-b">
+                <h2 id="detailTitle" class="text-xl font-bold text-gray-900"></h2>
+                <button id="closeDetailModal" class="text-gray-400 hover:text-gray-600">
+                    <i class="fa fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">模板分类</label>
+                        <div id="detailCategories" class="flex flex-wrap gap-2"></div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">模板描述</label>
+                        <p id="detailDescription" class="text-gray-600"></p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">模板内容</label>
+                        <div id="detailContent"
+                            class="bg-gray-50 p-4 rounded-lg text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">创建者</label>
+                            <p id="detailCreator" class="text-gray-600"></p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">创建时间</label>
+                            <p id="detailCreateTime" class="text-gray-600"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="p-6 border-t bg-gray-50">
+                <div class="flex justify-end space-x-3">
+                    <button id="addToMyTemplatesBtn"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                        <i class="fa fa-plus mr-2"></i>添加到我的模板
+                    </button>
+                    <button id="useTemplateBtn"
+                        class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
+                        <i class="fa fa-check mr-2"></i>使用模板
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑模板弹窗 -->
+    <div id="editTemplateModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="flex justify-between items-center p-6 border-b">
+                <h2 id="editModalTitle" class="text-xl font-bold text-gray-900">编辑模板</h2>
+                <button id="closeEditModal" class="text-gray-400 hover:text-gray-600">
+                    <i class="fa fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="editTemplateForm" class="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">模板名称 *</label>
+                        <input type="text" id="editTemplateName" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">模板类型 *</label>
+                        <input type="text" id="editTemplateType" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">模板分类</label>
+                        <input type="text" id="editTemplateCategory"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="如：项目管理、技术开发等">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">模板描述</label>
+                        <textarea id="editTemplateDescription" rows="3"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="简要描述模板的用途和特点"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">模板内容 *</label>
+                        <textarea id="editTemplateContent" rows="8" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+                            placeholder="请输入模板内容"></textarea>
+                    </div>
+                </div>
+            </form>
+            <div class="p-6 border-t bg-gray-50">
+                <div class="flex justify-end space-x-3">
+                    <button id="cancelEditBtn"
+                        class="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">
+                        取消
+                    </button>
+                    <button id="saveTemplateBtn"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                        保存
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 创建新模板按钮（在我的模板页面显示） -->
+    <div id="createTemplateFab" class="fixed bottom-6 right-6 hidden">
+        <button id="createTemplateBtn"
+            class="w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all duration-300 transform hover:scale-110">
+            <i class="fa fa-plus text-xl"></i>
+        </button>
+    </div>
+
+    <script>
+        // 用户提示词模板管理器
+        class UserTemplateManager {
+            constructor() {
+                this.currentTab = 'market';
+                this.currentFilter = 'all';
+                this.searchKeyword = '';
+                this.marketTemplates = [];
+                this.myTemplates = [];
+                this.allTemplateTypes = new Set();
+                this.currentEditingTemplate = null;
+                this.currentViewingTemplate = null;
+
+                this.init();
+            }
+
+            async init() {
+                await this.loadMarketTemplates();
+                this.loadMyTemplates();
+                this.setupEventListeners();
+                this.renderTemplates();
+            }
+
+            // 从user-templates.json加载市场模板
+            async loadMarketTemplates() {
+                try {
+                    const response = await fetch('./user-templates.json');
+                    const templates = await response.json();
+                    this.marketTemplates = templates.map(template => ({
+                        ...template,
+                        source: '系统内置',
+                        isMarketTemplate: true
+                    }));
+
+                    // 提取所有模板类型
+                    this.marketTemplates.forEach(template => {
+                        this.allTemplateTypes.add(template.type);
+                    });
+
+                    this.renderTypeFilters();
+                } catch (error) {
+                    console.error('加载市场模板失败:', error);
+                    this.showNotification('加载市场模板失败', 'error');
+                }
+            }
+
+            // 从LocalStorage加载我的模板
+            loadMyTemplates() {
+                try {
+                    const stored = localStorage.getItem('myPromptTemplates');
+                    this.myTemplates = stored ? JSON.parse(stored) : [];
+                } catch (error) {
+                    console.error('加载我的模板失败:', error);
+                    this.myTemplates = [];
+                }
+            }
+
+            // 保存我的模板到LocalStorage
+            saveMyTemplates() {
+                try {
+                    localStorage.setItem('myPromptTemplates', JSON.stringify(this.myTemplates));
+                } catch (error) {
+                    console.error('保存我的模板失败:', error);
+                    this.showNotification('保存失败', 'error');
+                }
+            }
+
+            // 设置事件监听器
+            setupEventListeners() {
+                // 标签页切换
+                document.querySelectorAll('.tab-button').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const tab = e.target.closest('.tab-button').dataset.tab;
+                        this.switchTab(tab);
+                    });
+                });
+
+                // 类型筛选
+                document.getElementById('typeFilters').addEventListener('click', (e) => {
+                    if (e.target.classList.contains('filter-button')) {
+                        this.setFilter(e.target.dataset.type);
+                    }
+                });
+
+                // 搜索功能
+                const searchInput = document.getElementById('searchInput');
+                searchInput.addEventListener('input', (e) => {
+                    this.searchKeyword = e.target.value.toLowerCase();
+                    this.renderTemplates();
+                });
+
+                document.getElementById('clearSearchBtn').addEventListener('click', () => {
+                    searchInput.value = '';
+                    this.searchKeyword = '';
+                    this.renderTemplates();
+                });
+
+                // 关闭管理器按钮已移除 - 由外层模态框提供
+
+                // 模态框关闭事件
+                document.getElementById('closeDetailModal').addEventListener('click', () => {
+                    this.closeDetailModal();
+                });
+
+                document.getElementById('closeEditModal').addEventListener('click', () => {
+                    this.closeEditModal();
+                });
+
+                // 添加到我的模板
+                document.getElementById('addToMyTemplatesBtn').addEventListener('click', () => {
+                    this.addToMyTemplates();
+                });
+
+                // 使用模板
+                document.getElementById('useTemplateBtn').addEventListener('click', () => {
+                    this.useTemplate();
+                });
+
+                // 创建新模板
+                document.getElementById('createTemplateBtn').addEventListener('click', () => {
+                    this.openEditModal();
+                });
+
+                // 编辑模板表单
+                document.getElementById('editTemplateForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.saveTemplate();
+                });
+
+                document.getElementById('cancelEditBtn').addEventListener('click', () => {
+                    this.closeEditModal();
+                });
+
+                document.getElementById('saveTemplateBtn').addEventListener('click', () => {
+                    this.saveTemplate();
+                });
+
+                // 点击模态框外部关闭
+                document.getElementById('templateDetailModal').addEventListener('click', (e) => {
+                    if (e.target.id === 'templateDetailModal') {
+                        this.closeDetailModal();
+                    }
+                });
+
+                document.getElementById('editTemplateModal').addEventListener('click', (e) => {
+                    if (e.target.id === 'editTemplateModal') {
+                        this.closeEditModal();
+                    }
+                });
+            }
+
+            // 切换标签页
+            switchTab(tab) {
+                this.currentTab = tab;
+
+                // 更新标签页样式
+                document.querySelectorAll('.tab-button').forEach(btn => {
+                    btn.classList.remove('active', 'border-blue-500', 'text-blue-600');
+                    btn.classList.add('border-transparent', 'text-gray-500');
+                });
+
+                const activeTab = document.querySelector(`[data-tab="${tab}"]`);
+                activeTab.classList.add('active', 'border-blue-500', 'text-blue-600');
+                activeTab.classList.remove('border-transparent', 'text-gray-500');
+
+                // 显示/隐藏创建按钮
+                const createFab = document.getElementById('createTemplateFab');
+                if (tab === 'my') {
+                    createFab.classList.remove('hidden');
+                } else {
+                    createFab.classList.add('hidden');
+                }
+
+                // 重新渲染类型筛选器以适应当前标签页的模板类型
+                this.updateTypeFiltersForCurrentTab();
+                this.renderTemplates();
+            }
+
+            // 设置筛选条件
+            setFilter(type) {
+                this.currentFilter = type;
+
+                // 更新筛选按钮样式
+                document.querySelectorAll('#typeFilters .filter-button').forEach(btn => {
+                    btn.classList.remove('active', 'border-blue-500', 'bg-blue-500', 'text-white');
+                    btn.classList.add('bg-gray-100', 'text-gray-700');
+                });
+
+                const activeBtn = document.querySelector(`[data-type="${type}"]`);
+                if (activeBtn) {
+                    activeBtn.classList.add('active', 'border-blue-500', 'bg-blue-500', 'text-white');
+                    activeBtn.classList.remove('bg-gray-100', 'text-gray-700');
+                }
+
+                this.renderTemplates();
+            }
+
+            // 渲染类型筛选器
+            renderTypeFilters() {
+                const typeFilters = document.getElementById('typeFilters');
+                const types = Array.from(this.allTemplateTypes).sort();
+
+                types.forEach(type => {
+                    const button = document.createElement('button');
+                    button.className = 'filter-button px-3 py-1 rounded-full text-sm bg-gray-100 text-gray-700 hover:bg-gray-200';
+                    button.dataset.type = type;
+                    button.textContent = type;
+                    typeFilters.appendChild(button);
+                });
+            }
+
+            // 根据当前标签页更新类型筛选器
+            updateTypeFiltersForCurrentTab() {
+                const typeFilters = document.getElementById('typeFilters');
+                typeFilters.innerHTML = '';
+
+                // 获取当前标签页的模板类型
+                const currentTemplates = this.currentTab === 'market' ? this.marketTemplates : this.myTemplates;
+                const currentTypes = new Set();
+
+                currentTemplates.forEach(template => {
+                    if (template.type) {
+                        currentTypes.add(template.type);
+                    }
+                });
+
+                // 添加"全部"选项
+                const allButton = document.createElement('button');
+                allButton.className = 'filter-button px-3 py-1 rounded-full text-sm bg-blue-500 text-white border-blue-500';
+                allButton.dataset.type = 'all';
+                allButton.textContent = '全部';
+                typeFilters.appendChild(allButton);
+
+                // 添加当前标签页的类型
+                Array.from(currentTypes).sort().forEach(type => {
+                    const button = document.createElement('button');
+                    button.className = 'filter-button px-3 py-1 rounded-full text-sm bg-gray-100 text-gray-700 hover:bg-gray-200';
+                    button.dataset.type = type;
+                    button.textContent = type;
+                    typeFilters.appendChild(button);
+                });
+
+                // 重置筛选条件为"全部"
+                this.currentFilter = 'all';
+            }
+
+            // 获取当前显示的模板
+            getCurrentTemplates() {
+                const templates = this.currentTab === 'market' ? this.marketTemplates : this.myTemplates;
+
+                return templates.filter(template => {
+                    // 类型筛选
+                    if (this.currentFilter !== 'all' && template.type !== this.currentFilter) {
+                        return false;
+                    }
+
+                    // 搜索筛选
+                    if (this.searchKeyword) {
+                        const searchText = `${template.name} ${template.description} ${template.content}`.toLowerCase();
+                        return searchText.includes(this.searchKeyword);
+                    }
+
+                    return true;
+                });
+            }
+
+            // 渲染模板列表
+            renderTemplates() {
+                const templateList = document.getElementById('templateList');
+                const emptyState = document.getElementById('emptyState');
+                const templates = this.getCurrentTemplates();
+
+                if (templates.length === 0) {
+                    templateList.innerHTML = '';
+                    emptyState.classList.remove('hidden');
+                    return;
+                }
+
+                emptyState.classList.add('hidden');
+                templateList.innerHTML = templates.map(template => this.createTemplateCard(template)).join('');
+
+                // 添加卡片事件监听器
+                this.addCardEventListeners();
+            }
+
+            // 创建模板卡片
+            createTemplateCard(template) {
+                // 预览内容长度规则：300字符以内显示全部，超过则最多显示300字符
+                let previewLength;
+                if (template.content.length <= 300) {
+                    previewLength = template.content.length;
+                } else {
+                    previewLength = 300;
+                }
+
+                const previewContent = template.content.length > previewLength
+                    ? template.content.substring(0, previewLength) + '...'
+                    : template.content;
+
+                const isMyTemplate = this.currentTab === 'my';
+
+                return `
+                    <div class="template-card bg-white rounded-lg p-4 cursor-pointer" data-template-id="${template.id}">
+                        <div class="flex justify-between items-start mt-3">
+                            <h3 class="font-semibold text-gray-900 text-lg leading-tight">${template.name}</h3>
+                            <div class="template-card-actions flex space-x-1">
+                                ${this.getCardActions(template, isMyTemplate)}
+                            </div>
+                        </div>
+                        
+                        <div class="flex flex-wrap gap-2 mb-3">
+                            <span class="type-tag px-2 py-1 rounded-full text-xs text-white">${template.type}</span>
+                        </div>
+                        
+                        <p class="text-gray-600 text-sm mb-3 line-clamp-3">${template.description}</p>
+                        
+                        <div class="bg-gray-50 p-3 rounded-lg mb-3 template-content-preview">
+                            <p class="text-gray-700 text-sm leading-relaxed">${previewContent}</p>
+                        </div>
+                        
+                        <div class="flex justify-between items-center text-xs text-gray-500">
+                            <span><i class="fa fa-user mr-1"></i>${template.creator}</span>
+                            <span><i class="fa fa-clock mr-1"></i>${this.formatDate(template.createTime)}</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // 获取卡片操作按钮
+            getCardActions(template, isMyTemplate) {
+                if (isMyTemplate) {
+                    return `
+                        <button class="action-btn p-1 text-gray-400 hover:text-blue-600 transition-colors" 
+                                onclick="templateManager.editTemplate('${template.id}')" title="编辑">
+                            <i class="fa fa-edit"></i>
+                        </button>
+                        <button class="action-btn p-1 text-gray-400 hover:text-red-600 transition-colors" 
+                                onclick="templateManager.deleteTemplate('${template.id}')" title="删除">
+                            <i class="fa fa-trash"></i>
+                        </button>
+                        <button class="action-btn p-1 text-gray-400 hover:text-green-600 transition-colors" 
+                                onclick="templateManager.duplicateTemplate('${template.id}')" title="复制">
+                            <i class="fa fa-copy"></i>
+                        </button>
+                    `;
+                } else {
+                    return `
+                        <button class="action-btn p-1 text-gray-400 hover:text-blue-600 transition-colors" 
+                                onclick="templateManager.viewTemplate('${template.id}')" title="查看详情">
+                            <i class="fa fa-eye"></i>
+                        </button>
+                        <button class="action-btn p-1 text-gray-400 hover:text-green-600 transition-colors" 
+                                onclick="templateManager.addToMyTemplates('${template.id}')" title="添加到我的模板">
+                            <i class="fa fa-plus"></i>
+                        </button>
+                    `;
+                }
+            }
+
+            // 添加卡片事件监听器
+            addCardEventListeners() {
+                document.querySelectorAll('.template-card').forEach(card => {
+                    card.addEventListener('click', (e) => {
+                        // 如果点击的是操作按钮，不触发卡片点击事件
+                        if (e.target.closest('.action-btn')) {
+                            return;
+                        }
+
+                        const templateId = card.dataset.templateId;
+                        if (this.currentTab === 'market') {
+                            this.viewTemplate(templateId);
+                        } else {
+                            this.viewTemplate(templateId);
+                        }
+                    });
+                });
+            }
+
+            // 查看模板详情
+            viewTemplate(templateId) {
+                const templates = this.currentTab === 'market' ? this.marketTemplates : this.myTemplates;
+                const template = templates.find(t => t.id === templateId);
+
+                if (!template) return;
+
+                this.currentViewingTemplate = template;
+
+                // 填充详情模态框
+                document.getElementById('detailTitle').textContent = template.name;
+                document.getElementById('detailDescription').textContent = template.description;
+                document.getElementById('detailContent').textContent = template.content;
+                document.getElementById('detailCreator').textContent = template.creator;
+                document.getElementById('detailCreateTime').textContent = this.formatDate(template.createTime);
+
+                // 分类标签
+                const categoriesContainer = document.getElementById('detailCategories');
+                categoriesContainer.innerHTML = '';
+                const typeTag = document.createElement('span');
+                typeTag.className = 'type-tag px-3 py-1 rounded-full text-sm text-white';
+                typeTag.textContent = template.type;
+                categoriesContainer.appendChild(typeTag);
+
+                // 更新按钮状态
+                const addToMyBtn = document.getElementById('addToMyTemplatesBtn');
+                const useTemplateBtn = document.getElementById('useTemplateBtn');
+
+                if (this.currentTab === 'my') {
+                    addToMyBtn.style.display = 'none';
+                    useTemplateBtn.style.display = 'inline-flex';
+                } else {
+                    addToMyBtn.style.display = 'inline-flex';
+                    useTemplateBtn.style.display = 'none';
+
+                    // 检查是否已添加
+                    const alreadyAdded = this.myTemplates.some(t => t.id === templateId);
+                    if (alreadyAdded) {
+                        addToMyBtn.textContent = '已添加';
+                        addToMyBtn.disabled = true;
+                        addToMyBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
+                        addToMyBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                    } else {
+                        addToMyBtn.innerHTML = '<i class="fa fa-plus mr-2"></i>添加到我的模板';
+                        addToMyBtn.disabled = false;
+                        addToMyBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+                        addToMyBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                    }
+                }
+
+                this.openDetailModal();
+            }
+
+            // 添加到我的模板
+            addToMyTemplates(templateId) {
+                const template = templateId
+                    ? this.marketTemplates.find(t => t.id === templateId)
+                    : this.currentViewingTemplate;
+
+                if (!template) return;
+
+                // 检查是否已存在
+                if (this.myTemplates.some(t => t.id === template.id)) {
+                    this.showNotification('模板已存在', 'warning');
+                    return;
+                }
+
+                // 创建副本，修改ID和来源，保持原始类型
+                const newTemplate = {
+                    ...template,
+                    id: `user_${Date.now()}`,
+                    source: '用户自建',
+                    creator: '我',
+                    createTime: new Date().toISOString(),
+                    lastModified: new Date().toISOString(),
+                    isMarketTemplate: false
+                    // 保持原始的type字段，不修改
+                };
+
+                this.myTemplates.push(newTemplate);
+                this.saveMyTemplates();
+
+                this.showNotification('已添加到我的模板', 'success');
+                this.closeDetailModal();
+
+                // 如果当前在我的模板页面，重新渲染
+                if (this.currentTab === 'my') {
+                    this.renderTemplates();
+                }
+            }
+
+            // 使用模板
+            useTemplate() {
+                if (!this.currentViewingTemplate) return;
+
+                // 将模板内容发送到父页面
+                if (window.parent && window.parent.postMessage) {
+                    window.parent.postMessage({
+                        type: 'useTemplate',
+                        template: this.currentViewingTemplate
+                    }, '*');
+
+                    // 添加确认机制，确保消息已发送
+                    this.showNotification('模板已应用，请检查AI应用界面', 'success');
+                } else {
+                    this.showNotification('无法与父页面通信', 'error');
+                    return;
+                }
+
+                this.closeDetailModal();
+                this.closeManager();
+            }
+
+            // 编辑模板
+            editTemplate(templateId) {
+                const template = this.myTemplates.find(t => t.id === templateId);
+                if (!template) return;
+
+                this.currentEditingTemplate = template;
+                this.openEditModal(template);
+            }
+
+            // 删除模板
+            deleteTemplate(templateId) {
+                if (!confirm('确定要删除这个模板吗？')) return;
+
+                this.myTemplates = this.myTemplates.filter(t => t.id !== templateId);
+                this.saveMyTemplates();
+                this.renderTemplates();
+                this.showNotification('模板已删除', 'success');
+            }
+
+            // 复制模板
+            duplicateTemplate(templateId) {
+                const template = this.myTemplates.find(t => t.id === templateId);
+                if (!template) return;
+
+                const newTemplate = {
+                    ...template,
+                    id: `user_${Date.now()}`,
+                    name: `${template.name} (副本)`,
+                    createTime: new Date().toISOString(),
+                    lastModified: new Date().toISOString()
+                };
+
+                this.myTemplates.push(newTemplate);
+                this.saveMyTemplates();
+                this.renderTemplates();
+                
+                // 复制模板后更新类型筛选器
+                this.updateTypeFiltersForCurrentTab();
+                
+                this.showNotification('模板已复制', 'success');
+            }
+
+            // 打开编辑模态框
+            openEditModal(template = null) {
+                this.currentEditingTemplate = template;
+
+                const modal = document.getElementById('editTemplateModal');
+                const title = document.getElementById('editModalTitle');
+
+                if (template) {
+                    title.textContent = '编辑模板';
+                    document.getElementById('editTemplateName').value = template.name;
+                    document.getElementById('editTemplateType').value = template.type;
+                    document.getElementById('editTemplateCategory').value = '';
+                    document.getElementById('editTemplateDescription').value = template.description || '';
+                    document.getElementById('editTemplateContent').value = template.content;
+                } else {
+                    title.textContent = '创建新模板';
+                    document.getElementById('editTemplateForm').reset();
+                }
+
+                modal.classList.remove('hidden');
+            }
+
+            // 关闭编辑模态框
+            closeEditModal() {
+                document.getElementById('editTemplateModal').classList.add('hidden');
+                this.currentEditingTemplate = null;
+            }
+
+            // 保存模板
+            saveTemplate() {
+                const name = document.getElementById('editTemplateName').value.trim();
+                const type = document.getElementById('editTemplateType').value.trim();
+                // 不再使用category字段，只使用type字段
+                const category = '';
+                const description = document.getElementById('editTemplateDescription').value.trim();
+                const content = document.getElementById('editTemplateContent').value.trim();
+
+                if (!name || !type || !content) {
+                    this.showNotification('请填写必填字段', 'error');
+                    return;
+                }
+
+                if (this.currentEditingTemplate) {
+                    // 编辑现有模板
+                    this.currentEditingTemplate.name = name;
+                    this.currentEditingTemplate.type = type;
+                    // 不再使用category字段，只使用type字段
+                    this.currentEditingTemplate.description = description;
+                    this.currentEditingTemplate.content = content;
+                    this.currentEditingTemplate.lastModified = new Date().toISOString();
+                } else {
+                    // 创建新模板
+                    const newTemplate = {
+                        id: `user_${Date.now()}`,
+                        name,
+                        type,
+                        description,
+                        content,
+                        source: '用户自建',
+                        creator: '我',
+                        createTime: new Date().toISOString(),
+                        lastModified: new Date().toISOString(),
+                        isMarketTemplate: false
+                    };
+
+                    this.myTemplates.push(newTemplate);
+                }
+
+                this.saveMyTemplates();
+
+                // 如果当前在"我的模板"页面，更新类型筛选器
+                if (this.currentTab === 'my') {
+                    this.updateTypeFiltersForCurrentTab();
+                }
+
+                this.renderTemplates();
+                this.closeEditModal();
+                this.showNotification('模板保存成功', 'success');
+            }
+
+            // 打开详情模态框
+            openDetailModal() {
+                document.getElementById('templateDetailModal').classList.remove('hidden');
+            }
+
+            // 关闭详情模态框
+            closeDetailModal() {
+                document.getElementById('templateDetailModal').classList.add('hidden');
+                this.currentViewingTemplate = null;
+            }
+
+            // 关闭管理器
+            closeManager() {
+                // 尝试通过postMessage通知父窗口关闭模态框
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({ type: 'CLOSE_TEMPLATE_MANAGER' }, '*');
+                }
+
+                if (window.opener) {
+                    // 如果是通过window.open打开的，尝试关闭窗口
+                    window.close();
+                } else {
+                    // 否则返回主界面
+                    window.location.href = 'AIServiceModal.html';
+                }
+            }
+
+            // 格式化日期
+            formatDate(dateString) {
+                const date = new Date(dateString);
+                return date.toLocaleDateString('zh-CN');
+            }
+
+            // 显示通知
+            showNotification(message, type = 'info') {
+                // 创建通知元素
+                const notification = document.createElement('div');
+                notification.className = `fixed top-4 right-4 z-50 px-4 py-3 rounded-md shadow-lg transform transition-all duration-300 translate-x-full`;
+
+                const colors = {
+                    success: 'bg-green-500 text-white',
+                    error: 'bg-red-500 text-white',
+                    warning: 'bg-yellow-500 text-white',
+                    info: 'bg-blue-500 text-white'
+                };
+
+                notification.className += ` ${colors[type] || colors.info}`;
+                notification.innerHTML = `
+                    <div class="flex items-center">
+                        <i class="fa fa-${type === 'success' ? 'check' : type === 'error' ? 'times' : type === 'warning' ? 'exclamation' : 'info'} mr-2"></i>
+                        <span>${message}</span>
+                    </div>
+                `;
+
+                document.body.appendChild(notification);
+
+                // 显示动画
+                setTimeout(() => {
+                    notification.classList.remove('translate-x-full');
+                }, 100);
+
+                // 自动隐藏
+                setTimeout(() => {
+                    notification.classList.add('translate-x-full');
+                    setTimeout(() => {
+                        document.body.removeChild(notification);
+                    }, 300);
+                }, 3000);
+            }
+        }
+
+        // 初始化模板管理器
+        const templateManager = new UserTemplateManager();
+
+        // 暴露全局函数供HTML调用
+        window.templateManager = templateManager;
+    </script>
+</body>
+
+</html>
