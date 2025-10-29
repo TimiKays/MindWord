@@ -271,6 +271,30 @@
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
             background: #94a3b8;
         }
+
+        /* 固定顶部区域样式 */
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: #f9fafb;
+            /* bg-gray-50 */
+            padding-bottom: 0.5rem;
+            /* 添加小的底部内边距 */
+        }
+
+        .sticky-filters {
+            position: sticky;
+            top: 60px;
+            /* 根据tab高度调整 */
+            z-index: 40;
+            background: transparent;
+        }
+
+        .content-with-sticky {
+            margin-top: 1rem;
+            /* 减小顶部边距 */
+        }
     </style>
 </head>
 
@@ -279,49 +303,55 @@
 
     <!-- 主要内容区域 -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <!-- 标签页切换 -->
-        <div class="mb-6">
-            <div class="border-b border-gray-200">
-                <nav class="-mb-px flex space-x-8">
-                    <button class="tab-button active py-2 px-1 border-b-2 border-blue-500 font-medium text-blue-600"
-                        data-tab="market">
-                        <i class="fa fa-shopping-bag mr-2"></i>模板市场
-                    </button>
-                    <button
-                        class="tab-button py-2 px-1 border-b-2 border-transparent font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-colors"
-                        data-tab="my">
-                        <i class="fa fa-user mr-2"></i>我的模板
-                    </button>
-                </nav>
+        <!-- 固定顶部区域 -->
+        <div class="sticky-header">
+            <!-- 标签页切换 -->
+            <div class="mb-4">
+                <div class="border-b border-gray-200">
+                    <nav class="-mb-px flex space-x-8">
+                        <button class="tab-button active py-2 px-1 border-b-2 border-blue-500 font-medium text-blue-600"
+                            data-tab="market">
+                            <i class="fa fa-shopping-bag mr-2"></i>模板市场
+                        </button>
+                        <button
+                            class="tab-button py-2 px-1 border-b-2 border-transparent font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-colors"
+                            data-tab="my">
+                            <i class="fa fa-user mr-2"></i>我的模板
+                        </button>
+                    </nav>
+                </div>
             </div>
         </div>
 
-        <!-- 筛选条件区域 -->
-        <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
-            <div class="flex flex-wrap items-center gap-4">
-                <div class="flex items-center space-x-2">
-                    <span class="text-sm font-medium text-gray-700">模板类型：</span>
-                    <div id="typeFilters" class="flex flex-wrap gap-2">
-                        <button
-                            class="filter-button active px-3 py-1 rounded-full text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
-                            data-type="all">
-                            全部
+        <!-- 固定筛选区域 -->
+        <div class="sticky-filters">
+            <!-- 筛选条件区域 -->
+            <div class="bg-white rounded-lg shadow-sm p-4 mb-4">
+                <div class="flex flex-wrap items-center gap-4">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-sm font-medium text-gray-700">模板类型：</span>
+                        <div id="typeFilters" class="flex flex-wrap gap-2">
+                            <button
+                                class="filter-button active px-3 py-1 rounded-full text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                data-type="all">
+                                全部
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex-1"></div>
+                    <div class="flex items-center space-x-2">
+                        <input type="text" id="searchInput" placeholder="搜索模板..."
+                            class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <button id="clearSearchBtn" class="px-3 py-2 text-gray-500 hover:text-gray-700">
+                            <i class="fa fa-times"></i>
                         </button>
                     </div>
-                </div>
-                <div class="flex-1"></div>
-                <div class="flex items-center space-x-2">
-                    <input type="text" id="searchInput" placeholder="搜索模板..."
-                        class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    <button id="clearSearchBtn" class="px-3 py-2 text-gray-500 hover:text-gray-700">
-                        <i class="fa fa-times"></i>
-                    </button>
                 </div>
             </div>
         </div>
 
         <!-- 模板列表区域 -->
-        <div id="templateList" class="grid-container custom-scrollbar">
+        <div id="templateList" class="grid-container custom-scrollbar content-with-sticky">
             <!-- 模板卡片将在这里动态生成 -->
         </div>
 
@@ -975,10 +1005,10 @@
                 this.myTemplates.push(newTemplate);
                 this.saveMyTemplates();
                 this.renderTemplates();
-                
+
                 // 复制模板后更新类型筛选器
                 this.updateTypeFiltersForCurrentTab();
-                
+
                 this.showNotification('模板已复制', 'success');
             }
 
