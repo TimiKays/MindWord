@@ -393,6 +393,108 @@
             gap: 6px;
             padding-right: 40px;
             /* 为关闭按钮留出空间 */
+            flex-wrap: wrap;
+        }
+
+        /* 批量操作按钮样式 */
+        #doc-sidebar .batch-actions {
+            display: none;
+            gap: 6px;
+            padding: 8px 12px;
+            border-bottom: 1px solid #f1f5f9;
+            background: #fef3c7;
+        }
+
+        #doc-sidebar .batch-actions.show {
+            display: flex;
+        }
+
+        #doc-sidebar .batch-actions button {
+            height: 28px;
+            padding: 0 8px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            background: #fff;
+            color: #334155;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        #doc-sidebar .batch-actions button:hover {
+            background: #f8fafc;
+        }
+
+        #doc-sidebar .batch-actions button.batch-delete {
+            background: #ef4444;
+            color: white;
+            border-color: #dc2626;
+        }
+
+        #doc-sidebar .batch-actions button.batch-delete:hover {
+            background: #dc2626;
+        }
+
+        /* 删除确认对话框样式 */
+        .delete-confirm-dialog {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            padding: 20px;
+            z-index: 10001;
+            min-width: 300px;
+            max-width: 90%;
+        }
+
+        .delete-confirm-dialog .confirm-message {
+            margin-bottom: 16px;
+            font-size: 14px;
+            color: #374151;
+            line-height: 1.5;
+        }
+
+        .delete-confirm-dialog .confirm-buttons {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        .delete-confirm-dialog .confirm-buttons button {
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            background: white;
+            color: #334155;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .delete-confirm-dialog .confirm-buttons button:hover {
+            background: #f8fafc;
+        }
+
+        .delete-confirm-dialog .confirm-buttons button.confirm-btn {
+            background: #ef4444;
+            color: white;
+            border-color: #dc2626;
+        }
+
+        .delete-confirm-dialog .confirm-buttons button.confirm-btn:hover {
+            background: #dc2626;
+        }
+
+        .delete-confirm-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10000;
         }
 
         #doc-sidebar .side-actions button {
@@ -465,6 +567,22 @@
             border-left: 3px solid #0ea5e9;
         }
 
+        /* 复选框样式 */
+        .doc-checkbox {
+            margin-right: 8px;
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        .doc-item.batch-mode {
+            padding-left: 12px;
+        }
+
+        .doc-item.batch-mode .doc-name {
+            max-width: 260px;
+        }
+
         .doc-name {
             font-size: 13px;
             color: #0f172a;
@@ -522,15 +640,32 @@
                 <button id="btn-new-doc" data-i18n="docs.newDoc">新增</button>
                 <button id="btn-export-all" data-i18n="docs.exportAllZip">全部导出ZIP</button>
                 <label for="import-zip-input"><button id="btn-import-zip" data-i18n="docs.importZip">导入ZIP</button></label>
+                <button id="btn-batch-mode" data-i18n="docs.batchMode">批量操作</button>
                 <button id="btn-sync-cloud" title="预留" style="display:none;">云同步</button>
                 <button id="btn-clear-data" style="background-color: #e74c3c; color: white;"
                     title="清空所有本地数据" data-i18n="docs.clearData">清空数据</button>
             </div>
             <button id="btn-close-sidebar" title="关闭">&times;</button>
         </div>
+        <div class="batch-actions" id="batch-actions">
+            <button id="btn-batch-select-all" data-i18n="docs.selectAll">全选</button>
+            <button id="btn-batch-select-none" data-i18n="docs.selectNone">全不选</button>
+            <button id="btn-batch-delete" class="batch-delete" data-i18n="docs.batchDelete">批量删除</button>
+            <button id="btn-batch-cancel" data-i18n="docs.cancel">取消</button>
+        </div>
         <div id="doc-list"></div>
         <div class="side-footer">
             <input id="import-zip-input" type="file" accept=".zip" />
+        </div>
+        
+        <!-- 删除确认对话框 -->
+        <div id="delete-confirm-overlay" class="delete-confirm-overlay" style="display: none;"></div>
+        <div id="delete-confirm-dialog" class="delete-confirm-dialog" style="display: none;">
+            <div class="confirm-message" id="delete-confirm-message"></div>
+            <div class="confirm-buttons">
+                <button id="delete-confirm-cancel" data-i18n="docs.cancel">取消</button>
+                <button id="delete-confirm-ok" class="confirm-btn" data-i18n="docs.confirm">确定</button>
+            </div>
         </div>
     </aside>
     <!-- 顶部导航栏 -->
@@ -1634,6 +1769,30 @@
                 try { console.log('[INDEX RAW MESSAGE]收到消息', e && e.data); } catch (err) { }
             }, { passive: true });
 
+            // 绑定删除确认对话框按钮事件
+            try {
+                const cancelBtn = document.getElementById('delete-confirm-cancel');
+                const okBtn = document.getElementById('delete-confirm-ok');
+                if (cancelBtn) {
+                    cancelBtn.onclick = () => mw_hideDeleteConfirm();
+                }
+                if (okBtn) {
+                    okBtn.onclick = () => {
+                        const dialog = document.getElementById('delete-confirm-dialog');
+                        const docId = dialog.dataset.docId;
+                        if (docId) {
+                            // 单文档删除
+                            mw_confirmDeleteDoc();
+                        } else {
+                            // 批量删除
+                            mw_confirmBatchDelete();
+                        }
+                    };
+                }
+            } catch (e) {
+                console.warn('绑定删除确认对话框按钮事件失败', e);
+            }
+
             console.log('📌 Markdown Studio 已初始化');
             console.log('配置信息:', PAGE_CONFIG);
         }
@@ -2042,6 +2201,7 @@
             const list = document.getElementById('doc-list');
             const docs = mw_loadDocs();
             const active = mw_getActive();
+            const batchMode = document.getElementById('batch-actions').classList.contains('show');
             list.innerHTML = '';
 
             // 过滤掉已删除的文档
@@ -2053,21 +2213,48 @@
             }
             visibleDocs.forEach(doc => {
                 const row = document.createElement('div');
-                row.className = 'doc-item' + (active === doc.id ? ' active' : '');
-                row.innerHTML = `
-                    <div class="doc-name" title="${doc.name}">${doc.name}</div>
-                    <div class="doc-buttons">
-                        <button data-act="export" data-i18n="app.toolbar.export">导出</button>
-                        <button data-act="del" data-i18n="app.node.delete" style="color:#b91c1c;border-color:#fecaca;">删除</button>
-                    </div>
-                `;
+                row.className = 'doc-item' + (active === doc.id ? ' active' : '') + (batchMode ? ' batch-mode' : '');
+                
+                if (batchMode) {
+                    // 批量模式：显示复选框
+                    row.innerHTML = `
+                        <input type="checkbox" class="doc-checkbox" data-doc-id="${doc.id}" title="选择文档">
+                        <div class="doc-name" title="${doc.name}">${doc.name}</div>
+                        <div class="doc-buttons">
+                            <button data-act="export" data-i18n="app.toolbar.export">导出</button>
+                            <button data-act="del" data-i18n="app.node.delete" style="color:#b91c1c;border-color:#fecaca;">删除</button>
+                        </div>
+                    `;
+                } else {
+                    // 正常模式：不显示复选框
+                    row.innerHTML = `
+                        <div class="doc-name" title="${doc.name}">${doc.name}</div>
+                        <div class="doc-buttons">
+                            <button data-act="export" data-i18n="app.toolbar.export">导出</button>
+                            <button data-act="del" data-i18n="app.node.delete" style="color:#b91c1c;border-color:#fecaca;">删除</button>
+                        </div>
+                    `;
+                }
+                
                 row.onclick = (e) => {
-                    // 如果点击的是按钮，不触发整行点击
-                    if (e.target.tagName === 'BUTTON') return;
-                    mw_openDoc(doc.id);
+                    // 如果点击的是按钮或复选框，不触发整行点击
+                    if (e.target.tagName === 'BUTTON' || e.target.type === 'checkbox') return;
+                    if (batchMode) {
+                        // 批量模式下，点击行切换复选框状态
+                        const checkbox = row.querySelector('.doc-checkbox');
+                        if (checkbox) {
+                            checkbox.checked = !checkbox.checked;
+                        }
+                    } else {
+                        mw_openDoc(doc.id);
+                    }
                 };
-                row.querySelector('[data-act="export"]').onclick = () => mw_exportDocZip(doc.id);
-                row.querySelector('[data-act="del"]').onclick = () => mw_deleteDoc(doc.id);
+                
+                if (!batchMode) {
+                    row.querySelector('[data-act="export"]').onclick = () => mw_exportDocZip(doc.id);
+                    row.querySelector('[data-act="del"]').onclick = () => mw_deleteDoc(doc.id);
+                }
+                
                 list.appendChild(row);
             });
             
@@ -2126,12 +2313,146 @@
             } catch (_) { }
         }
 
-        function mw_deleteDoc(id) {
-            if (!confirm('确认删除该文档？此操作会在所有设备上同步删除')) return;
+        // 删除文档（显示确认对话框）
+        function mw_deleteDoc(docId) {
+            const docs = mw_loadDocs();
+            const doc = docs.find(d => d.id === docId);
+            if (!doc) return;
+            
+            // 显示删除确认对话框
+            mw_showDeleteConfirm(docId, doc.name);
+        }
+
+        // 显示删除确认对话框（侧边栏内嵌版本）
+        function mw_showDeleteConfirm(docId, docName) {
+            const overlay = document.getElementById('delete-confirm-overlay');
+            const dialog = document.getElementById('delete-confirm-dialog');
+            const message = document.getElementById('delete-confirm-message');
+            
+            // 设置确认消息
+            message.textContent = `确定要删除文档 "${docName}"？此操作会在所有设备上同步删除`;
+            
+            // 存储文档ID用于确认删除
+            dialog.dataset.docId = docId;
+            
+            // 显示对话框和遮罩
+            overlay.style.display = 'block';
+            dialog.style.display = 'block';
+        }
+
+        // 显示批量删除确认对话框（侧边栏内嵌版本）
+        function mw_showBatchDeleteConfirm() {
+            const checkboxes = document.querySelectorAll('.doc-checkbox:checked');
+            if (checkboxes.length === 0) {
+                alert('请先选择要删除的文档');
+                return;
+            }
+            
+            const overlay = document.getElementById('delete-confirm-overlay');
+            const dialog = document.getElementById('delete-confirm-dialog');
+            const message = document.getElementById('delete-confirm-message');
+            
+            // 清除文档ID，确保这是批量删除模式
+            dialog.removeAttribute('data-doc-id');
+            
+            // 设置确认消息
+            message.textContent = `确定要删除选中的 ${checkboxes.length} 个文档？此操作会在所有设备上同步删除`;
+            
+            // 显示对话框和遮罩
+            overlay.style.display = 'block';
+            dialog.style.display = 'block';
+        }
+
+        // 确认批量删除
+        function mw_confirmBatchDelete() {
+            mw_hideDeleteConfirm();
+            
+            const checkboxes = document.querySelectorAll('.doc-checkbox:checked');
             let docs = mw_loadDocs();
-            const idx = docs.findIndex(d => d.id === id);
+            const selectedIds = Array.from(checkboxes).map(cb => cb.dataset.docId);
+            
+            // 标记选中文档为已删除
+            let deletedCount = 0;
+            selectedIds.forEach(id => {
+                const idx = docs.findIndex(d => d.id === id);
+                if (idx >= 0) {
+                    docs[idx] = {
+                        id: docs[idx].id,
+                        name: docs[idx].name,
+                        deletedAt: Date.now(),
+                        updatedAt: Date.now()
+                    };
+                    deletedCount++;
+                }
+            });
+            
+            mw_saveDocs(docs);
+            
+            // 如果删除的文档中包含当前活动文档
+            const activeId = mw_getActive();
+            if (selectedIds.includes(activeId)) {
+                // 清空当前活动文档
+                mw_setActive('');
+                
+                // 找到第一个未删除的文档
+                const activeDoc = docs.find(d => !d.deletedAt);
+                if (activeDoc) {
+                    mw_setActive(activeDoc.id);
+                    // 通知各个面板加载第一个未删除文档
+                    mw_notifyEditorLoad(activeDoc);
+                    mw_notifyPreviewLoad(activeDoc);
+                    mw_notifyMindmapLoad(activeDoc);
+                } else {
+                    // 如果没有剩余未删除文档，自动生成一个未命名文档
+                    const newId = 'doc_' + Date.now();
+                    const newDoc = {
+                        id: newId,
+                        name: '未命名文档',
+                        md: '# 未命名文档\n',
+                        images: [],
+                        createdAt: Date.now(),
+                        updatedAt: Date.now(),
+                        version: 1
+                    };
+                    docs.push(newDoc);
+                    mw_saveDocs(docs);
+                    mw_setActive(newId);
+                    mw_renderList();
+                    // 通知各个面板加载新文档
+                    mw_notifyEditorLoad(newDoc);
+                    mw_notifyPreviewLoad(newDoc);
+                    mw_notifyMindmapLoad(newDoc);
+                }
+            }
+            
+            // 退出批量模式
+            mw_exitBatchMode();
+            mw_renderList();
+            try { showSuccess && showSuccess(`已删除 ${deletedCount} 个文档，将在所有设备同步`); } catch (_) { }
+        }
+
+        // 隐藏删除确认对话框
+        function mw_hideDeleteConfirm() {
+            const overlay = document.getElementById('delete-confirm-overlay');
+            const dialog = document.getElementById('delete-confirm-dialog');
+            
+            overlay.style.display = 'none';
+            dialog.style.display = 'none';
+            dialog.removeAttribute('data-doc-id');
+        }
+
+        // 确认删除单个文档
+        function mw_confirmDeleteDoc() {
+            const dialog = document.getElementById('delete-confirm-dialog');
+            const docId = dialog.dataset.docId;
+            
+            if (!docId) return;
+            
+            mw_hideDeleteConfirm();
+            
+            let docs = mw_loadDocs();
+            const idx = docs.findIndex(d => d.id === docId);
             if (idx >= 0) {
-                // 只保留ID和删除信息，移除其他数据以节省空间
                 docs[idx] = {
                     id: docs[idx].id,
                     name: docs[idx].name,
@@ -2139,12 +2460,13 @@
                     updatedAt: Date.now()
                 };
                 mw_saveDocs(docs);
-
-                // 如果删除的是当前正在编辑的文档
-                if (mw_getActive() === id) {
+                
+                // 如果删除的是当前活动文档
+                const activeId = mw_getActive();
+                if (docId === activeId) {
                     // 清空当前活动文档
                     mw_setActive('');
-
+                    
                     // 找到第一个未删除的文档
                     const activeDoc = docs.find(d => !d.deletedAt);
                     if (activeDoc) {
@@ -2175,10 +2497,37 @@
                         mw_notifyMindmapLoad(newDoc);
                     }
                 }
-
+                
                 mw_renderList();
-                try { showSuccess && showSuccess('已标记为删除，将在所有设备同步'); } catch (_) { }
+                try { showSuccess && showSuccess('文档已删除，将在所有设备同步'); } catch (_) { }
             }
+        }
+
+        // 批量删除功能
+        function mw_batchDeleteDocs() {
+            mw_showBatchDeleteConfirm();
+        }
+
+        // 进入批量模式
+        function mw_enterBatchMode() {
+            document.getElementById('batch-actions').classList.add('show');
+            mw_renderList();
+        }
+
+        // 退出批量模式
+        function mw_exitBatchMode() {
+            document.getElementById('batch-actions').classList.remove('show');
+            mw_renderList();
+        }
+
+        // 全选文档
+        function mw_selectAllDocs() {
+            document.querySelectorAll('.doc-checkbox').forEach(cb => cb.checked = true);
+        }
+
+        // 全不选文档
+        function mw_selectNoneDocs() {
+            document.querySelectorAll('.doc-checkbox').forEach(cb => cb.checked = false);
         }
 
         function mw_notifyEditorLoad(doc) {
@@ -2372,6 +2721,25 @@
                 const mdFile = folder.file('index.md');
                 if (!mdFile) return;
                 const md = await mdFile.async('string');
+                
+                // 尝试读取meta.json获取原始ID
+                let originalId = null;
+                let originalName = null;
+                let originalVersion = 1;
+                try {
+                    const metaFile = folder.file('meta.json');
+                    if (metaFile) {
+                        const metaContent = await metaFile.async('string');
+                        const meta = JSON.parse(metaContent);
+                        originalId = meta.id;
+                        originalName = meta.name;
+                        originalVersion = meta.version || 1;
+                        console.log('mw_importZip: 从meta.json读取到原始ID:', originalId, '名称:', originalName);
+                    }
+                } catch (err) {
+                    console.warn('mw_importZip: 读取meta.json失败，将使用新ID:', err);
+                }
+                
                 const images = [];
                 const imgFolder = folder.folder('images');
                 if (imgFolder) {
@@ -2396,12 +2764,12 @@
                 let aiCfg = rootAiCfg;
                 let tpl = rootTpl;
                 // 说明：旧的子文件夹兼容逻辑已弃用，故不再尝试 folder.folder('ai')，以避免覆盖或读取失败。
-                const safeName = folderName.replace(/\/$/, '').replace(/[\\/:*?"<>|]+/g, '_');
-                const id = 'doc_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+                const safeName = originalName || folderName.replace(/\/$/, '').replace(/[\\/:*?"<>|]+/g, '_');
+                const id = originalId || ('doc_' + Date.now() + '_' + Math.floor(Math.random() * 1000));
                 docs.push({
                     id, name: safeName || '导入文档', md, images,
                     aiPlatformConfigs: aiCfg, aiPromptTemplates: tpl,
-                    createdAt: Date.now(), updatedAt: Date.now(), version: 1
+                    createdAt: Date.now(), updatedAt: Date.now(), version: originalVersion
                 });
             };
 
@@ -2422,9 +2790,10 @@
                 if (rootAiCfg) {
                     try { localStorage.setItem('allAIPlatformConfigs', JSON.stringify(rootAiCfg)); } catch (e) { console.warn('[mw_importZip] write allAIPlatformConfigs failed', e); }
                 }
-                if (rootTpl) {
-                    try { localStorage.setItem('promptTemplates', JSON.stringify(rootTpl)); } catch (e) { console.warn('[mw_importZip] write promptTemplates failed', e); }
-                }
+                // 不再导入旧的prompt-templates.json，只导入用户自定义的my-prompt-templates.json
+                // if (rootTpl) {
+                //     try { localStorage.setItem('promptTemplates', JSON.stringify(rootTpl)); } catch (e) { console.warn('[mw_importZip] write promptTemplates failed', e); }
+                // }
 
                 // 尝试刷新同源的 aiModalFrame（如果可访问）
                 try {
@@ -2437,7 +2806,8 @@
                         } catch (e) { console.warn('[mw_importZip] refresh aiModalFrame failed', e); }
                     } else {
                         // 回退：发送 postMessage，由 AI 面板监听并自行写入/刷新（若已实现监听）
-                        window.postMessage({ type: 'IMPORT_AI_FROM_ZIP', payload: { configs: rootAiCfg, templates: rootTpl } }, '*');
+                        // 不再发送旧的templates数据，只发送configs
+                        window.postMessage({ type: 'IMPORT_AI_FROM_ZIP', payload: { configs: rootAiCfg, templates: null } }, '*');
                     }
                 } catch (e) { console.warn('[mw_importZip] notify ai panel failed', e); }
             } catch (e) {
@@ -2537,6 +2907,11 @@
             const importInput = document.getElementById('import-zip-input');
             const importBtn = document.getElementById('btn-import-zip');
             const clearDataBtn = document.getElementById('btn-clear-data');
+            const batchModeBtn = document.getElementById('btn-batch-mode');
+            const batchSelectAllBtn = document.getElementById('btn-batch-select-all');
+            const batchSelectNoneBtn = document.getElementById('btn-batch-select-none');
+            const batchDeleteBtn = document.getElementById('btn-batch-delete');
+            const batchCancelBtn = document.getElementById('btn-batch-cancel');
             const sidebar = document.getElementById('doc-sidebar');
 
             btn && (btn.onclick = () => { mw_toggleSidebar(); mw_renderList(); });
@@ -2550,6 +2925,11 @@
                 e.target.value = '';
             });
             clearDataBtn && (clearDataBtn.onclick = () => mw_clearAllData());
+            batchModeBtn && (batchModeBtn.onclick = () => mw_enterBatchMode());
+            batchSelectAllBtn && (batchSelectAllBtn.onclick = () => mw_selectAllDocs());
+            batchSelectNoneBtn && (batchSelectNoneBtn.onclick = () => mw_selectNoneDocs());
+            batchDeleteBtn && (batchDeleteBtn.onclick = () => mw_batchDeleteDocs());
+            batchCancelBtn && (batchCancelBtn.onclick = () => mw_exitBatchMode());
 
             // 侧滑栏失去焦点时自动收起
             if (sidebar) {

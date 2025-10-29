@@ -498,9 +498,12 @@
                                             <div class="relative">
                                                 <input type="text" id="userTemplateSearchInput" class="form-control"
                                                     placeholder="搜索模板..." autocomplete="off">
-                                                <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                                                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                                <div
+                                                    class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor"
+                                                        viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                                     </svg>
                                                 </div>
                                             </div>
@@ -844,11 +847,15 @@
                                 <!-- 模板搜索下拉框（移到左侧，变窄） -->
                                 <div class="relative w-36 flex-shrink-0">
                                     <div class="relative">
-                                        <input type="text" id="miniUserTemplateSearchInput" class="form-control text-sm h-10 w-full"
-                                            placeholder="模板..." autocomplete="off">
-                                        <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                        <input type="text" id="miniUserTemplateSearchInput"
+                                            class="form-control text-sm h-10 w-full" placeholder="模板..."
+                                            autocomplete="off">
+                                        <div
+                                            class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor"
+                                                viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M19 9l-7 7-7-7"></path>
                                             </svg>
                                         </div>
                                     </div>
@@ -858,7 +865,7 @@
                                         <!-- 模板选项将动态填充 -->
                                     </div>
                                 </div>
-                                
+
                                 <!-- 输入框（复用完整模式的用户提示词输入框） -->
                                 <textarea id="miniUserPromptInput" class="form-control flex-1 h-10 text-sm resize-none"
                                     placeholder="如无额外要求，可直接点击发送按钮开始生成。"></textarea>
@@ -869,7 +876,7 @@
                                     <i class="fa fa-paper-plane"></i>
                                 </button>
                             </div>
-                            
+
                             <!-- 管理按钮（隐藏） -->
                             <button type="button" id="miniUserTemplateManageBtn"
                                 class="btn btn-outline btn-sm h-8 px-2 text-xs whitespace-nowrap hidden">
@@ -5048,7 +5055,7 @@
                 const userPromptInput = document.getElementById('userPromptInput');
                 const userTemplateSearchInput = document.getElementById('userTemplateSearchInput');
                 const miniUserTemplateSearchInput = document.getElementById('miniUserTemplateSearchInput');
-                
+
                 if (userPromptInput) {
                     userPromptInput.value = miniUserPromptInput.value;
                     // 同步占位符
@@ -5056,7 +5063,7 @@
                         userPromptInput.placeholder = miniUserPromptInput.placeholder;
                     }
                 }
-                
+
                 // 同步模板选择
                 if (userTemplateSearchInput && miniUserTemplateSearchInput) {
                     userTemplateSearchInput.value = miniUserTemplateSearchInput.value;
@@ -5339,7 +5346,7 @@
 
                 // 调用原有的onUserTemplateSelectChange逻辑
                 handleUserTemplateChange(fakeSelect);
-                
+
                 // 假设用户确认了切换（原有逻辑应该处理了确认对话框）
                 return true;
             }

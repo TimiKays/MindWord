@@ -336,7 +336,15 @@ const i18nLocales = {
       clearCloudData: '清空云数据',
       deleteAllCloudBackups: '删除所有云端备份',
       bidirectionalSync: '双向同步为最新',
-      oneClickSync: '一键同步'
+      oneClickSync: '一键同步',
+      batchMode: '批量模式',
+      selectAll: '全选',
+      selectNone: '全不选',
+      batchDelete: '批量删除',
+      cancel: '取消',
+      confirm: '确定',
+      confirmBatchDelete: '确定要删除选中的文档吗？',
+      noDocsSelected: '请至少选择一个文档'
     }
   },
 
@@ -679,7 +687,15 @@ const i18nLocales = {
       clearCloudData: 'Clear Cloud Data',
       deleteAllCloudBackups: 'Delete all cloud backups',
       bidirectionalSync: 'Bidirectional sync is up to date',
-      oneClickSync: 'sync'
+      oneClickSync: 'sync',
+      batchMode: 'Batch Mode',
+      selectAll: 'Select All',
+      selectNone: 'Select None',
+      batchDelete: 'Batch Delete',
+      cancel: 'Cancel',
+      confirm: 'Confirm',
+      confirmBatchDelete: 'Are you sure you want to delete the selected documents?',
+      noDocsSelected: 'Please select at least one document'
     }
   }
 };

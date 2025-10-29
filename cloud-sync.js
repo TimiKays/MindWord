@@ -101,7 +101,7 @@
         try {
             const aiCfg = (typeof mw_fetchAIPlatformConfigsSnapshot === 'function') ? mw_fetchAIPlatformConfigsSnapshot() : null;
             if (aiCfg) aiFolder.file('platform-configs.json', JSON.stringify(aiCfg, null, 2));
-            
+
             // 从LocalStorage获取用户的提示词模板，而不是使用mw_fetchAIPromptTemplatesSnapshot
             let myPromptTemplates = [];
             try {
@@ -110,7 +110,7 @@
                     myPromptTemplates = JSON.parse(stored);
                 }
             } catch (_) { }
-            
+
             // 如果有用户的提示词模板，保存到zip中
             if (myPromptTemplates && myPromptTemplates.length > 0) {
                 aiFolder.file('my-prompt-templates.json', JSON.stringify(myPromptTemplates, null, 2));
