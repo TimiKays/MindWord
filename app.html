@@ -2277,8 +2277,22 @@
             const aiFolder = zip.folder('ai');
             const aiCfg = mw_fetchAIPlatformConfigsSnapshot();
             if (aiCfg) aiFolder.file('platform-configs.json', JSON.stringify(aiCfg, null, 2));
-            const tpl = mw_fetchAIPromptTemplatesSnapshot();
-            if (tpl) aiFolder.file('prompt-templates.json', JSON.stringify(tpl, null, 2));
+            
+            // 从LocalStorage获取myPromptTemplates
+            let myPromptTemplates = [];
+            try {
+                const stored = localStorage.getItem('myPromptTemplates');
+                if (stored) {
+                    myPromptTemplates = JSON.parse(stored);
+                }
+            } catch (e) {
+                console.warn('从LocalStorage获取myPromptTemplates失败:', e);
+            }
+            
+            // 如果有myPromptTemplates数据，导出为my-prompt-templates.json
+            if (myPromptTemplates && myPromptTemplates.length > 0) {
+                aiFolder.file('my-prompt-templates.json', JSON.stringify(myPromptTemplates, null, 2));
+            }
 
             for (const doc of docs) {
                 const safeName = (doc.name || 'document').replace(/[\\/:*?"<>|]+/g, '_');
@@ -2332,8 +2346,21 @@
                 if (rootAiFolder) {
                     const cfg = rootAiFolder.file('platform-configs.json');
                     const tpf = rootAiFolder.file('prompt-templates.json');
+                    const myTpf = rootAiFolder.file('my-prompt-templates.json');
                     if (cfg) try { rootAiCfg = JSON.parse(await cfg.async('string')); } catch (_) { console.warn('mw_importZip: parse root platform-configs.json failed'); }
                     if (tpf) try { rootTpl = JSON.parse(await tpf.async('string')); } catch (_) { console.warn('mw_importZip: parse root prompt-templates.json failed'); }
+                    if (myTpf) {
+                        try { 
+                            const myTemplates = JSON.parse(await myTpf.async('string'));
+                            if (myTemplates && myTemplates.length > 0) {
+                                // 将myPromptTemplates保存到localStorage
+                                localStorage.setItem('myPromptTemplates', JSON.stringify(myTemplates));
+                                console.log('mw_importZip: 成功导入my-prompt-templates.json');
+                            }
+                        } catch (_) { 
+                            console.warn('mw_importZip: parse root my-prompt-templates.json failed'); 
+                        }
+                    }
                 }
             } catch (err) {
                 console.warn('mw_importZip: read root ai folder failed', err);
