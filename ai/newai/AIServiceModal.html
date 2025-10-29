@@ -373,6 +373,33 @@
             .hidden {
                 display: none !important;
             }
+            
+            /* 用户模板搜索下拉框样式 */
+            .template-dropdown-item {
+                @apply px-3 py-2 cursor-pointer hover:bg-gray-100 transition-colors duration-150;
+                border-bottom: 1px solid #f3f4f6;
+            }
+            .template-dropdown-item:last-child {
+                border-bottom: none;
+            }
+            .template-dropdown-item:hover {
+                @apply bg-gray-50;
+            }
+            .template-dropdown-item.selected {
+                @apply bg-primary text-white;
+            }
+            .template-dropdown-item.custom-option {
+                @apply bg-blue-50 border-l-4 border-blue-400;
+            }
+            .template-dropdown-item.custom-option:hover {
+                @apply bg-blue-100;
+            }
+            .template-dropdown-item.no-results {
+                @apply text-gray-500 text-sm italic cursor-default hover:bg-transparent;
+            }
+            .template-dropdown-item.highlight {
+                @apply bg-yellow-100;
+            }
         }
     </style>
 </head>
@@ -465,17 +492,18 @@
                         <div class="form-group mt-4">
                             <div class="flex gap-3 items-center flex-col sm:flex-row">
                                 <div class="flex-1 w-full">
-                                    <label class="form-label" for="userTemplateSelect">用户提示词模板</label>
+                                    <label class="form-label" for="userTemplateSearchInput">用户提示词模板</label>
                                     <div class="flex flex-wrap items-center gap-2">
-                                        <select id="userTemplateSelect" class="form-control flex-1">
-                                            <option value="">无模板</option>
-                                            <!-- 用户模板项将由JS动态填充 -->
-                                        </select>
+                                        <div class="relative flex-1">
+                                            <input type="text" id="userTemplateSearchInput" class="form-control" placeholder="搜索模板..." autocomplete="off">
+                                            <div id="userTemplateDropdown" class="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto z-10 hidden">
+                                                <!-- 模板选项将动态填充 -->
+                                            </div>
+                                        </div>
                                         <button type="button" id="userTemplateManageBtn"
                                             class="btn btn-outline inline-flex whitespace-nowrap items-center">
                                             <i class="fa fa-cog mr-1"></i>管理
                                         </button>
-
                                     </div>
                                 </div>
                             </div>
@@ -5042,6 +5070,202 @@
                 }
             }
 
+            // 用户模板搜索相关功能
+            let userTemplateSearchTimeout = null;
+            let allUserTemplates = [];
+            let selectedTemplateId = '';
+
+            // 模糊搜索函数
+            function fuzzySearch(query, items, keys = ['name', 'description']) {
+                if (!query.trim()) return items;
+                
+                const lowerQuery = query.toLowerCase();
+                return items.filter(item => {
+                    return keys.some(key => {
+                        const value = item[key] || '';
+                        return value.toLowerCase().includes(lowerQuery);
+                    });
+                });
+            }
+
+            // 更新搜索下拉框
+            function updateTemplateDropdown(filteredTemplates = null) {
+                const dropdown = document.getElementById('userTemplateDropdown');
+                const searchInput = document.getElementById('userTemplateSearchInput');
+                
+                if (!dropdown || !searchInput) return;
+
+                const templates = filteredTemplates || allUserTemplates;
+                const searchTerm = searchInput.value.toLowerCase();
+                
+                dropdown.innerHTML = '';
+
+                if (templates.length === 0 && searchTerm) {
+                    const noResults = document.createElement('div');
+                    noResults.className = 'template-dropdown-item no-results';
+                    noResults.textContent = '没有找到匹配的模板';
+                    dropdown.appendChild(noResults);
+                } else {
+                    templates.forEach(template => {
+                        const item = document.createElement('div');
+                        item.className = 'template-dropdown-item';
+                        if (template.id === selectedTemplateId) {
+                            item.classList.add('selected');
+                        }
+                        if (template.type === 'custom') {
+                            item.classList.add('custom-option');
+                        }
+                        
+                        item.textContent = template.name;
+                        item.title = template.description || template.name;
+                        item.dataset.templateId = template.id;
+                        item.dataset.content = template.content;
+                        
+                        item.addEventListener('click', () => {
+                            selectTemplate(template);
+                        });
+                        
+                        dropdown.appendChild(item);
+                    });
+                }
+
+                // 显示下拉框
+                dropdown.classList.remove('hidden');
+            }
+
+            // 选择模板
+            function selectTemplate(template) {
+                const searchInput = document.getElementById('userTemplateSearchInput');
+                const dropdown = document.getElementById('userTemplateDropdown');
+                
+                if (!searchInput || !dropdown) return;
+
+                // 使用handleTemplateSwitch处理模板切换（包含二次确认逻辑）
+                const switchResult = handleTemplateSwitch(template.id);
+                
+                if (switchResult) {
+                    // 只有在用户确认切换后才更新UI
+                    searchInput.value = template.name;
+                    selectedTemplateId = template.id;
+                    
+                    // 隐藏下拉框
+                    dropdown.classList.add('hidden');
+                    
+                    console.log('[UserTemplates] 选择模板:', template.name);
+                } else {
+                    // 用户取消了切换，保持当前状态
+                    console.log('[UserTemplates] 用户取消了模板选择');
+                }
+            }
+
+            // 处理模板切换（保留原有的二次确认逻辑）
+            function handleTemplateSwitch(template) {
+                // 这里会调用原有的模板切换逻辑
+                // 我们需要模拟原有的select元素的change事件
+                const fakeSelect = {
+                    value: template.id,
+                    options: [{
+                        dataset: {
+                            content: template.content
+                        },
+                        textContent: template.name
+                    }],
+                    selectedIndex: 0
+                };
+                
+                // 调用原有的onUserTemplateSelectChange逻辑
+                handleUserTemplateChange(fakeSelect);
+            }
+
+            // 搜索输入事件处理
+            function handleTemplateSearchInput() {
+                const searchInput = document.getElementById('userTemplateSearchInput');
+                const dropdown = document.getElementById('userTemplateDropdown');
+                
+                if (!searchInput || !dropdown) return;
+
+                clearTimeout(userTemplateSearchTimeout);
+                
+                userTemplateSearchTimeout = setTimeout(() => {
+                    const searchTerm = searchInput.value.trim();
+                    
+                    if (searchTerm === '') {
+                        // 如果搜索框为空，显示所有模板
+                        updateTemplateDropdown(allUserTemplates);
+                    } else {
+                        // 执行模糊搜索
+                        const filteredTemplates = fuzzySearch(searchTerm, allUserTemplates);
+                        updateTemplateDropdown(filteredTemplates);
+                    }
+                }, 300); // 300ms防抖
+            }
+
+            // 绑定搜索相关事件
+            function bindTemplateSearchEvents() {
+                const searchInput = document.getElementById('userTemplateSearchInput');
+                const dropdown = document.getElementById('userTemplateDropdown');
+                
+                if (!searchInput || !dropdown) return;
+
+                // 搜索输入事件
+                searchInput.addEventListener('input', handleTemplateSearchInput);
+                
+                // 搜索框聚焦事件
+                searchInput.addEventListener('focus', () => {
+                    if (typeof allUserTemplates !== 'undefined' && allUserTemplates.length > 0) {
+                        updateTemplateDropdown(allUserTemplates);
+                    }
+                });
+                
+                // 点击外部关闭下拉框
+                document.addEventListener('click', (e) => {
+                    if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+                        dropdown.classList.add('hidden');
+                    }
+                });
+                
+                // 键盘导航
+                searchInput.addEventListener('keydown', (e) => {
+                    const items = dropdown.querySelectorAll('.template-dropdown-item:not(.no-results)');
+                    const selectedItem = dropdown.querySelector('.template-dropdown-item.selected');
+                    let currentIndex = Array.from(items).indexOf(selectedItem);
+                    
+                    switch (e.key) {
+                        case 'ArrowDown':
+                            e.preventDefault();
+                            currentIndex = Math.min(currentIndex + 1, items.length - 1);
+                            if (items[currentIndex]) {
+                                items.forEach(item => item.classList.remove('selected'));
+                                items[currentIndex].classList.add('selected');
+                                items[currentIndex].scrollIntoView({ block: 'nearest' });
+                            }
+                            break;
+                        case 'ArrowUp':
+                            e.preventDefault();
+                            currentIndex = Math.max(currentIndex - 1, 0);
+                            if (items[currentIndex]) {
+                                items.forEach(item => item.classList.remove('selected'));
+                                items[currentIndex].classList.add('selected');
+                                items[currentIndex].scrollIntoView({ block: 'nearest' });
+                            }
+                            break;
+                        case 'Enter':
+                            e.preventDefault();
+                            if (selectedItem && selectedItem.dataset.templateId) {
+                                const template = allUserTemplates.find(t => t.id === selectedItem.dataset.templateId);
+                                if (template) {
+                                    selectTemplate(template);
+                                }
+                            }
+                            break;
+                        case 'Escape':
+                            e.preventDefault();
+                            dropdown.classList.add('hidden');
+                            break;
+                    }
+                });
+            }
+
             // 加载用户模板数据
             async function loadUserTemplates() {
                 try {
@@ -5068,11 +5292,17 @@
                         const allTemplates = userBuiltInTemplates;
                         updateUserTemplateSelect(allTemplates);
 
+                        // 自动选择默认模板（如果没有上次使用的模板，则选择第一个）
+                        autoSelectDefaultTemplate(allTemplates);
+
                         console.log('[UserTemplates] 自动导入完成，共', allTemplates.length, '个模板');
                     } else {
                         // 正常情况：合并内置和用户模板
                         const allTemplates = [...builtInTemplates, ...userTemplates];
                         updateUserTemplateSelect(allTemplates);
+
+                        // 自动选择默认模板（如果没有上次使用的模板，则选择第一个）
+                        autoSelectDefaultTemplate(allTemplates);
 
                         console.log('[UserTemplates] 模板加载完成，共', allTemplates.length, '个模板');
                     }
@@ -5083,69 +5313,62 @@
                 }
             }
 
-            // 更新用户模板下拉框
+            // 更新用户模板下拉框（适配新的搜索系统）
             function updateUserTemplateSelect(templates) {
-                const select = document.getElementById('userTemplateSelect');
-                if (!select) return;
+                const searchInput = document.getElementById('userTemplateSearchInput');
+                const dropdown = document.getElementById('userTemplateDropdown');
+                
+                if (!searchInput || !dropdown) return;
 
-                // 清空选择框
-                select.innerHTML = '';
+                // 保存当前所有模板到搜索系统
+                allUserTemplates = [...templates];
+                
+                // 更新搜索框占位符
+                searchInput.placeholder = '搜索用户提示词模板...';
 
-                // 首先添加所有模板选项
-                templates.forEach(template => {
-                    const option = document.createElement('option');
-                    option.value = template.id;
-                    option.textContent = template.name;
-                    option.dataset.content = template.content;
-                    option.dataset.description = template.description;
-                    option.dataset.type = template.type;
-                    // 不再使用category字段，只使用type字段
-                    select.appendChild(option);
-                });
-
-                // 最后添加"自定义"选项（原来的"无模板"）
-                const customOption = document.createElement('option');
-                customOption.value = '';
-                customOption.textContent = '自定义';
-                select.appendChild(customOption);
-
-                console.log('[UserTemplates] 下拉框已更新，共', templates.length, '个模板');
-
-                // 自动选择上一次使用的模板，或第一个模板
-                autoSelectDefaultTemplate(templates);
+                console.log('[UserTemplates] 用户模板搜索系统已更新');
             }
 
-            // 自动选择默认模板
+            // 自动选择默认模板（适配新的搜索系统）
             function autoSelectDefaultTemplate(templates) {
-                const select = document.getElementById('userTemplateSelect');
+                const searchInput = document.getElementById('userTemplateSearchInput');
                 const userPromptInput = document.getElementById('userPromptInput');
-                if (!select || !userPromptInput) return;
+                
+                // 延迟执行，确保DOM元素已加载
+                setTimeout(() => {
+                    if (!searchInput || !userPromptInput) {
+                        console.warn('[UserTemplates] DOM元素未准备好，延迟重试');
+                        return;
+                    }
 
-                // 获取上一次使用的模板ID
-                const lastUsedTemplateId = localStorage.getItem('lastUsedUserTemplateId');
+                    // 获取上一次使用的模板ID
+                    const lastUsedTemplateId = localStorage.getItem('lastUsedUserTemplateId');
 
-                let selectedTemplate = null;
+                    let selectedTemplate = null;
 
-                // 如果存在上一次使用的模板，优先选择
-                if (lastUsedTemplateId) {
-                    selectedTemplate = templates.find(t => t.id === lastUsedTemplateId);
-                }
+                    // 如果存在上一次使用的模板，优先选择
+                    if (lastUsedTemplateId) {
+                        selectedTemplate = templates.find(t => t.id === lastUsedTemplateId);
+                    }
 
-                // 如果没有上一次使用的模板，选择第一个模板
-                if (!selectedTemplate && templates.length > 0) {
-                    selectedTemplate = templates[0];
-                }
+                    // 如果没有上一次使用的模板，选择第一个模板
+                    if (!selectedTemplate && templates.length > 0) {
+                        selectedTemplate = templates[0];
+                    }
 
-                // 应用选中的模板
-                if (selectedTemplate) {
-                    select.value = selectedTemplate.id;
-                    userPromptInput.value = selectedTemplate.content;
-                    console.log('[UserTemplates] 自动选择模板:', selectedTemplate.name);
-                } else {
-                    // 没有模板可用，选择"自定义"
-                    select.value = '';
-                    console.log('[UserTemplates] 没有可用模板，选择自定义');
-                }
+                    // 应用选中的模板
+                    if (selectedTemplate) {
+                        searchInput.value = selectedTemplate.name;
+                        selectedTemplateId = selectedTemplate.id;
+                        userPromptInput.value = selectedTemplate.content;
+                        console.log('[UserTemplates] 自动选择模板:', selectedTemplate.name);
+                    } else {
+                        // 没有模板可用，显示自定义
+                        searchInput.value = '';
+                        selectedTemplateId = '';
+                        console.log('[UserTemplates] 没有可用模板，显示自定义');
+                    }
+                }, 100);
             }
 
             // 绑定用户模板相关事件
@@ -5156,13 +5379,8 @@
                     manageBtn.addEventListener('click', openUserTemplateManager);
                 }
 
-
-
-                // 模板选择变化事件
-                const templateSelect = document.getElementById('userTemplateSelect');
-                if (templateSelect) {
-                    templateSelect.addEventListener('change', onUserTemplateSelectChange);
-                }
+                // 绑定新的搜索系统事件
+                bindTemplateSearchEvents();
 
                 // 用户提示词输入框内容变化事件
                 const userPromptInput = document.getElementById('userPromptInput');
@@ -5176,28 +5394,45 @@
 
             // 用户提示词输入框内容变化事件处理
             function onUserPromptInputChange() {
-                const userPromptInput = document.getElementById('userPromptInput');
-                const templateSelect = document.getElementById('userTemplateSelect');
+                try {
+                    const userPromptInput = document.getElementById('userPromptInput');
+                    const searchInput = document.getElementById('userTemplateSearchInput');
 
-                if (!userPromptInput || !templateSelect) return;
+                    if (!userPromptInput || !searchInput) {
+                        console.warn('[UserTemplates] 找不到必要的DOM元素');
+                        return;
+                    }
 
-                const currentContent = userPromptInput.value.trim();
-                const selectedOption = templateSelect.options[templateSelect.selectedIndex];
+                    const currentContent = userPromptInput.value.trim();
 
-                // 如果当前选择的是"自定义"选项，不需要处理
-                if (templateSelect.value === '') {
-                    return;
-                }
+                    // 如果当前选择的是"自定义"选项，不需要处理
+                    if (!selectedTemplateId) {
+                        return;
+                    }
 
-                // 获取当前选中模板的原始内容
-                const originalTemplateContent = selectedOption.dataset.content;
+                    // 获取当前选中模板的原始内容
+                    const selectedTemplate = allUserTemplates.find(t => t.id === selectedTemplateId);
+                    if (!selectedTemplate) {
+                        console.warn('[UserTemplates] 找不到选中的模板:', selectedTemplateId);
+                        return;
+                    }
 
-                // 如果用户修改了内容，且与原始模板内容不同，则自动切换到"自定义"
-                if (currentContent && originalTemplateContent && currentContent !== originalTemplateContent) {
-                    templateSelect.value = '';
-                    // 同时更新localStorage，标记当前为自定义状态
-                    localStorage.setItem('lastUsedUserTemplateId', 'custom');
-                    console.log('[UserTemplates] 用户修改了提示词，自动切换到自定义模板');
+                    const originalTemplateContent = selectedTemplate.content;
+
+                    // 如果用户修改了内容，且与原始模板内容不同，则自动切换到"自定义"
+                    if (currentContent && originalTemplateContent && currentContent !== originalTemplateContent) {
+                        selectedTemplateId = '';
+                        searchInput.value = '自定义';
+                        // 同时更新localStorage，标记当前为自定义状态
+                        localStorage.setItem('lastUsedUserTemplateId', 'custom');
+                        console.log('[UserTemplates] 用户修改了提示词，自动切换到自定义模板');
+                        
+                        // 触发搜索输入框的change事件，更新UI
+                        const changeEvent = new Event('change', { bubbles: true });
+                        searchInput.dispatchEvent(changeEvent);
+                    }
+                } catch (error) {
+                    console.error('[UserTemplates] onUserPromptInputChange执行失败:', error);
                 }
             }
 
@@ -5251,10 +5486,14 @@
                     };
                     document.addEventListener('keydown', escHandler);
 
-                    // 监听iframe消息，处理关闭请求
+                    // 监听iframe消息，处理关闭请求和应用模板
                     const messageHandler = (e) => {
                         if (e.data && e.data.type === 'CLOSE_TEMPLATE_MANAGER') {
                             closeUserTemplateManager();
+                            window.removeEventListener('message', messageHandler);
+                        } else if (e.data && e.data.type === 'useTemplate' && e.data.template) {
+                            // 应用模板：更新下拉框和输入框
+                            applyTemplateFromManager(e.data.template);
                             window.removeEventListener('message', messageHandler);
                         }
                     };
@@ -5284,29 +5523,68 @@
                 }
             }
 
+            // 从模板管理器应用模板
+            function applyTemplateFromManager(templateData) {
+                try {
+                    console.log('[UserTemplates] 从管理器应用模板:', templateData);
 
+                    // 关闭模板管理器
+                    closeUserTemplateManager();
 
-            // 用户模板选择变化事件处理
-            function onUserTemplateSelectChange() {
-                const select = document.getElementById('userTemplateSelect');
-                if (!select) return;
+                    // 获取搜索输入框和用户提示词输入框
+                    const searchInput = document.getElementById('userTemplateSearchInput');
+                    const userPromptInput = document.getElementById('userPromptInput');
 
-                const selectedOption = select.options[select.selectedIndex];
-                const templateContent = selectedOption.dataset.content;
-                const templateName = selectedOption.textContent;
+                    if (!searchInput || !userPromptInput) {
+                        console.error('[UserTemplates] 找不到必要的DOM元素');
+                        return;
+                    }
 
-                // 如果是"自定义"选项，更新localStorage为自定义状态
-                if (select.value === '') {
-                    localStorage.setItem('lastUsedUserTemplateId', 'custom');
-                    console.log('[UserTemplates] 选择了自定义模板');
-                    return;
+                    // 查找或添加模板到用户模板数组
+                    let template = allUserTemplates.find(t => t.id === (templateData.id || templateData.name));
+                    if (!template) {
+                        // 如果模板不存在，添加到数组
+                        template = {
+                            id: templateData.id || templateData.name,
+                            name: templateData.name,
+                            content: templateData.content
+                        };
+                        allUserTemplates.push(template);
+                    }
+
+                    // 选中模板
+                    selectedTemplateId = template.id;
+                    searchInput.value = template.name;
+
+                    // 更新输入框内容
+                    userPromptInput.value = templateData.content;
+
+                    // 更新localStorage
+                    localStorage.setItem('lastUsedUserTemplateId', templateData.id || templateData.name);
+
+                    console.log('[UserTemplates] 模板已自动应用:', templateData.name);
+
+                    // 隐藏下拉框
+                    const dropdown = document.getElementById('userTemplateDropdown');
+                    if (dropdown) {
+                        dropdown.classList.add('hidden');
+                    }
+
+                } catch (error) {
+                    console.error('[UserTemplates] 应用模板失败:', error);
+                    alert('应用模板失败: ' + error.message);
                 }
+            }
 
-                // 检查是否选择了有效模板
-                if (!templateContent) {
-                    console.log('[UserTemplates] 模板内容为空');
-                    return;
-                }
+
+
+            // 处理模板切换（带二次确认功能）
+            function handleTemplateSwitch(templateId) {
+                const template = allUserTemplates.find(t => t.id === templateId);
+                if (!template) return;
+
+                const templateContent = template.content;
+                const templateName = template.name;
 
                 // 获取当前用户提示词输入框的内容
                 const userPromptInput = document.getElementById('userPromptInput');
@@ -5319,9 +5597,9 @@
                 // 如果当前内容为空，直接应用模板
                 if (!currentContent) {
                     userPromptInput.value = templateContent;
-                    localStorage.setItem('lastUsedUserTemplateId', select.value);
+                    localStorage.setItem('lastUsedUserTemplateId', templateId);
                     console.log('[UserTemplates] 模板已自动应用到用户提示词输入框');
-                    return;
+                    return true;
                 }
 
                 // 只有从"自定义"切换到其他模板时才需要二次确认
@@ -5329,18 +5607,20 @@
                     // 从自定义切换到其他模板，需要确认
                     if (confirm(`确定要用模板"${templateName}"替换当前的用户提示词吗？`)) {
                         userPromptInput.value = templateContent;
-                        localStorage.setItem('lastUsedUserTemplateId', select.value);
+                        localStorage.setItem('lastUsedUserTemplateId', templateId);
                         console.log('[UserTemplates] 模板已应用到用户提示词输入框');
+                        return true;
                     } else {
                         // 用户取消，重置选择为自定义
-                        select.value = '';
                         console.log('[UserTemplates] 用户取消了模板应用');
+                        return false;
                     }
                 } else {
                     // 从模板A切换到模板B，直接替换，不需要确认
                     userPromptInput.value = templateContent;
-                    localStorage.setItem('lastUsedUserTemplateId', select.value);
+                    localStorage.setItem('lastUsedUserTemplateId', templateId);
                     console.log('[UserTemplates] 模板已直接应用到用户提示词输入框');
+                    return true;
                 }
             }
 
