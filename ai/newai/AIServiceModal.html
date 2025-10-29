@@ -495,8 +495,17 @@
                                     <label class="form-label" for="userTemplateSearchInput">用户提示词模板</label>
                                     <div class="flex flex-wrap items-center gap-2">
                                         <div class="relative flex-1">
-                                            <input type="text" id="userTemplateSearchInput" class="form-control" placeholder="搜索模板..." autocomplete="off">
-                                            <div id="userTemplateDropdown" class="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto z-10 hidden">
+                                            <div class="relative">
+                                                <input type="text" id="userTemplateSearchInput" class="form-control"
+                                                    placeholder="搜索模板..." autocomplete="off">
+                                                <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                                    </svg>
+                                                </div>
+                                            </div>
+                                            <div id="userTemplateDropdown"
+                                                class="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto z-10 hidden">
                                                 <!-- 模板选项将动态填充 -->
                                             </div>
                                         </div>
@@ -829,15 +838,42 @@
 
                     <!-- 迷你模式界面 -->
                     <div id="aiMiniView" class="view-container hidden">
-                        <div class="flex items-center gap-2 p-2">
-                            <!-- 输入框 -->
-                            <textarea id="miniInput" class="form-control flex-1 h-10 text-sm resize-none"
-                                placeholder="如无额外要求，可直接点击发送按钮开始生成。"></textarea>
+                        <div class="px-2 py-2">
+                            <!-- 输入区域（模板搜索下拉框移到输入框左侧） -->
+                            <div class="flex items-center gap-2 mb-2">
+                                <!-- 模板搜索下拉框（移到左侧，变窄） -->
+                                <div class="relative w-36 flex-shrink-0">
+                                    <div class="relative">
+                                        <input type="text" id="miniUserTemplateSearchInput" class="form-control text-sm h-10 w-full"
+                                            placeholder="模板..." autocomplete="off">
+                                        <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <div id="miniUserTemplateDropdown"
+                                        class="fixed top-auto left-auto bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto z-50 hidden"
+                                        style="transform: translateY(0); margin-top: 4px;">
+                                        <!-- 模板选项将动态填充 -->
+                                    </div>
+                                </div>
+                                
+                                <!-- 输入框（复用完整模式的用户提示词输入框） -->
+                                <textarea id="miniUserPromptInput" class="form-control flex-1 h-10 text-sm resize-none"
+                                    placeholder="如无额外要求，可直接点击发送按钮开始生成。"></textarea>
 
-                            <!-- 发送按钮 -->
-                            <button type="button" id="miniExpandBtn" class="btn btn-primary btn-sm h-10 px-3"
-                                title="发送">
-                                <i class="fa fa-paper-plane"></i>
+                                <!-- 发送按钮 -->
+                                <button type="button" id="miniSendBtn" class="btn btn-primary btn-sm h-10 px-3"
+                                    title="发送">
+                                    <i class="fa fa-paper-plane"></i>
+                                </button>
+                            </div>
+                            
+                            <!-- 管理按钮（隐藏） -->
+                            <button type="button" id="miniUserTemplateManageBtn"
+                                class="btn btn-outline btn-sm h-8 px-2 text-xs whitespace-nowrap hidden">
+                                <i class="fa fa-cog mr-1"></i>管理
                             </button>
                         </div>
 
@@ -4904,6 +4940,8 @@
                 const templateConfigView = document.getElementById('templateConfigView');
                 const minimizeButton = document.getElementById('minimizeButton');
 
+                console.log('[toggleMiniMode] 切换模式，当前isMiniMode:', isMiniMode);
+
                 if (isMiniMode) {
                     // 切换到迷你模式
                     modal.classList.add('mini-mode');
@@ -4919,6 +4957,7 @@
                     }
 
                     // 同步当前配置到迷你模式
+                    console.log('[toggleMiniMode] 切换到迷你模式，调用syncToMiniMode');
                     syncToMiniMode();
                 } else {
                     // 切换到正常模式
@@ -4933,6 +4972,7 @@
                     }
 
                     // 同步迷你模式的输入到完整模式
+                    console.log('[toggleMiniMode] 切换到完整模式，调用syncFromMiniMode');
                     syncFromMiniMode();
                 }
             }
@@ -4940,50 +4980,86 @@
             // 同步配置到迷你模式
             function syncToMiniMode() {
                 const userPromptInput = document.getElementById('userPromptInput');
-                const miniInput = document.getElementById('miniInput');
+                const miniUserPromptInput = document.getElementById('miniUserPromptInput');
+                const userTemplateSearchInput = document.getElementById('userTemplateSearchInput');
+                const miniUserTemplateSearchInput = document.getElementById('miniUserTemplateSearchInput');
 
-                if (userPromptInput && miniInput) {
-                    miniInput.value = userPromptInput.value;
+                if (userPromptInput && miniUserPromptInput) {
+                    miniUserPromptInput.value = userPromptInput.value;
                     // 同步占位符
                     if (userPromptInput.placeholder) {
-                        miniInput.placeholder = userPromptInput.placeholder;
+                        miniUserPromptInput.placeholder = userPromptInput.placeholder;
                     }
+                }
+
+                // 同步模板选择
+                if (userTemplateSearchInput && miniUserTemplateSearchInput) {
+                    miniUserTemplateSearchInput.value = userTemplateSearchInput.value;
                 }
             }
 
             // 同步迷你模式到完整模式
             function syncFromMiniMode() {
                 const userPromptInput = document.getElementById('userPromptInput');
-                const miniInput = document.getElementById('miniInput');
+                const miniUserPromptInput = document.getElementById('miniUserPromptInput');
+                const userTemplateSearchInput = document.getElementById('userTemplateSearchInput');
+                const miniUserTemplateSearchInput = document.getElementById('miniUserTemplateSearchInput');
 
-                if (userPromptInput && miniInput) {
-                    userPromptInput.value = miniInput.value;
+                console.log('[syncFromMiniMode] 元素检查:');
+                console.log('- userPromptInput:', userPromptInput ? '存在' : '不存在');
+                console.log('- miniUserPromptInput:', miniUserPromptInput ? '存在' : '不存在');
+                console.log('- userTemplateSearchInput:', userTemplateSearchInput ? '存在' : '不存在');
+                console.log('- miniUserTemplateSearchInput:', miniUserTemplateSearchInput ? '存在' : '不存在');
+
+                if (userPromptInput && miniUserPromptInput) {
+                    console.log('[syncFromMiniMode] 开始同步，miniUserPromptInput值:', miniUserPromptInput.value);
+                    console.log('[syncFromMiniMode] 当前userPromptInput值:', userPromptInput.value);
+                    userPromptInput.value = miniUserPromptInput.value;
+                    console.log('[syncFromMiniMode] 已同步输入框值:', miniUserPromptInput.value);
                     // 同步占位符
-                    if (miniInput.placeholder) {
-                        userPromptInput.placeholder = miniInput.placeholder;
+                    if (miniUserPromptInput.placeholder) {
+                        userPromptInput.placeholder = miniUserPromptInput.placeholder;
                     }
+                } else {
+                    console.log('[syncFromMiniMode] 元素不存在，无法同步输入框');
+                }
+
+                // 同步模板选择
+                if (userTemplateSearchInput && miniUserTemplateSearchInput) {
+                    userTemplateSearchInput.value = miniUserTemplateSearchInput.value;
+                    console.log('[syncFromMiniMode] 已同步模板搜索值:', miniUserTemplateSearchInput.value);
+                } else {
+                    console.log('[syncFromMiniMode] 模板搜索元素不存在，无法同步');
                 }
             }
 
             // 迷你模式发送请求
             async function sendMiniRequest() {
-                const miniInput = document.getElementById('miniInput');
+                const miniUserPromptInput = document.getElementById('miniUserPromptInput');
                 const miniStatus = document.getElementById('miniStatus');
                 const miniExpandBtn = document.getElementById('miniExpandBtn');
 
                 // 迷你模式下允许空提示词发送
-                if (!miniInput) {
+                if (!miniUserPromptInput) {
                     return;
                 }
 
                 // 同步输入到用户提示词输入框
                 const userPromptInput = document.getElementById('userPromptInput');
+                const userTemplateSearchInput = document.getElementById('userTemplateSearchInput');
+                const miniUserTemplateSearchInput = document.getElementById('miniUserTemplateSearchInput');
+                
                 if (userPromptInput) {
-                    userPromptInput.value = miniInput.value;
+                    userPromptInput.value = miniUserPromptInput.value;
                     // 同步占位符
-                    if (miniInput.placeholder) {
-                        userPromptInput.placeholder = miniInput.placeholder;
+                    if (miniUserPromptInput.placeholder) {
+                        userPromptInput.placeholder = miniUserPromptInput.placeholder;
                     }
+                }
+                
+                // 同步模板选择
+                if (userTemplateSearchInput && miniUserTemplateSearchInput) {
+                    userTemplateSearchInput.value = miniUserTemplateSearchInput.value;
                 }
 
                 // 使用现有的AI请求逻辑
@@ -5028,7 +5104,7 @@
             document.addEventListener('DOMContentLoaded', function () {
                 const minimizeButton = document.getElementById('minimizeButton');
                 const miniExpandBtn = document.getElementById('miniExpandBtn');
-                const miniInput = document.getElementById('miniInput');
+                const miniUserPromptInput = document.getElementById('miniUserPromptInput');
 
                 if (minimizeButton) {
                     minimizeButton.addEventListener('click', toggleMiniMode);
@@ -5038,14 +5114,17 @@
                     miniExpandBtn.addEventListener('click', sendMiniRequest);
                 }
 
-                if (miniInput) {
-                    miniInput.addEventListener('keypress', function (e) {
+                if (miniUserPromptInput) {
+                    miniUserPromptInput.addEventListener('keypress', function (e) {
                         if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey) {
                             e.preventDefault();
                             sendMiniRequest();
                         }
                     });
                 }
+
+                // 绑定迷你模式模板相关事件
+                bindMiniTemplateEvents();
 
                 // 用户提示词模板功能初始化
                 initializeUserTemplates();
@@ -5078,7 +5157,7 @@
             // 模糊搜索函数
             function fuzzySearch(query, items, keys = ['name', 'description']) {
                 if (!query.trim()) return items;
-                
+
                 const lowerQuery = query.toLowerCase();
                 return items.filter(item => {
                     return keys.some(key => {
@@ -5092,12 +5171,12 @@
             function updateTemplateDropdown(filteredTemplates = null) {
                 const dropdown = document.getElementById('userTemplateDropdown');
                 const searchInput = document.getElementById('userTemplateSearchInput');
-                
+
                 if (!dropdown || !searchInput) return;
 
                 const templates = filteredTemplates || allUserTemplates;
                 const searchTerm = searchInput.value.toLowerCase();
-                
+
                 dropdown.innerHTML = '';
 
                 if (templates.length === 0 && searchTerm) {
@@ -5115,19 +5194,73 @@
                         if (template.type === 'custom') {
                             item.classList.add('custom-option');
                         }
-                        
+
                         item.textContent = template.name;
                         item.title = template.description || template.name;
                         item.dataset.templateId = template.id;
                         item.dataset.content = template.content;
-                        
+
                         item.addEventListener('click', () => {
                             selectTemplate(template);
                         });
-                        
+
                         dropdown.appendChild(item);
                     });
                 }
+
+                // 显示下拉框
+                dropdown.classList.remove('hidden');
+            }
+
+            // 更新迷你模式搜索下拉框
+            function updateMiniTemplateDropdown(filteredTemplates = null) {
+                const dropdown = document.getElementById('miniUserTemplateDropdown');
+                const searchInput = document.getElementById('miniUserTemplateSearchInput');
+
+                if (!dropdown || !searchInput) return;
+
+                const templates = filteredTemplates || allUserTemplates;
+                const searchTerm = searchInput.value.toLowerCase();
+
+                dropdown.innerHTML = '';
+
+                if (templates.length === 0 && searchTerm) {
+                    const noResults = document.createElement('div');
+                    noResults.className = 'template-dropdown-item no-results';
+                    noResults.textContent = '没有找到匹配的模板';
+                    dropdown.appendChild(noResults);
+                } else {
+                    templates.forEach(template => {
+                        const item = document.createElement('div');
+                        item.className = 'template-dropdown-item';
+                        if (template.id === selectedTemplateId) {
+                            item.classList.add('selected');
+                        }
+                        if (template.type === 'custom') {
+                            item.classList.add('custom-option');
+                        }
+
+                        item.textContent = template.name;
+                        item.title = template.description || template.name;
+                        item.dataset.templateId = template.id;
+                        item.dataset.content = template.content;
+
+                        item.addEventListener('click', () => {
+                            selectMiniTemplate(template);
+                        });
+
+                        dropdown.appendChild(item);
+                    });
+                }
+
+                // 计算下拉框位置
+                const searchInputRect = searchInput.getBoundingClientRect();
+                dropdown.style.position = 'fixed';
+                dropdown.style.top = (searchInputRect.bottom + 4) + 'px';
+                dropdown.style.left = searchInputRect.left + 'px';
+                dropdown.style.width = searchInputRect.width + 'px';
+                dropdown.style.maxHeight = '200px';
+                dropdown.style.zIndex = '9999';
 
                 // 显示下拉框
                 dropdown.classList.remove('hidden');
@@ -5137,24 +5270,55 @@
             function selectTemplate(template) {
                 const searchInput = document.getElementById('userTemplateSearchInput');
                 const dropdown = document.getElementById('userTemplateDropdown');
-                
+                const userPromptInput = document.getElementById('userPromptInput');
+
                 if (!searchInput || !dropdown) return;
 
                 // 使用handleTemplateSwitch处理模板切换（包含二次确认逻辑）
                 const switchResult = handleTemplateSwitch(template.id);
-                
+
                 if (switchResult) {
                     // 只有在用户确认切换后才更新UI
                     searchInput.value = template.name;
+                    if (userPromptInput) {
+                        userPromptInput.value = template.content;
+                    }
                     selectedTemplateId = template.id;
-                    
+
                     // 隐藏下拉框
                     dropdown.classList.add('hidden');
-                    
+
                     console.log('[UserTemplates] 选择模板:', template.name);
                 } else {
                     // 用户取消了切换，保持当前状态
                     console.log('[UserTemplates] 用户取消了模板选择');
+                }
+            }
+
+            // 选择迷你模式模板
+            function selectMiniTemplate(template) {
+                const searchInput = document.getElementById('miniUserTemplateSearchInput');
+                const dropdown = document.getElementById('miniUserTemplateDropdown');
+                const userPromptInput = document.getElementById('miniUserPromptInput');
+
+                if (!searchInput || !dropdown || !userPromptInput) return;
+
+                // 使用handleTemplateSwitch处理模板切换（包含二次确认逻辑）
+                const switchResult = handleTemplateSwitch(template.id);
+
+                if (switchResult) {
+                    // 只有在用户确认切换后才更新UI
+                    searchInput.value = template.name;
+                    userPromptInput.value = template.content;
+                    selectedTemplateId = template.id;
+
+                    // 隐藏下拉框
+                    dropdown.classList.add('hidden');
+
+                    console.log('[UserTemplates] 迷你模式选择模板:', template.name);
+                } else {
+                    // 用户取消了切换，保持当前状态
+                    console.log('[UserTemplates] 迷你模式用户取消了模板选择');
                 }
             }
 
@@ -5172,23 +5336,26 @@
                     }],
                     selectedIndex: 0
                 };
-                
+
                 // 调用原有的onUserTemplateSelectChange逻辑
                 handleUserTemplateChange(fakeSelect);
+                
+                // 假设用户确认了切换（原有逻辑应该处理了确认对话框）
+                return true;
             }
 
             // 搜索输入事件处理
             function handleTemplateSearchInput() {
                 const searchInput = document.getElementById('userTemplateSearchInput');
                 const dropdown = document.getElementById('userTemplateDropdown');
-                
+
                 if (!searchInput || !dropdown) return;
 
                 clearTimeout(userTemplateSearchTimeout);
-                
+
                 userTemplateSearchTimeout = setTimeout(() => {
                     const searchTerm = searchInput.value.trim();
-                    
+
                     if (searchTerm === '') {
                         // 如果搜索框为空，显示所有模板
                         updateTemplateDropdown(allUserTemplates);
@@ -5200,68 +5367,139 @@
                 }, 300); // 300ms防抖
             }
 
+            // 迷你模式搜索输入事件处理
+            function handleMiniTemplateSearchInput() {
+                const searchInput = document.getElementById('miniUserTemplateSearchInput');
+                const dropdown = document.getElementById('miniUserTemplateDropdown');
+
+                if (!searchInput || !dropdown) return;
+
+                clearTimeout(userTemplateSearchTimeout);
+
+                userTemplateSearchTimeout = setTimeout(() => {
+                    const searchTerm = searchInput.value.trim();
+
+                    if (searchTerm === '') {
+                        // 如果搜索框为空，显示所有模板
+                        updateMiniTemplateDropdown(allUserTemplates);
+                    } else {
+                        // 执行模糊搜索
+                        const filteredTemplates = fuzzySearch(searchTerm, allUserTemplates);
+                        updateMiniTemplateDropdown(filteredTemplates);
+                    }
+                }, 300); // 300ms防抖
+            }
+
             // 绑定搜索相关事件
             function bindTemplateSearchEvents() {
                 const searchInput = document.getElementById('userTemplateSearchInput');
                 const dropdown = document.getElementById('userTemplateDropdown');
-                
+
                 if (!searchInput || !dropdown) return;
 
                 // 搜索输入事件
                 searchInput.addEventListener('input', handleTemplateSearchInput);
-                
+
                 // 搜索框聚焦事件
                 searchInput.addEventListener('focus', () => {
                     if (typeof allUserTemplates !== 'undefined' && allUserTemplates.length > 0) {
                         updateTemplateDropdown(allUserTemplates);
                     }
                 });
-                
+
                 // 点击外部关闭下拉框
                 document.addEventListener('click', (e) => {
                     if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
                         dropdown.classList.add('hidden');
                     }
                 });
-                
+
                 // 键盘导航
                 searchInput.addEventListener('keydown', (e) => {
                     const items = dropdown.querySelectorAll('.template-dropdown-item:not(.no-results)');
-                    const selectedItem = dropdown.querySelector('.template-dropdown-item.selected');
-                    let currentIndex = Array.from(items).indexOf(selectedItem);
-                    
-                    switch (e.key) {
-                        case 'ArrowDown':
-                            e.preventDefault();
-                            currentIndex = Math.min(currentIndex + 1, items.length - 1);
-                            if (items[currentIndex]) {
-                                items.forEach(item => item.classList.remove('selected'));
-                                items[currentIndex].classList.add('selected');
-                                items[currentIndex].scrollIntoView({ block: 'nearest' });
-                            }
-                            break;
-                        case 'ArrowUp':
-                            e.preventDefault();
-                            currentIndex = Math.max(currentIndex - 1, 0);
-                            if (items[currentIndex]) {
-                                items.forEach(item => item.classList.remove('selected'));
-                                items[currentIndex].classList.add('selected');
-                                items[currentIndex].scrollIntoView({ block: 'nearest' });
-                            }
-                            break;
-                        case 'Enter':
-                            e.preventDefault();
-                            if (selectedItem && selectedItem.dataset.templateId) {
-                                const template = allUserTemplates.find(t => t.id === selectedItem.dataset.templateId);
-                                if (template) {
-                                    selectTemplate(template);
-                                }
-                            }
-                            break;
-                        case 'Escape':
-                            e.preventDefault();
-                            dropdown.classList.add('hidden');
-                            break;
+                    const currentIndex = Array.from(items).findIndex(item => item.classList.contains('selected'));
+
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        const nextIndex = currentIndex < items.length - 1 ? currentIndex + 1 : 0;
+                        if (items[nextIndex]) {
+                            items.forEach(item => item.classList.remove('selected'));
+                            items[nextIndex].classList.add('selected');
+                            items[nextIndex].scrollIntoView({ block: 'nearest' });
+                        }
+                    } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        const prevIndex = currentIndex > 0 ? currentIndex - 1 : items.length - 1;
+                        if (items[prevIndex]) {
+                            items.forEach(item => item.classList.remove('selected'));
+                            items[prevIndex].classList.add('selected');
+                            items[prevIndex].scrollIntoView({ block: 'nearest' });
+                        }
+                    } else if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const selectedItem = dropdown.querySelector('.template-dropdown-item.selected');
+                        if (selectedItem && !selectedItem.classList.contains('no-results')) {
+                            selectedItem.click();
+                        }
+                    } else if (e.key === 'Escape') {
+                        dropdown.classList.add('hidden');
+                    }
+                });
+            }
+
+            // 绑定迷你模式搜索相关事件
+            function bindMiniTemplateSearchEvents() {
+                const searchInput = document.getElementById('miniUserTemplateSearchInput');
+                const dropdown = document.getElementById('miniUserTemplateDropdown');
+
+                if (!searchInput || !dropdown) return;
+
+                // 搜索输入事件
+                searchInput.addEventListener('input', handleMiniTemplateSearchInput);
+
+                // 搜索框聚焦事件
+                searchInput.addEventListener('focus', () => {
+                    if (typeof allUserTemplates !== 'undefined' && allUserTemplates.length > 0) {
+                        updateMiniTemplateDropdown(allUserTemplates);
+                    }
+                });
+
+                // 点击外部关闭下拉框
+                document.addEventListener('click', (e) => {
+                    if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+                        dropdown.classList.add('hidden');
+                    }
+                });
+
+                // 键盘导航
+                searchInput.addEventListener('keydown', (e) => {
+                    const items = dropdown.querySelectorAll('.template-dropdown-item:not(.no-results)');
+                    const currentIndex = Array.from(items).findIndex(item => item.classList.contains('selected'));
+
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        const nextIndex = currentIndex < items.length - 1 ? currentIndex + 1 : 0;
+                        if (items[nextIndex]) {
+                            items.forEach(item => item.classList.remove('selected'));
+                            items[nextIndex].classList.add('selected');
+                            items[nextIndex].scrollIntoView({ block: 'nearest' });
+                        }
+                    } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        const prevIndex = currentIndex > 0 ? currentIndex - 1 : items.length - 1;
+                        if (items[prevIndex]) {
+                            items.forEach(item => item.classList.remove('selected'));
+                            items[prevIndex].classList.add('selected');
+                            items[prevIndex].scrollIntoView({ block: 'nearest' });
+                        }
+                    } else if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const selectedItem = dropdown.querySelector('.template-dropdown-item.selected');
+                        if (selectedItem && !selectedItem.classList.contains('no-results')) {
+                            selectedItem.click();
+                        }
+                    } else if (e.key === 'Escape') {
+                        dropdown.classList.add('hidden');
                     }
                 });
             }
@@ -5317,12 +5555,12 @@
             function updateUserTemplateSelect(templates) {
                 const searchInput = document.getElementById('userTemplateSearchInput');
                 const dropdown = document.getElementById('userTemplateDropdown');
-                
+
                 if (!searchInput || !dropdown) return;
 
                 // 保存当前所有模板到搜索系统
                 allUserTemplates = [...templates];
-                
+
                 // 更新搜索框占位符
                 searchInput.placeholder = '搜索用户提示词模板...';
 
@@ -5333,14 +5571,11 @@
             function autoSelectDefaultTemplate(templates) {
                 const searchInput = document.getElementById('userTemplateSearchInput');
                 const userPromptInput = document.getElementById('userPromptInput');
-                
+                const miniSearchInput = document.getElementById('miniUserTemplateSearchInput');
+                const miniUserPromptInput = document.getElementById('miniUserPromptInput');
+
                 // 延迟执行，确保DOM元素已加载
                 setTimeout(() => {
-                    if (!searchInput || !userPromptInput) {
-                        console.warn('[UserTemplates] DOM元素未准备好，延迟重试');
-                        return;
-                    }
-
                     // 获取上一次使用的模板ID
                     const lastUsedTemplateId = localStorage.getItem('lastUsedUserTemplateId');
 
@@ -5356,17 +5591,36 @@
                         selectedTemplate = templates[0];
                     }
 
-                    // 应用选中的模板
-                    if (selectedTemplate) {
-                        searchInput.value = selectedTemplate.name;
-                        selectedTemplateId = selectedTemplate.id;
-                        userPromptInput.value = selectedTemplate.content;
-                        console.log('[UserTemplates] 自动选择模板:', selectedTemplate.name);
-                    } else {
-                        // 没有模板可用，显示自定义
-                        searchInput.value = '';
-                        selectedTemplateId = '';
-                        console.log('[UserTemplates] 没有可用模板，显示自定义');
+                    // 处理完整模式
+                    if (searchInput && userPromptInput) {
+                        // 应用选中的模板
+                        if (selectedTemplate) {
+                            searchInput.value = selectedTemplate.name;
+                            selectedTemplateId = selectedTemplate.id;
+                            userPromptInput.value = selectedTemplate.content;
+                            console.log('[UserTemplates] 完整模式自动选择模板:', selectedTemplate.name);
+                        } else {
+                            // 没有模板可用，显示自定义
+                            searchInput.value = '';
+                            selectedTemplateId = '';
+                            console.log('[UserTemplates] 完整模式没有可用模板，显示自定义');
+                        }
+                    }
+
+                    // 处理迷你模式
+                    if (miniSearchInput && miniUserPromptInput) {
+                        // 应用选中的模板
+                        if (selectedTemplate) {
+                            miniSearchInput.value = selectedTemplate.name;
+                            selectedTemplateId = selectedTemplate.id;
+                            miniUserPromptInput.value = selectedTemplate.content;
+                            console.log('[UserTemplates] 迷你模式自动选择模板:', selectedTemplate.name);
+                        } else {
+                            // 没有模板可用，显示自定义
+                            miniSearchInput.value = '';
+                            selectedTemplateId = '';
+                            console.log('[UserTemplates] 迷你模式没有可用模板，显示自定义');
+                        }
                     }
                 }, 100);
             }
@@ -5389,6 +5643,40 @@
                     userPromptInput.addEventListener('input', onUserPromptInputChange);
                     // 监听change事件（失焦时触发）
                     userPromptInput.addEventListener('change', onUserPromptInputChange);
+                }
+            }
+
+            // 绑定迷你模式模板相关事件
+            function bindMiniTemplateEvents() {
+                // 迷你模式管理按钮点击事件
+                const miniManageBtn = document.getElementById('miniUserTemplateManageBtn');
+                if (miniManageBtn) {
+                    miniManageBtn.addEventListener('click', openUserTemplateManager);
+                }
+
+                // 绑定迷你模式搜索系统事件
+                bindMiniTemplateSearchEvents();
+
+                // 迷你模式输入框内容变化事件
+                const miniUserPromptInput = document.getElementById('miniUserPromptInput');
+                if (miniUserPromptInput) {
+                    // 监听输入事件
+                    miniUserPromptInput.addEventListener('input', onMiniUserPromptInputChange);
+                    // 监听change事件（失焦时触发）
+                    miniUserPromptInput.addEventListener('change', onMiniUserPromptInputChange);
+                    // 监听回车事件
+                    miniUserPromptInput.addEventListener('keypress', function (e) {
+                        if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey) {
+                            e.preventDefault();
+                            sendMiniRequest();
+                        }
+                    });
+                }
+
+                // 迷你模式发送按钮事件
+                const miniSendBtn = document.getElementById('miniSendBtn');
+                if (miniSendBtn) {
+                    miniSendBtn.addEventListener('click', sendMiniRequest);
                 }
             }
 
@@ -5426,13 +5714,57 @@
                         // 同时更新localStorage，标记当前为自定义状态
                         localStorage.setItem('lastUsedUserTemplateId', 'custom');
                         console.log('[UserTemplates] 用户修改了提示词，自动切换到自定义模板');
-                        
+
                         // 触发搜索输入框的change事件，更新UI
                         const changeEvent = new Event('change', { bubbles: true });
                         searchInput.dispatchEvent(changeEvent);
                     }
                 } catch (error) {
                     console.error('[UserTemplates] onUserPromptInputChange执行失败:', error);
+                }
+            }
+
+            // 迷你模式：处理用户提示词输入变化
+            function onMiniUserPromptInputChange() {
+                try {
+                    const miniUserPromptInput = document.getElementById('miniUserPromptInput');
+                    const miniSearchInput = document.getElementById('miniUserTemplateSearchInput');
+
+                    if (!miniUserPromptInput || !miniSearchInput) {
+                        console.warn('[UserTemplates] 找不到必要的迷你模式DOM元素');
+                        return;
+                    }
+
+                    const currentContent = miniUserPromptInput.value.trim();
+
+                    // 如果当前选择的是"自定义"选项，不需要处理
+                    if (!selectedTemplateId) {
+                        return;
+                    }
+
+                    // 获取当前选中模板的原始内容
+                    const selectedTemplate = allUserTemplates.find(t => t.id === selectedTemplateId);
+                    if (!selectedTemplate) {
+                        console.warn('[UserTemplates] 找不到选中的模板:', selectedTemplateId);
+                        return;
+                    }
+
+                    const originalTemplateContent = selectedTemplate.content;
+
+                    // 如果用户修改了内容，且与原始模板内容不同，则自动切换到"自定义"
+                    if (currentContent && originalTemplateContent && currentContent !== originalTemplateContent) {
+                        selectedTemplateId = '';
+                        miniSearchInput.value = '自定义';
+                        // 同时更新localStorage，标记当前为自定义状态
+                        localStorage.setItem('lastUsedUserTemplateId', 'custom');
+                        console.log('[UserTemplates] 迷你模式：用户修改了提示词，自动切换到自定义模板');
+
+                        // 触发搜索输入框的change事件，更新UI
+                        const changeEvent = new Event('change', { bubbles: true });
+                        miniSearchInput.dispatchEvent(changeEvent);
+                    }
+                } catch (error) {
+                    console.error('[UserTemplates] onMiniUserPromptInputChange执行失败:', error);
                 }
             }
 
