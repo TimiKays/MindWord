@@ -553,7 +553,8 @@
             margin-bottom: 8px;
             background: #fff;
             cursor: pointer;
-            transition: background-color 0.15s ease, border-color 0.15s ease;
+            transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.2s ease;
+            position: relative;
         }
 
         .doc-item:hover {
@@ -565,6 +566,22 @@
             background-color: #e0f2fe;
             border-color: #0ea5e9;
             border-left: 3px solid #0ea5e9;
+        }
+
+        .doc-item.dragging {
+            opacity: 0.5;
+            transform: rotate(2deg);
+            z-index: 1000;
+        }
+
+        .doc-item.drag-over {
+            border-color: #0ea5e9;
+            background-color: #f0f9ff;
+            transform: translateY(2px);
+        }
+
+        .doc-item:not(.batch-mode) {
+            cursor: move;
         }
 
         /* 复选框样式 */
@@ -2213,6 +2230,28 @@
             return false;
         }
 
+        function mw_saveDocOrder(orderedIds) {
+            const docs = mw_loadDocs();
+            const orderedDocs = [];
+            
+            // 按照新的顺序重新排列文档
+            orderedIds.forEach(id => {
+                const doc = docs.find(d => d.id === id);
+                if (doc) {
+                    orderedDocs.push(doc);
+                }
+            });
+            
+            // 添加剩余的文档（未拖拽排序的）
+            docs.forEach(doc => {
+                if (!orderedIds.includes(doc.id)) {
+                    orderedDocs.push(doc);
+                }
+            });
+            
+            mw_saveDocs(orderedDocs);
+        }
+
         function mw_renderList() {
             const list = document.getElementById('doc-list');
             
@@ -2231,9 +2270,80 @@
                 list.innerHTML = '<div style="padding:12px;color:#64748b;font-size:12px;">暂无文档，点击"新增"创建</div>';
                 return;
             }
+            
+            // 添加拖拽排序功能（仅在非批量模式下）
+            if (!batchMode) {
+                list.style.cursor = 'grab';
+                let draggedElement = null;
+                let draggedId = null;
+
+                list.addEventListener('dragstart', (e) => {
+                    if (e.target.classList.contains('doc-item')) {
+                        draggedElement = e.target;
+                        draggedId = e.target.dataset.docId;
+                        e.target.style.opacity = '0.5';
+                        e.dataTransfer.effectAllowed = 'move';
+                    }
+                });
+
+                list.addEventListener('dragend', (e) => {
+                    if (e.target.classList.contains('doc-item')) {
+                        e.target.style.opacity = '';
+                        draggedElement = null;
+                        draggedId = null;
+                    }
+                });
+
+                list.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    
+                    const afterElement = getDragAfterElement(list, e.clientY);
+                    if (afterElement == null) {
+                        list.appendChild(draggedElement);
+                    } else {
+                        list.insertBefore(draggedElement, afterElement);
+                    }
+                });
+
+                list.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    if (draggedElement && draggedId) {
+                        // 获取新的排序
+                        const docItems = Array.from(list.querySelectorAll('.doc-item'));
+                        const orderedIds = docItems.map(item => item.dataset.docId);
+                        
+                        // 保存新的排序
+                        mw_saveDocOrder(orderedIds);
+                        
+                        // 重新渲染列表以保持状态
+                        mw_renderList();
+                        
+                        console.log('文档排序已更新');
+                    }
+                });
+
+                function getDragAfterElement(container, y) {
+                    const draggableElements = [...container.querySelectorAll('.doc-item:not(.dragging)')];
+                    
+                    return draggableElements.reduce((closest, child) => {
+                        const box = child.getBoundingClientRect();
+                        const offset = y - box.top - box.height / 2;
+                        
+                        if (offset < 0 && offset > closest.offset) {
+                            return { offset: offset, element: child };
+                        } else {
+                            return closest;
+                        }
+                    }, { offset: Number.NEGATIVE_INFINITY }).element;
+                }
+            }
+            
             visibleDocs.forEach(doc => {
                 const row = document.createElement('div');
                 row.className = 'doc-item' + (active === doc.id ? ' active' : '') + (batchMode ? ' batch-mode' : '');
+                row.draggable = !batchMode; // 仅在非批量模式下可拖拽
+                row.dataset.docId = doc.id; // 添加文档ID用于拖拽排序
                 
                 if (batchMode) {
                     // 批量模式：显示复选框
