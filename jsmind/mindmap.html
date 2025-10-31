@@ -1265,6 +1265,7 @@
       }, 300);
     })();    // 悬停节点右侧的就近快捷按钮（修改 / AI扩写子节点 / 删除）
     (function setupNodeHoverActions() {
+      console.log('[mindmap] 节点悬停按钮初始化开始');
       try {
         const wrap = document.createElement('div');
         wrap.id = 'nodeHoverActions';
@@ -1326,6 +1327,7 @@
         })();
 
         document.body.appendChild(wrap);
+        console.log('[mindmap] 节点悬停按钮DOM创建完成');
 
         let activeNodeEl = null;
         let activeNodeId = null;
@@ -1371,6 +1373,7 @@
           if (!nodeEl) return;
           activeNodeEl = nodeEl;
           activeNodeId = nodeEl.getAttribute('nodeid') || nodeEl.getAttribute('nodeId') || null;
+          console.log('[mindmap] showFor 显示按钮, nodeId:', activeNodeId);
           positionNear(nodeEl);
           wrap.style.display = 'block';
           wrap.setAttribute('aria-hidden', 'false');
@@ -1517,8 +1520,10 @@
           if (activeNodeEl && wrap.style.display !== 'none') positionNear(activeNodeEl);
         });
       } catch (e) {
+        console.error('[mindmap] 节点悬停按钮初始化失败:', e);
         try { console.warn('[MW] nodeHoverActions init failed', e); } catch (_) { }
       }
+      console.log('[mindmap] 节点悬停按钮初始化完成');
     })();
 
   </script>
@@ -1528,21 +1533,51 @@
       function renderMindmapFromMd(payload) {
         const md = payload?.md || '';
         const images = payload?.images || [];
+        console.log('[mindmap] renderMindmapFromMd 开始, docId:', payload?.docId || 'unknown', 'md长度:', md.length, 'images数量:', images.length);
         // 更新当前文档ID，用于撤销管理器按文档隔离
         if (payload?.docId) {
           window.currentFileName = payload.docId;
           console.log('[mindmap] 更新当前文档ID为:', window.currentFileName);
         }
+        
         try {
-          if (typeof window.renderMindmapFromMarkdown === 'function') {
-            window.renderMindmapFromMarkdown(md, images);
-          } else if (typeof window.loadMarkdownToMindmap === 'function') {
-            window.loadMarkdownToMindmap(md, images);
-          } else if (window.mindmap && typeof window.mindmap.renderMarkdown === 'function') {
-            window.mindmap.renderMarkdown(md, images);
+          // 等待转换器准备就绪
+          if (!window.converter) {
+            console.log('[mindmap] 等待转换器加载...');
+            // 监听转换器就绪事件
+            window.addEventListener('converterReady', function() {
+              renderMindmapFromMd(payload);
+            }, { once: true });
+            return;
           }
+          
+          console.log('[mindmap] 使用 converter.mdToNodeTree 渲染');
+          
+          // 使用转换器将markdown转换为nodeTree
+          const nodeTree = window.converter.mdToNodeTree(md);
+          console.log('[mindmap] markdown转换成功, nodeTree:', nodeTree);
+          
+          // 如果有mindmap实例，直接加载nodeTree
+          if (window.jm && window.jm.show) {
+            console.log('[mindmap] 使用 jm.show 加载nodeTree');
+            window.jm.show(nodeTree);
+          } else {
+            console.log('[mindmap] 等待mindmap初始化完成后再加载');
+            // 等待mindmap初始化完成
+            window.addEventListener('mindmapReady', function() {
+              if (window.jm && window.jm.show) {
+                window.jm.show(nodeTree);
+              }
+            }, { once: true });
+          }
+          
           document.dispatchEvent(new CustomEvent('mw:load_markdown', { detail: payload }));
-        } catch (e) { console.warn('[mindmap] renderMindmapFromMd error', e); }
+          console.log('[mindmap] renderMindmapFromMd 完成, 已派发 mw:load_markdown 事件');
+          
+        } catch (e) { 
+          console.warn('[mindmap] renderMindmapFromMd error', e); 
+          console.error('[mindmap] 渲染失败, docId:', payload?.docId || 'unknown', '错误:', e.message);
+        }
       }
 
       window.addEventListener('message', function (e) {
@@ -1550,10 +1585,12 @@
         if (!msg || typeof msg !== 'object') return;
 
         if (msg.type === 'mw_load_markdown' && msg.payload) {
+          console.log('[mindmap] 收到 mw_load_markdown 消息, docId:', msg.payload.docId || 'unknown', 'rev:', msg.payload.rev || 'none', 'md长度:', msg.payload.md ? msg.payload.md.length : 0);
           renderMindmapFromMd(msg.payload);
         }
 
         if (msg.type === 'mw_relayout') {
+          console.log('[mindmap] 收到 mw_relayout 消息');
           try {
             if (typeof window.updateLayout === 'function') window.updateLayout();
           } catch (_) { }
@@ -1565,6 +1602,7 @@
   <script>
     // 层级展开功能
     function expandToLevel(level) {
+      console.log('[mindmap] expandToLevel 被调用, level:', level);
       if (!window.jm) {
         console.warn('思维导图未初始化');
         return;
@@ -1573,14 +1611,16 @@
       try {
         if (level === 'all') {
           // 展开全部
+          console.log('[mindmap] 展开全部节点');
           jm.expand_all();
         } else {
           // 展开到指定层级
+          console.log('[mindmap] 展开到层级:', level);
           jm.expand_to_depth(level);
         }
-        console.log('已展开到层级:', level);
+        console.log('[mindmap] 层级展开完成, level:', level);
       } catch (error) {
-        console.error('展开层级失败:', error);
+        console.error('[mindmap] 展开层级失败, level:', level, '错误:', error);
       }
     }
   </script>

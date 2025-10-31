@@ -1102,6 +1102,14 @@ function loadNodeTree(nodeTreeData) {
         if (typeof window.MW_applyNodeVisibilityFilter === 'function') window.MW_applyNodeVisibilityFilter();
       } catch (e) { }
     }, 100);
+    
+    // 派发mindmapReady事件，通知mindmap.html思维导图已准备就绪
+    try {
+      window.dispatchEvent(new Event('mindmapReady'));
+      console.log('[MW] 已派发 mindmapReady 事件');
+    } catch (e) {
+      console.warn('[MW] 派发 mindmapReady 事件失败:', e);
+    }
   } catch (error) {
     // 如果加载失败，尝试加载默认数据
     try {

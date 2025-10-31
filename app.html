@@ -1088,10 +1088,12 @@
                                 window.__mw_pendingEditorDocument = null;
                             }
                             if (panelName === 'preview' && window.__mw_pendingPreviewMarkdown) {
+                                console.log(`[IFRAME-ONLOAD] ${panelName} iframe ready, sending cached preview message`);
                                 iframe.contentWindow.postMessage({ type: 'mw_load_markdown', payload: window.__mw_pendingPreviewMarkdown }, '*');
                                 window.__mw_pendingPreviewMarkdown = null;
                             }
                             if (panelName === 'mindmap' && window.__mw_pendingMindmapMarkdown) {
+                                console.log(`[IFRAME-ONLOAD] ${panelName} iframe ready, sending cached mindmap message, docId:`, window.__mw_pendingMindmapMarkdown?.doc?.id);
                                 iframe.contentWindow.postMessage({ type: 'mw_load_markdown', payload: window.__mw_pendingMindmapMarkdown }, '*');
                                 window.__mw_pendingMindmapMarkdown = null;
                             }
@@ -2185,33 +2187,63 @@
             }
 
             function reloadMindmapIframeOnce() {
+                console.log('[reloadMindmapIframeOnce] starting iframe reload');
                 var iframe = document.getElementById('iframe-mindmap');
                 if (!iframe) {
                     // 如果没有 id 为 iframe-mindmap 的元素，尝试按 panel src 选择
                     iframe = document.querySelector('iframe[src*="jsmind/mindmap.html"]');
                 }
-                if (!iframe) return;
+                if (!iframe) {
+                    console.warn('[reloadMindmapIframeOnce] no mindmap iframe found');
+                    return;
+                }
+                console.log('[reloadMindmapIframeOnce] found iframe, starting reload process');
                 try {
                     var src = iframe.getAttribute('src') || iframe.src;
                     src = src.replace(/([?&])_t=\d+/, '$1');
                     iframe.src = src + (src.includes('?') ? '&' : '?') + '_t=' + Date.now();
+                    console.log('[reloadMindmapIframeOnce] set new src with timestamp, waiting for load event');
 
                     function onLoadHandler() {
+                        console.log('[reloadMindmapIframeOnce] iframe loaded, sending mw_relayout messages');
                         try {
                             if (iframe.contentWindow) {
                                 iframe.contentWindow.postMessage({ type: 'mw_relayout' }, '*');
-                                setTimeout(function () { try { iframe.contentWindow.postMessage({ type: 'mw_relayout' }, '*'); } catch (e) { } }, 200);
+                                console.log('[reloadMindmapIframeOnce] sent first mw_relayout message');
+                                setTimeout(function () { 
+                                    try { 
+                                        iframe.contentWindow.postMessage({ type: 'mw_relayout' }, '*'); 
+                                        console.log('[reloadMindmapIframeOnce] sent second mw_relayout message');
+                                    } catch (e) { 
+                                        console.warn('[reloadMindmapIframeOnce] failed to send second mw_relayout:', e); 
+                                    } 
+                                }, 200);
+                            } else {
+                                console.warn('[reloadMindmapIframeOnce] iframe.contentWindow not available');
                             }
-                        } catch (e) { }
+                        } catch (e) { 
+                            console.warn('[reloadMindmapIframeOnce] error during relayout messages:', e); 
+                        }
                         iframe.removeEventListener('load', onLoadHandler);
+                        console.log('[reloadMindmapIframeOnce] completed');
                     }
                     iframe.addEventListener('load', onLoadHandler);
-                } catch (e) { console.warn('reloadMindmapIframeOnce error', e); }
+                } catch (e) { 
+                    console.warn('[reloadMindmapIframeOnce] error during reload:', e); 
+                }
             }
 
             window.MW_reloadMindmapOnShowIfMobile = function (panelName) {
-                if (panelName !== 'mindmap') return;
-                if (!isMobile()) return;
+                console.log('[MW_reloadMindmapOnShowIfMobile] called with panelName:', panelName);
+                if (panelName !== 'mindmap') {
+                    console.log('[MW_reloadMindmapOnShowIfMobile] not mindmap panel, returning');
+                    return;
+                }
+                if (!isMobile()) {
+                    console.log('[MW_reloadMindmapOnShowIfMobile] not mobile, returning');
+                    return;
+                }
+                console.log('[MW_reloadMindmapOnShowIfMobile] mobile mindmap detected, scheduling iframe reload');
                 setTimeout(reloadMindmapIframeOnce, 80);
             };
         })();
@@ -2473,24 +2505,53 @@
             try { showSuccess && showSuccess('已创建并打开'); } catch (_) { }
         }
 
+        // 切换文档
         function mw_openDoc(id) {
+            console.log('[DOC] mw_openDoc starting for doc id:', id);
             const docs = mw_loadDocs();
             const doc = docs.find(d => d.id === id);
-            if (!doc) return alert('文档不存在');
+            if (!doc) {
+                console.warn('[DOC] mw_openDoc failed: document not found for id:', id);
+                return alert('文档不存在');
+            }
+            console.log('[DOC] mw_openDoc found document:', doc.name, 'id:', doc.id, 'version:', doc.version);
+
             mw_setActive(id);
+            console.log('[DOC] mw_openDoc set active document to:', id);
+
             mw_renderList();
+            console.log('[DOC] mw_openDoc rendered document list');
+
             // 打开时以 Markdown 为准同步三面板
+            console.log('[DOC] mw_openDoc starting panel notifications...');
             mw_notifyEditorLoad(doc);
+            console.log('[DOC] mw_openDoc notified editor panel');
+
             mw_notifyPreviewLoad(doc);
+            console.log('[DOC] mw_openDoc notified preview panel');
+
             mw_notifyMindmapLoad(doc);
+            console.log('[DOC] mw_openDoc completed mindmap notification');
+
             // 立即关闭侧栏并确保编辑器面板显示（避免 handleTabClick 在非专注模式下把编辑器切换为隐藏）
-            try { mw_toggleSidebar(false); } catch (_) { }
+            try {
+                mw_toggleSidebar(false);
+                console.log('[DOC] mw_openDoc toggled sidebar');
+            } catch (e) {
+                console.warn('[DOC] mw_openDoc failed to toggle sidebar:', e);
+            }
+
             try {
                 // panels.editor = true;
                 saveStateToStorage();
                 updateLayout();
                 updateTabs();
-            } catch (_) { }
+                console.log('[DOC] mw_openDoc updated layout and tabs');
+            } catch (e) {
+                console.warn('[DOC] mw_openDoc failed to update layout/tabs:', e);
+            }
+
+            console.log('[DOC] mw_openDoc completed successfully for doc:', doc.name);
         }
 
         // 删除文档（显示确认对话框）
@@ -2722,14 +2783,47 @@
         }
 
         function mw_notifyMindmapLoad(doc) {
+            console.log('[DOC] mw_notifyMindmapLoad starting for doc:', (doc.name || 'unnamed'), 'id:', (doc.id || 'none'));
+            
             const mmIframe = document.querySelector('iframe[data-panel="mindmap"], iframe#iframe-mindmap, iframe[src*="jsmind/mindmap.html"]');
-            const payload = { md: doc.md, images: doc.images || [], rev: doc.version || doc.updatedAt || Date.now(), origin: 'index', docId: doc.id };
+            console.log('[DOC] mw_notifyMindmapLoad found iframe:', !!mmIframe);
+            
+            if (mmIframe) {
+                console.log('[DOC] mw_notifyMindmapLoad iframe details - src:', (mmIframe.src || 'none'));
+                console.log('[DOC] mw_notifyMindmapLoad iframe details - contentWindow exists:', !!mmIframe.contentWindow);
+                console.log('[DOC] mw_notifyMindmapLoad iframe details - readyState:', (mmIframe.readyState || 'unknown'));
+            }
+            
+            const payload = { 
+                md: doc.md, 
+                images: doc.images || [], 
+                rev: doc.version || doc.updatedAt || Date.now(), 
+                origin: 'index', 
+                docId: doc.id 
+            };
+            
+            console.log('[DOC] mw_notifyMindmapLoad prepared payload - rev:', payload.rev, 'md length:', (doc.md ? doc.md.length : 0));
+            
             if (mmIframe && mmIframe.contentWindow) {
+                console.log('[DOC] mw_notifyMindmapLoad attempting to send message to mindmap iframe...');
                 try {
                     mmIframe.contentWindow.postMessage({ type: 'mw_load_markdown', payload }, '*');
-                    console.log('[DOC] -> mindmap mw_load_markdown', (doc.id || ''), 'rev=', payload.rev);
-                } catch (e) { console.warn('postMessage to mindmap failed', e); }
+                    console.log('[DOC] -> mindmap mw_load_markdown SUCCESS', (doc.id || ''), 'rev=', payload.rev);
+                } catch (e) { 
+                    console.error('[DOC] -> mindmap mw_load_markdown FAILED', (doc.id || ''), 'error:', e);
+                    console.warn('postMessage to mindmap failed', e); 
+                }
+            } else {
+                console.warn('[DOC] mw_notifyMindmapLoad iframe not ready, caching payload for later');
+                try { 
+                    window.__mw_pendingMindmapMarkdown = payload; 
+                    console.log('[DOC] mw_notifyMindmapLoad cached payload for iframe onload');
+                } catch (e) { 
+                    console.error('[DOC] mw_notifyMindmapLoad failed to cache payload:', e);
+                }
             }
+            
+            console.log('[DOC] mw_notifyMindmapLoad completed');
         }
 
         // ===== 导出为ZIP（单文档/全部） =====
