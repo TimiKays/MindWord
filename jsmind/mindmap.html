@@ -1528,6 +1528,11 @@
       function renderMindmapFromMd(payload) {
         const md = payload?.md || '';
         const images = payload?.images || [];
+        // 更新当前文档ID，用于撤销管理器按文档隔离
+        if (payload?.docId) {
+          window.currentFileName = payload.docId;
+          console.log('[mindmap] 更新当前文档ID为:', window.currentFileName);
+        }
         try {
           if (typeof window.renderMindmapFromMarkdown === 'function') {
             window.renderMindmapFromMarkdown(md, images);

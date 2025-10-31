@@ -1,16 +1,18 @@
 /**
- * UndoManager for jsMind (core only)
+ * Document-aware UndoManager for jsMind
  * - Uses full JSON snapshot strings as history entries
- * - Keeps undoStack and redoStack with maxCapacity (default 10)
+ * - Keeps separate undoStack and redoStack for each document
  * - Requires two callbacks:
  *     getSnapshot(): returns current snapshot string
  *     restoreSnapshot(snapshotString): restores state from snapshot
+ *     getCurrentDocumentId(): returns unique identifier for current document
  *
  * Usage:
  *   const um = new UndoManager({
  *     maxCapacity: 10,
  *     getSnapshot: () => JSON.stringify(jm.get_data()),
- *     restoreSnapshot: (s) => { jm.show(JSON.parse(s)); }
+ *     restoreSnapshot: (s) => { jm.show(JSON.parse(s)); },
+ *     getCurrentDocumentId: () => getCurrentDocumentId() // 返回当前文档ID
  *   });
  *
  *   // On sync/save point:
@@ -39,16 +41,21 @@
     return false;
   }
 
+  function defaultGetCurrentDocumentId() {
+    return 'default';
+  }
+
   function UndoManager(options) {
     options = options || {};
     this.maxCapacity = options.maxCapacity || 10;
     this.getSnapshot = options.getSnapshot || defaultGetSnapshot;
     this.restoreSnapshot = options.restoreSnapshot || defaultRestoreSnapshot;
+    this.getCurrentDocumentId = options.getCurrentDocumentId || defaultGetCurrentDocumentId;
 
-    this.undoStack = [];
-    this.redoStack = [];
+    // 按文档ID存储撤销重做记录
+    this.documentStacks = {};
     this.isRestoring = false;
-    this._lastSnapshot = null;
+    this._lastSnapshot = {};
 
     // optional debounce window in ms to merge very fast consecutive snapshots
     this.debounce = typeof options.debounce === 'number' ? options.debounce : 0;
@@ -57,34 +64,72 @@
     console.log('[UndoManager] initialized (maxCapacity=' + this.maxCapacity + ', debounce=' + this.debounce + ')');
   }
 
-  UndoManager.prototype._pushUndo = function (snapshot) {
-    this.undoStack.push({ ts: now(), snapshot: snapshot });
-    if (this.undoStack.length > this.maxCapacity) {
-      this.undoStack.shift();
+  UndoManager.prototype._getCurrentDocumentId = function () {
+    try {
+      return this.getCurrentDocumentId();
+    } catch (e) {
+      console.error('[UndoManager] Error getting current document ID:', e);
+      return 'default';
     }
-    console.log('[UndoManager] _pushUndo: undoStack.length=' + this.undoStack.length);
+  };
+
+  UndoManager.prototype._getDocumentStacks = function (docId) {
+    if (!this.documentStacks[docId]) {
+      this.documentStacks[docId] = {
+        undoStack: [],
+        redoStack: [],
+        lastSnapshot: null
+      };
+    }
+    return this.documentStacks[docId];
+  };
+
+  UndoManager.prototype._pushUndo = function (snapshot) {
+    var docId = this._getCurrentDocumentId();
+    var stacks = this._getDocumentStacks(docId);
+    stacks.undoStack.push({ ts: now(), snapshot: snapshot });
+    if (stacks.undoStack.length > this.maxCapacity) {
+      stacks.undoStack.shift();
+    }
+    console.log('[UndoManager] _pushUndo: docId=' + docId + ', undoStack.length=' + stacks.undoStack.length);
   };
 
   UndoManager.prototype._pushRedo = function (snapshot) {
-    this.redoStack.push({ ts: now(), snapshot: snapshot });
-    if (this.redoStack.length > this.maxCapacity) {
-      this.redoStack.shift();
+    var docId = this._getCurrentDocumentId();
+    var stacks = this._getDocumentStacks(docId);
+    stacks.redoStack.push({ ts: now(), snapshot: snapshot });
+    if (stacks.redoStack.length > this.maxCapacity) {
+      stacks.redoStack.shift();
     }
-    console.log('[UndoManager] _pushRedo: redoStack.length=' + this.redoStack.length);
+    console.log('[UndoManager] _pushRedo: docId=' + docId + ', redoStack.length=' + stacks.redoStack.length);
   };
 
-  UndoManager.prototype.clear = function () {
-    this.undoStack = [];
-    this.redoStack = [];
-    this._lastSnapshot = null;
+  UndoManager.prototype.clear = function (docId) {
+    if (docId) {
+      // 清除指定文档的记录
+      if (this.documentStacks[docId]) {
+        this.documentStacks[docId] = {
+          undoStack: [],
+          redoStack: [],
+          lastSnapshot: null
+        };
+      }
+    } else {
+      // 清除所有文档的记录
+      this.documentStacks = {};
+    }
   };
 
   UndoManager.prototype.canUndo = function () {
-    return this.undoStack.length > 0;
+    var docId = this._getCurrentDocumentId();
+    var stacks = this._getDocumentStacks(docId);
+    return stacks.undoStack.length > 0;
   };
 
   UndoManager.prototype.canRedo = function () {
-    return this.redoStack.length > 0;
+    var docId = this._getCurrentDocumentId();
+    var stacks = this._getDocumentStacks(docId);
+    return stacks.redoStack.length > 0;
   };
 
   // recordIfChanged: get current snapshot via getSnapshot()
@@ -124,27 +169,30 @@
       return false;
     }
 
+    var docId = this._getCurrentDocumentId();
+    var stacks = this._getDocumentStacks(docId);
+
     // 首次快照仅初始化 lastSnapshot（不入栈）
-    if (this._lastSnapshot === null) {
-      this._lastSnapshot = snapshot;
-      console.log('[UndoManager] _recordNow initialized lastSnapshot (no push)');
+    if (stacks.lastSnapshot === null) {
+      stacks.lastSnapshot = snapshot;
+      console.log('[UndoManager] _recordNow initialized lastSnapshot for docId=' + docId + ' (no push)');
       return false;
     }
 
     // 若无变化则跳过
-    if (this._lastSnapshot === snapshot) {
-      console.log('[UndoManager] _recordNow no change detected');
+    if (stacks.lastSnapshot === snapshot) {
+      console.log('[UndoManager] _recordNow no change detected for docId=' + docId);
       return false;
     }
 
     // 将“之前的快照”入栈，使得 undo 能恢复到之前状态
-    this._pushUndo(this._lastSnapshot);
+    this._pushUndo(stacks.lastSnapshot);
     // 更新 lastSnapshot 为当前快照
-    this._lastSnapshot = snapshot;
+    stacks.lastSnapshot = snapshot;
 
     // 新的用户编辑清空 redo 栈
-    this.redoStack = [];
-    console.log('[UndoManager] _recordNow saved snapshot, undoStack.len=' + this.undoStack.length + ', redoStack cleared');
+    stacks.redoStack = [];
+    console.log('[UndoManager] _recordNow saved snapshot for docId=' + docId + ', undoStack.len=' + stacks.undoStack.length + ', redoStack cleared');
     return true;
   };
 
@@ -159,9 +207,11 @@
       this.isRestoring = true;
       console.log('[UndoManager] _restore starting');
       var ok = this.restoreSnapshot(snapshot);
-      // after restore, update lastSnapshot to restored snapshot
-      this._lastSnapshot = snapshot;
-      console.log('[UndoManager] _restore finished, ok=' + !!ok);
+      // after restore, update lastSnapshot to restored snapshot for current document
+      var docId = this._getCurrentDocumentId();
+      var stacks = this._getDocumentStacks(docId);
+      stacks.lastSnapshot = snapshot;
+      console.log('[UndoManager] _restore finished, ok=' + !!ok + ', docId=' + docId);
       return ok;
     } finally {
       this.isRestoring = false;
@@ -169,72 +219,112 @@
   };
 
   UndoManager.prototype.undo = function () {
+    var docId = this._getCurrentDocumentId();
+    var stacks = this._getDocumentStacks(docId);
     if (!this.canUndo()) {
-      console.log('[UndoManager] undo called but cannot undo');
+      console.warn('[UndoManager] undo called but canUndo=false for docId=' + docId);
       return false;
     }
-    console.log('[UndoManager] undo called');
-    // Current state should be pushed to redo before popping undo
-    var currentSnapshot = this.getSnapshot();
-    if (!isString(currentSnapshot)) {
-      try {
-        currentSnapshot = JSON.stringify(currentSnapshot);
-      } catch (e) {
-        currentSnapshot = null;
-      }
-    }
-    if (currentSnapshot) {
-      this._pushRedo(currentSnapshot);
-    }
-
-    // Pop the last undo snapshot and restore it
-    var last = this.undoStack.pop();
+    var last = stacks.undoStack.pop();
     if (!last) {
       console.warn('[UndoManager] undo: nothing popped');
       return false;
     }
     var targetSnapshot = last.snapshot;
-
-    // After restoring, set lastSnapshot accordingly and do not push restore to undo
-    var res = this._restore(targetSnapshot);
-    console.log('[UndoManager] undo completed, undoStack.len=' + this.undoStack.length + ', redoStack.len=' + this.redoStack.length);
-    return res;
+    if (stacks.lastSnapshot) {
+      this._pushRedo(stacks.lastSnapshot);
+    }
+    console.log('[UndoManager] undo popped snapshot for docId=' + docId + ', undoStack.len=' + stacks.undoStack.length);
+    return this._restore(targetSnapshot);
   };
 
   UndoManager.prototype.redo = function () {
+    var docId = this._getCurrentDocumentId();
+    var stacks = this._getDocumentStacks(docId);
     if (!this.canRedo()) {
-      console.log('[UndoManager] redo called but cannot redo');
+      console.warn('[UndoManager] redo called but canRedo=false for docId=' + docId);
       return false;
     }
-    console.log('[UndoManager] redo called');
-    var currentSnapshot = this.getSnapshot();
-    if (!isString(currentSnapshot)) {
-      try {
-        currentSnapshot = JSON.stringify(currentSnapshot);
-      } catch (e) {
-        currentSnapshot = null;
-      }
-    }
-    if (currentSnapshot) {
-      this._pushUndo(currentSnapshot);
-    }
-
-    var last = this.redoStack.pop();
+    var last = stacks.redoStack.pop();
     if (!last) {
       console.warn('[UndoManager] redo: nothing popped');
       return false;
     }
     var targetSnapshot = last.snapshot;
-    var res = this._restore(targetSnapshot);
-    console.log('[UndoManager] redo completed, undoStack.len=' + this.undoStack.length + ', redoStack.len=' + this.redoStack.length);
-    return res;
+    if (stacks.lastSnapshot) {
+      this._pushUndo(stacks.lastSnapshot);
+    }
+    console.log('[UndoManager] redo popped snapshot for docId=' + docId + ', redoStack.len=' + stacks.redoStack.length);
+    return this._restore(targetSnapshot);
   };
 
-  UndoManager.prototype.getStacks = function () {
+  UndoManager.prototype.getStacks = function (docId) {
+    if (!docId) {
+      docId = this._getCurrentDocumentId();
+    }
+    var stacks = this._getDocumentStacks(docId);
     return {
-      undo: this.undoStack.map(function (s) { return s.ts; }),
-      redo: this.redoStack.map(function (s) { return s.ts; })
+      undo: stacks.undoStack,
+      redo: stacks.redoStack
     };
+  };
+
+  // 获取所有文档的堆栈信息
+  UndoManager.prototype.getAllDocumentStacks = function () {
+    var allStacks = {};
+    for (var docId in this.documentStacks) {
+      if (this.documentStacks.hasOwnProperty(docId)) {
+        var stacks = this.documentStacks[docId];
+        var docTitle = this._getDocumentTitle(docId);
+        allStacks[docId] = {
+          title: docTitle,
+          undo: stacks.undoStack.length,
+          redo: stacks.redoStack.length,
+          undoStack: stacks.undoStack.map(function (item) {
+            return {
+              timestamp: item.ts,
+              snapshotPreview: item.snapshot ? item.snapshot.substring(0, 100) + '...' : 'null'
+            };
+          }),
+          redoStack: stacks.redoStack.map(function (item) {
+            return {
+              timestamp: item.ts,
+              snapshotPreview: item.snapshot ? item.snapshot.substring(0, 100) + '...' : 'null'
+            };
+          })
+        };
+      }
+    }
+    return allStacks;
+  };
+
+  // 获取文档标题
+  UndoManager.prototype._getDocumentTitle = function (docId) {
+    try {
+      // 尝试从app.html的全局函数获取文档信息
+      if (typeof window.mw_loadDocs === 'function') {
+        var docs = window.mw_loadDocs();
+        var doc = docs.find(function (d) { return d.id === docId; });
+        if (doc && doc.name) {
+          return doc.name;
+        }
+      }
+
+      // 尝试从localStorage直接获取
+      var docsJson = localStorage.getItem('mindword_docs');
+      if (docsJson) {
+        var docs = JSON.parse(docsJson);
+        var doc = docs.find(function (d) { return d.id === docId; });
+        if (doc && doc.name) {
+          return doc.name;
+        }
+      }
+
+      return '未命名文档';
+    } catch (e) {
+      console.warn('[UndoManager] 获取文档标题失败:', e);
+      return '未命名文档';
+    }
   };
 
   // Helper: bind keyboard shortcuts to an element (or document)

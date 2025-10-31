@@ -4419,6 +4419,14 @@ window.addEventListener('load', async function () {
         getSnapshot: function () {
           try { return JSON.stringify(jm.get_data()); } catch (e) { return null; }
         },
+        getCurrentDocumentId: function () {
+          // 使用当前活动文档ID，如果没有则使用文件名，最后使用默认
+          try {
+            return window.__mw_activeDocId || window.currentFileName || 'default';
+          } catch (e) {
+            return 'default';
+          }
+        },
         restoreSnapshot: function (s) {
           try {
             const parsed = JSON.parse(s);
@@ -4512,6 +4520,52 @@ window.addEventListener('load', async function () {
     window.aiExpander = new window.AIExpander();
     window.aiExpander.init(jm);
   }
+
+  // 控制台工具：查看所有文档的撤销堆栈
+  window.showAllUndoStacks = function () {
+    if (window.undoManager && typeof window.undoManager.getAllDocumentStacks === 'function') {
+      var allStacks = window.undoManager.getAllDocumentStacks();
+      console.log('=== 所有文档的撤销堆栈信息 ===');
+      console.table(Object.keys(allStacks).map(function (docId) {
+        var stacks = allStacks[docId];
+        return {
+          '文档ID': docId,
+          '文档标题': stacks.title || '未命名',
+          '撤销操作数': stacks.undo,
+          '重做操作数': stacks.redo,
+          '最后撤销时间': stacks.undoStack.length > 0 ? new Date(stacks.undoStack[stacks.undoStack.length - 1].timestamp).toLocaleString() : '无',
+          '最后重做时间': stacks.redoStack.length > 0 ? new Date(stacks.redoStack[stacks.redoStack.length - 1].timestamp).toLocaleString() : '无'
+        };
+      }));
+      console.log('详细堆栈信息:', allStacks);
+      return allStacks;
+    } else {
+      console.error('撤销管理器未初始化或getAllDocumentStacks方法不可用');
+      return null;
+    }
+  };
+
+  // 控制台工具：查看当前文档的撤销堆栈详情
+  window.showCurrentUndoStack = function () {
+    if (window.undoManager && typeof window.undoManager.getStacks === 'function') {
+      var currentDocId = window.undoManager._getCurrentDocumentId();
+      var docTitle = window.undoManager._getDocumentTitle ? window.undoManager._getDocumentTitle(currentDocId) : '未命名文档';
+      var stacks = window.undoManager.getStacks();
+      console.log('=== 当前文档的撤销堆栈详情 (' + currentDocId + ' - ' + docTitle + ') ===');
+      console.log('撤销堆栈 (' + stacks.undo.length + ' 个操作):');
+      stacks.undo.forEach(function (item, index) {
+        console.log('  [' + index + '] ' + new Date(item.ts).toLocaleString() + ' - ' + (item.snapshot ? item.snapshot.substring(0, 100) + '...' : 'null'));
+      });
+      console.log('重做堆栈 (' + stacks.redo.length + ' 个操作):');
+      stacks.redo.forEach(function (item, index) {
+        console.log('  [' + index + '] ' + new Date(item.ts).toLocaleString() + ' - ' + (item.snapshot ? item.snapshot.substring(0, 100) + '...' : 'null'));
+      });
+      return stacks;
+    } else {
+      console.error('撤销管理器未初始化或getStacks方法不可用');
+      return null;
+    }
+  };
 
   // 监听 jsmind 的事件
   jm.add_event_listener(function (type, data) {
