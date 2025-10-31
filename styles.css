@@ -318,6 +318,11 @@ iframe .btn:not([class*="btn-"]):hover {
     display: none;
 }
 
+/* 确保汉堡图标在专注模式下仍然可见 */
+.focus-mode #doc-menu-btn {
+    display: inline-flex !important;
+}
+
 /* 专注模式下隐藏面板头部的关闭按钮 - 确保优先级 */
 .focus-mode .panel-header .btn-icon {
     display: none !important;
@@ -802,7 +807,7 @@ iframe .btn:not([class*="btn-"]):hover {
         align-items: center;
         display: flex;
         justify-content: space-between;
-        z-index: 1200;
+        /* z-index: 1200; */
         background: #ffffff;
     }
 
