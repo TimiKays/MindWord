@@ -735,12 +735,7 @@
         <div class="header-right">
             <!-- 账号区：未登录显示"注册/登录"，已登录显示"用户名/退出登录" -->
             <div id="auth-area" style="display:inline-flex; align-items:center; gap:8px; margin-left:10px;">
-                <!-- 语言切换 -->
-                <select id="lang-switch" title="Language" onchange="window.i18nManager.setLanguage(this.value)"
-                    style="height:30px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; color:#334155; font-size:12px; padding:0 8px;">
-                    <option value="zh">中文</option>
-                    <option value="en">EN</option>
-                </select>
+                <!-- 语言切换已移至个人菜单 -->
                 <a id="auth-link" href="auth.html"
                     style="display:inline-flex; align-items:center; height:30px; padding:0 10px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; color:#334155; text-decoration:none; font-size:12px; cursor:pointer;"
                     data-i18n="docs.registerLogin">
@@ -762,7 +757,14 @@
                         <div class="user-menu-header" style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9;">
                             <div style="font-size: 14px; font-weight: 600; color: #1e293b;" id="menu-username"></div>
                             <div style="font-size: 12px; color: #64748b; margin-top: 2px;"
-                                data-i18n="docs.personalAccount">个人账户</div>
+                                data-i18n="docs.personalAccount">个人账户
+                                <select id="lang-switch" title="Language"
+                                    onchange="window.i18nManager.setLanguage(this.value)"
+                                    style="height:24px; border:1px solid #e2e8f0; border-radius:4px; background:#fff; color:#334155; font-size:11px; ">
+                                    <option value="zh">中文</option>
+                                    <option value="en">EN</option>
+                                </select>
+                            </div>
                         </div>
 
                         <div class="user-menu-items" style="padding: 8px 0;">
@@ -2210,26 +2212,26 @@
                             if (iframe.contentWindow) {
                                 iframe.contentWindow.postMessage({ type: 'mw_relayout' }, '*');
                                 console.log('[reloadMindmapIframeOnce] sent first mw_relayout message');
-                                setTimeout(function () { 
-                                    try { 
-                                        iframe.contentWindow.postMessage({ type: 'mw_relayout' }, '*'); 
+                                setTimeout(function () {
+                                    try {
+                                        iframe.contentWindow.postMessage({ type: 'mw_relayout' }, '*');
                                         console.log('[reloadMindmapIframeOnce] sent second mw_relayout message');
-                                    } catch (e) { 
-                                        console.warn('[reloadMindmapIframeOnce] failed to send second mw_relayout:', e); 
-                                    } 
+                                    } catch (e) {
+                                        console.warn('[reloadMindmapIframeOnce] failed to send second mw_relayout:', e);
+                                    }
                                 }, 200);
                             } else {
                                 console.warn('[reloadMindmapIframeOnce] iframe.contentWindow not available');
                             }
-                        } catch (e) { 
-                            console.warn('[reloadMindmapIframeOnce] error during relayout messages:', e); 
+                        } catch (e) {
+                            console.warn('[reloadMindmapIframeOnce] error during relayout messages:', e);
                         }
                         iframe.removeEventListener('load', onLoadHandler);
                         console.log('[reloadMindmapIframeOnce] completed');
                     }
                     iframe.addEventListener('load', onLoadHandler);
-                } catch (e) { 
-                    console.warn('[reloadMindmapIframeOnce] error during reload:', e); 
+                } catch (e) {
+                    console.warn('[reloadMindmapIframeOnce] error during reload:', e);
                 }
             }
 
@@ -2784,45 +2786,45 @@
 
         function mw_notifyMindmapLoad(doc) {
             console.log('[DOC] mw_notifyMindmapLoad starting for doc:', (doc.name || 'unnamed'), 'id:', (doc.id || 'none'));
-            
+
             const mmIframe = document.querySelector('iframe[data-panel="mindmap"], iframe#iframe-mindmap, iframe[src*="jsmind/mindmap.html"]');
             console.log('[DOC] mw_notifyMindmapLoad found iframe:', !!mmIframe);
-            
+
             if (mmIframe) {
                 console.log('[DOC] mw_notifyMindmapLoad iframe details - src:', (mmIframe.src || 'none'));
                 console.log('[DOC] mw_notifyMindmapLoad iframe details - contentWindow exists:', !!mmIframe.contentWindow);
                 console.log('[DOC] mw_notifyMindmapLoad iframe details - readyState:', (mmIframe.readyState || 'unknown'));
             }
-            
-            const payload = { 
-                md: doc.md, 
-                images: doc.images || [], 
-                rev: doc.version || doc.updatedAt || Date.now(), 
-                origin: 'index', 
-                docId: doc.id 
+
+            const payload = {
+                md: doc.md,
+                images: doc.images || [],
+                rev: doc.version || doc.updatedAt || Date.now(),
+                origin: 'index',
+                docId: doc.id
             };
-            
+
             console.log('[DOC] mw_notifyMindmapLoad prepared payload - rev:', payload.rev, 'md length:', (doc.md ? doc.md.length : 0));
-            
+
             if (mmIframe && mmIframe.contentWindow) {
                 console.log('[DOC] mw_notifyMindmapLoad attempting to send message to mindmap iframe...');
                 try {
                     mmIframe.contentWindow.postMessage({ type: 'mw_load_markdown', payload }, '*');
                     console.log('[DOC] -> mindmap mw_load_markdown SUCCESS', (doc.id || ''), 'rev=', payload.rev);
-                } catch (e) { 
+                } catch (e) {
                     console.error('[DOC] -> mindmap mw_load_markdown FAILED', (doc.id || ''), 'error:', e);
-                    console.warn('postMessage to mindmap failed', e); 
+                    console.warn('postMessage to mindmap failed', e);
                 }
             } else {
                 console.warn('[DOC] mw_notifyMindmapLoad iframe not ready, caching payload for later');
-                try { 
-                    window.__mw_pendingMindmapMarkdown = payload; 
+                try {
+                    window.__mw_pendingMindmapMarkdown = payload;
                     console.log('[DOC] mw_notifyMindmapLoad cached payload for iframe onload');
-                } catch (e) { 
+                } catch (e) {
                     console.error('[DOC] mw_notifyMindmapLoad failed to cache payload:', e);
                 }
             }
-            
+
             console.log('[DOC] mw_notifyMindmapLoad completed');
         }
 
