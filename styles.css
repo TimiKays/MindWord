@@ -424,9 +424,31 @@ iframe .btn:not([class*="btn-"]):hover {
     z-index: 100;
     flex-shrink: 0;
     border-radius: 12px 12px 0 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 #f1f5f9;
 }
 
+/* 自定义滚动条样式 */
+.toolbar::-webkit-scrollbar {
+    height: 4px;
+}
 
+.toolbar::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 2px;
+}
+
+.toolbar::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 2px;
+}
+
+.toolbar::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
 
 /* 现代简约工具栏按钮样式 */
 .toolbar .btn {
@@ -1036,6 +1058,19 @@ iframe .btn:not([class*="btn-"]):hover {
     /* 统一在移动端隐藏所有面板头部（panel-header），但排除节点详情弹窗 */
     .panel-header:not(#nodeDetails .panel-header) {
         display: none !important;
+    }
+    
+    /* 移动端工具栏优化 */
+    .toolbar {
+        padding: 4px 8px;
+        gap: 6px;
+        border-radius: 0;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    /* 确保工具栏按钮不被压缩 */
+    .toolbar .ico-btn {
+        flex-shrink: 0;
     }
 }
 

@@ -535,10 +535,7 @@
                 </tbody>
               </table>
             </div>
-            <div style="margin-top: 20px; text-align: right; display: flex; justify-content: space-between; align-items: center;">
-              <div style="font-size: 12px; color: #666; background: #fff3cd; padding: 6px 12px; border-radius: 4px; border-left: 3px solid #ffc107;">
-                💡 建议：保留最新数据以获得最佳体验
-              </div>
+            <div style="margin-top: 20px; text-align: right; display: flex; justify-content: flex-end; align-items: center;">
               <div>
                 <button id="sync-preview-cancel" style="margin-right: 12px; padding: 10px 20px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s;">取消</button>
                 <button id="sync-preview-confirm" style="padding: 10px 24px; background: linear-gradient(135deg, #28a745, #20c997); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s; box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);">🔄 确定同步</button>
