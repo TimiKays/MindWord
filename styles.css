@@ -905,7 +905,7 @@ iframe .btn:not([class*="btn-"]):hover {
     #auth-user {
         height: 32px !important;
         font-size: 11px !important;
-        padding: 0 8px !important;
+
     }
 
     #auth-username {
@@ -1059,7 +1059,7 @@ iframe .btn:not([class*="btn-"]):hover {
     .panel-header:not(#nodeDetails .panel-header) {
         display: none !important;
     }
-    
+
     /* 移动端工具栏优化 */
     .toolbar {
         padding: 4px 8px;
@@ -1067,7 +1067,7 @@ iframe .btn:not([class*="btn-"]):hover {
         border-radius: 0;
         -webkit-overflow-scrolling: touch;
     }
-    
+
     /* 确保工具栏按钮不被压缩 */
     .toolbar .ico-btn {
         flex-shrink: 0;

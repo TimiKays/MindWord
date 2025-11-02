@@ -163,7 +163,7 @@
                 display: flex !important;
                 align-items: center;
                 margin-left: auto;
-                margin-right: 8px;
+
             }
 
             /* 移动端认证区域样式调整 */
@@ -176,12 +176,12 @@
             #auth-user {
                 height: 32px !important;
                 font-size: 11px !important;
-                padding: 0 8px !important;
+
             }
 
             #auth-username {
                 font-size: 11px !important;
-                max-width: 60px !important;
+                max-width: 40px !important;
                 overflow: hidden !important;
                 text-overflow: ellipsis !important;
                 white-space: nowrap !important;
@@ -734,17 +734,22 @@
         </button>
         <div class="header-right">
             <!-- 账号区：未登录显示"注册/登录"，已登录显示"用户名/退出登录" -->
-            <div id="auth-area" style="display:inline-flex; align-items:center; gap:8px; margin-left:10px;">
-                <!-- 语言切换已移至个人菜单 -->
+            <div id="auth-area" style="display:inline-flex; align-items:center; gap:6px; ">
+                <!-- 语言切换 -->
+                <select id="lang-switch" title="Language" onchange="window.i18nManager.setLanguage(this.value)"
+                    style="height:30px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; color:#334155; font-size:12px; padding:0px;">
+                    <option value="zh">中文</option>
+                    <option value="en">EN</option>
+                </select>
                 <a id="auth-link" href="auth.html"
-                    style="display:inline-flex; align-items:center; height:30px; padding:0 10px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; color:#334155; text-decoration:none; font-size:12px; cursor:pointer;"
+                    style="display:inline-flex; align-items:center; height:30px; padding:0 6px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; color:#334155; text-decoration:none; font-size:12px; cursor:pointer;width: 42px;"
                     data-i18n="docs.registerLogin">
                     注册/登录
                 </a>
-                <div id="auth-user" style="display:none; align-items:center; gap:8px; position: relative;">
+                <div id="auth-user" style="display:none; align-items:center;  position: relative;">
                     <div class="user-dropdown"
                         style="display:flex; align-items:center; gap:4px; cursor: pointer; position: relative;">
-                        <span id="auth-username" style="font-size:12px; color:#334155;"></span>
+                        <span id="auth-username" style="font-size:12px; color:#334155;max-width: 40px;"></span>
                         <svg class="dropdown-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" style="transition: transform 0.2s ease;">
                             <path d="M6 9l6 6 6-6" />
@@ -758,12 +763,12 @@
                             <div style="font-size: 14px; font-weight: 600; color: #1e293b;" id="menu-username"></div>
                             <div style="font-size: 12px; color: #64748b; margin-top: 2px;"
                                 data-i18n="docs.personalAccount">个人账户
-                                <select id="lang-switch" title="Language"
+                                <!-- <select id="lang-switch" title="Language"
                                     onchange="window.i18nManager.setLanguage(this.value)"
                                     style="height:24px; border:1px solid #e2e8f0; border-radius:4px; background:#fff; color:#334155; font-size:11px; ">
                                     <option value="zh">中文</option>
                                     <option value="en">EN</option>
-                                </select>
+                                </select> -->
                             </div>
                         </div>
 
