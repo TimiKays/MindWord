@@ -2995,7 +2995,17 @@
 
             // 事件监听器
             if (openModalBtn) openModalBtn.addEventListener('click', openModal);
-            if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
+            if (closeModalBtn) {
+                closeModalBtn.addEventListener('click', closeModal);
+                // 添加触摸事件支持，确保移动端响应
+                closeModalBtn.addEventListener('touchstart', function(e) {
+                    e.stopPropagation(); // 防止事件冒泡到拖拽层
+                }, { passive: true });
+                closeModalBtn.addEventListener('touchend', function(e) {
+                    e.preventDefault(); // 防止鼠标事件重复触发
+                    closeModal();
+                }, { passive: false });
+            }
             if (usageCancelBtn) usageCancelBtn.addEventListener('click', (e) => { e.preventDefault(); closeModal(); });
             if (configCancelBtn) configCancelBtn.addEventListener('click', (e) => { e.preventDefault(); cancelConfigAndReturn(); });
             if (configBackBtn) configBackBtn.addEventListener('click', (e) => { e.preventDefault(); switchToUsageView(); });
@@ -3256,6 +3266,13 @@
                     function onStart(e) {
                         // 仅左键或触摸启动
                         if (e.type === 'mousedown' && e.button !== 0) return;
+                        
+                        // 检查是否点击在按钮上，如果是则不允许拖拽
+                        const target = e.target;
+                        if (target && (target.tagName === 'BUTTON' || target.closest('button'))) {
+                            return; // 不启动拖拽，让按钮正常响应点击
+                        }
+                        
                         const pos = getEventPos(e);
                         dragging = true;
                         startX = pos.x;
@@ -5112,9 +5129,43 @@
                 const minimizeButton = document.getElementById('minimizeButton');
                 const miniExpandBtn = document.getElementById('miniExpandBtn');
                 const miniUserPromptInput = document.getElementById('miniUserPromptInput');
+                const expandButton = document.getElementById('expandButton');
+                const closeMiniModalBtn = document.getElementById('closeMiniModalBtn');
 
                 if (minimizeButton) {
                     minimizeButton.addEventListener('click', toggleMiniMode);
+                    // 添加触摸事件支持，确保移动端响应
+                    minimizeButton.addEventListener('touchstart', function(e) {
+                        e.stopPropagation(); // 防止事件冒泡到拖拽层
+                    }, { passive: true });
+                    minimizeButton.addEventListener('touchend', function(e) {
+                        e.preventDefault(); // 防止鼠标事件重复触发
+                        toggleMiniMode();
+                    }, { passive: false });
+                }
+
+                if (expandButton) {
+                    expandButton.addEventListener('click', toggleMiniMode);
+                    // 添加触摸事件支持
+                    expandButton.addEventListener('touchstart', function(e) {
+                        e.stopPropagation();
+                    }, { passive: true });
+                    expandButton.addEventListener('touchend', function(e) {
+                        e.preventDefault();
+                        toggleMiniMode();
+                    }, { passive: false });
+                }
+
+                if (closeMiniModalBtn) {
+                    closeMiniModalBtn.addEventListener('click', closeModal);
+                    // 添加触摸事件支持
+                    closeMiniModalBtn.addEventListener('touchstart', function(e) {
+                        e.stopPropagation();
+                    }, { passive: true });
+                    closeMiniModalBtn.addEventListener('touchend', function(e) {
+                        e.preventDefault();
+                        closeModal();
+                    }, { passive: false });
                 }
 
                 if (miniExpandBtn) {
