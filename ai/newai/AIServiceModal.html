@@ -5390,8 +5390,8 @@
                     return;
                 }
 
-                // 只显示前10个模板，避免过多标签
-                const displayTemplates = templates.slice(0, 10);
+                // 只显示前9个模板，避免过多标签
+                const displayTemplates = templates.slice(0, 9);
                 
                 displayTemplates.forEach(template => {
                     const tag = document.createElement('span');
@@ -5417,10 +5417,10 @@
                 });
 
                 // 如果还有更多模板，显示"+N更多"按钮
-                if (templates.length > 10) {
+                if (templates.length > 9) {
                     const moreIndicator = document.createElement('span');
                     moreIndicator.className = 'mini-template-more';
-                    moreIndicator.textContent = `+${templates.length - 10}更多`;
+                    moreIndicator.textContent = `+${templates.length - 9}更多`;
                     moreIndicator.title = '点击展开完整模式查看更多模板';
                     
                     // 点击"+N更多"按钮时，触发expandButton的点击事件，进入完整模式
@@ -5750,13 +5750,31 @@
 
                 if (!searchInput || !dropdown) return;
 
-                // 保存当前所有模板到搜索系统
-                allUserTemplates = [...templates];
+                // 获取模板使用时间记录
+                const templateUsageTimes = {};
+                try {
+                    const usageData = localStorage.getItem('userTemplateUsageTimes');
+                    if (usageData) {
+                        Object.assign(templateUsageTimes, JSON.parse(usageData));
+                    }
+                } catch (e) {
+                    console.warn('[UserTemplates] 读取模板使用时间记录失败:', e);
+                }
+
+                // 按最近使用时间降序排序
+                const sortedTemplates = [...templates].sort((a, b) => {
+                    const timeA = templateUsageTimes[a.id] || 0;
+                    const timeB = templateUsageTimes[b.id] || 0;
+                    return timeB - timeA; // 降序排序
+                });
+
+                // 保存排序后的模板到搜索系统
+                allUserTemplates = sortedTemplates;
 
                 // 更新搜索框占位符
                 searchInput.placeholder = '搜索用户提示词模板...';
 
-                console.log('[UserTemplates] 用户模板搜索系统已更新');
+                console.log('[UserTemplates] 用户模板搜索系统已更新，按最近使用时间排序');
             }
 
             // 自动选择默认模板（适配新的搜索系统）
@@ -6088,6 +6106,9 @@
 
                     // 更新localStorage
                     localStorage.setItem('lastUsedUserTemplateId', templateData.id || templateData.name);
+                    
+                    // 记录模板使用时间
+                    recordTemplateUsage(templateData.id || templateData.name);
 
                     console.log('[UserTemplates] 模板已自动应用:', templateData.name);
 
@@ -6125,6 +6146,8 @@
                 if (!currentContent) {
                     userPromptInput.value = templateContent;
                     localStorage.setItem('lastUsedUserTemplateId', templateId);
+                    // 记录模板使用时间
+                    recordTemplateUsage(templateId);
                     console.log('[UserTemplates] 模板已自动应用到用户提示词输入框');
                     return true;
                 }
@@ -6135,6 +6158,8 @@
                     if (confirm(`确定要用模板"${templateName}"替换当前的用户提示词吗？`)) {
                         userPromptInput.value = templateContent;
                         localStorage.setItem('lastUsedUserTemplateId', templateId);
+                        // 记录模板使用时间
+                        recordTemplateUsage(templateId);
                         console.log('[UserTemplates] 模板已应用到用户提示词输入框');
                         return true;
                     } else {
@@ -6146,8 +6171,35 @@
                     // 从模板A切换到模板B，直接替换，不需要确认
                     userPromptInput.value = templateContent;
                     localStorage.setItem('lastUsedUserTemplateId', templateId);
+                    // 记录模板使用时间
+                    recordTemplateUsage(templateId);
                     console.log('[UserTemplates] 模板已直接应用到用户提示词输入框');
                     return true;
+                }
+            }
+
+            // 记录模板使用时间
+            function recordTemplateUsage(templateId) {
+                try {
+                    // 获取现有的使用时间记录
+                    let usageTimes = {};
+                    try {
+                        const usageData = localStorage.getItem('userTemplateUsageTimes');
+                        if (usageData) {
+                            usageTimes = JSON.parse(usageData);
+                        }
+                    } catch (e) {
+                        console.warn('[UserTemplates] 读取使用时间记录失败:', e);
+                    }
+
+                    // 更新当前模板的使用时间
+                    usageTimes[templateId] = Date.now();
+
+                    // 保存回localStorage
+                    localStorage.setItem('userTemplateUsageTimes', JSON.stringify(usageTimes));
+                    console.log('[UserTemplates] 已记录模板使用时间:', templateId);
+                } catch (error) {
+                    console.error('[UserTemplates] 记录模板使用时间失败:', error);
                 }
             }
 
