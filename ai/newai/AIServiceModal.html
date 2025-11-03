@@ -1807,38 +1807,49 @@
                     //  2) 如果需要提供“免配置”体验，请在后端通过受保护的服务端代理或在运行时由受信任的后端注入密钥（推荐），
                     //     前端仅接收是否可用的布尔标志或短期一次性 token（不在代码/LocalStorage 中保存长期密钥）。
                     //  3) 仍保留默认模型名称提示，但不包含任何可调用 API 的凭据。
-                    allPlatformConfigs = {
-                        // 仅预填充平台元信息（不含 apiKey）
-                        'bigmodel': {
-                            apiKey: '', // 用户必须手动输入或由后端安全注入
-                            cloudflareAccountId: '',
-                            azureEndpoint: '',
-                            temperature: 0.7,
-                            maxTokens: 1000,
-                            favoriteModels: ['GLM-4-Flash'], // 仅作为 UI 建议的默认模型名
-                            platformName: '智谱AI' // 确保默认配置也包含平台名称
+                    //  4) 仅在英文环境下自动创建默认配置，避免中文环境下自动创建
+                    const currentLang = window.i18nManager.getCurrentLanguage();
+                    console.log('新用户无配置，当前语言:', currentLang);
+
+                    if (currentLang === 'en') {
+                        console.log('英文环境，创建安全的默认占位配置');
+                        allPlatformConfigs = {
+                            // 仅预填充平台元信息（不含 apiKey）
+                            'bigmodel': {
+                                apiKey: '', // 用户必须手动输入或由后端安全注入
+                                cloudflareAccountId: '',
+                                azureEndpoint: '',
+                                temperature: 0.7,
+                                maxTokens: 1000,
+                                favoriteModels: ['GLM-4-Flash'], // 仅作为 UI 建议的默认模型名
+                                platformName: '智谱AI', // 确保默认配置也包含平台名称
+                                autoCreated: true // 标记为自动创建的配置
+                            }
+                        };
+
+                        // 将"空"配置保存到本地（不包含任何密钥）
+                        // 注意：现在默认配置已包含platformName，确保数据完整性
+                        try {
+                            localStorage.setItem('allAIPlatformConfigs', JSON.stringify(allPlatformConfigs));
+                            // 仅保存默认模型名用于 UI 回显，不保存任何凭据
+                            localStorage.setItem('selectedModel', 'GLM-4-Flash');
+                        } catch (e) {
+                            console.warn('保存默认配置到 localStorage 失败（已忽略敏感数据写入）', e);
                         }
-                    };
 
-                    // 将“空”配置保存到本地（不包含任何密钥）
-                    // 注意：现在默认配置已包含platformName，确保数据完整性
-                    try {
-                        localStorage.setItem('allAIPlatformConfigs', JSON.stringify(allPlatformConfigs));
-                        // 仅保存默认模型名用于 UI 回显，不保存任何凭据
-                        localStorage.setItem('selectedModel', 'GLM-4-Flash');
-                    } catch (e) {
-                        console.warn('保存默认配置到 localStorage 失败（已忽略敏感数据写入）', e);
+                        console.log('已创建安全的默认平台占位配置（不包含密钥），请在设置中填写 API 密钥或使用后端注入');
+                        console.log('默认配置已包含platformName，确保数据完整性');
+                    } else {
+                        console.log('非英文环境，不自动创建默认配置');
+                        allPlatformConfigs = {}; // 确保 allPlatformConfigs 是对象
                     }
-
-                    console.log('已创建安全的默认平台占位配置（不包含密钥），请在设置中填写 API 密钥或使用后端注入');
-                    console.log('默认配置已包含platformName，确保数据完整性');
                 }
 
                 // 自动选择已配置的平台
                 autoSelectConfiguredPlatform();
 
-                // 如果是新用户，显示欢迎提示
-                if (!savedConfigs) {
+                // 如果是新用户且创建了默认配置，显示欢迎提示
+                if (defaultConfigCreated) {
                     setTimeout(() => {
                         showStatus('欢迎使用！已为您内置智谱AI平台配置，使用免费的GLM-4-Flash模型', 'success');
                     }, 1000);
@@ -3170,7 +3181,17 @@
 
             if (exportConfigsBtn) {
                 exportConfigsBtn.addEventListener('click', () => {
-                    const data = JSON.stringify(allPlatformConfigs || {}, null, 2);
+                    // 过滤掉自动创建的配置
+                    const configsToExport = {};
+                    Object.keys(allPlatformConfigs || {}).forEach(key => {
+                        const config = allPlatformConfigs[key];
+                        // 只导出手动创建的配置（没有autoCreated标记的）
+                        if (config && !config.autoCreated) {
+                            configsToExport[key] = config;
+                        }
+                    });
+                    
+                    const data = JSON.stringify(configsToExport, null, 2);
                     const blob = new Blob([data], { type: 'application/json' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
