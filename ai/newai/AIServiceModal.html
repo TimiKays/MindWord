@@ -400,6 +400,45 @@
             .template-dropdown-item.highlight {
                 @apply bg-yellow-100;
             }
+            
+            /* 迷你模式模板标签样式 */
+            .mini-template-tag {
+                @apply inline-flex items-center px-3 py-2 text-sm rounded-lg cursor-pointer transition-all duration-200;
+                @apply bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 shadow-sm;
+                @apply hover:shadow-md hover:border-gray-300;
+                max-width: 140px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .mini-template-tag:hover {
+                @apply bg-gray-50 border-gray-300 shadow-md;
+                transform: translateY(-1px);
+            }
+            .mini-template-tag.selected {
+                @apply bg-blue-50 text-blue-700 border-blue-200 shadow-md;
+                transform: translateY(-1px);
+            }
+            .mini-template-tag.custom {
+                @apply bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border-blue-200;
+            }
+            .mini-template-tag.custom:hover {
+                @apply bg-gradient-to-r from-blue-100 to-indigo-100 border-blue-300;
+            }
+            .mini-template-tag.custom.selected {
+                @apply bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 border-blue-300;
+            }
+            
+            /* 更多标签样式 */
+            .mini-template-more {
+                @apply inline-flex items-center px-3 py-2 text-sm rounded-lg cursor-pointer transition-all duration-200;
+                @apply bg-gray-100 text-gray-600 hover:bg-gray-200 border border-dashed border-gray-300;
+                @apply hover:shadow-md;
+            }
+            .mini-template-more:hover {
+                @apply bg-gray-200 border-gray-400;
+                transform: translateY(-1px);
+            }
         }
     </style>
 </head>
@@ -842,36 +881,19 @@
                     <!-- 迷你模式界面 -->
                     <div id="aiMiniView" class="view-container hidden">
                         <div class="px-2 py-2">
-                            <!-- 输入区域（模板搜索下拉框移到输入框左侧） -->
-                            <div class="flex items-center gap-2 mb-2">
-                                <!-- 模板搜索下拉框（移到左侧，变窄） -->
-                                <div class="relative w-36 flex-shrink-0">
-                                    <div class="relative">
-                                        <input type="text" id="miniUserTemplateSearchInput"
-                                            class="form-control text-sm h-10 w-full" placeholder="模板..."
-                                            autocomplete="off">
-                                        <div
-                                            class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor"
-                                                viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M19 9l-7 7-7-7"></path>
-                                            </svg>
-                                        </div>
-                                    </div>
-                                    <div id="miniUserTemplateDropdown"
-                                        class="fixed top-auto left-auto bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto z-50 hidden"
-                                        style="transform: translateY(0); margin-top: 4px;">
-                                        <!-- 模板选项将动态填充 -->
-                                    </div>
-                                </div>
+                            <!-- 模板标签区域（平铺显示在输入框上方） -->
+                            <div id="miniTemplateTags" class="mb-2 flex flex-wrap gap-2">
+                                <!-- 模板标签将动态填充 -->
+                            </div>
 
+                            <!-- 输入区域 -->
+                            <div class="flex items-center gap-2 mb-2">
                                 <!-- 输入框（复用完整模式的用户提示词输入框） -->
-                                <textarea id="miniUserPromptInput" class="form-control flex-1 h-10 text-sm resize-none"
+                                <textarea id="miniUserPromptInput" class="form-control flex-1 h-14 text-sm resize-none"
                                     placeholder="如无额外要求，可直接点击发送按钮开始生成。"></textarea>
 
                                 <!-- 发送按钮 -->
-                                <button type="button" id="miniSendBtn" class="btn btn-primary btn-sm h-10 px-3"
+                                <button type="button" id="miniSendBtn" class="btn btn-primary btn-sm h-14 px-3"
                                     title="发送">
                                     <i class="fa fa-paper-plane"></i>
                                 </button>
@@ -5042,6 +5064,9 @@
                 if (userTemplateSearchInput && miniUserTemplateSearchInput) {
                     miniUserTemplateSearchInput.value = userTemplateSearchInput.value;
                 }
+
+                // 更新迷你模式模板标签显示
+                updateMiniTemplateTags();
             }
 
             // 同步迷你模式到完整模式
@@ -5223,6 +5248,9 @@
                     // 绑定用户模板相关事件
                     bindUserTemplateEvents();
 
+                    // 初始化迷你模式模板标签显示
+                    updateMiniTemplateTags();
+
                     console.log('[UserTemplates] 用户模板功能初始化完成');
                 } catch (error) {
                     console.error('[UserTemplates] 初始化失败:', error);
@@ -5344,6 +5372,90 @@
 
                 // 显示下拉框
                 dropdown.classList.remove('hidden');
+            }
+
+            // 更新迷你模式模板标签显示
+            function updateMiniTemplateTags(filteredTemplates = null) {
+                const tagsContainer = document.getElementById('miniTemplateTags');
+                if (!tagsContainer) return;
+
+                const templates = filteredTemplates || allUserTemplates;
+                tagsContainer.innerHTML = '';
+
+                if (templates.length === 0) {
+                    const noTemplates = document.createElement('div');
+                    noTemplates.className = 'text-xs text-gray-500 italic px-2 py-1';
+                    noTemplates.textContent = '暂无模板';
+                    tagsContainer.appendChild(noTemplates);
+                    return;
+                }
+
+                // 只显示前10个模板，避免过多标签
+                const displayTemplates = templates.slice(0, 10);
+                
+                displayTemplates.forEach(template => {
+                    const tag = document.createElement('span');
+                    tag.className = 'mini-template-tag';
+                    
+                    if (template.id === selectedTemplateId) {
+                        tag.classList.add('selected');
+                    }
+                    if (template.type === 'custom') {
+                        tag.classList.add('custom');
+                    }
+
+                    tag.textContent = template.name;
+                    tag.title = template.description || template.name;
+                    tag.dataset.templateId = template.id;
+                    tag.dataset.content = template.content;
+
+                    tag.addEventListener('click', () => {
+                        selectMiniTemplateTag(template);
+                    });
+
+                    tagsContainer.appendChild(tag);
+                });
+
+                // 如果还有更多模板，显示"+N更多"按钮
+                if (templates.length > 10) {
+                    const moreIndicator = document.createElement('span');
+                    moreIndicator.className = 'mini-template-more';
+                    moreIndicator.textContent = `+${templates.length - 10}更多`;
+                    moreIndicator.title = '点击展开完整模式查看更多模板';
+                    
+                    // 点击"+N更多"按钮时，触发expandButton的点击事件，进入完整模式
+                    moreIndicator.addEventListener('click', () => {
+                        const expandButton = document.getElementById('expandButton');
+                        if (expandButton) {
+                            expandButton.click();
+                        }
+                    });
+                    
+                    tagsContainer.appendChild(moreIndicator);
+                }
+            }
+
+            // 选择迷你模式模板标签
+            function selectMiniTemplateTag(template) {
+                const userPromptInput = document.getElementById('miniUserPromptInput');
+                if (!userPromptInput) return;
+
+                // 使用handleTemplateSwitch处理模板切换（包含二次确认逻辑）
+                const switchResult = handleTemplateSwitch(template.id);
+
+                if (switchResult) {
+                    // 只有在用户确认切换后才更新UI
+                    userPromptInput.value = template.content;
+                    selectedTemplateId = template.id;
+
+                    // 更新标签选中状态
+                    updateMiniTemplateTags();
+
+                    console.log('[UserTemplates] 迷你模式选择模板标签:', template.name);
+                } else {
+                    // 用户取消了切换，保持当前状态
+                    console.log('[UserTemplates] 迷你模式用户取消了模板选择');
+                }
             }
 
             // 选择模板
@@ -5701,6 +5813,9 @@
                             selectedTemplateId = '';
                             console.log('[UserTemplates] 迷你模式没有可用模板，显示自定义');
                         }
+                        
+                        // 更新迷你模式模板标签显示
+                        updateMiniTemplateTags();
                     }
                 }, 100);
             }
