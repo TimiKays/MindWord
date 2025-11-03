@@ -176,11 +176,12 @@
             #auth-user {
                 height: 32px !important;
                 font-size: 11px !important;
+                min-width: 42px !important;
 
             }
 
             #auth-username {
-                font-size: 11px !important;
+                font-size: 12px !important;
                 max-width: 40px !important;
                 overflow: hidden !important;
                 text-overflow: ellipsis !important;
@@ -742,14 +743,14 @@
                     <option value="en">EN</option>
                 </select>
                 <a id="auth-link" href="auth.html"
-                    style="display:inline-flex; align-items:center; height:30px; padding:0 6px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; color:#334155; text-decoration:none; font-size:12px; cursor:pointer;width: 42px;"
+                    style="display:inline-flex; align-items:center; height:30px; padding:0 6px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; color:#334155; text-decoration:none; font-size:12px; cursor:pointer;"
                     data-i18n="docs.registerLogin">
                     注册/登录
                 </a>
                 <div id="auth-user" style="display:none; align-items:center;  position: relative;">
                     <div class="user-dropdown"
                         style="display:flex; align-items:center; gap:4px; cursor: pointer; position: relative;">
-                        <span id="auth-username" style="font-size:12px; color:#334155;max-width: 40px;"></span>
+                        <span id="auth-username" style="font-size:12px; color:#334155;"></span>
                         <svg class="dropdown-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" style="transition: transform 0.2s ease;">
                             <path d="M6 9l6 6 6-6" />
