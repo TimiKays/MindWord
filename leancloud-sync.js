@@ -922,20 +922,35 @@
 
     allDocIds.forEach(docId => {
       const choice = choices[`doc_${docId}`];
-      if (choice === 'local' && localDocMap.has(docId)) {
-        target.docs.push(localDocMap.get(docId));
-      } else if (choice === 'cloud' && cloudDocMap.has(docId)) {
-        target.docs.push(cloudDocMap.get(docId));
+      
+      // 用户明确选择了本地版本
+      if (choice === 'local') {
+        if (localDocMap.has(docId)) {
+          target.docs.push(localDocMap.get(docId));
+        }
+        // 如果用户选择本地但本地不存在该文档，则不添加（即删除）
       }
-      // 如果用户没有选择，使用推荐的选择
-      else if (localDocMap.has(docId) && cloudDocMap.has(docId)) {
-        const localDoc = localDocMap.get(docId);
-        const cloudDoc = cloudDocMap.get(docId);
-        target.docs.push(localDoc.updatedAt >= cloudDoc.updatedAt ? localDoc : cloudDoc);
-      } else if (localDocMap.has(docId)) {
-        target.docs.push(localDocMap.get(docId));
-      } else if (cloudDocMap.has(docId)) {
-        target.docs.push(cloudDocMap.get(docId));
+      // 用户明确选择了云端版本
+      else if (choice === 'cloud') {
+        if (cloudDocMap.has(docId)) {
+          target.docs.push(cloudDocMap.get(docId));
+        }
+        // 如果用户选择云端但云端不存在该文档，则不添加（即删除）
+      }
+      // 用户没有选择，使用推荐逻辑
+      else {
+        if (localDocMap.has(docId) && cloudDocMap.has(docId)) {
+          // 两边都有，选择更新时间较新的
+          const localDoc = localDocMap.get(docId);
+          const cloudDoc = cloudDocMap.get(docId);
+          target.docs.push(localDoc.updatedAt >= cloudDoc.updatedAt ? localDoc : cloudDoc);
+        } else if (localDocMap.has(docId)) {
+          // 只有本地有，保留本地版本
+          target.docs.push(localDocMap.get(docId));
+        } else if (cloudDocMap.has(docId)) {
+          // 只有云端有，保留云端版本
+          target.docs.push(cloudDocMap.get(docId));
+        }
       }
     });
 
