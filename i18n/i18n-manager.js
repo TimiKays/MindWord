@@ -11,24 +11,17 @@ class I18nManager {
   }
 
   /**
-   * 初始化语言管理器
+   * 初始化语言管理器（同步版本）
    */
-  async init() {
+  init() {
     if (this.isInitialized) return;
 
     try {
-      // 加载语言配置
-      await this.loadLocales();
+      // 同步加载语言配置
+      this.loadLocalesSync();
 
-      // 等待DOM完全加载
-      if (document.readyState === 'loading') {
-        await new Promise(resolve => {
-          document.addEventListener('DOMContentLoaded', resolve);
-        });
-      }
-
-      // 应用当前语言
-      this.applyLanguage(this.currentLanguage);
+      // 立即应用当前语言（无需等待DOM加载）
+      this.applyLanguageSync(this.currentLanguage);
 
       this.isInitialized = true;
       console.log(`[I18nManager] Initialized with language: ${this.currentLanguage}`);
@@ -40,47 +33,17 @@ class I18nManager {
   }
 
   /**
-   * 加载语言配置文件
+   * 同步加载语言配置文件
    */
-  async loadLocales() {
-    // 如果已经通过script标签加载了语言配置
+  loadLocalesSync() {
+    // 直接使用已加载的语言配置（locales.js已在head中同步加载）
     if (typeof window !== 'undefined' && window.i18nLocales) {
       this.locales = window.i18nLocales;
       return;
     }
 
-    // 动态加载语言配置文件
-    try {
-      const script = document.createElement('script');
-      script.src = 'i18n/locales.js';
-      script.async = true;
-
-      await new Promise((resolve, reject) => {
-        script.onload = resolve;
-        script.onerror = reject;
-        document.head.appendChild(script);
-      });
-
-      // 等待全局变量设置
-      await new Promise(resolve => {
-        const checkInterval = setInterval(() => {
-          if (window.i18nLocales) {
-            clearInterval(checkInterval);
-            this.locales = window.i18nLocales;
-            resolve();
-          }
-        }, 50);
-
-        // 超时处理
-        setTimeout(() => {
-          clearInterval(checkInterval);
-          resolve();
-        }, 2000);
-      });
-    } catch (error) {
-      console.error('[I18nManager] Failed to load locales:', error);
-      throw error;
-    }
+    // 如果未找到语言配置，抛出错误
+    throw new Error('Language locales not found. Please ensure i18n/locales.js is loaded before i18n-manager.js');
   }
 
   /**
@@ -124,9 +87,9 @@ class I18nManager {
   }
 
   /**
-   * 切换语言
+   * 切换语言（同步版本）
    */
-  async setLanguage(language) {
+  setLanguage(language) {
     if (!this.isInitialized) {
       console.warn('[I18nManager] Not initialized yet');
       return;
@@ -142,7 +105,8 @@ class I18nManager {
     this.currentLanguage = language;
     this.storeLanguage(language);
 
-    await this.applyLanguage(language);
+    // 同步应用语言
+    this.applyLanguageSync(language);
 
     // 通知所有监听器
     this.notifyListeners(language);
@@ -151,29 +115,15 @@ class I18nManager {
   }
 
   /**
-   * 应用语言到页面
+   * 同步应用语言到页面（无延迟版本）
    */
-  async applyLanguage(language) {
+  applyLanguageSync(language) {
     if (!this.locales[language]) return;
 
     // 更新HTML lang属性
     document.documentElement.lang = language === 'zh' ? 'zh-CN' : 'en';
 
-    // 等待DOM完全加载后再更新翻译
-    if (document.readyState !== 'complete') {
-      await new Promise(resolve => {
-        if (document.readyState === 'complete') {
-          resolve();
-        } else {
-          window.addEventListener('load', resolve);
-        }
-      });
-    }
-
-    // 延迟一下确保所有动态内容都加载完成
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    // 更新页面上的所有翻译元素
+    // 立即更新页面上的所有翻译元素（无需等待DOM加载）
     this.updatePageTranslations();
 
     // 更新页面标题
@@ -395,42 +345,16 @@ class I18nManager {
 // 创建全局语言管理器实例
 window.i18nManager = new I18nManager();
 
-// 初始化语言管理器
-async function initializeI18n() {
+// 简化初始化函数
+function initializeI18n() {
   try {
-    await window.i18nManager.init();
+    // 立即初始化（同步执行）
+    window.i18nManager.init();
     console.log('[I18nManager] Successfully initialized');
-
-    // 额外保险：在页面完全加载后再次应用翻译
-    if (document.readyState !== 'complete') {
-      window.addEventListener('load', () => {
-        console.log('[I18nManager] Applying translations after page load');
-        window.i18nManager.updatePageTranslations();
-        window.i18nManager.updatePageTitle();
-        window.i18nManager.updateLanguageButtons();
-      });
-    }
-
-    // 再添加一个延迟保险机制
-    setTimeout(() => {
-      console.log('[I18nManager] Applying translations after delay');
-      window.i18nManager.updatePageTranslations();
-      window.i18nManager.updatePageTitle();
-      window.i18nManager.updateLanguageButtons();
-    }, 500);
-
   } catch (error) {
     console.error('[I18nManager] Initialization failed:', error);
   }
 }
 
-// 确保在页面完全加载后初始化
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initializeI18n);
-} else if (document.readyState === 'interactive' || document.readyState === 'complete') {
-  // 如果DOM已经加载，延迟一下确保所有资源都加载完成
-  setTimeout(initializeI18n, 100);
-} else {
-  // 备用方案
-  window.addEventListener('load', initializeI18n);
-}
+// 立即执行初始化（无需等待任何事件）
+initializeI18n();
