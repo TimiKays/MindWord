@@ -131,6 +131,39 @@
       #expandLevelButtons {
         margin-left: 8px;
       }
+
+      /* 面包屑导航样式 */
+      #drilldown-breadcrumb .breadcrumb {
+        background: transparent;
+        margin: 0;
+        padding: 0;
+        font-size: 12px;
+      }
+
+      #drilldown-breadcrumb .breadcrumb-item a {
+        color: #4b5563;
+        text-decoration: none;
+        padding: 2px 6px;
+        border-radius: 3px;
+        transition: background-color 0.2s ease;
+      }
+
+      #drilldown-breadcrumb .breadcrumb-item a:hover {
+        background-color: #f3f4f6;
+        color: #111827;
+      }
+
+      #drilldown-breadcrumb .breadcrumb-item.active {
+        color: #111827;
+        font-weight: 500;
+        padding: 2px 6px;
+      }
+
+      #drilldown-breadcrumb .breadcrumb-item+.breadcrumb-item::before {
+        content: "/";
+        color: #9ca3af;
+        padding: 0 4px;
+      }
     </style>
 
     <div class="dropdown" id="iconPickerDropdown" style="display: inline-block;">
@@ -160,6 +193,21 @@
       <button class="level-expand-btn" onclick="expandToLevel(5)" title="展开到第5级">5</button>
       <button class="level-expand-btn" onclick="expandToLevel('all')" title="展开全部">all</button>
     </div>
+
+    <!-- 下钻功能按钮 -->
+    <div id="drilldownButtons" style="display:inline-flex;gap:4px;align-items:center;margin-left:8px;">
+      <span style="color: gainsboro;"> | </span>
+      <button id="drilldown-btn" class="level-expand-btn" onclick="viewStateManager.handleDrillDown()" title="下钻到选中节点"
+        disabled>
+        ↓
+      </button>
+      <button id="return-btn" class="level-expand-btn" onclick="viewStateManager.handleReturn()" title="返回到上一级"
+        disabled>
+        ↑
+      </button>
+    </div>
+
+
 
 
 
@@ -198,6 +246,10 @@
   </div>
 
   <div class="main-container">
+    <!-- 下钻面包屑导航 -->
+    <div id="drilldown-breadcrumb"
+      style="display:none; position: absolute; top: 10px; left: 10px; z-index: 1000; background: transparent; padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 500;">
+    </div>
     <div id="fullScreenMindmap"></div>
     <!-- 浮动节点详情面板（可关闭），保留内部字段和功能 -->
     <div id="nodeDetails" role="dialog" aria-hidden="true" aria-label="节点详情">
@@ -274,6 +326,7 @@
   <script src="icons.js"></script>
   <!-- <script src="node-ultils.js"></script> -->
   <script src="node-operator.js"></script>
+  <script src="ViewStateManager.js"></script>
   <script type="module" src="mindmap-core.js"></script>
   <script>
 
@@ -1539,24 +1592,24 @@
           window.currentFileName = payload.docId;
           console.log('[mindmap] 更新当前文档ID为:', window.currentFileName);
         }
-        
+
         try {
           // 等待转换器准备就绪
           if (!window.converter) {
             console.log('[mindmap] 等待转换器加载...');
             // 监听转换器就绪事件
-            window.addEventListener('converterReady', function() {
+            window.addEventListener('converterReady', function () {
               renderMindmapFromMd(payload);
             }, { once: true });
             return;
           }
-          
+
           console.log('[mindmap] 使用 converter.mdToNodeTree 渲染');
-          
+
           // 使用转换器将markdown转换为nodeTree
           const nodeTree = window.converter.mdToNodeTree(md);
           console.log('[mindmap] markdown转换成功, nodeTree:', nodeTree);
-          
+
           // 如果有mindmap实例，直接加载nodeTree
           if (window.jm && window.jm.show) {
             console.log('[mindmap] 使用 jm.show 加载nodeTree');
@@ -1564,18 +1617,18 @@
           } else {
             console.log('[mindmap] 等待mindmap初始化完成后再加载');
             // 等待mindmap初始化完成
-            window.addEventListener('mindmapReady', function() {
+            window.addEventListener('mindmapReady', function () {
               if (window.jm && window.jm.show) {
                 window.jm.show(nodeTree);
               }
             }, { once: true });
           }
-          
+
           document.dispatchEvent(new CustomEvent('mw:load_markdown', { detail: payload }));
           console.log('[mindmap] renderMindmapFromMd 完成, 已派发 mw:load_markdown 事件');
-          
-        } catch (e) { 
-          console.warn('[mindmap] renderMindmapFromMd error', e); 
+
+        } catch (e) {
+          console.warn('[mindmap] renderMindmapFromMd error', e);
           console.error('[mindmap] 渲染失败, docId:', payload?.docId || 'unknown', '错误:', e.message);
         }
       }

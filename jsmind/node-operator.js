@@ -45,11 +45,11 @@ class MindNodeOperator {
     // 优先级：node.data.notes > node.notes > DOM元素 > node.data.remark > ''
     let notes = '';
     try {
-      notes = (node && node.data && node.data.notes) ? node.data.notes : 
-             (node && node.notes) ? node.notes :
-             (document.getElementById && document.getElementById('nodeNotes') ? 
-              document.getElementById('nodeNotes').value : '') ||
-             (node.data && node.data.remark) || '';
+      notes = (node && node.data && node.data.notes) ? node.data.notes :
+        (node && node.notes) ? node.notes :
+          (document.getElementById && document.getElementById('nodeNotes') ?
+            document.getElementById('nodeNotes').value : '') ||
+          (node.data && node.data.remark) || '';
     } catch (_) { notes = ''; }
     return notes;
   }
@@ -78,7 +78,7 @@ class MindNodeOperator {
   setNodeType(nodeOrId, type) {
     const node = this.getNode(nodeOrId);
     if (!node) return;
-    
+
     // 兼容现有代码的设置方式
     node.type = type;
     if (node.data) {
@@ -118,7 +118,7 @@ class MindNodeOperator {
   setNodeLevel(nodeOrId, level) {
     const node = this.getNode(nodeOrId);
     if (!node || level < 1 || level > 6) return;
-    
+
     node.level = level;
     if (node.data) {
       if (node.data.data) {
@@ -139,7 +139,7 @@ class MindNodeOperator {
     const oldType = this.getNodeType(node);
     let ordered = false;
     let marker = '-';
-    
+
     if (inheritFrom) {
       const inheritData = this.getNodeBusinessData(inheritFrom);
       ordered = inheritData.ordered != null ? inheritData.ordered : false;
@@ -150,9 +150,9 @@ class MindNodeOperator {
     this.setNodeType(node, 'list');
     node.ordered = ordered;
     node.marker = marker;
-    
+
     if (!node.data) node.data = {};
-    
+
     // 处理嵌套的data结构
     if (node.data.data) {
       node.data.data.type = 'list';
@@ -255,8 +255,8 @@ class MindNodeOperator {
     if (!node) return '';
 
     // 优先使用全局的getNodeFullPath函数（如果存在）
-    try { 
-      if (typeof window.getNodeFullPath === 'function') return window.getNodeFullPath(node); 
+    try {
+      if (typeof window.getNodeFullPath === 'function') return window.getNodeFullPath(node);
     } catch (_) { }
 
     // 其次使用缓存的fullPath

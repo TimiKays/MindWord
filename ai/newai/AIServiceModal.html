@@ -2385,7 +2385,7 @@
                 // 组装提示词
 
                 let commonPrompt = `
-你是一个思维导图系统内部的编写助手，请根据【用户需求】结合【上下文信息】，严格按照【格式要求】完成【核心任务】。
+你是一个思维导图系统内部的编写助手，请根据【用户需求】结合【上下文信息】，严格按照【格式要求】完成【核心任务】，注意不要重复当前选中节点。
 
 【格式要求】：
 1. 输出格式是 Markdown，使用清晰的层级结构输出节点。一个节点对应的是一个标题或者列表。标题类型节点： # 表示一级节点, ## 表示二级节,### 表示三级节点……以此类推。如果没有#，但有- 或+ 或* ，表示为列表节点，列表节点前面不缩进时为上一个标题节点的直属子级，之后每缩进2个空格表示下降一个层级。
@@ -5392,11 +5392,11 @@
 
                 // 只显示前9个模板，避免过多标签
                 const displayTemplates = templates.slice(0, 9);
-                
+
                 displayTemplates.forEach(template => {
                     const tag = document.createElement('span');
                     tag.className = 'mini-template-tag';
-                    
+
                     if (template.id === selectedTemplateId) {
                         tag.classList.add('selected');
                     }
@@ -5422,7 +5422,7 @@
                     moreIndicator.className = 'mini-template-more';
                     moreIndicator.textContent = `+${templates.length - 9}更多`;
                     moreIndicator.title = '点击展开完整模式查看更多模板';
-                    
+
                     // 点击"+N更多"按钮时，触发expandButton的点击事件，进入完整模式
                     moreIndicator.addEventListener('click', () => {
                         const expandButton = document.getElementById('expandButton');
@@ -5430,7 +5430,7 @@
                             expandButton.click();
                         }
                     });
-                    
+
                     tagsContainer.appendChild(moreIndicator);
                 }
             }
@@ -5831,7 +5831,7 @@
                             selectedTemplateId = '';
                             console.log('[UserTemplates] 迷你模式没有可用模板，显示自定义');
                         }
-                        
+
                         // 更新迷你模式模板标签显示
                         updateMiniTemplateTags();
                     }
@@ -6106,7 +6106,7 @@
 
                     // 更新localStorage
                     localStorage.setItem('lastUsedUserTemplateId', templateData.id || templateData.name);
-                    
+
                     // 记录模板使用时间
                     recordTemplateUsage(templateData.id || templateData.name);
 

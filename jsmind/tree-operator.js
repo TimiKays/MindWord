@@ -521,3 +521,120 @@ function getAllDescendantIds(nodeOrId, includeSelf = true) {
     return [];
   }
 }
+
+/**
+ * 将下钻后的完整子树替换回原始思维导图的对应位置
+ * 用于下钻视图数据同步，将修改后的子树完整替换到原始数据中
+ * 
+ * @param {string} targetNodeId - 目标节点ID（下钻的根节点）
+ * @param {Object} newSubtree - 新的子树数据（包含修改后的完整子树）
+ * @returns {boolean} 替换是否成功
+ */
+function replaceSubtree(targetNodeId, newSubtree) {
+  try {
+    // 参数验证
+    if (!targetNodeId || !newSubtree) {
+      console.error('[replaceSubtree] 参数无效: targetNodeId或newSubtree为空');
+      return false;
+    }
+
+    console.log(`[replaceSubtree] 开始替换子树，目标节点: ${targetNodeId}`);
+    console.log(`[replaceSubtree] 新子树数据:`, newSubtree);
+
+    // 获取原始数据引用
+    let originalData = null;
+    if (window.viewStateManager && window.viewStateManager.originalData) {
+      originalData = window.viewStateManager.originalData;
+    }
+
+    if (!originalData || !originalData.data) {
+      console.error('[replaceSubtree] 无法获取原始数据');
+      return false;
+    }
+
+    console.log(`[replaceSubtree] 获取到原始数据:`, originalData);
+
+    /**
+     * 在节点树中递归查找并替换指定节点
+     * @param {Object} node - 当前节点
+     * @param {string} targetId - 目标节点ID
+     * @param {Object} replacement - 替换用的子树
+     * @returns {boolean} 是否找到并替换成功
+     */
+    function findAndReplace(node, targetId, replacement) {
+      if (!node || !node.id) return false;
+
+      console.log(`[findAndReplace] 检查节点: ${node.id}`);
+
+      // 如果当前节点就是要替换的目标节点
+      if (node.id === targetId) {
+        console.log(`[findAndReplace] 找到目标节点，开始替换: ${targetId}`);
+        
+        // 保留原始节点的ID，但替换其他所有属性
+        const originalId = node.id;
+        
+        // 清空原节点属性（除了id）
+        const keysToKeep = ['id'];
+        Object.keys(node).forEach(key => {
+          if (!keysToKeep.includes(key)) {
+            delete node[key];
+          }
+        });
+
+        // 复制新子树的所有属性（除了id）
+        Object.keys(replacement).forEach(key => {
+          if (key !== 'id') {
+            node[key] = replacement[key];
+          }
+        });
+
+        // 确保ID保持不变
+        node.id = originalId;
+        
+        console.log(`[findAndReplace] 替换完成，节点ID: ${node.id}`);
+        return true;
+      }
+
+      // 递归检查子节点
+      if (node.children && Array.isArray(node.children)) {
+        console.log(`[findAndReplace] 检查子节点，数量: ${node.children.length}`);
+        for (let i = 0; i < node.children.length; i++) {
+          if (findAndReplace(node.children[i], targetId, replacement)) {
+            return true;
+          }
+        }
+      }
+
+      return false;
+    }
+
+    // 在原始数据中查找并替换目标节点
+    console.log(`[replaceSubtree] 开始在原始数据中查找目标节点: ${targetNodeId}`);
+    const replaced = findAndReplace(originalData.data, targetNodeId, newSubtree);
+    
+    if (!replaced) {
+      console.error('[replaceSubtree] 未在原始数据中找到目标节点:', targetNodeId);
+      return false;
+    }
+
+    console.log(`[replaceSubtree] 替换成功，准备更新缓存`);
+
+    // 更新viewStateManager中的原始数据缓存
+    if (window.viewStateManager && window.viewStateManager.originalData) {
+      window.viewStateManager.originalData = JSON.parse(JSON.stringify(originalData));
+      console.log(`[replaceSubtree] 原始数据缓存已更新`);
+    }
+
+    console.log('[replaceSubtree] 子树替换成功:', targetNodeId);
+    return true;
+
+  } catch (error) {
+    console.error('[replaceSubtree] 子树替换失败:', error);
+    return false;
+  }
+}
+
+// 将replaceSubtree函数导出到全局作用域
+if (typeof window !== 'undefined') {
+  window.replaceSubtree = replaceSubtree;
+}

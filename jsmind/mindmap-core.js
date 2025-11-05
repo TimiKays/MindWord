@@ -587,6 +587,16 @@ function initMindmap() {
   // 初始化完成后加载数据
   loadNodeTree();
 
+  // 初始化ViewStateManager（下钻功能）
+  if (window.viewStateManager) {
+    try {
+      window.viewStateManager.initializeUrlState();
+      console.log('[MW][ViewStateManager] 初始化完成');
+    } catch (e) {
+      console.error('[MW][ViewStateManager] 初始化失败:', e);
+    }
+  }
+
   // 绑定事件 - 删除旧的批量移动逻辑，现在使用拖拽批量拖拽保护并延迟在 mouseup 时展示详情
   jm.add_event_listener(function (type, data) {
     if (type === jsMind.event_type.select) {
@@ -597,6 +607,11 @@ function initMindmap() {
         window.__mw_lastSelectedNodeId = selId;
         console.log('[MW][details] select recorded lastSelectedNodeId=', selId);
         // keep but DO NOT call showNodeDetails here
+        
+        // 更新ViewStateManager的按钮状态
+        if (window.viewStateManager) {
+          window.viewStateManager.updateToolbarButtons();
+        }
       } catch (e) {
         console.warn('[MW][details] select handler failed', e);
       }
@@ -633,6 +648,13 @@ function initMindmap() {
           }
         } catch (e) { /* ignore */ }
       });
+      
+      // 更新ViewStateManager的按钮状态
+      try {
+        if (window.viewStateManager && typeof window.viewStateManager.updateToolbarButtons === 'function') {
+          window.viewStateManager.updateToolbarButtons();
+        }
+      } catch (e) { /* ignore */ }
     } catch (e) { console.warn('[MW] attachAutoDetailsFollow failed', e); }
   })();
 
@@ -992,6 +1014,16 @@ function loadNodeTree(nodeTreeData) {
     // 渲染完成后尝试恢复视口（延迟以保证DOM已就绪）
     window.MW_scheduleOnce('restoreViewportAfterShow', function () { try { restoreViewport(); } catch (e) { } }, 120);
 
+    // 更新ViewStateManager状态
+    if (window.viewStateManager) {
+      try {
+        window.viewStateManager.updateToolbarButtons();
+        window.viewStateManager.updateBreadcrumb();
+      } catch (e) {
+        console.warn('[MW][ViewStateManager] 更新状态失败:', e);
+      }
+    }
+
     // 兼容补丁：在 jm.show 后可能有其他逻辑（restoreViewport / setZoom / style 调整）覆盖初始 scroll，
     // 此处再延迟一次强制应用 view.initial_offset_x（以像素为单位，乘以 actualZoom）
     // 目的：确保用户配置的 initial_offset_x 在初始化后最终生效（例如 -600 向左偏移）。
@@ -1102,7 +1134,7 @@ function loadNodeTree(nodeTreeData) {
         if (typeof window.MW_applyNodeVisibilityFilter === 'function') window.MW_applyNodeVisibilityFilter();
       } catch (e) { }
     }, 100);
-    
+
     // 派发mindmapReady事件，通知mindmap.html思维导图已准备就绪
     try {
       window.dispatchEvent(new Event('mindmapReady'));
@@ -1122,6 +1154,10 @@ function loadNodeTree(nodeTreeData) {
 
 // 获取当前NodeTree
 function getCurrentNodeTree() {
+  // 如果处于下钻模式，返回原始完整数据
+  if (window.viewStateManager && window.viewStateManager.isInDrillDownMode()) {
+    return window.viewStateManager.originalData || (jm ? jm.get_data() : null);
+  }
   return jm ? jm.get_data() : null;
 }
 
@@ -3276,32 +3312,73 @@ function getDefaultNodeTree() {
       "topic": "欢迎使用思维导图",
       "children": [
         {
-          "id": "sub1",
-          "topic": "点击节点编辑",
+          "id": "node_1",
+          "topic": "第一层节点",
           "direction": "right",
           "children": [
             {
-              "id": "sub1_1",
-              "topic": "双击编辑文本",
+              "id": "node_2",
+              "topic": "第二层节点A",
               "data": {
-                "notes": "双击节点可以编辑文本内容"
-              }
+                "notes": "这是第二层节点A的备注"
+              },
+              "children": [
+                {
+                  "id": "node_3",
+                  "topic": "第三层节点A1",
+                  "data": {
+                    "notes": "这是第三层节点A1的备注"
+                  },
+                  "children": [
+                    {
+                      "id": "node_4",
+                      "topic": "第四层节点A1-1",
+                      "data": {
+                        "notes": "这是第四层节点A1-1的备注"
+                      }
+                    },
+                    {
+                      "id": "node_5",
+                      "topic": "第四层节点A1-2",
+                      "data": {
+                        "notes": "这是第四层节点A1-2的备注"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "node_6",
+                  "topic": "第三层节点A2",
+                  "data": {
+                    "notes": "这是第三层节点A2的备注"
+                  }
+                }
+              ]
             },
             {
-              "id": "sub1_2",
-              "topic": "拖拽调整位置",
+              "id": "node_7",
+              "topic": "第二层节点B",
               "data": {
-                "notes": "拖拽节点可以调整位置和层级关系"
-              }
+                "notes": "这是第二层节点B的备注"
+              },
+              "children": [
+                {
+                  "id": "node_8",
+                  "topic": "第三层节点B1",
+                  "data": {
+                    "notes": "这是第三层节点B1的备注"
+                  }
+                }
+              ]
             }
           ]
         },
         {
-          "id": "sub2",
-          "topic": "右侧编辑详情",
+          "id": "node_9",
+          "topic": "第一层右侧节点",
           "direction": "right",
           "data": {
-            "notes": "在右侧面板可以编辑节点的详细信息"
+            "notes": "这是第一层右侧节点的备注"
           }
         }
       ]
@@ -3471,7 +3548,13 @@ function saveToLocalStorage() {
     }
   } catch (e) { console.warn('[MW] saveToLocalStorage merge check error', e); }
 
-  const currentData = jm.get_data();
+  // 在下钻模式下，始终同步完整数据
+  let currentData;
+  if (window.viewStateManager && window.viewStateManager.isInDrillDownMode() && window.viewStateManager.originalData) {
+    currentData = window.viewStateManager.originalData;
+  } else {
+    currentData = jm.get_data();
+  }
   const dataString = JSON.stringify(currentData);
 
   // 避免触发本地监听器（防止循环加载）
@@ -4425,7 +4508,13 @@ window.addEventListener('load', async function () {
       window.undoManager = new UndoManager({
         maxCapacity: 10,
         getSnapshot: function () {
-          try { return JSON.stringify(jm.get_data()); } catch (e) { return null; }
+          try { 
+            // 在下钻模式下，始终保存完整数据
+            if (window.viewStateManager && window.viewStateManager.isInDrillDownMode() && window.viewStateManager.originalData) {
+              return JSON.stringify(window.viewStateManager.originalData);
+            }
+            return JSON.stringify(jm.get_data()); 
+          } catch (e) { return null; }
         },
         getCurrentDocumentId: function () {
           // 使用当前活动文档ID，如果没有则使用文件名，最后使用默认
