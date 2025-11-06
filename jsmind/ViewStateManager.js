@@ -124,10 +124,13 @@ class ViewStateManager {
             this.currentViewMode = 'drilldown';
             this.currentRootId = nodeId;
 
-            // 缓存原始数据（如果还没有缓存）
-            if (!this.originalData) {
-                this.originalData = window.jm.get_data();
-            }
+            // // 缓存原始数据（如果还没有缓存）
+            // if (!this.originalData) {
+            //     this.originalData = window.jm.get_data();
+            // }
+
+            // 总是获取最新的完整数据（解决恢复后数据又被覆盖的问题）
+            this.originalData = window.jm.get_data();
 
             // 应用过滤视图
             this.applyFilteredView();

@@ -3621,14 +3621,24 @@ function debouncedSave() {
   saveTimer = setTimeout(function () {
 
     saveToLocalStorage();
-    try {
-      if (window.undoManager && typeof window.undoManager.recordIfChanged === 'function') {
-        window.undoManager.recordIfChanged();
+
+    // 只有在非撤销/重做恢复期间才调用recordIfChanged
+    if (window.undoManager && !window.undoManager.isRestoring) {
+      try {
+        if (typeof window.undoManager.recordIfChanged === 'function') {
+          window.undoManager.recordIfChanged();
+        }
+      } catch (e) {
+        // 忽略记录错误
       }
-    } catch (e) {
-      // 忽略记录错误
     }
-  }, 300);
+
+    // 如果当前是在恢复状态，保存完成后重置标志
+    if (window.undoManager && window.undoManager.isRestoring) {
+      console.log('[debouncedSave] 恢复期间的保存完成，重置isRestoring标志');
+      window.undoManager.isRestoring = false;
+    }
+  }, 0);
 }
 
 // 类型对齐辅助函数：读取/写入节点类型（优先根级别，兼容 data.type）
@@ -4511,11 +4521,25 @@ window.addEventListener('load', async function () {
         maxCapacity: 10,
         getSnapshot: function () {
           try {
-            // 在下钻模式下，始终保存完整数据
+            // 获取当前视图状态
+            const viewState = window.viewStateManager ? window.viewStateManager.getCurrentState() : null;
+
+            // 获取思维导图数据
+            let mindmapData;
             if (window.viewStateManager && window.viewStateManager.isInDrillDownMode() && window.viewStateManager.originalData) {
-              return JSON.stringify(window.viewStateManager.originalData);
+              // 在下钻模式下，始终保存完整数据
+              mindmapData = window.viewStateManager.originalData;
+            } else {
+              mindmapData = jm.get_data();
             }
-            return JSON.stringify(jm.get_data());
+
+            // 返回包含视图状态的快照
+            const snapshot = {
+              data: mindmapData,
+              viewState: viewState
+            };
+
+            return JSON.stringify(snapshot);
           } catch (e) { return null; }
         },
         getCurrentDocumentId: function () {
@@ -4529,6 +4553,10 @@ window.addEventListener('load', async function () {
         restoreSnapshot: function (s) {
           try {
             const parsed = JSON.parse(s);
+
+            // 提取数据和视图状态
+            const mindmapData = parsed.data || parsed; // 兼容旧格式
+            const viewState = parsed.viewState;
 
             // 收集重建前的所有节点ID集合
             function collectIds(tree) {
@@ -4545,8 +4573,34 @@ window.addEventListener('load', async function () {
 
             // 用视口保护包裹重建，避免跳回根
             window.MW_preserveViewportAround(function () {
-              jm.show(parsed);
+              jm.show(mindmapData);
             }, 120, { avoidReselect: true });
+
+            // 更新原始数据缓存（如果在下钻模式下）
+            if (window.viewStateManager && window.viewStateManager.isInDrillDownMode()) {
+              window.viewStateManager.originalData = JSON.parse(JSON.stringify(mindmapData));
+              console.log('[UndoManager] 已更新原始数据缓存');
+            }
+
+            // 如果有视图状态，恢复视图状态
+            if (viewState && window.viewStateManager) {
+              setTimeout(function () {
+                try {
+                  // 恢复视图状态
+                  if (viewState.mode === 'drilldown' && viewState.rootId) {
+                    // 如果保存的是下钻状态，恢复到该下钻状态
+                    window.viewStateManager.drillDownToNode(viewState.rootId, false);
+                  } else if (viewState.mode === 'full') {
+                    // 如果保存的是完整视图状态，确保回到完整视图
+                    if (window.viewStateManager.currentViewMode !== 'full') {
+                      window.viewStateManager.returnToFullView(false);
+                    }
+                  }
+                } catch (e) {
+                  console.warn('[UndoManager] 恢复视图状态失败:', e);
+                }
+              }, 50);
+            }
 
             // 重建后选择“被恢复”的节点（不打断视口）
             setTimeout(function () {
@@ -4587,18 +4641,21 @@ window.addEventListener('load', async function () {
             }, 160);
 
             // 保存并同步恢复后的数据到 localStorage / 编辑器 / 预览（避免撤销后数据未同步）
-            try {
-              // 标记短期内为本页自发更新，避免被自身的 storage 监听立即重载
-              window.__mindmapSelfUpdateUntil = Date.now() + 1500;
-              window.__mindmapSuppressCount = (window.__mindmapSuppressCount || 0) + 1;
-              try { if (typeof debouncedSave === 'function') debouncedSave(); else if (typeof saveToLocalStorage === 'function') saveToLocalStorage(); } catch (e) { }
-              // 立即向父页面广播最新数据（与 saveToLocalStorage 保持一致）
+            // 延迟保存，等待视图状态完全恢复后再执行
+            setTimeout(function () {
               try {
-                if (window.parent && window.parent !== window) {
-                  window.parent.postMessage({ type: 'mindmapUpdated', data: (jm && typeof jm.get_data === 'function') ? jm.get_data() : null }, '*');
-                }
+                // 标记短期内为本页自发更新，避免被自身的 storage 监听立即重载
+                window.__mindmapSelfUpdateUntil = Date.now() + 1500;
+                window.__mindmapSuppressCount = (window.__mindmapSuppressCount || 0) + 1;
+                try { if (typeof debouncedSave === 'function') debouncedSave(); else if (typeof saveToLocalStorage === 'function') saveToLocalStorage(); } catch (e) { }
+                // 立即向父页面广播最新数据（与 saveToLocalStorage 保持一致）
+                try {
+                  if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({ type: 'mindmapUpdated', data: (jm && typeof jm.get_data === 'function') ? jm.get_data() : null }, '*');
+                  }
+                } catch (e) { }
               } catch (e) { }
-            } catch (e) { }
+            }, 100); // 延迟100ms，确保视图状态恢复完成
 
             return true;
           } catch (err) {

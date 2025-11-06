@@ -195,13 +195,32 @@ UndoManager.prototype._recordNow = function () {
   }
 
   console.log('[UndoManager] 对比新旧快照有无变化？ docId=' + docId + '，老快照=' + stacks.lastSnapshot + '，新快照=' + snapshot);
-  // 若无变化则跳过
-  if (stacks.lastSnapshot === snapshot) {
 
-    console.log('[UndoManager] 没变化，跳过记录!');
+  // 只比较数据内容，忽略视图状态
+  function extractDataFromSnapshot(snapshotStr) {
+    try {
+      var parsed = JSON.parse(snapshotStr);
+      // 如果是新格式（包含data和viewState），只返回data部分
+      if (parsed && parsed.data) {
+        return JSON.stringify(parsed.data);
+      }
+      // 如果是旧格式（只有数据），直接返回
+      return snapshotStr;
+    } catch (e) {
+      // 解析失败，认为不同
+      return snapshotStr;
+    }
+  }
+
+  var oldData = extractDataFromSnapshot(stacks.lastSnapshot);
+  var newData = extractDataFromSnapshot(snapshot);
+
+  // 若无变化则跳过（只比较数据内容）
+  if (oldData === newData) {
+    console.log('[UndoManager] 数据内容没变化，跳过记录!');
     return false;
   } else {
-    console.log('[UndoManager] 有变化，开始记录！');
+    console.log('[UndoManager] 数据内容有变化，开始记录！');
   }
 
 
@@ -220,14 +239,16 @@ UndoManager.prototype._recordNow = function () {
 // 撤销或重做实现：用快照替换当前状态
 // 内部标志用于防止恢复期间再次记录
 UndoManager.prototype._restore = function (snapshot) {
-  console.log('[UndoManager] log：开始恢复: snapshot');
+  console.log('[UndoManager] log：开始恢复: snapshot' + snapshot);
   if (!snapshot) {
     console.warn('[UndoManager] 没有快照，无法恢复');
     return false;
   }
+
+  this.isRestoring = true;
+  console.log('[UndoManager] _restore starting');
+
   try {
-    this.isRestoring = true;
-    console.log('[UndoManager] _restore starting');
     var ok = this.restoreSnapshot(snapshot);
     // after restore, update lastSnapshot to restored snapshot for current document
     var docId = this._getCurrentDocumentId();
@@ -236,11 +257,11 @@ UndoManager.prototype._restore = function (snapshot) {
     console.log('[UndoManager] 快照恢复完成, ok=' + !!ok + ', docId=' + docId + ', 可撤销数=' + stacks.undoStack.length + ', 可重做数=' + stacks.redoStack.length);
 
     return ok;
-  } finally {
-    this.isRestoring = false;
+  } catch (e) {
+    console.error('[UndoManager] 恢复过程中出错:', e);
+    return false;
   }
-
-
+  // 注意：这里不再立即重置isRestoring，而是等待保存完成
 };
 
 
