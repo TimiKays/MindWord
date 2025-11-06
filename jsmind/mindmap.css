@@ -285,7 +285,7 @@ body {
 
 /* 工具栏图标选择器下拉菜单样式 */
 #iconPickerDropdown {
-  position: relative;
+  position: static;
   display: inline-block;
 }
 
