@@ -1654,6 +1654,15 @@
       }
     },
 
+    remove_event_listener: function (callback) {
+      if (typeof callback === 'function') {
+        var index = this.event_handles.indexOf(callback);
+        if (index > -1) {
+          this.event_handles.splice(index, 1);
+        }
+      }
+    },
+
     clear_event_listener: function () {
       this.event_handles = [];
     },

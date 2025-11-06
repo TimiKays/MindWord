@@ -607,7 +607,7 @@ function initMindmap() {
         window.__mw_lastSelectedNodeId = selId;
         console.log('[MW][details] select recorded lastSelectedNodeId=', selId);
         // keep but DO NOT call showNodeDetails here
-        
+
         // 更新ViewStateManager的按钮状态
         if (window.viewStateManager) {
           window.viewStateManager.updateToolbarButtons();
@@ -648,7 +648,7 @@ function initMindmap() {
           }
         } catch (e) { /* ignore */ }
       });
-      
+
       // 更新ViewStateManager的按钮状态
       try {
         if (window.viewStateManager && typeof window.viewStateManager.updateToolbarButtons === 'function') {
@@ -4505,21 +4505,23 @@ window.addEventListener('load', async function () {
   // 初始化 UndoManager（如果已注入）
   try {
     if (window.UndoManager && jm) {
+
+      // 构造一个撤销管理器
       window.undoManager = new UndoManager({
         maxCapacity: 10,
         getSnapshot: function () {
-          try { 
+          try {
             // 在下钻模式下，始终保存完整数据
             if (window.viewStateManager && window.viewStateManager.isInDrillDownMode() && window.viewStateManager.originalData) {
               return JSON.stringify(window.viewStateManager.originalData);
             }
-            return JSON.stringify(jm.get_data()); 
+            return JSON.stringify(jm.get_data());
           } catch (e) { return null; }
         },
         getCurrentDocumentId: function () {
           // 使用当前活动文档ID，如果没有则使用文件名，最后使用默认
           try {
-            return window.__mw_activeDocId || window.currentFileName || 'default';
+            return window.localStorage.getItem('mw_active_doc') || window.currentFileName || 'default';
           } catch (e) {
             return 'default';
           }
@@ -4608,6 +4610,7 @@ window.addEventListener('load', async function () {
       try { window.undoManager.recordIfChanged(); } catch (e) { }
       try { window.undoManager.bindKeyboard({ element: document }); } catch (e) { }
     }
+    console.log('[UndoManager] 初始化成功 (maxCapacity=' + window.undoManager.maxCapacity + ', debounce=' + window.undoManager.debounce + '), getCurrentDocumentId=' + window.undoManager.getCurrentDocumentId());
   } catch (e) {
     console.warn('初始化 UndoManager 失败:', e);
   }

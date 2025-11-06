@@ -81,25 +81,25 @@ class ViewStateManager {
 
             // 检查节点是否存在于当前JSMind实例中
             let targetNode = window.jm.get_node(nodeId);
-            
+
             // 如果节点不存在且我们有原始数据，尝试先恢复完整视图再下钻
             if (!targetNode && this.originalData && this.currentViewMode === 'drilldown') {
                 console.log(`[ViewStateManager] 节点 ${nodeId} 在当前实例中不存在，尝试从原始数据中查找`);
-                
+
                 // 临时保存当前状态
                 const currentRootId = this.currentRootId;
                 const currentMode = this.currentViewMode;
-                
+
                 // 先恢复到完整视图以获取所有节点数据
                 this.returnToFullView(false); // 不更新URL
-                
+
                 // 再次尝试获取节点
                 targetNode = window.jm.get_node(nodeId);
                 if (!targetNode) {
                     console.error(`[ViewStateManager] 节点 ${nodeId} 在原始数据中也不存在`);
                     return false;
                 }
-                
+
                 // 如果之前是在下钻模式且需要添加到历史栈，恢复之前的状态
                 if (addToHistory && currentMode === 'drilldown') {
                     this.drillDownHistoryStack.push({
@@ -242,7 +242,7 @@ class ViewStateManager {
             // 获取当前下钻视图的完整数据
             const currentData = window.jm.get_data();
             console.log(`[ViewStateManager] 获取到的当前数据:`, currentData);
-            
+
             if (!currentData || !currentData.data) {
                 console.error('[ViewStateManager] 无法获取当前视图数据');
                 return;
@@ -423,7 +423,7 @@ class ViewStateManager {
 
             // 生成HTML - 使用蓝色链接样式
             let html = '<nav aria-label="下钻路径"><ol class="breadcrumb">';
-            
+
             // 只在有路径时显示面包屑
             if (breadcrumbPath.length > 0) {
                 // 第一个节点作为根节点显示，但不显示"根节点"文字
