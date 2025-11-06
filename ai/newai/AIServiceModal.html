@@ -1872,11 +1872,12 @@
                 autoSelectConfiguredPlatform();
 
                 // 如果是新用户且创建了默认配置，显示欢迎提示
-                if (defaultConfigCreated) {
-                    setTimeout(() => {
-                        showStatus('欢迎使用！已为您内置智谱AI平台配置，使用免费的GLM-4-Flash模型', 'success');
-                    }, 1000);
-                }
+                // defaultConfigCreated变量已被移除，不再显示默认配置欢迎提示
+                // if (defaultConfigCreated) {
+                //     setTimeout(() => {
+                //         showStatus('欢迎使用！已为您内置智谱AI平台配置，使用免费的GLM-4-Flash模型', 'success');
+                //     }, 1000);
+                // }
 
                 // 刷新左侧已保存平台列表
                 populateSavedPlatformsList();
