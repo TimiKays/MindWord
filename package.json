@@ -1,0 +1,12 @@
+{
+  "name": "mindword",
+  "version": "1.0.0",
+  "description": "MindWord - 思维导图应用",
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0"
+  }
+}
