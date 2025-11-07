@@ -343,6 +343,7 @@ const i18nLocales = {
       batchDelete: '批量删除',
       cancel: '取消',
       confirm: '确定',
+      create: '创建',
       confirmBatchDelete: '确定要删除选中的文档吗？',
       noDocsSelected: '请至少选择一个文档'
     }
@@ -694,6 +695,7 @@ const i18nLocales = {
       batchDelete: 'Batch Delete',
       cancel: 'Cancel',
       confirm: 'Confirm',
+      create: 'Create',
       confirmBatchDelete: 'Are you sure you want to delete the selected documents?',
       noDocsSelected: 'Please select at least one document'
     }

@@ -479,13 +479,13 @@
         }
 
         .delete-confirm-dialog .confirm-buttons button.confirm-btn {
-            background: #ef4444;
+            background: #3b82f6;
             color: white;
-            border-color: #dc2626;
+            border-color: #2563eb;
         }
 
         .delete-confirm-dialog .confirm-buttons button.confirm-btn:hover {
-            background: #dc2626;
+            background: #2563eb;
         }
 
         .delete-confirm-overlay {
@@ -595,10 +595,13 @@
 
         .doc-item.batch-mode {
             padding-left: 12px;
+            justify-content: flex-start;
         }
 
         .doc-item.batch-mode .doc-name {
             max-width: 260px;
+            margin-left: 8px;
+            flex: 1;
         }
 
         .doc-name {
@@ -612,9 +615,13 @@
         }
 
         .doc-buttons {
-            display: flex;
-            gap: 6px;
-        }
+                display: flex;
+                gap: 6px;
+            }
+            
+            .doc-item.batch-mode .doc-buttons {
+                display: none;
+            }
 
         .doc-buttons button {
             height: 24px;
@@ -684,6 +691,21 @@
             <div class="confirm-buttons">
                 <button id="delete-confirm-cancel" data-i18n="docs.cancel">取消</button>
                 <button id="delete-confirm-ok" class="confirm-btn" data-i18n="docs.confirm">确定</button>
+            </div>
+        </div>
+
+        <!-- 新文档创建对话框 -->
+        <div id="new-doc-overlay" class="delete-confirm-overlay" style="display: none;"></div>
+        <div id="new-doc-dialog" class="delete-confirm-dialog" style="display: none;">
+            <div style="margin-bottom: 16px; font-size: 16px; font-weight: 600; color: #111827;"
+                data-i18n="docs.newDoc">新建文档</div>
+            <div style="margin-bottom: 16px;">
+                <input type="text" id="new-doc-name" class="new-doc-input" placeholder="请输入文档名称" value="未命名文档"
+                    style="width: 100%; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 14px; box-sizing: border-box;">
+            </div>
+            <div class="confirm-buttons">
+                <button id="new-doc-cancel" data-i18n="docs.cancel">取消</button>
+                <button id="new-doc-ok" class="confirm-btn" data-i18n="docs.create">创建</button>
             </div>
         </div>
     </aside>
@@ -1863,6 +1885,45 @@
                 console.warn('绑定删除确认对话框按钮事件失败', e);
             }
 
+            // 绑定新建文档对话框按钮事件
+            try {
+                const newDocCancelBtn = document.getElementById('new-doc-cancel');
+                const newDocOkBtn = document.getElementById('new-doc-ok');
+                const newDocInput = document.getElementById('new-doc-name');
+
+                if (newDocCancelBtn) {
+                    newDocCancelBtn.onclick = () => mw_hideNewDocDialog();
+                }
+                if (newDocOkBtn) {
+                    newDocOkBtn.onclick = () => mw_confirmNewDoc();
+                }
+
+                // 输入框回车事件
+                if (newDocInput) {
+                    newDocInput.onkeydown = (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            mw_confirmNewDoc();
+                        } else if (e.key === 'Escape') {
+                            e.preventDefault();
+                            mw_hideNewDocDialog();
+                        }
+                    };
+                }
+
+                // 点击遮罩层关闭对话框
+                const newDocOverlay = document.getElementById('new-doc-overlay');
+                if (newDocOverlay) {
+                    newDocOverlay.onclick = (e) => {
+                        if (e.target === newDocOverlay) {
+                            mw_hideNewDocDialog();
+                        }
+                    };
+                }
+            } catch (e) {
+                console.warn('绑定新建文档对话框按钮事件失败', e);
+            }
+
             console.log('📌 Markdown Studio 已初始化');
             console.log('配置信息:', PAGE_CONFIG);
         }
@@ -2492,8 +2553,50 @@
         }
 
         function mw_newDoc() {
-            const name = prompt('新文档名称：', '未命名文档');
-            if (!name) return;
+            mw_showNewDocDialog();
+        }
+
+        // 显示新建文档对话框
+        function mw_showNewDocDialog() {
+            const overlay = document.getElementById('new-doc-overlay');
+            const dialog = document.getElementById('new-doc-dialog');
+            const input = document.getElementById('new-doc-name');
+
+            // 设置默认值
+            input.value = '未命名文档';
+
+            // 显示对话框和遮罩
+            overlay.style.display = 'block';
+            dialog.style.display = 'block';
+
+            // 聚焦输入框
+            setTimeout(() => {
+                input.focus();
+                input.select();
+            }, 100);
+        }
+
+        // 隐藏新建文档对话框
+        function mw_hideNewDocDialog() {
+            const overlay = document.getElementById('new-doc-overlay');
+            const dialog = document.getElementById('new-doc-dialog');
+
+            overlay.style.display = 'none';
+            dialog.style.display = 'none';
+        }
+
+        // 确认创建新文档
+        function mw_confirmNewDoc() {
+            const input = document.getElementById('new-doc-name');
+            const name = input.value.trim();
+
+            if (!name) {
+                alert('请输入文档名称');
+                return;
+            }
+
+            mw_hideNewDocDialog();
+
             const id = 'doc_' + Date.now();
             const doc = {
                 id, name,
