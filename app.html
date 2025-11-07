@@ -615,13 +615,13 @@
         }
 
         .doc-buttons {
-                display: flex;
-                gap: 6px;
-            }
-            
-            .doc-item.batch-mode .doc-buttons {
-                display: none;
-            }
+            display: flex;
+            gap: 6px;
+        }
+
+        .doc-item.batch-mode .doc-buttons {
+            display: none;
+        }
 
         .doc-buttons button {
             height: 24px;
@@ -705,6 +705,8 @@
             </div>
             <div class="confirm-buttons">
                 <button id="new-doc-cancel" data-i18n="docs.cancel">取消</button>
+                <button id="new-doc-ai" class="confirm-btn" style="background: #10b981; border-color: #059669;"
+                    data-i18n="docs.aiGenerate">AI生成</button>
                 <button id="new-doc-ok" class="confirm-btn" data-i18n="docs.create">创建</button>
             </div>
         </div>
@@ -1895,7 +1897,11 @@
                     newDocCancelBtn.onclick = () => mw_hideNewDocDialog();
                 }
                 if (newDocOkBtn) {
-                    newDocOkBtn.onclick = () => mw_confirmNewDoc();
+                    newDocOkBtn.onclick = () => mw_confirmNewDoc(false);
+
+                    // AI生成初始树按钮事件
+                    const newDocAIBtn = document.getElementById('new-doc-ai');
+                    newDocAIBtn.onclick = () => mw_confirmNewDoc(true);
                 }
 
                 // 输入框回车事件
@@ -2586,7 +2592,7 @@
         }
 
         // 确认创建新文档
-        function mw_confirmNewDoc() {
+        function mw_confirmNewDoc(useAIGenerate) {
             const input = document.getElementById('new-doc-name');
             const name = input.value.trim();
 
@@ -2613,6 +2619,24 @@
             mw_renderList();
             mw_notifyEditorLoad(doc);
             mw_notifyMindmapLoad(doc); // 通知思维导图面板加载新文档
+
+            // 如果使用AI生成，激活思维导图页面的AI功能
+            if (useAIGenerate) {
+                setTimeout(() => {
+                    const mindmapFrame = document.querySelector('iframe[data-panel="mindmap"], iframe#iframe-mindmap, iframe[src*="jsmind/mindmap.html"]');
+                    if (mindmapFrame && mindmapFrame.contentWindow && mindmapFrame.contentWindow.aiGenerateInitialTreeMini) {
+                        mindmapFrame.contentWindow.aiGenerateInitialTreeMini({
+                            placeholders: {
+                                name: { value: name }
+                            },
+                            autoRun: true
+                        });
+                    } else {
+                        console.warn('[AI] 无法找到思维导图iframe或aiGenerateInitialTreeMini函数');
+                    }
+                }, 500); // 延迟确保思维导图加载完成
+            }
+
             try { showSuccess && showSuccess('已创建并打开'); } catch (_) { }
         }
 
