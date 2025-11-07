@@ -44,7 +44,10 @@
 
     <span class="ico-btn" role="button" onclick="exportData()" tabindex="0" title="查看JSON"
       style="--ico: url('res/code.svg'); "></span>
-    <span class="ico-btn" role="button" onclick="aiGenerateInitialTreeMini()" tabindex="0" title="生成初始树"
+    <!-- 隐藏AI生成初始树按钮，但保留功能供创建新文档时调用 -->
+    <!-- <span class="ico-btn" role="button" onclick="handleAIGenerateInitialTree()" tabindex="0" title="AI生成初始树（组件调用）"
+      style="--ico: url('../res/生成初始树.svg');"></span> -->
+    <span class="ico-btn" role="button" onclick="showAIGenerateInitialTreeModal()" tabindex="0" title="AI生成初始树"
       style="--ico: url('../res/生成初始树.svg');"></span>
     <!-- 配置按钮 -->
     <span class="ico-btn" role="button" onclick="openConfigModal()" tabindex="0" title="配置"
@@ -1648,6 +1651,16 @@
             if (typeof window.updateLayout === 'function') window.updateLayout();
           } catch (_) { }
         }
+
+        // 处理AI初始树生成完成的消息（用于快速AI模式下关闭输入弹窗）
+        if (msg.type === 'AI_INITIAL_TREE_GENERATED') {
+          console.log('[mindmap] 收到 AI_INITIAL_TREE_GENERATED 消息，关闭输入弹窗');
+          try {
+            closeAIGenerateModal();
+          } catch (e) {
+            console.warn('[mindmap] 关闭AI生成弹窗失败:', e);
+          }
+        }
       }, { passive: true });
     })();
   </script>
@@ -1674,6 +1687,152 @@
         console.log('[mindmap] 层级展开完成, level:', level);
       } catch (error) {
         console.error('[mindmap] 展开层级失败, level:', level, '错误:', error);
+      }
+    }
+
+    // AI生成初始树相关函数
+    function handleAIGenerateInitialTree() {
+      // 检查是否启用了快速AI生成
+      if (window.__quickAIEnabled) {
+        // 极速模式下直接调用，不弹窗
+        aiGenerateInitialTreeMini({
+          templateKey: '生成初始树',
+          miniPrompt: '请输入思维导图主题',
+          autoRun: true
+        });
+      } else {
+        // 普通模式下调用原有的迷你模式
+        aiGenerateInitialTreeMini();
+      }
+    }
+
+    function showAIGenerateInitialTreeModal() {
+      // 创建模态弹窗
+      var modalHtml = `
+        <div id="aiGenerateModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center;">
+          <div style="background: white; padding: 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 320px; max-width: 400px;">
+            <h3 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 600;">AI生成初始树</h3>
+            <div style="margin-bottom: 20px;">
+              <label style="display: block; margin-bottom: 8px; font-size: 14px; color: #333;">中心主题名称：</label>
+              <input type="text" id="aiTopicInput" placeholder="请输入思维导图的中心主题" 
+                     style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 14px; box-sizing: border-box;">
+            </div>
+            <div style="display: flex; gap: 12px; justify-content: flex-end;">
+              <button onclick="closeAIGenerateModal()" style="padding: 6px 16px; border: 1px solid #d1d5db; background: white; border-radius: 4px; cursor: pointer; font-size: 14px;">取消</button>
+              <button onclick="confirmAIGenerate()" style="padding: 6px 16px; border: none; background: #4c9aff; color: white; border-radius: 4px; cursor: pointer; font-size: 14px;">确定</button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // 添加到body
+      document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+      // 聚焦输入框
+      setTimeout(function () {
+        document.getElementById('aiTopicInput').focus();
+      }, 100);
+
+      // 添加回车键支持
+      document.getElementById('aiTopicInput').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+          confirmAIGenerate();
+        }
+      });
+    }
+
+    function closeAIGenerateModal() {
+      var modal = document.getElementById('aiGenerateModal');
+      if (modal) {
+        modal.remove();
+      }
+    }
+
+    function confirmAIGenerate() {
+      var topicInput = document.getElementById('aiTopicInput');
+      var topic = topicInput ? topicInput.value.trim() : '';
+
+      if (!topic) {
+        alert('请输入中心主题名称');
+        return;
+      }
+
+      // 检查是否为快速AI生成模式
+      var isQuickAI = window.__quickAIEnabled;
+
+      if (isQuickAI) {
+        // 快速AI模式：显示加载状态，不立即关闭弹窗
+        var modalContent = document.querySelector('#aiGenerateModal > div');
+        if (modalContent) {
+          modalContent.innerHTML = `
+            <h3 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 600;">AI生成初始树</h3>
+            <div style="text-align: center; padding: 20px 0;">
+              <div style="display: inline-block; width: 32px; height: 32px; border: 3px solid #f3f3f3; border-top: 3px solid #4c9aff; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+              <p style="margin: 16px 0 0 0; color: #666; font-size: 14px;">正在生成思维导图，请稍候...</p>
+            </div>
+            <style>
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            </style>
+          `;
+        }
+      } else {
+        // 非快速AI模式：立即关闭弹窗
+        closeAIGenerateModal();
+      }
+
+      // 调用AI生成初始树，传入主题参数
+      aiGenerateInitialTreeMini({
+        templateKey: '生成初始树',
+        miniPrompt: '请输入思维导图主题',
+        placeholders: {
+          name: { desc: '初始主题', value: topic }
+        },
+        autoRun: true
+      });
+
+      // 快速AI模式下，弹窗隐藏逻辑由AI结果处理函数负责
+      if (!isQuickAI) {
+        // 非快速AI模式：延迟关闭弹窗（确保AI窗口已弹出）
+        setTimeout(function () {
+          closeAIGenerateModal();
+        }, 500);
+      }
+    }
+
+    // 显示加载提示弹窗
+    function showLoadingModal(message) {
+      // 如果已存在加载弹窗，先移除
+      hideLoadingModal();
+
+      var modalHtml = `
+        <div id="loadingModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; display: flex; align-items: center; justify-content: center;">
+          <div style="background: white; padding: 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 280px; max-width: 360px;">
+            <h3 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 600;">AI生成初始树</h3>
+            <div style="text-align: center; padding: 20px 0;">
+              <div style="display: inline-block; width: 32px; height: 32px; border: 3px solid #f3f3f3; border-top: 3px solid #4c9aff; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+              <p style="margin: 16px 0 0 0; color: #666; font-size: 14px;">${message || '正在生成思维导图，请稍候...'}</p>
+            </div>
+            <style>
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            </style>
+          </div>
+        </div>
+      `;
+
+      document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+
+    // 隐藏加载提示弹窗
+    function hideLoadingModal() {
+      var modal = document.getElementById('loadingModal');
+      if (modal) {
+        modal.remove();
       }
     }
   </script>

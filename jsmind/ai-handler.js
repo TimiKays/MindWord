@@ -169,6 +169,21 @@ const onMessage = function (event) {
                   _show('success', '已生成初始思维导图');
                   if (typeof debouncedSave === 'function') debouncedSave();
 
+                  // 快速AI模式下，关闭输入弹窗
+                  if (window.__quickAIEnabled) {
+                    // 尝试关闭思维导图页面的输入弹窗
+                    try {
+                      if (window.parent && window.parent.closeAIGenerateModal) {
+                        window.parent.closeAIGenerateModal();
+                      } else {
+                        // 尝试通过消息通知关闭弹窗
+                        window.postMessage({ type: 'AI_INITIAL_TREE_GENERATED' }, '*');
+                      }
+                    } catch (e) {
+                      console.warn('关闭输入弹窗失败:', e);
+                    }
+                  }
+
                 } catch (e) {
                   console.error('生成初始树失败:', e);
                 }
@@ -246,6 +261,11 @@ const onMessage = function (event) {
   } catch (err) {
     console.error('DEBUG: onMessage error:', err);
     // swallow internal onMessage error
+  } finally {
+    // 兜底隐藏加载弹窗，确保无论如何都会执行
+    if (typeof hideLoadingModal === 'function') {
+      hideLoadingModal();
+    }
   }
 }; // end onMessage
 
@@ -809,7 +829,7 @@ function expandWithAI() {
                 // 使用更清晰的分隔符，避免与内容冲突
                 return lines.join(' 。\n\n ');
               } catch (e) {
-                return '当前节点名称: ' + cleanContent(topic) + ' | 当前节点完整路径（从上至下）: ' + cleanContent(fullPath);
+                return '当前节点名称: ' + cleanContent(topic) + ' | 当前节点及所有父级全路径: ' + cleanContent(fullPath);
               }
             })()
           }
@@ -848,7 +868,7 @@ function expandWithAI() {
         }
         _show('error', 'AI 响应超时（30s）');
       } catch (e) { }
-    }, 30000);
+    }, 60000);
 
     // send open request to parent modal
     try {
@@ -943,8 +963,6 @@ function aiExpandNotes() {
   expandWithAI();
 }
 
-// 老的aiGenerateInitialTree函数已删除，统一使用aiGenerateInitialTreeMini函数
-
 /**
  * 生成初始思维导图
  * 只干“拼 payload → 发消息 → 注册/卸载监听”三件事
@@ -952,36 +970,30 @@ function aiExpandNotes() {
  *
  * @param   {Object}  [options={}]           可选配置
  * @param   {string}  [options.templateKey]  提示词模板键名，默认 "生成初始树"
- * @param   {string}  [options.miniPrompt]   迷你输入框占位文字，默认 "请输入思维导图主题"
+ * @param   {string}  [options.miniPrompt]   迷你输入框占位符文本
+ * @param   {boolean} [options.autoRun]      是否自动运行（跳过输入）
  * @param   {Object}  [options.placeholders] 额外占位符，会与默认 { name: … } 合并
- * @param   {boolean} [options.autoRun]      是否立即发送请求，默认 false（等待用户回车）
- *
- * @returns {void}                           无返回值；成功/失败通过全局提示或控制台输出
- *
- * @example
- * // 基本用法
- * aiGenerateInitialTreeMini();
- *
- * // 自定义模板与占位符
- * aiGenerateInitialTreeMini({
- *   templateKey: '生成学习大纲',
- *   miniPrompt: '请输入学习主题',
- *   placeholders: { type: '学习' }
- * });
  */
-function aiGenerateInitialTreeMini(options) {
+/**
+ * 生成初始树 - 迷你模式（无弹窗或迷你弹窗）
+ * @param   {Object}  options                配置选项
+ * @param   {string}  [options.templateKey]  提示词模板键名，默认 "生成初始树"
+ * @param   {string}  [options.miniPrompt]   迷你输入框占位符文本
+ * @param   {boolean} [options.autoRun]      是否自动运行（跳过输入）
+ * @param   {Object}  [options.placeholders] 占位符对象，默认为 { name: … } 合并
+ */
+function aiGenerateInitialTreeMini(options = {}) {
   try {
     // AI操作前保存状态（用于撤销管理）
-    if (window.undoManager && typeof window.undoManager.recordIfChanged === 'function') {
+    if (window.undoManager && window.undoManager.recordIfChanged) {
       try {
         window.undoManager.recordIfChanged();
       } catch (e) {
-        console.warn('[AI] 无法记录生成初始树前的状态:', e);
+        console.warn('[AI] 无法记录AI操作前的状态:', e);
       }
     }
 
-    // 设置默认参数
-    options = options || {};
+    // 获取配置参数
     var templateKey = options.templateKey || '生成初始树';
     var miniPrompt = options.miniPrompt || '请输入思维导图主题';
 
@@ -1010,6 +1022,47 @@ function aiGenerateInitialTreeMini(options) {
       name: { desc: '初始主题', value: '' } // 值将在迷你模式中由用户输入
     }, options.placeholders || {});
 
+    // 获取模板内容 - 解决无头模式下模板为空的问题
+    var templateContent = '';
+    try {
+      // 尝试从AIServiceModal.html的全局变量获取模板列表
+      if (window.parent && window.parent.promptTemplates && Array.isArray(window.parent.promptTemplates)) {
+        // 在父窗口中查找模板
+        for (var i = 0; i < window.parent.promptTemplates.length; i++) {
+          var tpl = window.parent.promptTemplates[i];
+          if (tpl && tpl.name === templateKey && tpl.content) {
+            templateContent = tpl.content;
+            break;
+          }
+        }
+      }
+      
+      // 如果父窗口没有找到，尝试从localStorage获取
+      if (!templateContent) {
+        var storedTemplates = localStorage.getItem('promptTemplates');
+        if (storedTemplates) {
+          var templates = JSON.parse(storedTemplates);
+          if (Array.isArray(templates)) {
+            for (var j = 0; j < templates.length; j++) {
+              var tpl2 = templates[j];
+              if (tpl2 && tpl2.name === templateKey && tpl2.content) {
+                templateContent = tpl2.content;
+                break;
+              }
+            }
+          }
+        }
+      }
+      
+      // 如果仍然没有找到，使用默认模板
+      if (!templateContent) {
+        templateContent = '你是一个专业的内容创作顾问。请帮用户创作高质量的内容。\n\n创作指导原则：\n1. 明确目标受众\n2. 确定内容主题和核心信息\n3. 设计内容结构框架\n4. 提供创意角度和观点\n5. 优化内容表达方式\n6. 增强内容吸引力\n7. 考虑SEO和传播效果\n\n内容类型包括：\n- 文章写作\n- 社交媒体内容\n- 营销文案\n- 视频脚本\n- 演讲稿\n- 产品描述\n\n请根据具体内容类型提供针对性的建议。\n\n当前主题：{{name}}';
+      }
+    } catch (e) {
+      console.warn('[ai-handler] 获取模板内容失败，使用默认模板:', e);
+      templateContent = '你是一个专业的内容创作顾问。请帮用户创作高质量的内容。\n\n当前主题：{{name}}';
+    }
+
     // 构建发送到AI模态框的payload
     var payload = {
       actionType: 'generate_initial_tree',
@@ -1018,8 +1071,27 @@ function aiGenerateInitialTreeMini(options) {
       initialView: 'mini', // 关键：指定迷你模式
       miniPrompt: miniPrompt, // 迷你输入框的占位符
       placeholders: window.__mw_next_placeholders,
-      autoRun: options.autoRun || false // 是否自动运行
+      params: window.__mw_next_placeholders, // 兼容AIServiceModal.html的params参数
+      autoRun: options.autoRun || false, // 是否自动运行
+      // 关键：添加templateData以确保模板内容可用
+      templateData: {
+        templateText: templateContent,
+        templateKey: templateKey,
+        placeholders: window.__mw_next_placeholders
+      }
     };
+
+    // 如果快速AI开关开启，使用无弹窗模式
+    if (window.__quickAIEnabled) {
+      payload.mode = 'silent';
+      
+      // 在无感模式下显示加载提示
+      try {
+        showLoadingModal('正在生成思维导图，请稍候...');
+      } catch (e) {
+        console.warn('[ai-handler] 显示加载提示失败:', e);
+      }
+    }
 
     // 注册顶层通用回包处理器（无参版）
     window.addEventListener('message', onMessage);
@@ -1027,7 +1099,14 @@ function aiGenerateInitialTreeMini(options) {
     window.__mw_ai_timeout_handle = setTimeout(() => {
       // window.removeEventListener('message', onMessage);
       if (!(window.parent && window.parent !== window)) _show('error', 'AI 响应超时（30s）');
-    }, 30000);
+      
+      // 清理加载提示
+      try {
+        hideLoadingModal();
+      } catch (e) {
+        console.warn('[ai-handler] 隐藏加载提示失败:', e);
+      }
+    }, 60000);
 
     // 发送打开AI模态框的请求，父窗口会通过迷你模式打开弹窗
     if (window.parent && window.parent !== window) {
@@ -1047,11 +1126,25 @@ function aiGenerateInitialTreeMini(options) {
       clearTimeout(timeoutT);
       console.warn('[ai-handler] 未找到父窗口，回退到标准模式');
       expandWithAI();
+      
+      // 清理加载提示
+      try {
+        hideLoadingModal();
+      } catch (e) {
+        console.warn('[ai-handler] 隐藏加载提示失败:', e);
+      }
     }
 
   } catch (e) {
     _show('error', '调用AI迷你模式失败: ' + e.message);
     console.error('[ai-handler] aiGenerateInitialTreeMini error:', e);
+    
+    // 清理加载提示
+    try {
+      hideLoadingModal();
+    } catch (e2) {
+      console.warn('[ai-handler] 隐藏加载提示失败:', e2);
+    }
   }
 }
 

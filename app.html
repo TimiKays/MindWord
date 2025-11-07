@@ -2031,7 +2031,7 @@
 
                             var _tplRaw = msg.payload.templateData || {
                                 templateText: msg.payload.template || '',
-                                placeholders: msg.payload.params || {}
+                                placeholders: msg.payload.placeholders || msg.payload.params || {}
                             };
 
                             // Handle templateKey - load template content if templateKey is provided
@@ -2077,7 +2077,7 @@
 
                             try {
                                 aiFrame.contentWindow.postMessage(msg);
-                                var HEADLESS_TIMEOUT_MS = 30000;
+                                var HEADLESS_TIMEOUT_MS = 60000;
                                 var t = setTimeout(function () {
                                     try {
                                         var src = window.__ai_req_map.get(msg.requestId);
