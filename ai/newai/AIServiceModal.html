@@ -5551,8 +5551,20 @@
                 // 调用原有的onUserTemplateSelectChange逻辑
                 handleUserTemplateChange(fakeSelect);
 
-                // 假设用户确认了切换（原有逻辑应该处理了确认对话框）
-                return true;
+                // 模拟原有的确认逻辑：只有从自定义切换到其他模板时才需要确认
+                // 检查标准模式和迷你模式的输入框
+                const userPromptInput = document.getElementById('userPromptInput');
+                const miniUserPromptInput = document.getElementById('miniUserPromptInput');
+                const currentContent = (userPromptInput?.value?.trim() || miniUserPromptInput?.value?.trim() || '');
+                const lastUsedTemplateId = localStorage.getItem('lastUsedUserTemplateId') || '';
+                
+                // 如果当前内容为空，或者不是从自定义切换，直接返回true
+                if (!currentContent || lastUsedTemplateId !== 'custom') {
+                    return true;
+                }
+                
+                // 从自定义切换到其他模板，需要确认（模拟原有逻辑）
+                return confirm(`确定要用模板"${template.name}"替换当前的用户提示词吗？`);
             }
 
             // 搜索输入事件处理
@@ -6150,17 +6162,29 @@
                 const templateContent = template.content;
                 const templateName = template.name;
 
-                // 获取当前用户提示词输入框的内容
+                // 获取当前用户提示词输入框的内容（支持标准模式和迷你模式）
                 const userPromptInput = document.getElementById('userPromptInput');
-                if (!userPromptInput) return;
-                const currentContent = userPromptInput.value.trim();
+                const miniUserPromptInput = document.getElementById('miniUserPromptInput');
+                
+                let currentContent = '';
+                let targetInput = null;
+                
+                if (userPromptInput) {
+                    currentContent = userPromptInput.value.trim();
+                    targetInput = userPromptInput;
+                } else if (miniUserPromptInput) {
+                    currentContent = miniUserPromptInput.value.trim();
+                    targetInput = miniUserPromptInput;
+                }
+                
+                if (!targetInput) return;
 
                 // 获取上次使用的模板ID（用于判断是否是第一次使用）
                 const lastUsedTemplateId = localStorage.getItem('lastUsedUserTemplateId') || '';
 
                 // 如果当前内容为空，直接应用模板
                 if (!currentContent) {
-                    userPromptInput.value = templateContent;
+                    targetInput.value = templateContent;
                     localStorage.setItem('lastUsedUserTemplateId', templateId);
                     // 记录模板使用时间
                     recordTemplateUsage(templateId);
@@ -6172,7 +6196,7 @@
                 if (lastUsedTemplateId === 'custom' && currentContent) {
                     // 从自定义切换到其他模板，需要确认
                     if (confirm(`确定要用模板"${templateName}"替换当前的用户提示词吗？`)) {
-                        userPromptInput.value = templateContent;
+                        targetInput.value = templateContent;
                         localStorage.setItem('lastUsedUserTemplateId', templateId);
                         // 记录模板使用时间
                         recordTemplateUsage(templateId);
@@ -6185,7 +6209,7 @@
                     }
                 } else {
                     // 从模板A切换到模板B，直接替换，不需要确认
-                    userPromptInput.value = templateContent;
+                    targetInput.value = templateContent;
                     localStorage.setItem('lastUsedUserTemplateId', templateId);
                     // 记录模板使用时间
                     recordTemplateUsage(templateId);
