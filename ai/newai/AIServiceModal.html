@@ -889,7 +889,8 @@
                             <!-- 输入区域 -->
                             <div class="flex items-center gap-2 mb-2">
                                 <!-- 输入框（复用完整模式的用户提示词输入框） -->
-                                <textarea id="miniUserPromptInput" class="form-control flex-1 h-14 text-sm resize-none"
+                                <textarea id="miniUserPromptInput"
+                                    class="form-control flex-1 h-14 text-sm resize-vertical min-h-[56px]"
                                     placeholder="如无额外要求，可直接点击发送按钮开始生成。"></textarea>
 
                                 <!-- 发送按钮 -->
@@ -5557,12 +5558,12 @@
                 const miniUserPromptInput = document.getElementById('miniUserPromptInput');
                 const currentContent = (userPromptInput?.value?.trim() || miniUserPromptInput?.value?.trim() || '');
                 const lastUsedTemplateId = localStorage.getItem('lastUsedUserTemplateId') || '';
-                
+
                 // 如果当前内容为空，或者不是从自定义切换，直接返回true
                 if (!currentContent || lastUsedTemplateId !== 'custom') {
                     return true;
                 }
-                
+
                 // 从自定义切换到其他模板，需要确认（模拟原有逻辑）
                 return confirm(`确定要用模板"${template.name}"替换当前的用户提示词吗？`);
             }
@@ -6165,10 +6166,10 @@
                 // 获取当前用户提示词输入框的内容（支持标准模式和迷你模式）
                 const userPromptInput = document.getElementById('userPromptInput');
                 const miniUserPromptInput = document.getElementById('miniUserPromptInput');
-                
+
                 let currentContent = '';
                 let targetInput = null;
-                
+
                 if (userPromptInput) {
                     currentContent = userPromptInput.value.trim();
                     targetInput = userPromptInput;
@@ -6176,7 +6177,7 @@
                     currentContent = miniUserPromptInput.value.trim();
                     targetInput = miniUserPromptInput;
                 }
-                
+
                 if (!targetInput) return;
 
                 // 获取上次使用的模板ID（用于判断是否是第一次使用）
