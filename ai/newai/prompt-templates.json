@@ -26,7 +26,7 @@
                 "description": "包含多个 Markdown 标题行的上下文文本，用于生成子节点内容"
             }
         ],
-        "content": "【上下文信息】\n当前节点及其所有父级（全路径）：{{fullPath}}\n当前节点的兄弟节点：{{siblingNodes}}\n其他上下文：{{context}} "
+        "content": "{{context}} "
     },
     {
         "name": "创建同级",
@@ -47,7 +47,7 @@
                 "description": "包含多个 Markdown 标题行的上下文文本，用于生成子节点内容"
             }
         ],
-        "content": "【上下文信息】\n当前节点及其所有父级（全路径）：{{fullPath}}\n当前节点的兄弟节点：{{siblingNodes}}\n其他上下文：{{context}} "
+        "content": "{{context}} "
     },
     {
         "name": "扩写备注",
@@ -68,7 +68,7 @@
                 "description": "包含多个 Markdown 标题行的上下文文本，用于生成子节点内容"
             }
         ],
-        "content": "【上下文信息】\n当前节点及其所有父级（全路径）：{{fullPath}}\n当前节点的兄弟节点：{{siblingNodes}}\n其他上下文：{{context}} "
+        "content": "{{context}} "
     },
     {
         "name": "生成初始树",
@@ -81,6 +81,6 @@
                 "description": "主题"
             }
         ],
-        "content": "【上下文信息】主题：{{name}}"
+        "content": "中心主题：{{name}}"
     }
 ]

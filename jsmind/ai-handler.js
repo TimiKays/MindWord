@@ -329,18 +329,51 @@ function _buildPlaceholders(selectedNode) {
   const context = (function () {
     try {
       const lines = [];
-      lines.push('节点: ' + (topic || ''));
-      lines.push('路径: ' + (fullPath || ''));
+
+      // 辅助函数：清理内容中的特殊字符，避免分隔符冲突
+      const cleanContent = (content) => {
+        if (!content) return '';
+        return String(content).replace(/\n/g, ' ').replace(/\r/g, ' ').replace(/\t/g, ' ').trim();
+      };
+
+      lines.push('当前节点名称: ' + cleanContent(topic));
       const rawVal = _safe(() => node.data.data.raw, '') || '';
-      if (rawVal) lines.push('raw: ' + rawVal);
-      if (notes) lines.push('备注: ' + notes);
+      if (rawVal) lines.push('当前节点的markdown原始内容: ' + cleanContent(rawVal));
+      if (notes) lines.push('当前节点备注: ' + cleanContent(notes));
       const parent = (jm && jm.get_parent) ? jm.get_parent(node.id) : null;
-      if (parent && (parent.topic || '')) lines.push('父节点: ' + (parent.topic || ''));
-      if (siblingNodes) lines.push('同级兄弟: ' + siblingNodes);
+      if (parent && (parent.topic || '')) lines.push('当前节点的直属父节点: ' + cleanContent(parent.topic));
+      lines.push('当前节点及所有父级全路径: ' + cleanContent(fullPath));
+
+      // 添加所有父级节点及其备注信息
+      const allParentsInfo = [];
+      let currentNode = node;
+      while (currentNode) {
+        const parentNode = (jm && jm.get_parent) ? jm.get_parent(currentNode.id) : null;
+        if (!parentNode || !parentNode.topic) break;
+        const parentNotes = (parentNode.data && parentNode.data.notes) ? parentNode.data.notes : '';
+        const cleanTopic = cleanContent(parentNode.topic);
+        const cleanNotes = cleanContent(parentNotes);
+        if (cleanNotes) {
+          allParentsInfo.push(`${cleanTopic} (${cleanNotes})`);
+        } else {
+          allParentsInfo.push(cleanTopic);
+        }
+        currentNode = parentNode;
+      }
+      if (allParentsInfo.length > 0) {
+        lines.push('所有父级节点及其备注: ' + allParentsInfo.join(' → '));
+      }
+
+      if (siblingNodes) lines.push('当前节点已有同级兄弟节点: ' + cleanContent(siblingNodes));
       const childTitles = (node && Array.isArray(node.children)) ? node.children.map(c => c.topic || '').filter(Boolean).join(', ') : '';
-      if (childTitles) lines.push('已有子节点: ' + childTitles);
-      return lines.join('\n');
-    } catch (e) { return topic + '\n' + fullPath; }
+      if (childTitles) lines.push('当前节点已有子节点: ' + cleanContent(childTitles));
+
+      // 使用更清晰的分隔符，避免与内容冲突
+      return lines.join(' || ');
+    } catch (e) {
+      console.warn('[AI] 上下文构建失败:', e);
+      return '当前节点名称: ' + cleanContent(topic) + ' | 当前节点及所有父级全路径: ' + cleanContent(fullPath);
+    }
   })();
 
   return {
@@ -730,22 +763,54 @@ function expandWithAI() {
           siblingNodes: { desc: '同级兄弟节点（以逗号分隔）', value: siblingNodes },
           nodeId: { desc: '节点ID', value: selectedNode.id },
           context: {
-            desc: '节点上下文摘要', value: (function () {
+            desc: '当前节点的上下文摘要', value: (function () {
               try {
+                // 辅助函数：清理内容中的特殊字符，避免分隔符冲突
+                var cleanContent = function (content) {
+                  if (!content) return '';
+                  return String(content).replace(/\n/g, ' ').replace(/\r/g, ' ').replace(/\t/g, ' ').trim();
+                };
+
                 var lines = [];
-                lines.push('节点: ' + (topic || ''));
-                lines.push('路径: ' + (fullPath || ''));
+                lines.push('当前节点名称（输出时避免提及）: ' + cleanContent(topic));
+
                 var rawVal = _safe(function () { return selectedNode.data.data.raw; }, '') || '';
-                lines.push('raw: ' + rawVal);
-                if (notes) lines.push('备注: ' + notes);
+                lines.push('当前节点markdown原始内容（用于参照）: ' + cleanContent(rawVal));
+                if (notes) lines.push('当前节点的备注内容: ' + cleanContent(notes));
                 var parent = nodeOperator ? nodeOperator.getParentNode(selectedNode.id) : (jm.get_parent ? jm.get_parent(selectedNode.id) : null);
-                if (parent && (parent.topic || '')) lines.push('父节点: ' + (parent.topic || ''));
-                if (siblingNodes) lines.push('同级兄弟: ' + siblingNodes);
+                if (parent && (parent.topic || '')) lines.push('当前节点的直属父节点（用于理解上文）: ' + cleanContent(parent.topic));
+                lines.push('当前节点完整路径（从上至下，用于理解上文）: ' + cleanContent(fullPath));
+
+                // 添加所有父级节点及其备注信息
+                var allParentsInfo = [];
+                var currentNode = selectedNode;
+                while (currentNode) {
+                  var parentNode = nodeOperator ? nodeOperator.getParentNode(currentNode.id) : (jm.get_parent ? jm.get_parent(currentNode.id) : null);
+                  if (!parentNode || !parentNode.topic) break;
+                  var parentNotes = (parentNode.data && parentNode.data.notes) ? parentNode.data.notes : '';
+                  var cleanTopic = cleanContent(parentNode.topic);
+                  var cleanNotes = cleanContent(parentNotes);
+                  if (cleanNotes) {
+                    allParentsInfo.push(cleanTopic + ' (' + cleanNotes + ')');
+                  } else {
+                    allParentsInfo.push(cleanTopic);
+                  }
+                  currentNode = parentNode;
+                }
+                if (allParentsInfo.length > 0) {
+                  lines.push('所有父级节点及其备注（从下往上，用于理解完整上文）: ' + allParentsInfo.join(' → '));
+                }
+
+                if (siblingNodes) lines.push('当前节点已有同级兄弟（尽量保持相同格式但避免与其重复）: ' + cleanContent(siblingNodes));
                 var children = nodeOperator ? nodeOperator.getChildNodes(selectedNode.id) : (selectedNode.children || []);
                 var childTitles = children.map(function (c) { return c.topic || ''; }).filter(Boolean).join(', ');
-                if (childTitles) lines.push('已有子节点: ' + childTitles);
-                return lines.join('\n');
-              } catch (e) { return (topic || '') + '\n' + (fullPath || ''); }
+                if (childTitles) lines.push('当前节点已有子节点（尽量保持相同格式但避免与其重复）: ' + cleanContent(childTitles));
+
+                // 使用更清晰的分隔符，避免与内容冲突
+                return lines.join(' 。\n\n ');
+              } catch (e) {
+                return '当前节点名称: ' + cleanContent(topic) + ' | 当前节点完整路径（从上至下）: ' + cleanContent(fullPath);
+              }
             })()
           }
         }
