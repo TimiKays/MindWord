@@ -2390,7 +2390,7 @@
 
 【格式要求】：
 1. 输出格式是 Markdown，使用清晰的层级结构输出节点。一个节点对应的是一个标题或者列表。标题类型节点： # 表示一级节点, ## 表示二级节,### 表示三级节点……以此类推。如果没有#，但有- 或+ 或* ，表示为列表节点，列表节点前面不缩进时为上一个标题节点的直属子级，之后每缩进2个空格表示下降一个层级。
-2. 如果某行不是节点（没有 #- 或+ 或*），那它就会成为紧挨着的最近标题的补充说明或者备注。补充说明允许为空。
+2. 如果某行不是节点（没有 #- 或+ 或*），那它就会自动成为最近标题的补充说明，补充说明允许为空（注意：请不要出现补充说明的字样）。
 3. 避免输出markdown其他行内格式如**号加粗等。
 4. 输出内容用 [OUTPUT] ... [/OUTPUT] 包裹，方便解析。注意只在 [OUTPUT] 标签内生成内容，标签外不要输出任何多余的文字、对话或解释，只输出干净的结构。
 5、如果你的任务是生成子级/同级节点或者初始树，请务必保证有结构清晰的节点和对应节点的简要备注；如果你的任务是扩写备注/补充说明，请避免生成任何节点或markdown格式，生成普通文本段落即可。`;
@@ -2866,6 +2866,9 @@
                 // 同时隐藏模板配置视图，避免串屏
                 const tplView = document.getElementById('templateConfigView');
                 if (tplView) tplView.classList.add('hidden');
+                // 隐藏迷你模式视图，避免在使用界面显示迷你模式表单
+                const miniView = document.getElementById('aiMiniView');
+                if (miniView) miniView.classList.add('hidden');
                 // 设置弹窗高度（使用界面较低）
                 const modalContainer = document.querySelector('.modal-container');
                 if (modalContainer) modalContainer.style.height = 'auto'; //45vh也行
@@ -2889,6 +2892,9 @@
                 // 同时隐藏模板配置视图，避免串屏
                 const tplView = document.getElementById('templateConfigView');
                 if (tplView) tplView.classList.add('hidden');
+                // 隐藏迷你模式视图，避免在配置界面显示迷你模式表单
+                const miniView = document.getElementById('aiMiniView');
+                if (miniView) miniView.classList.add('hidden');
                 // 设置弹窗高度（配置界面更高）
                 const modalContainer = document.querySelector('.modal-container');
                 // if (modalContainer) modalContainer.style.height = '67vh';
@@ -5383,11 +5389,24 @@
                 const templates = filteredTemplates || allUserTemplates;
                 tagsContainer.innerHTML = '';
 
+                // 首先添加自定义标签（如果没有选中任何模板，则选中自定义）
+                const customTag = document.createElement('span');
+                customTag.className = 'mini-template-tag';
+                if (!selectedTemplateId) {
+                    customTag.classList.add('selected');
+                }
+                customTag.textContent = '自定义';
+                customTag.title = '当前为自定义内容';
+                customTag.addEventListener('click', () => {
+                    // 切换到自定义状态
+                    selectedTemplateId = '';
+                    localStorage.setItem('selectedUserTemplateId', '');
+                    localStorage.setItem('selectedUserTemplateName', '自定义');
+                    updateMiniTemplateTags();
+                });
+                tagsContainer.appendChild(customTag);
+
                 if (templates.length === 0) {
-                    const noTemplates = document.createElement('div');
-                    noTemplates.className = 'text-xs text-gray-500 italic px-2 py-1';
-                    noTemplates.textContent = '暂无模板';
-                    tagsContainer.appendChild(noTemplates);
                     return;
                 }
 
@@ -5728,8 +5747,8 @@
 
                         console.log('[UserTemplates] 自动导入完成，共', allTemplates.length, '个模板');
                     } else {
-                        // 正常情况：合并内置和用户模板
-                        const allTemplates = [...builtInTemplates, ...userTemplates];
+                        // 正常情况：直接显示用户模板
+                        const allTemplates = [...userTemplates];
                         updateUserTemplateSelect(allTemplates);
 
                         // 自动选择默认模板（如果没有上次使用的模板，则选择第一个）
@@ -5942,9 +5961,8 @@
             function onMiniUserPromptInputChange() {
                 try {
                     const miniUserPromptInput = document.getElementById('miniUserPromptInput');
-                    const miniSearchInput = document.getElementById('miniUserTemplateSearchInput');
 
-                    if (!miniUserPromptInput || !miniSearchInput) {
+                    if (!miniUserPromptInput) {
                         console.warn('[UserTemplates] 找不到必要的迷你模式DOM元素');
                         return;
                     }
@@ -5968,14 +5986,12 @@
                     // 如果用户修改了内容，且与原始模板内容不同，则自动切换到"自定义"
                     if (currentContent && originalTemplateContent && currentContent !== originalTemplateContent) {
                         selectedTemplateId = '';
-                        miniSearchInput.value = '自定义';
                         // 同时更新localStorage，标记当前为自定义状态
                         localStorage.setItem('lastUsedUserTemplateId', 'custom');
                         console.log('[UserTemplates] 迷你模式：用户修改了提示词，自动切换到自定义模板');
 
-                        // 触发搜索输入框的change事件，更新UI
-                        const changeEvent = new Event('change', { bubbles: true });
-                        miniSearchInput.dispatchEvent(changeEvent);
+                        // 更新模板标签显示，取消选中状态
+                        updateMiniTemplateTags();
                     }
                 } catch (error) {
                     console.error('[UserTemplates] onMiniUserPromptInputChange执行失败:', error);
