@@ -2620,8 +2620,11 @@
             mw_notifyEditorLoad(doc);
             mw_notifyMindmapLoad(doc); // 通知思维导图面板加载新文档
 
-            // 如果使用AI生成，激活思维导图页面的AI功能
+            // 如果使用AI生成，立即隐藏侧边栏并激活思维导图页面的AI功能
             if (useAIGenerate) {
+                // 立即隐藏文档侧边栏
+                mw_toggleSidebar(false);
+                
                 setTimeout(() => {
                     const mindmapFrame = document.querySelector('iframe[data-panel="mindmap"], iframe#iframe-mindmap, iframe[src*="jsmind/mindmap.html"]');
                     if (mindmapFrame && mindmapFrame.contentWindow && mindmapFrame.contentWindow.aiGenerateInitialTreeMini) {
