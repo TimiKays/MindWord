@@ -105,6 +105,13 @@
       /* 避免 inline 元素被高亮时看起来太拥挤 */
     }
 
+    /* 列表项文本包装器的高亮样式 */
+    .mw-li-text-wrapper.mw-preview-highlight {
+      display: inline;
+      padding: 2px 4px;
+      margin: 0;
+    }
+
     /* 统一所有非标题元素的间距 */
     .preview-container p,
     .preview-container ul,
@@ -413,6 +420,15 @@
       let userTplAB = null;
 
       const md = window.markdownit({ html: true, linkify: true, typographer: true, breaks: true });
+
+      // 自定义列表项渲染规则，在渲染阶段就包装文本内容
+      md.renderer.rules.list_item_open = function(tokens, idx, options, env, renderer) {
+        return '<li><span class="mw-li-text-wrapper">';
+      };
+
+      md.renderer.rules.list_item_close = function(tokens, idx, options, env, renderer) {
+        return '</span></li>';
+      };
       const statusEl = document.getElementById('status');
       const errlogEl = document.getElementById('errlog');
       const previewEl = document.getElementById('markdownPreview');
@@ -571,7 +587,7 @@
 
           // 只在数据变化时显示状态消息，避免重复通知
           const isFirstLoad = lastMarkdownData === null && lastImagesData === null;
-          
+
           // 更新缓存
           lastMarkdownData = markdownData;
           lastImagesData = imagesData;
@@ -721,12 +737,20 @@
           window.__mw_previewMatchIndex[key] = last;
           const targetEl = matches[last];
 
-          // 列表项仅高亮与滚动到其首段（避免把后续普通段落并入）
+          // 列表项仅高亮其文本包装器（避免把后续普通段落并入）
           const highlightEl = (function () {
             try {
               if (targetEl && targetEl.tagName && targetEl.tagName.toLowerCase() === 'li') {
+                // 对于li元素，优先查找内部的p元素，其次使用文本包装器
                 const p = targetEl.querySelector('p');
-                return p || targetEl;
+                if (p) return p;
+                
+                // 使用渲染阶段创建的文本包装器
+                const textWrapper = targetEl.querySelector('.mw-li-text-wrapper');
+                if (textWrapper) return textWrapper;
+                
+                // 如果都没有，回退到整个li
+                return targetEl;
               }
             } catch (e) { /* ignore */ }
             return targetEl;
@@ -752,7 +776,9 @@
             if (prevTimer) clearTimeout(prevTimer);
 
             const t = setTimeout(() => {
-              try { highlightEl.classList.remove('mw-preview-highlight'); } catch (e) { }
+              try { 
+                highlightEl.classList.remove('mw-preview-highlight'); 
+              } catch (e) { }
               try { window.__mw_previewHighlightTimers.delete(highlightEl); } catch (e) { }
             }, 1600);
             try { window.__mw_previewHighlightTimers.set(highlightEl, t); } catch (e) { }
