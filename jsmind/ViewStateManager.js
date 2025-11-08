@@ -599,7 +599,24 @@ class ViewStateManager {
     handleDrillDown() {
         const selectedNodes = this.getSelectedNodes();
         if (selectedNodes.length === 1) {
-            this.drillDownToNode(selectedNodes[0]);
+            // 如果当前已经在下钻模式，需要先返回到完整视图，然后再下钻到目标节点
+            if (this.currentViewMode === 'drilldown') {
+                console.log('[ViewStateManager] 当前在下钻模式，准备先返回完整视图再下钻');
+                
+                // 保存目标节点ID
+                const targetNodeId = selectedNodes[0];
+                
+                // 先返回到完整视图（不更新URL）
+                this.returnToFullView(false);
+                
+                // 延迟一下确保视图完全恢复，然后执行下钻
+                setTimeout(() => {
+                    this.drillDownToNode(targetNodeId, true, true);
+                }, 100);
+            } else {
+                // 当前在完整视图，直接下钻
+                this.drillDownToNode(selectedNodes[0]);
+            }
         }
     }
 
