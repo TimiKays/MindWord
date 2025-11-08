@@ -200,9 +200,25 @@ const onMessage = function (event) {
                     parentId = currentSelectedNode.parent;
                   } catch (e) { parentId = null; }
 
+                  // 检查nodeTree结构：如果只有一个根节点，移除根节点，使用其子节点
+                  var processedNodeTree = nodeTree;
+                  if (nodeTree && nodeTree.data) {
+                    var data = nodeTree.data;
+                    // 如果是单个根节点且有子节点，使用子节点作为新的根
+                    if (data.children && data.children.length > 0 && !data.topic) {
+                      processedNodeTree = { data: data.children };
+                    } else if (data.children && data.children.length > 0 && data.topic) {
+                      // 如果有多个根节点或单个根节点有主题，保持原样
+                      processedNodeTree = nodeTree;
+                    } else if (!data.children || data.children.length === 0) {
+                      // 单个叶子节点，保持原样
+                      processedNodeTree = nodeTree;
+                    }
+                  }
+
                   // 把子树插入当前节点的父级下
                   try {
-                    insertNodeTreeChildren(parentId, nodeTree, requestId || null);
+                    insertNodeTreeChildren(parentId, processedNodeTree, requestId || null);
                     _show('success', '已通过 converter.mdToNodeTree 解析并插入同级节点');
                     if (typeof debouncedSave === 'function') debouncedSave();
                   } catch (e) { console.error('DEBUG: insertNodeTreeChildren error:', e); }
@@ -216,8 +232,24 @@ const onMessage = function (event) {
               // 创建子节点
               if (requestedAction === 'create_child') {
 
+                // 检查nodeTree结构：如果只有一个根节点，移除根节点，使用其子节点
+                var processedNodeTree = nodeTree;
+                if (nodeTree && nodeTree.data) {
+                  var data = nodeTree.data;
+                  // 如果是单个根节点且有子节点，使用子节点作为新的根
+                  if (data.children && data.children.length > 0 && !data.topic) {
+                    processedNodeTree = { data: data.children };
+                  } else if (data.children && data.children.length > 0 && data.topic) {
+                    // 如果有多个根节点或单个根节点有主题，保持原样
+                    processedNodeTree = nodeTree;
+                  } else if (!data.children || data.children.length === 0) {
+                    // 单个叶子节点，保持原样
+                    processedNodeTree = nodeTree;
+                  }
+                }
+
                 // 默认操作类型：create_child
-                insertNodeTreeChildren(currentSelectedNode.id, nodeTree, requestId || null);
+                insertNodeTreeChildren(currentSelectedNode.id, processedNodeTree, requestId || null);
                 try { _show('success', '已通过 converter.mdToNodeTree 解析并插入子树'); } catch (_) { }
                 try { if (typeof debouncedSave === 'function') debouncedSave(); } catch (_) { }
                 return;
