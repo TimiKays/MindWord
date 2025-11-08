@@ -2359,6 +2359,28 @@
                 let selectedPlatform = platformSelect.value;
                 let selectedModel = usageModelSelect.value;
                 let apiKey = apiKeyInput.value;
+
+                // 修复：如果平台为空但有保存的配置，尝试从保存的配置中获取平台
+                if (!selectedPlatform && allPlatformConfigs && Object.keys(allPlatformConfigs).length > 0) {
+                    const savedPlatforms = Object.keys(allPlatformConfigs);
+                    if (savedPlatforms.includes('bigmodel')) {
+                        selectedPlatform = 'bigmodel';
+                        // 从保存的配置中获取API密钥和模型
+                        const bigmodelConfig = allPlatformConfigs['bigmodel'];
+                        if (bigmodelConfig) {
+                            apiKey = bigmodelConfig.apiKey || '';
+                            // 如果有保存的常用模型，使用第一个
+                            if (bigmodelConfig.favoriteModels && bigmodelConfig.favoriteModels.length > 0) {
+                                selectedModel = bigmodelConfig.favoriteModels[0];
+                            } else if (!selectedModel) {
+                                // 回退到默认模型
+                                selectedModel = 'GLM-4-Flash';
+                            }
+                        }
+                        console.debug('[aiModal] auto selected bigmodel platform from saved config');
+                    }
+                }
+
                 // 如果用户未配置任何平台/模型/密钥，则自动使用 bigmodel 的代理地址（临时使用，不写回 localStorage）
                 try {
                     const hasAnySavedConfig = Object.keys(allPlatformConfigs || {}).length > 0 &&
@@ -2881,8 +2903,10 @@
                 // 更新使用界面的模型选择
                 updateUsageModelSelect();
 
-                // 更新配置状态
-                updateUsageConfigStatus();
+                // 延迟更新配置状态，确保平台选择框已初始化
+                setTimeout(() => {
+                    updateUsageConfigStatus();
+                }, 500);
             }
 
             // 切换到AI配置界面
@@ -2999,7 +3023,21 @@
 
             // 更新使用界面配置状态
             function updateUsageConfigStatus() {
-                // 与配置页一致：仅根据“已保存的配置”判断是否已配置，避免“输入即已配置”
+                // 安全处理：确保platformSelect有值
+                if (!platformSelect || !platformSelect.value) {
+                    usageConfigStatusBar.classList.remove('hidden', 'bg-green-100', 'text-green-800', 'bg-yellow-100', 'text-yellow-800');
+                    usageConfigStatusBar.innerHTML = '<i class="fa fa-exclamation-triangle text-yellow-600 mr-2"></i>请先配置AI平台';
+                    usageConfigStatusBar.classList.add('bg-yellow-100', 'text-yellow-800');
+                    // 非常驻：显示3秒后自动隐藏
+                    usageConfigStatusBar.classList.remove('hidden');
+                    if (window._usageCfgBarTimer) clearTimeout(window._usageCfgBarTimer);
+                    window._usageCfgBarTimer = setTimeout(() => {
+                        usageConfigStatusBar.classList.add('hidden');
+                    }, 3000);
+                    return;
+                }
+
+                // 与配置页一致：仅根据"已保存的配置"判断是否已配置，避免"输入即已配置"
                 const savedCfg = allPlatformConfigs[platformSelect.value] || null;
                 const savedConfigured = !!(savedCfg && savedCfg.apiKey && savedCfg.apiKey.trim() !== '' &&
                     (platformSelect.value !== 'cloudflare' || (savedCfg.cloudflareAccountId && savedCfg.cloudflareAccountId.trim() !== '')) &&
