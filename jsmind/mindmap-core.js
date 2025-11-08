@@ -4754,3 +4754,240 @@ document.addEventListener('focusout', (e) => {
 
 
 });
+
+// 右键菜单功能
+(function () {
+  let contextMenuNodeId = null;
+  let longPressTimer = null;
+  let longPressTarget = null;
+
+  // 获取右键菜单元素
+  const contextMenu = document.getElementById('nodeContextMenu');
+
+  // 显示右键菜单
+  function showContextMenu(nodeId, x, y) {
+    if (!contextMenu || !nodeId) return;
+
+    contextMenuNodeId = nodeId;
+
+    // 设置菜单位置
+    contextMenu.style.left = x + 'px';
+    contextMenu.style.top = y + 'px';
+    contextMenu.style.display = 'block';
+
+    // 确保菜单不会超出屏幕边界
+    const rect = contextMenu.getBoundingClientRect();
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+
+    if (rect.right > windowWidth) {
+      contextMenu.style.left = (x - rect.width) + 'px';
+    }
+    if (rect.bottom > windowHeight) {
+      contextMenu.style.top = (y - rect.height) + 'px';
+    }
+  }
+
+  // 隐藏右键菜单
+  function hideContextMenu() {
+    if (contextMenu) {
+      contextMenu.style.display = 'none';
+      contextMenuNodeId = null;
+    }
+  }
+
+  // 从右键菜单删除节点 - 复用已有的删除功能
+  window.deleteNodeFromContextMenu = function () {
+    if (!contextMenuNodeId || contextMenuNodeId === 'root') {
+      hideContextMenu();
+      return;
+    }
+
+    try {
+      // 使用节点操作器删除节点（复用已有功能）
+      const nodeOperator = getMindNodeOperator();
+      if (nodeOperator) {
+        const success = nodeOperator.removeNode(contextMenuNodeId);
+        if (success) {
+
+          // 清除多选状态
+          if (window.clearMultiSelection && typeof window.clearMultiSelection === 'function') {
+            window.clearMultiSelection();
+          }
+        }
+      }
+
+    } catch (error) {
+      console.error('删除节点失败:', error);
+    }
+
+    hideContextMenu();
+  };
+
+  // 从右键菜单添加子树
+  window.addSubtreeFromContextMenu = function () {
+    if (!contextMenuNodeId) {
+      hideContextMenu();
+      return;
+    }
+
+    try {
+      // 先选中节点
+      const node = jm.get_node(contextMenuNodeId);
+      if (node) {
+        jm.select_node(node);
+        // 调用添加子树功能
+        addSubtree();
+      }
+    } catch (error) {
+      console.error('添加子树失败:', error);
+    }
+
+    hideContextMenu();
+  };
+
+  // 从右键菜单添加子节点（相当于按Tab）
+  window.addChildNodeFromContextMenu = function () {
+    if (!contextMenuNodeId) {
+      hideContextMenu();
+      return;
+    }
+
+    try {
+      // 使用节点操作器添加子节点
+      const nodeOperator = getMindNodeOperator();
+      if (nodeOperator) {
+        const newNode = nodeOperator.addChildNode(contextMenuNodeId, null, '新子节点');
+        if (newNode) {
+          // 选中新创建的节点
+          jm.select_node(newNode);
+          // 进入编辑模式
+          jm.begin_edit(newNode);
+        }
+      }
+    } catch (error) {
+      console.error('添加子节点失败:', error);
+    }
+
+    hideContextMenu();
+  };
+
+  // 从右键菜单添加同级节点（相当于按Enter）
+  window.addSiblingNodeFromContextMenu = function () {
+    if (!contextMenuNodeId || contextMenuNodeId === 'root') {
+      hideContextMenu();
+      return;
+    }
+
+    try {
+      // 使用节点操作器添加同级节点
+      const nodeOperator = getMindNodeOperator();
+      if (nodeOperator) {
+        const newNode = nodeOperator.addSiblingNode(contextMenuNodeId, null, '新同级节点');
+        if (newNode) {
+          // 选中新创建的节点
+          jm.select_node(newNode);
+          // 进入编辑模式
+          jm.begin_edit(newNode);
+        }
+      }
+    } catch (error) {
+      console.error('添加同级节点失败:', error);
+    }
+
+    hideContextMenu();
+  };
+
+  // 从右键菜单显示节点详情
+  window.showNodeDetailsFromContextMenu = function () {
+    quickModifyNode();
+    hideContextMenu();
+  };
+
+  // 处理节点上的右键点击事件（PC端）
+  document.addEventListener('contextmenu', function (e) {
+    // jsMind使用自定义标签jmnode，不是类名
+    const nodeElement = e.target.tagName === 'JMNODE' ? e.target : e.target.closest('jmnode');
+    if (nodeElement) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const nodeId = nodeElement.getAttribute('nodeid');
+      if (nodeId) {
+        showContextMenu(nodeId, e.clientX, e.clientY);
+      }
+    } else {
+      // 如果点击的不是节点，隐藏菜单
+      hideContextMenu();
+    }
+  }, true);
+
+  // 处理长按事件（移动端）
+  document.addEventListener('touchstart', function (e) {
+    // jsMind使用自定义标签jmnode，不是类名
+    const nodeElement = e.target.tagName === 'JMNODE' ? e.target : e.target.closest('jmnode');
+    if (nodeElement) {
+      longPressTarget = nodeElement;
+      const nodeId = nodeElement.getAttribute('nodeid');
+
+      longPressTimer = setTimeout(function () {
+        if (longPressTarget && nodeId) {
+          e.preventDefault();
+          const touch = e.touches[0];
+          showContextMenu(nodeId, touch.clientX, touch.clientY);
+        }
+      }, 500); // 500ms长按时间
+    }
+  }, { passive: false });
+
+  document.addEventListener('touchmove', function (e) {
+    // 移动时取消长按
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+      longPressTarget = null;
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', function (e) {
+    // 结束时取消长按
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+      longPressTarget = null;
+    }
+  }, { passive: true });
+
+  // 点击其他地方隐藏菜单
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('.node-context-menu')) {
+      hideContextMenu();
+    }
+  }, true);
+
+  // 点击画布空白处隐藏菜单
+  document.addEventListener('mousedown', function (e) {
+    // jsMind使用自定义标签jmnode，不是类名
+    const nodeElement = e.target.tagName === 'JMNODE' ? e.target : e.target.closest('jmnode');
+    const contextMenuElement = e.target.closest('.node-context-menu');
+
+    if (!nodeElement && !contextMenuElement) {
+      hideContextMenu();
+    }
+  }, true);
+
+  // ESC键隐藏菜单
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      hideContextMenu();
+    }
+  }, true);
+
+  // 窗口大小改变时隐藏菜单
+  window.addEventListener('resize', hideContextMenu);
+
+  // 滚动时隐藏菜单
+  window.addEventListener('scroll', hideContextMenu, true);
+
+  console.log('[ContextMenu] 右键菜单功能已初始化');
+})();

@@ -406,6 +406,19 @@ class ViewStateManager {
     }
 
     /**
+     * 截断节点名称，超过最大长度显示省略号
+     * @param {string} name - 节点名称
+     * @param {number} maxLength - 最大长度（默认12个字符）
+     * @returns {string} 截断后的名称
+     */
+    truncateNodeName(name, maxLength = 12) {
+        if (!name || name.length <= maxLength) {
+            return name || '未命名节点';
+        }
+        return name.substring(0, maxLength) + '...';
+    }
+
+    /**
      * 更新面包屑导航
      */
     updateBreadcrumb() {
@@ -431,12 +444,13 @@ class ViewStateManager {
             if (breadcrumbPath.length > 0) {
                 // 第一个节点作为根节点显示，但不显示"根节点"文字
                 const rootItem = breadcrumbPath[0];
+                const truncatedRootName = this.truncateNodeName(rootItem.name);
                 if (breadcrumbPath.length === 1) {
                     // 只有一层时，显示当前节点为活动状态
-                    html += `<li class="breadcrumb-item active" aria-current="page" style="color: #333;">${rootItem.name}</li>`;
+                    html += `<li class="breadcrumb-item active" aria-current="page" style="color: #333;" title="${rootItem.name}">${truncatedRootName}</li>`;
                 } else {
                     // 多层时，第一个节点作为可点击的根节点
-                    html += `<li class="breadcrumb-item"><a href="#" onclick="viewStateManager.returnToFullView(); return false;" style="color: #0066cc; text-decoration: none;">${rootItem.name}</a></li>`;
+                    html += `<li class="breadcrumb-item"><a href="#" onclick="viewStateManager.returnToFullView(); return false;" style="color: #0066cc; text-decoration: none;" title="${rootItem.name}">${truncatedRootName}</a></li>`;
                 }
 
                 // 添加剩余路径（跳过第一个已处理的节点）
@@ -445,11 +459,12 @@ class ViewStateManager {
                     const isLast = i === breadcrumbPath.length - 1;
                     const className = isLast ? 'breadcrumb-item active' : 'breadcrumb-item';
                     const ariaCurrent = isLast ? ' aria-current="page"' : '';
+                    const truncatedName = this.truncateNodeName(item.name);
 
                     if (isLast) {
-                        html += `<li class="${className}"${ariaCurrent} style="color: #333;">${item.name}</li>`;
+                        html += `<li class="${className}"${ariaCurrent} style="color: #333;" title="${item.name}">${truncatedName}</li>`;
                     } else {
-                        html += `<li class="${className}"><a href="#" onclick="viewStateManager.drillDownToNode('${item.id}', true, false); return false;" style="color: #0066cc; text-decoration: none;">${item.name}</a></li>`;
+                        html += `<li class="${className}"><a href="#" onclick="viewStateManager.drillDownToNode('${item.id}', true, false); return false;" style="color: #0066cc; text-decoration: none;" title="${item.name}">${truncatedName}</a></li>`;
                     }
                 }
             }
@@ -528,13 +543,29 @@ class ViewStateManager {
             if (drillDownBtn) {
                 // 只有在选中单个节点时才启用下钻按钮
                 const selectedNodes = this.getSelectedNodes();
-                drillDownBtn.disabled = selectedNodes.length !== 1;
+                if (selectedNodes.length === 1) {
+                    drillDownBtn.classList.remove('disabled');
+                    drillDownBtn.style.opacity = '1';
+                    drillDownBtn.style.pointerEvents = 'auto';
+                } else {
+                    drillDownBtn.classList.add('disabled');
+                    drillDownBtn.style.opacity = '0.5';
+                    drillDownBtn.style.pointerEvents = 'none';
+                }
                 drillDownBtn.title = selectedNodes.length === 1 ? '下钻到选中节点' : '请选择一个节点进行下钻';
             }
 
             if (returnBtn) {
                 // 只有在下钻模式下才启用返回按钮
-                returnBtn.disabled = this.currentViewMode === 'full';
+                if (this.currentViewMode === 'drilldown') {
+                    returnBtn.classList.remove('disabled');
+                    returnBtn.style.opacity = '1';
+                    returnBtn.style.pointerEvents = 'auto';
+                } else {
+                    returnBtn.classList.add('disabled');
+                    returnBtn.style.opacity = '0.5';
+                    returnBtn.style.pointerEvents = 'none';
+                }
                 returnBtn.title = this.currentViewMode === 'drilldown' ?
                     (this.drillDownHistoryStack.length > 0 ? '返回到上一级' : '返回到完整视图') :
                     '当前在完整视图中';

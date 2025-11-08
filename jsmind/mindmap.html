@@ -25,11 +25,256 @@
       display: inline-block !important;
     }
   </style>
-</head>
 
+  <!-- 右键菜单样式 -->
+  <style>
+    .node-context-menu {
+      position: fixed;
+      background: white;
+      border: 1px solid #e1e5e9;
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      padding: 4px 0;
+      z-index: 10000;
+      display: none;
+      min-width: 120px;
+      font-size: 12px;
+    }
+
+    .node-context-menu-item {
+      padding: 6px 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #374151;
+      transition: background-color 0.2s ease;
+      user-select: none;
+    }
+
+    .node-context-menu-item:hover {
+      background-color: #f3f4f6;
+      color: #111827;
+    }
+
+    .node-context-menu-item:active {
+      background-color: #e5e7eb;
+    }
+
+    .node-context-menu-item.danger {
+      color: #dc2626;
+    }
+
+    .node-context-menu-item.danger:hover {
+      background-color: #fef2f2;
+      color: #b91c1c;
+    }
+
+    .node-context-menu-item .icon {
+      width: 16px;
+      height: 16px;
+      display: inline-block;
+      background-color: #374151;
+      -webkit-mask: var(--ico) center / contain no-repeat;
+      mask: var(--ico) center / contain no-repeat;
+    }
+
+    .node-context-menu-item.delete .icon {
+      background-color: #dc2626;
+      -webkit-mask: url('../res/删除.svg') center / contain no-repeat;
+      mask: url('../res/删除.svg') center / contain no-repeat;
+    }
+
+    /* 菜单分隔线样式 */
+    .menu-divider {
+      height: 1px;
+      background-color: #e1e5e9;
+      margin: 4px 8px;
+    }
+
+    /* 移动端适配 */
+    @media (max-width: 768px) {
+      .node-context-menu {
+        font-size: 14px;
+        min-width: 140px;
+      }
+
+      .node-context-menu-item {
+        padding: 8px 16px;
+      }
+    }
+  </style>
+
+  <!-- 图标选择器下拉菜单（已定制：隐藏默认 caret、只保留网格内第一个“清除”按钮） -->
+  <style>
+    /* 隐藏 Bootstrap 的下拉小箭头并去掉可能的聚焦动画/outline */
+    #iconPickerBtn.dropdown-toggle::after {
+      display: none !important;
+    }
+
+    #iconPickerBtn:focus {
+      outline: none !important;
+      box-shadow: none !important;
+    }
+
+    /* 工具栏内图标按钮保证 emoji 可见 */
+    #iconGridToolbar .icon-picker-item {
+      font-family: "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", system-ui, sans-serif;
+      color: #222 !important;
+      font-size: 20px !important;
+      line-height: 1;
+      padding: 0;
+      background: white !important;
+    }
+
+    /* 去掉下拉菜单自身的动画（若存在） */
+    #iconPickerDropdown .dropdown-menu {
+      transition: none !important;
+      -webkit-transition: none !important;
+      -moz-transition: none !important;
+
+    }
+  </style>
+
+  <!-- 层级展开按钮样式 -->
+  <style>
+    .level-expand-btn {
+      background: white;
+      border: 1px solid #d1d5db;
+      color: #374151;
+      padding: 4px 8px;
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      min-width: 20px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .level-expand-btn:hover {
+      background: #f3f4f6;
+      border-color: #9ca3af;
+      color: #111827;
+    }
+
+    .level-expand-btn:active {
+      background: #e5e7eb;
+      border-color: #6b7280;
+    }
+
+    #expandLevelButtons {
+      margin-left: 8px;
+    }
+
+    /* 面包屑导航样式 */
+    #drilldown-breadcrumb .breadcrumb {
+      background: transparent;
+      margin: 0;
+      padding: 0;
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+    }
+
+    #drilldown-breadcrumb .breadcrumb-item {
+      display: inline-flex;
+      align-items: center;
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    #drilldown-breadcrumb .breadcrumb-item a {
+      color: #4b5563;
+      text-decoration: none;
+      padding: 2px 6px;
+      border-radius: 3px;
+      transition: background-color 0.2s ease;
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    #drilldown-breadcrumb .breadcrumb-item a:hover {
+      background-color: #f3f4f6;
+      color: #111827;
+    }
+
+    #drilldown-breadcrumb .breadcrumb-item.active {
+      color: #111827;
+      font-weight: 500;
+      padding: 2px 6px;
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    #drilldown-breadcrumb .breadcrumb-item+.breadcrumb-item::before {
+      content: "/";
+      color: #9ca3af;
+      padding: 0 4px;
+      flex-shrink: 0;
+    }
+  </style>
 </head>
 
 <body>
+  <!-- 右键菜单 -->
+  <div id="nodeContextMenu" class="node-context-menu">
+    <div class="node-context-menu-item" onclick="showNodeDetailsFromContextMenu()">
+      <span class="icon" style="--ico: url('../res/edit.svg');"></span>
+      <span>编辑节点</span>
+
+    </div>
+    <div class="node-context-menu-item" onclick="viewStateManager.handleDrillDown()">
+      <span class="icon" style="--ico: url('../res/下钻.svg');"></span>
+      <span>下钻</span>
+    </div>
+    <div class="menu-divider"></div>
+
+    <div class="node-context-menu-item" onclick="aiCreateChild()">
+      <span class="icon" style="--ico: url('../res/添加子级.svg');"></span>
+      <span>AI生成子节点</span>
+    </div>
+    <div class="node-context-menu-item" onclick="aiCreateSibling()">
+      <span class="icon" style="--ico: url('../res/添加同级.svg');"></span>
+      <span>AI生成同级节点</span>
+    </div>
+    <div class="node-context-menu-item" onclick="aiExpandNotes()">
+      <span class="icon" style="--ico: url('../res/扩写备注.svg');"></span>
+      <span>AI扩写备注</span>
+    </div>
+    <div class="menu-divider"></div>
+    <div class="node-context-menu-item" onclick="addSubtreeFromContextMenu()">
+      <span class="icon" style="--ico: url('../res/添加子树.svg');"></span>
+      <span>添加子树</span>
+    </div>
+    <div class="node-context-menu-item" onclick="addChildNodeFromContextMenu()">
+      <span class="icon" style="--ico: url('../res/添加子级.svg');"></span>
+      <span>添加子节点</span>
+    </div>
+    <div class="node-context-menu-item" onclick="addSiblingNodeFromContextMenu()">
+      <span class="icon" style="--ico: url('../res/添加同级.svg');"></span>
+      <span>添加同级节点</span>
+    </div>
+
+    <div class="menu-divider"></div>
+    <div class="node-context-menu-item delete" onclick="deleteNodeFromContextMenu()">
+      <span class="icon"></span>
+      <span>删除节点</span>
+    </div>
+  </div>
+
+
   <div class="toolbar">
     <!-- 批量操作工具栏 -->
 
@@ -57,120 +302,27 @@
     <!-- AI 快捷操作 -->
     <div id="aiQuickActions" style="display:inline-flex;gap:8px;align-items:center;">
       <span style="color: gainsboro;"> | </span>
+      <span id="drilldown-btn" class="ico-btn" role="button" onclick="viewStateManager.handleDrillDown()" tabindex="0"
+        title="下钻到选中节点" disabled style="--ico: url('../res/下钻.svg');">
+      </span>
+      <span id="return-btn" class="ico-btn" role="button" onclick="viewStateManager.handleReturn()" tabindex="0"
+        title="上钻到根节点" disabled style="--ico: url('../res/上钻.svg');">
+      </span>
+      <span style="color: gainsboro;"> | </span>
       <span class="ico-btn requires-single-selection" role="button" onclick="addSubtree()" tabindex="0" title="添加子树"
         style="--ico: url('../res/添加子树.svg');"></span>
-      <span class="ico-btn requires-single-selection" role="button" onclick="aiCreateChild()" tabindex="0" title="创建子级"
-        style="--ico: url('../res/添加子级.svg');"></span>
+      <span class="ico-btn requires-single-selection" role="button" onclick="aiCreateChild()" tabindex="0"
+        title="AI生成子节点" style="--ico: url('../res/添加子级.svg');"></span>
       <span class="ico-btn requires-single-selection" role="button" onclick="aiCreateSibling()" tabindex="0"
-        title="创建同级" style="--ico: url('../res/添加同级.svg');"></span>
-      <span class="ico-btn requires-single-selection" role="button" onclick="aiExpandNotes()" tabindex="0" title="扩写备注"
-        style="--ico: url('../res/扩写备注.svg');"></span>
-      <span class="ico-btn requires-single-selection" role="button" onclick="quickModifyNode()" tabindex="0" title="修改"
-        style="--ico: url('../res/edit.svg');"></span>
+        title="AI生成同级节点" style="--ico: url('../res/添加同级.svg');"></span>
+      <span class="ico-btn requires-single-selection" role="button" onclick="aiExpandNotes()" tabindex="0"
+        title="AI扩写备注" style="--ico: url('../res/扩写备注.svg');"></span>
+      <span class="ico-btn requires-single-selection" role="button" onclick="quickModifyNode()" tabindex="0"
+        title="节点详情" style="--ico: url('../res/edit.svg');"></span>
       <span class="ico-btn" role="button" onclick="quickDeleteNode()" tabindex="0" title="删除节点"
         style="--ico: url('../res/删除.svg');"></span>
 
     </div>
-
-
-    <!-- 图标选择器下拉菜单（已定制：隐藏默认 caret、只保留网格内第一个“清除”按钮） -->
-    <style>
-      /* 隐藏 Bootstrap 的下拉小箭头并去掉可能的聚焦动画/outline */
-      #iconPickerBtn.dropdown-toggle::after {
-        display: none !important;
-      }
-
-      #iconPickerBtn:focus {
-        outline: none !important;
-        box-shadow: none !important;
-      }
-
-      /* 工具栏内图标按钮保证 emoji 可见 */
-      #iconGridToolbar .icon-picker-item {
-        font-family: "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", system-ui, sans-serif;
-        color: #222 !important;
-        font-size: 20px !important;
-        line-height: 1;
-        padding: 0;
-        background: white !important;
-      }
-
-      /* 去掉下拉菜单自身的动画（若存在） */
-      #iconPickerDropdown .dropdown-menu {
-        transition: none !important;
-        -webkit-transition: none !important;
-        -moz-transition: none !important;
-
-      }
-    </style>
-
-    <!-- 层级展开按钮样式 -->
-    <style>
-      .level-expand-btn {
-        background: white;
-        border: 1px solid #d1d5db;
-        color: #374151;
-        padding: 4px 8px;
-        font-size: 12px;
-        font-weight: 500;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        min-width: 20px;
-        height: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-
-      .level-expand-btn:hover {
-        background: #f3f4f6;
-        border-color: #9ca3af;
-        color: #111827;
-      }
-
-      .level-expand-btn:active {
-        background: #e5e7eb;
-        border-color: #6b7280;
-      }
-
-      #expandLevelButtons {
-        margin-left: 8px;
-      }
-
-      /* 面包屑导航样式 */
-      #drilldown-breadcrumb .breadcrumb {
-        background: transparent;
-        margin: 0;
-        padding: 0;
-        font-size: 12px;
-      }
-
-      #drilldown-breadcrumb .breadcrumb-item a {
-        color: #4b5563;
-        text-decoration: none;
-        padding: 2px 6px;
-        border-radius: 3px;
-        transition: background-color 0.2s ease;
-      }
-
-      #drilldown-breadcrumb .breadcrumb-item a:hover {
-        background-color: #f3f4f6;
-        color: #111827;
-      }
-
-      #drilldown-breadcrumb .breadcrumb-item.active {
-        color: #111827;
-        font-weight: 500;
-        padding: 2px 6px;
-      }
-
-      #drilldown-breadcrumb .breadcrumb-item+.breadcrumb-item::before {
-        content: "/";
-        color: #9ca3af;
-        padding: 0 4px;
-      }
-    </style>
 
     <div class="dropdown" id="iconPickerDropdown" style="display: inline-block;">
 
@@ -190,7 +342,7 @@
     </div>
 
     <!-- 层级展开按钮 -->
-    <div id="expandLevelButtons" style="display:inline-flex;gap:4px;align-items:center;margin-left:8px;">
+    <div id="expandLevelButtons" style="display:inline-flex;gap:4px;align-items:center;">
       <span style="color: gainsboro;"> | </span>
       <button class="level-expand-btn" onclick="expandToLevel(1)" title="展开到第1级">1</button>
       <button class="level-expand-btn" onclick="expandToLevel(2)" title="展开到第2级">2</button>
@@ -199,22 +351,6 @@
       <button class="level-expand-btn" onclick="expandToLevel(5)" title="展开到第5级">5</button>
       <button class="level-expand-btn" onclick="expandToLevel('all')" title="展开全部">all</button>
     </div>
-
-    <!-- 下钻功能按钮 -->
-    <div id="drilldownButtons" style="display:inline-flex;gap:4px;align-items:center;margin-left:8px;">
-      <span style="color: gainsboro;"> | </span>
-      <button id="drilldown-btn" class="level-expand-btn" onclick="viewStateManager.handleDrillDown()" title="下钻到选中节点"
-        disabled>
-        ↓
-      </button>
-      <button id="return-btn" class="level-expand-btn" onclick="viewStateManager.handleReturn()" title="返回到上一级"
-        disabled>
-        ↑
-      </button>
-    </div>
-
-
-
 
 
     <!-- batchOperations 保留在 DOM 中但会被移动到画布左上（通过脚本在非移动端显示） -->
@@ -230,7 +366,7 @@
       <span id="toggleQuickAIBtn" class="ico-btn state-off" role="button" tabindex="0" aria-pressed="false"
         title="快速AI生成：开启时将关闭AI弹窗，直接生成内容" style="--ico: url('res/kuaisu.svg'); "></span>
       <span id="toggleNodeDetailsBtn" class="ico-btn state-on" role="button" tabindex="0" aria-pressed="true"
-        title="详情面板" style="--ico: url('res/detail.svg'); "></span>
+        title="详情面板常驻" style="--ico: url('res/detail.svg'); "></span>
       <span id="help-btn" class="ico-btn" role="button" tabindex="0" title="帮助"
         style="--ico: url('../res/help.svg'); "></span>
       <label class="mw-toggle-showtype"
@@ -272,33 +408,36 @@
       <div id="nodeDetailsForm">
         <div id="nodeInfo"></div>
 
-        <div style="margin-bottom: 15px;margin-top: 10px; display: flex; gap: 10px;">
-          <span class="ico-btn requires-single-selection" role="button" onclick="addSubtree()" tabindex="0"
-            title="添加子树" style="--ico: url('../res/添加子树.svg');"></span>
-          <span class="ico-btn requires-single-selection" role="button" onclick="aiCreateChild()" tabindex="0"
-            title="创建子级" style="--ico: url('../res/添加子级.svg');"></span>
-          <span class="ico-btn requires-single-selection" role="button" onclick="aiCreateSibling()" tabindex="0"
-            title="创建同级" style="--ico: url('../res/添加同级.svg');"></span>
-          <span class="ico-btn requires-single-selection" role="button" onclick="aiExpandNotes()" tabindex="0"
-            title="扩写备注" style="--ico: url('../res/扩写备注.svg');"></span>
-          <span class="ico-btn" role="button" onclick="quickDeleteNode()" tabindex="0" title="删除节点"
-            style="--ico: url('../res/删除.svg');"></span>
-          <span class="ico-btn" role="button"
-            onclick="(function(){try{function genId(){return 'r_'+Math.random().toString(36).slice(2,10);}var requestId=genId();var payload={initialView:'config',platformConfig:{},modelConfig:{},options:{},mode:'mini'};if(typeof window.openAIServiceModal==='function'){try{window.openAIServiceModal(Object.assign({},payload,{requestId:requestId}));return;}catch(e){console.warn('openAIServiceModal failed',e);} }try{window.parent.postMessage({type:'AI_MODAL_OPEN',requestId:requestId,payload:payload},'*');}catch(e){console.error('send AI config open request failed',e);} }catch(e){console.warn(e);} })()"
-            tabindex="0" title="AI配置" style="--ico: url('../res/setting.svg');"></span>
-          <!-- <button class="btn"
+        <!-- <div style="margin-bottom: 15px;margin-top: 10px; display: flex; gap: 10px;">
+            <span class="ico-btn requires-single-selection" role="button" onclick="addSubtree()" tabindex="0"
+              title="添加子树" style="--ico: url('../res/添加子树.svg');"></span>
+            <span class="ico-btn requires-single-selection" role="button" onclick="aiCreateChild()" tabindex="0"
+              title="创建子级" style="--ico: url('../res/添加子级.svg');"></span>
+            <span class="ico-btn requires-single-selection" role="button" onclick="aiCreateSibling()" tabindex="0"
+              title="创建同级" style="--ico: url('../res/添加同级.svg');"></span>
+            
+            <span class="ico-btn" role="button" onclick="quickDeleteNode()" tabindex="0" title="删除节点"
+              style="--ico: url('../res/删除.svg');"></span>
+            <span class="ico-btn" role="button"
+              onclick="(function(){try{function genId(){return 'r_'+Math.random().toString(36).slice(2,10);}var requestId=genId();var payload={initialView:'config',platformConfig:{},modelConfig:{},options:{},mode:'mini'};if(typeof window.openAIServiceModal==='function'){try{window.openAIServiceModal(Object.assign({},payload,{requestId:requestId}));return;}catch(e){console.warn('openAIServiceModal failed',e);} }try{window.parent.postMessage({type:'AI_MODAL_OPEN',requestId:requestId,payload:payload},'*');}catch(e){console.error('send AI config open request failed',e);} }catch(e){console.warn(e);} })()"
+              tabindex="0" title="AI配置" style="--ico: url('../res/setting.svg');"></span> -->
+        <!-- <button class="btn"
             onclick="(function(){try{function genId(){return 'r_'+Math.random().toString(36).slice(2,10);}var requestId=genId();var payload={initialView:'config',platformConfig:{},modelConfig:{},options:{},mode:'mini'};if(typeof window.openAIServiceModal==='function'){try{window.openAIServiceModal(Object.assign({},payload,{requestId:requestId}));return;}catch(e){console.warn('openAIServiceModal failed',e);} }try{window.parent.postMessage({type:'AI_MODAL_OPEN',requestId:requestId,payload:payload},'*');}catch(e){console.error('send AI config open request failed',e);} }catch(e){console.warn(e);} })()"
             style="flex: 0 0 40px; background: #ffffff;" title="AI配置">⚙️</button> -->
-        </div>
+        <!-- </div> -->
 
         <div class="form-group">
-          <label for="nodeTopic">节点主题:</label>
+          <label for="nodeTopic">节点主题</label>
           <textarea id="nodeTopic" placeholder="输入节点主题..." rows="3"
             style="width:100%; resize:vertical; line-height:1.4em;"></textarea>
         </div>
 
         <div class="form-group">
-          <label for="nodeNotes">节点备注:</label>
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+            <label for="nodeNotes" style="margin: 0;">节点备注</label>
+            <span class="ico-btn requires-single-selection" role="button" onclick="aiExpandNotes()" tabindex="0"
+              title="扩写备注" style="--ico: url('../res/扩写备注.svg');"></span>
+          </div>
           <textarea id="nodeNotes" placeholder="输入节点备注..."></textarea>
         </div>
 
@@ -413,7 +552,7 @@
       try {
         var sel = jm.get_selected_node && jm.get_selected_node();
         if (!sel) { showWarning && showWarning('请先选择一个节点'); return; }
-        
+
         // 显示添加子树弹窗
         showAddSubtreeModal();
       } catch (e) {
@@ -1947,10 +2086,10 @@
               // 使用insertNodeTreeChildren将子树添加到选中节点下
               insertNodeTreeChildren(selectedNode.id, nodeTree, 'subtree_' + Date.now());
               _show('success', '子树添加成功');
-              
+
               // 保存更改
               if (typeof debouncedSave === 'function') debouncedSave();
-              
+
               // 记录撤销状态
               if (window.undoManager && typeof window.undoManager.recordIfChanged === 'function') {
                 try {

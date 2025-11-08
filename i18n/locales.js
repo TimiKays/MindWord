@@ -286,6 +286,9 @@ const i18nLocales = {
         syncFailed: '同步失败',
         confirmDelete: '确定要删除这个节点吗？',
         loading: '加载中...',
+        loadingEditor: '正在加载编辑器...',
+        loadingPreview: '正在加载预览...',
+        loadingMindmap: '正在加载思维导图...',
         noData: '暂无数据',
         address: '地址',
         notConfigured: '未配置'
@@ -640,6 +643,9 @@ const i18nLocales = {
         syncFailed: 'Sync failed',
         confirmDelete: 'Are you sure you want to delete this node?',
         loading: 'Loading...',
+        loadingEditor: 'Loading editor...',
+        loadingPreview: 'Loading preview...',
+        loadingMindmap: 'Loading mind map...',
         noData: 'No data',
         address: 'Address',
         notConfigured: 'Not configured'
