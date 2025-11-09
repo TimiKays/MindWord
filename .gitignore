@@ -21,3 +21,6 @@ playwright/.cache/
 # OS
 .DS_Store
 Thumbs.db
+
+# Private folder (managed in separate repository)
+private/
