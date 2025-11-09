@@ -331,6 +331,25 @@ class MindNodeOperator {
 
       // 触发视图更新
       this.jm.view.update_node(node);
+
+      // 记录历史记录（仅在非撤销/重做恢复期间，且不在文本框编辑中）
+      if (window.undoManager && !window.undoManager.isRestoring) {
+        // 检查当前是否正在编辑文本框，如果是，则不记录历史（让文本框的blur事件处理）
+        const activeElement = document.activeElement;
+        const isEditingTextarea = activeElement && (
+          activeElement.id === 'nodeNotes' || 
+          activeElement.id === 'nodeTopic'
+        );
+        
+        if (!isEditingTextarea) {
+          try {
+            window.undoManager.recordIfChanged();
+          } catch (e) {
+            console.warn('记录历史记录失败:', e);
+          }
+        }
+      }
+
       return true;
     } catch (error) {
       console.error('更新节点备注失败:', error);

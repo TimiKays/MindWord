@@ -1271,6 +1271,8 @@ function setupAutoUpdate() {
   }
   function _mw_onInputBlur() {
     try { window.MW_setEditingMode(false); } catch (e) { }
+    // 文本框失焦时记录历史记录
+    handleBlurHistoryRecord();
   }
 
   try {
@@ -1359,6 +1361,20 @@ function setupAutoUpdate() {
 
 // 处理自动更新
 let autoUpdateTimer = null;
+// 处理文本框失焦时的历史记录记录
+function handleBlurHistoryRecord() {
+  // 延迟执行，确保所有更新都已完成
+  setTimeout(() => {
+    if (window.undoManager && !window.undoManager.isRestoring) {
+      try {
+        window.undoManager.recordIfChanged();
+      } catch (e) {
+        console.warn('记录历史记录失败:', e);
+      }
+    }
+  }, 100);
+}
+
 function handleAutoUpdate() {
   // 清除之前的定时器
   if (autoUpdateTimer) {
@@ -1399,6 +1415,10 @@ function handleAutoUpdate() {
       }
       refreshAllNotesDisplay();
       saveToLocalStorage();
+      
+      // 注意：在文本框输入时不自动记录历史记录，让用户使用文本框自带的撤销功能
+      // 历史记录将在文本框失焦时通过 blur 事件处理
+      
       showAutoUpdateIndicator();
     }
   }, 500);
@@ -1588,6 +1608,24 @@ function updateNodeNotes() {
 
   // 保存到localStorage并同步
   saveToLocalStorage();
+
+  // 记录历史记录（仅在非撤销/重做恢复期间，且不在文本框编辑中）
+  if (window.undoManager && !window.undoManager.isRestoring) {
+    // 检查当前是否正在编辑文本框，如果是，则不记录历史（让文本框的blur事件处理）
+    const activeElement = document.activeElement;
+    const isEditingTextarea = activeElement && (
+      activeElement.id === 'nodeNotes' || 
+      activeElement.id === 'nodeTopic'
+    );
+    
+    if (!isEditingTextarea) {
+      try {
+        window.undoManager.recordIfChanged();
+      } catch (e) {
+        console.warn('记录历史记录失败:', e);
+      }
+    }
+  }
 
   // 使用轻量的面板内提示代替全局通知
   try { showAutoUpdateIndicator(); } catch (e) { try { showSuccess('节点更新成功！'); } catch (e2) { } }

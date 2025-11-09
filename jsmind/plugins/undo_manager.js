@@ -402,17 +402,30 @@ UndoManager.prototype.bindKeyboard = function (options) {
   function handler(e) {
     var ctrl = e.ctrlKey || e.metaKey;
     if (!ctrl) return;
+    
+    // 检查是否在文本框中，如果是则不阻止默认行为，让浏览器原生撤销/重做生效
+    var target = e.target;
+    var isTextInput = target && (
+      target.tagName === 'TEXTAREA' || 
+      target.tagName === 'INPUT' || 
+      target.contentEditable === 'true'
+    );
+    
     // Ctrl+Z
     if (!e.shiftKey && !e.altKey && (e.key === 'z' || e.key === 'Z')) {
-      if (prevent) e.preventDefault();
-      console.log('[UndoManager] keyboard: Ctrl+Z detected');
-      self.undo();
+      if (prevent && !isTextInput) e.preventDefault();
+      console.log('[UndoManager] keyboard: Ctrl+Z detected, isTextInput=' + isTextInput);
+      if (!isTextInput) {
+        self.undo();
+      }
     }
     // Ctrl+Shift+Z or Ctrl+Y
     if ((e.shiftKey && (e.key === 'Z' || e.key === 'z')) || (!e.shiftKey && (e.key === 'y' || e.key === 'Y'))) {
-      if (prevent) e.preventDefault();
-      console.log('[UndoManager] keyboard: Redo detected');
-      self.redo();
+      if (prevent && !isTextInput) e.preventDefault();
+      console.log('[UndoManager] keyboard: Redo detected, isTextInput=' + isTextInput);
+      if (!isTextInput) {
+        self.redo();
+      }
     }
   }
 
