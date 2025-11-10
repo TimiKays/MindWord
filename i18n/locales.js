@@ -245,6 +245,7 @@ const i18nLocales = {
         newDoc: '新建文档',
         save: '保存',
         export: '导出',
+        copy: '复制',
         settings: '设置',
         language: '语言'
       },
@@ -602,6 +603,7 @@ const i18nLocales = {
         newDoc: 'New Document',
         save: 'Save',
         export: 'Export',
+        copy: 'Copy',
         settings: 'Settings',
         language: 'Language'
       },
