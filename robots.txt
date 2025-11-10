@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+
+# 网站地图
+Sitemap: https://mindword.app/sitemap.xml
+
+# 禁止爬取后台管理相关路径
+Disallow: /admin/
+Disallow: /api/admin/
+Disallow: /private/
+
+# 允许爬取静态资源
+Allow: /res/
+Allow: /css/
+Allow: /js/
+Allow: /i18n/
