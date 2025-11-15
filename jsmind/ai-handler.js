@@ -200,16 +200,17 @@ const onMessage = function (event) {
                     parentId = currentSelectedNode.parent;
                   } catch (e) { parentId = null; }
 
-                  // 检查nodeTree结构：如果只有一个根节点，移除根节点，使用其子节点
+                  // 检查nodeTree结构：如果只有一个根节点且有子节点，创建包含子节点的节点树对象
                   var processedNodeTree = nodeTree;
                   if (nodeTree && nodeTree.data) {
                     var data = nodeTree.data;
-                    // 如果是单个根节点且有子节点，使用子节点作为新的根
-                    if (data.children && data.children.length > 0 && !data.topic) {
-                      processedNodeTree = { data: data.children };
-                    } else if (data.children && data.children.length > 0 && data.topic) {
-                      // 如果有多个根节点或单个根节点有主题，保持原样
-                      processedNodeTree = nodeTree;
+                    // 如果是单个根节点且有子节点，创建新的节点树对象，包含子节点
+                    if (data.children && data.children.length > 0) {
+                      processedNodeTree = {
+                        data: {
+                          children: data.children
+                        }
+                      };
                     } else if (!data.children || data.children.length === 0) {
                       // 单个叶子节点，保持原样
                       processedNodeTree = nodeTree;
@@ -232,16 +233,17 @@ const onMessage = function (event) {
               // 创建子节点
               if (requestedAction === 'create_child') {
 
-                // 检查nodeTree结构：如果只有一个根节点，移除根节点，使用其子节点
+                // 检查nodeTree结构：如果只有一个根节点且有子节点，创建包含子节点的节点树对象
                 var processedNodeTree = nodeTree;
                 if (nodeTree && nodeTree.data) {
                   var data = nodeTree.data;
-                  // 如果是单个根节点且有子节点，使用子节点作为新的根
-                  if (data.children && data.children.length > 0 && !data.topic) {
-                    processedNodeTree = { data: data.children };
-                  } else if (data.children && data.children.length > 0 && data.topic) {
-                    // 如果有多个根节点或单个根节点有主题，保持原样
-                    processedNodeTree = nodeTree;
+                  // 如果是单个根节点且有子节点，创建新的节点树对象，包含子节点
+                  if (data.children && data.children.length > 0) {
+                    processedNodeTree = {
+                      data: {
+                        children: data.children
+                      }
+                    };
                   } else if (!data.children || data.children.length === 0) {
                     // 单个叶子节点，保持原样
                     processedNodeTree = nodeTree;
@@ -1068,7 +1070,7 @@ function aiGenerateInitialTreeMini(options = {}) {
           }
         }
       }
-      
+
       // 如果父窗口没有找到，尝试从localStorage获取
       if (!templateContent) {
         var storedTemplates = localStorage.getItem('promptTemplates');
@@ -1085,7 +1087,7 @@ function aiGenerateInitialTreeMini(options = {}) {
           }
         }
       }
-      
+
       // 如果仍然没有找到，使用默认模板
       if (!templateContent) {
         templateContent = '你是一个专业的内容创作顾问。请帮用户创作高质量的内容。\n\n创作指导原则：\n1. 明确目标受众\n2. 确定内容主题和核心信息\n3. 设计内容结构框架\n4. 提供创意角度和观点\n5. 优化内容表达方式\n6. 增强内容吸引力\n7. 考虑SEO和传播效果\n\n内容类型包括：\n- 文章写作\n- 社交媒体内容\n- 营销文案\n- 视频脚本\n- 演讲稿\n- 产品描述\n\n请根据具体内容类型提供针对性的建议。\n\n当前主题：{{name}}';
@@ -1116,7 +1118,7 @@ function aiGenerateInitialTreeMini(options = {}) {
     // 如果快速AI开关开启，使用无弹窗模式
     if (window.__quickAIEnabled) {
       payload.mode = 'silent';
-      
+
       // 在无感模式下显示加载提示
       try {
         showLoadingModal('正在生成思维导图，请稍候...');
@@ -1131,7 +1133,7 @@ function aiGenerateInitialTreeMini(options = {}) {
     window.__mw_ai_timeout_handle = setTimeout(() => {
       // window.removeEventListener('message', onMessage);
       if (!(window.parent && window.parent !== window)) _show('error', 'AI 响应超时（30s）');
-      
+
       // 清理加载提示
       try {
         hideLoadingModal();
@@ -1158,7 +1160,7 @@ function aiGenerateInitialTreeMini(options = {}) {
       clearTimeout(timeoutT);
       console.warn('[ai-handler] 未找到父窗口，回退到标准模式');
       expandWithAI();
-      
+
       // 清理加载提示
       try {
         hideLoadingModal();
@@ -1170,7 +1172,7 @@ function aiGenerateInitialTreeMini(options = {}) {
   } catch (e) {
     _show('error', '调用AI迷你模式失败: ' + e.message);
     console.error('[ai-handler] aiGenerateInitialTreeMini error:', e);
-    
+
     // 清理加载提示
     try {
       hideLoadingModal();
