@@ -124,6 +124,30 @@
             this.resize();
         },
 
+        // 保存所有节点的展开状态
+        _saveExpandStates: function () {
+            var states = {};
+            var nodes = this.jm.mind.nodes;
+            for (var nodeid in nodes) {
+                states[nodeid] = nodes[nodeid].expanded;
+            }
+            return states;
+        },
+
+        // 恢复所有节点的展开状态
+        _restoreExpandStates: function (states) {
+            for (var nodeid in states) {
+                var node = this.jm.mind.nodes[nodeid];
+                if (node && node.expanded !== states[nodeid]) {
+                    if (states[nodeid]) {
+                        this.jm.expand_node(node);
+                    } else {
+                        this.jm.collapse_node(node);
+                    }
+                }
+            }
+        },
+
         shoot: function (callback) {
             this.init();
             this._draw(function () {
@@ -133,10 +157,44 @@
             // 禁用水印以避免影响自动裁剪范围
         },
 
-        shootDownload: function (customName) {
-            this.shoot(function () {
-                this._download(customName);
-            }.bind(this));
+        // 根据模式截图：'visible' 仅可见节点，'all' 包含全部节点
+        shootWithMode: function (mode, callback) {
+            var originalStates = null;
+            var self = this;
+
+            if (mode === 'all') {
+                // 保存原始展开状态
+                originalStates = this._saveExpandStates();
+                // 展开所有节点
+                this.jm.expand_all();
+
+                // 等待DOM更新完成后再截图
+                setTimeout(function () {
+                    self.shoot(function () {
+                        // 恢复原始状态
+                        if (originalStates) {
+                            self._restoreExpandStates(originalStates);
+                        }
+                        callback && callback();
+                    });
+                }, 100);
+            } else {
+                // 仅可见节点模式，直接截图
+                this.shoot(callback);
+            }
+        },
+
+        shootDownload: function (customName, mode) {
+            var self = this;
+            var downloadFn = function () {
+                self._download(customName);
+            };
+
+            if (mode === 'all') {
+                this.shootWithMode('all', downloadFn);
+            } else {
+                this.shoot(downloadFn);
+            }
         },
 
         shootAsDataURL: function (callback) {
