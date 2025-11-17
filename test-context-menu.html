@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试右键菜单国际化</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-node { 
+            background: #f0f0f0; 
+            padding: 20px; 
+            margin: 20px 0; 
+            border: 1px solid #ccc; 
+            cursor: pointer;
+        }
+        .language-switcher { 
+            position: fixed; 
+            top: 20px; 
+            right: 20px; 
+            background: white; 
+            padding: 10px; 
+            border: 1px solid #ccc; 
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="language-switcher">
+        <label>语言切换: </label>
+        <select id="lang-switch" onchange="window.i18nManager.setLanguage(this.value)">
+            <option value="zh">中文</option>
+            <option value="en">English</option>
+        </select>
+    </div>
+
+    <h1>右键菜单国际化测试</h1>
+    <p>右键点击下面的测试节点来查看右键菜单：</p>
+    
+    <div class="test-node" oncontextmenu="showTestContextMenu(event)">
+        测试节点 - 右键点击我
+    </div>
+
+    <!-- 简化的右键菜单 -->
+    <div id="nodeContextMenu" class="node-context-menu" style="display: none;">
+        <div class="node-context-menu-item" onclick="testAction('edit')">
+            <span data-i18n="app.contextMenu.editNode">编辑节点</span>
+        </div>
+        <div class="node-context-menu-item" onclick="testAction('drill')">
+            <span data-i18n="app.contextMenu.drillDown">下钻</span>
+        </div>
+        <div class="node-context-menu-item" onclick="testAction('ai-child')">
+            <span data-i18n="app.contextMenu.aiGenerateChild">AI生成子节点</span>
+        </div>
+        <div class="node-context-menu-item delete" onclick="testAction('delete')">
+            <span data-i18n="app.contextMenu.deleteNode">删除节点</span>
+        </div>
+    </div>
+
+    <style>
+        .node-context-menu {
+            position: fixed;
+            background: white;
+            border: 1px solid #e1e5e9;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            padding: 4px 0;
+            z-index: 10000;
+            min-width: 120px;
+            font-size: 12px;
+        }
+
+        .node-context-menu-item {
+            padding: 6px 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #374151;
+            transition: background-color 0.2s ease;
+            user-select: none;
+        }
+
+        .node-context-menu-item:hover {
+            background-color: #f3f4f6;
+            color: #111827;
+        }
+
+        .node-context-menu-item.danger {
+            color: #dc2626;
+        }
+
+        .node-context-menu-item.danger:hover {
+            background-color: #fef2f2;
+            color: #b91c1c;
+        }
+    </style>
+
+    <script src="i18n/locales.js"></script>
+    <script src="i18n/i18n-manager.js"></script>
+
+    <script>
+        function showTestContextMenu(event) {
+            event.preventDefault();
+            
+            const menu = document.getElementById('nodeContextMenu');
+            
+            // 更新翻译
+            if (window.i18nManager) {
+                window.i18nManager.updateContextMenuTranslations();
+            }
+            
+            // 显示菜单
+            menu.style.left = event.clientX + 'px';
+            menu.style.top = event.clientY + 'px';
+            menu.style.display = 'block';
+            
+            // 点击其他地方隐藏菜单
+            setTimeout(() => {
+                document.addEventListener('click', hideTestContextMenu, { once: true });
+            }, 100);
+        }
+        
+        function hideTestContextMenu() {
+            const menu = document.getElementById('nodeContextMenu');
+            menu.style.display = 'none';
+        }
+        
+        function testAction(action) {
+            console.log('执行动作:', action);
+            hideTestContextMenu();
+        }
+        
+        // 测试语言切换
+        window.addEventListener('load', () => {
+            console.log('当前语言:', window.i18nManager.getCurrentLanguage());
+            console.log('可用语言:', window.i18nManager.getAvailableLanguages());
+        });
+    </script>
+</body>
+</html>

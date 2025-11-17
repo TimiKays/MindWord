@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>右键菜单国际化测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-area {
+            width: 100%;
+            height: 300px;
+            border: 2px dashed #ccc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 20px 0;
+            background: #fafafa;
+            cursor: context-menu;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px 0;
+        }
+        .log-success { color: #28a745; }
+        .log-error { color: #dc3545; }
+        .log-info { color: #17a2b8; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>右键菜单国际化测试</h1>
+        <p>点击下方区域打开右键菜单，测试国际化功能</p>
+        
+        <div class="controls">
+            <button onclick="switchToChinese()">切换到中文</button>
+            <button onclick="switchToEnglish()">切换到English</button>
+            <button onclick="testCurrentLanguage()">测试当前语言</button>
+            <button onclick="clearLog()">清空日志</button>
+        </div>
+        
+        <div class="test-area" oncontextmenu="showTestContextMenu(event)">
+            <div>右键点击这里测试菜单</div>
+        </div>
+        
+        <div class="log" id="testLog"></div>
+    </div>
+
+    <!-- 引入必要的脚本 -->
+    <script src="i18n/locales.js"></script>
+    <script src="i18n/i18n-manager.js"></script>
+    <script src="jsmind/mindmap-core.js"></script>
+    
+    <script>
+        // 日志函数
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('testLog');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function clearLog() {
+            document.getElementById('testLog').innerHTML = '';
+        }
+        
+        // 测试函数
+        function showTestContextMenu(event) {
+            event.preventDefault();
+            
+            // 创建测试用的思维导图节点数据
+            const testNode = {
+                id: 'test-node',
+                topic: '测试节点',
+                isroot: false
+            };
+            
+            // 调用showContextMenu函数
+            if (window.showContextMenu) {
+                log('显示右键菜单...', 'info');
+                window.showContextMenu(event, testNode);
+                
+                // 延迟检查菜单项
+                setTimeout(() => {
+                    checkContextMenuTranslations();
+                }, 100);
+            } else {
+                log('showContextMenu函数未找到', 'error');
+            }
+        }
+        
+        function checkContextMenuTranslations() {
+            const contextMenu = document.getElementById('nodeContextMenu');
+            if (!contextMenu) {
+                log('右键菜单元素未找到', 'error');
+                return;
+            }
+            
+            log('找到右键菜单元素', 'success');
+            
+            const menuItems = contextMenu.querySelectorAll('[data-i18n]');
+            log(`找到 ${menuItems.length} 个需要翻译的菜单项`, 'info');
+            
+            menuItems.forEach((item, index) => {
+                const key = item.getAttribute('data-i18n');
+                const currentText = item.textContent;
+                log(`菜单项 ${index + 1}: key="${key}", 当前文本="${currentText}"`, 'info');
+                
+                // 检查翻译
+                if (window.i18nManager) {
+                    const translation = window.i18nManager.t(key);
+                    if (translation && translation !== key) {
+                        log(`  ✅ 翻译存在: "${translation}"`, 'success');
+                    } else {
+                        log(`  ❌ 翻译缺失`, 'error');
+                    }
+                }
+            });
+        }
+        
+        function switchToChinese() {
+            if (window.i18nManager) {
+                log('切换到中文...', 'info');
+                window.i18nManager.setLanguage('zh');
+                log('已切换到中文', 'success');
+            } else {
+                log('i18nManager未加载', 'error');
+            }
+        }
+        
+        function switchToEnglish() {
+            if (window.i18nManager) {
+                log('切换到English...', 'info');
+                window.i18nManager.setLanguage('en');
+                log('已切换到English', 'success');
+            } else {
+                log('i18nManager未加载', 'error');
+            }
+        }
+        
+        function testCurrentLanguage() {
+            if (window.i18nManager) {
+                const currentLang = window.i18nManager.getCurrentLanguage();
+                log(`当前语言: ${currentLang}`, 'info');
+                checkContextMenuTranslations();
+            } else {
+                log('i18nManager未加载', 'error');
+            }
+        }
+        
+        // 页面加载完成后的初始化
+        window.addEventListener('load', function() {
+            log('页面加载完成，开始测试...', 'info');
+            
+            // 检查i18nManager
+            setTimeout(() => {
+                if (window.i18nManager) {
+                    log('✅ i18nManager已加载', 'success');
+                    const currentLang = window.i18nManager.getCurrentLanguage();
+                    log(`当前语言: ${currentLang}`, 'info');
+                } else {
+                    log('❌ i18nManager未加载', 'error');
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

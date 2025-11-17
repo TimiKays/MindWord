@@ -5022,6 +5022,11 @@ document.addEventListener('focusout', (e) => {
 
     contextMenuNodeId = nodeId;
 
+    // 在显示菜单前更新翻译（确保当前语言正确）
+    if (window.i18nManager) {
+      window.i18nManager.updateContextMenuTranslations();
+    }
+
     // 设置菜单位置
     contextMenu.style.left = x + 'px';
     contextMenu.style.top = y + 'px';
@@ -5242,4 +5247,54 @@ document.addEventListener('focusout', (e) => {
   window.addEventListener('scroll', hideContextMenu, true);
 
   console.log('[ContextMenu] 右键菜单功能已初始化');
+})();
+
+// 从父页面同步语言设置（iframe环境）
+(function() {
+  // 尝试从父页面获取当前语言设置
+  function syncLanguageFromParent() {
+    try {
+      // 检查是否在iframe中
+      if (window.parent && window.parent !== window) {
+        // 尝试从父页面获取语言设置
+        const parentLang = window.parent.localStorage.getItem('mindword-language');
+        if (parentLang && window.i18nManager && window.i18nManager.currentLanguage !== parentLang) {
+          console.log('[LanguageSync] 从父页面同步语言:', parentLang);
+          window.i18nManager.setLanguage(parentLang);
+        }
+      }
+    } catch (e) {
+      // 跨域访问会被阻止，忽略错误
+      console.log('[LanguageSync] 无法访问父页面，可能在同一域名下');
+    }
+
+    // 尝试通过postMessage获取语言设置
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({type: 'getLanguage'}, '*');
+    }
+  }
+
+  // 监听来自父页面的消息
+  window.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'languageChanged' && e.data.language) {
+      console.log('[LanguageSync] 收到父页面语言变更:', e.data.language);
+      if (window.i18nManager && window.i18nManager.currentLanguage !== e.data.language) {
+        window.i18nManager.setLanguage(e.data.language);
+      }
+    }
+  });
+
+  // 页面加载完成后同步语言
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+      setTimeout(syncLanguageFromParent, 1000);
+    });
+  } else {
+    setTimeout(syncLanguageFromParent, 1000);
+  }
+
+  // 定期同步语言（作为后备机制）
+  setInterval(syncLanguageFromParent, 3000);
+
+  console.log('[LanguageSync] 父页面语言同步功能已初始化');
 })();

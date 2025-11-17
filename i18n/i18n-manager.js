@@ -111,6 +111,9 @@ class I18nManager {
     // 通知所有监听器
     this.notifyListeners(language);
 
+    // 向所有iframe发送语言变化通知
+    this.notifyIframes(language);
+
     console.log(`[I18nManager] Language changed to: ${language}`);
   }
 
@@ -239,6 +242,28 @@ class I18nManager {
       const key = element.getAttribute('data-i18n-value');
       element.value = this.t(key);
     });
+
+    // 专门更新右键菜单的翻译（即使菜单是隐藏的）
+    this.updateContextMenuTranslations();
+  }
+
+  /**
+   * 更新右键菜单的翻译
+   */
+  updateContextMenuTranslations() {
+    const contextMenu = document.getElementById('nodeContextMenu');
+    if (!contextMenu) return;
+
+    // 获取菜单中所有带有 data-i18n 属性的元素
+    const menuElements = contextMenu.querySelectorAll('[data-i18n]');
+    menuElements.forEach(element => {
+      const key = element.getAttribute('data-i18n');
+      const translation = this.t(key);
+      
+      if (translation && translation !== key) {
+        element.textContent = translation;
+      }
+    });
   }
 
   /**
@@ -339,6 +364,35 @@ class I18nManager {
     });
 
     return container;
+  }
+
+  /**
+   * 向所有iframe发送语言变化通知
+   */
+  notifyIframes(language) {
+    try {
+      // 获取所有iframe元素
+      const iframes = document.querySelectorAll('iframe');
+      
+      iframes.forEach(iframe => {
+        try {
+          // 检查iframe是否加载完成
+          if (iframe.contentWindow) {
+            // 发送语言变化消息到iframe
+            iframe.contentWindow.postMessage({
+              type: 'languageChange',
+              language: language,
+              source: 'parent'
+            }, '*');
+            console.log(`[I18nManager] Sent language change notification to iframe: ${language}`);
+          }
+        } catch (error) {
+          console.warn('[I18nManager] Failed to send message to iframe:', error);
+        }
+      });
+    } catch (error) {
+      console.error('[I18nManager] Error notifying iframes:', error);
+    }
   }
 }
 

@@ -260,6 +260,19 @@ const i18nLocales = {
         collapse: '折叠'
       },
 
+      // 右键菜单
+      contextMenu: {
+        editNode: '编辑节点',
+        drillDown: '下钻',
+        aiGenerateChild: 'AI生成子节点',
+        aiGenerateSibling: 'AI生成同级节点',
+        aiExpandNotes: 'AI扩写备注',
+        addSubtree: '添加子树',
+        addChildNode: '添加子节点',
+        addSiblingNode: '添加同级节点',
+        deleteNode: '删除节点'
+      },
+
       // 导出选项
       export: {
         word: '导出为Word',
@@ -616,6 +629,19 @@ const i18nLocales = {
         edit: 'Edit',
         expand: 'Expand',
         collapse: 'Collapse'
+      },
+
+      // 右键菜单
+      contextMenu: {
+        editNode: 'Edit Node',
+        drillDown: 'Drill Down',
+        aiGenerateChild: 'AI Generate Child Node',
+        aiGenerateSibling: 'AI Generate Sibling Node',
+        aiExpandNotes: 'AI Expand Notes',
+        addSubtree: 'Add Subtree',
+        addChildNode: 'Add Child Node',
+        addSiblingNode: 'Add Sibling Node',
+        deleteNode: 'Delete Node'
       },
 
       // 导出选项
