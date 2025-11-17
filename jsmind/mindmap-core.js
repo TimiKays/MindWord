@@ -4196,6 +4196,7 @@ function handlePNGDownload(action) {
       const isWhiteBackground = bgColor === 'white';
       const filenameInput = document.getElementById('pngFilename');
       const filename = filenameInput ? filenameInput.value.trim() || '思维导图' : '思维导图';
+      const showWatermark = document.getElementById('showWatermark') ? document.getElementById('showWatermark').checked : true;
 
       try {
         // 设置背景色
@@ -4203,12 +4204,31 @@ function handlePNGDownload(action) {
           jm.screenshot.setWhiteBackground(isWhiteBackground);
         }
 
-        // 执行下载
-        if (jm.screenshot && typeof jm.screenshot.shootDownload === 'function') {
-          jm.screenshot.shootDownload(filename + '.png');
+        if (showWatermark) {
+          // 如果需要水印，先获取截图数据，然后添加水印
+          if (jm.screenshot && typeof jm.screenshot.shootAsDataURL === 'function') {
+            jm.screenshot.shootAsDataURL(function(dataUrl) {
+              if (dataUrl) {
+                downloadWatermarkedImage(dataUrl, filename + '.png');
+              } else {
+                alert('截图失败，请重试');
+              }
+            });
+          } else {
+            console.warn('截图插件不支持获取DataURL，使用普通下载');
+            // 降级处理：使用普通下载
+            if (jm.screenshot && typeof jm.screenshot.shootDownload === 'function') {
+              jm.screenshot.shootDownload(filename + '.png');
+            }
+          }
         } else {
-          console.warn('截图插件未正确加载或API不兼容');
-          alert('下载失败，截图插件未正确加载');
+          // 不需要水印，直接下载
+          if (jm.screenshot && typeof jm.screenshot.shootDownload === 'function') {
+            jm.screenshot.shootDownload(filename + '.png');
+          } else {
+            console.warn('截图插件未正确加载或API不兼容');
+            alert('下载失败，截图插件未正确加载');
+          }
         }
       } catch (error) {
         console.error('下载思维导图失败:', error);
@@ -4217,6 +4237,92 @@ function handlePNGDownload(action) {
 
       handlePNGDownload('close');
       break;
+  }
+}
+
+// 添加水印到图片
+function addWatermarkToImage(dataUrl, callback) {
+  const img = new Image();
+  const watermarkImg = new Image();
+  
+  img.onload = function() {
+    watermarkImg.onload = function() {
+      try {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 设置画布尺寸与原图相同
+        canvas.width = img.width;
+        canvas.height = img.height;
+        
+        // 绘制原图
+        ctx.drawImage(img, 0, 0);
+        
+        // 计算水印尺寸（原图的1/8宽度，保持比例）
+        const watermarkWidth = Math.max(60, img.width / 8);
+        const watermarkHeight = (watermarkImg.height * watermarkWidth) / watermarkImg.width;
+        
+        // 设置水印位置（左上角，留边距）
+        const padding = 20;
+        const x = padding;
+        const y = padding;
+        
+        // 绘制水印（带轻微透明度）
+        ctx.globalAlpha = 0.8;
+        ctx.drawImage(watermarkImg, x, y, watermarkWidth, watermarkHeight);
+        ctx.globalAlpha = 1.0;
+        
+        // 转换为data URL
+        const resultDataUrl = canvas.toDataURL('image/png');
+        callback(null, resultDataUrl);
+      } catch (error) {
+        callback(error);
+      }
+    };
+    
+    watermarkImg.onerror = function() {
+      callback(new Error('水印图片加载失败'));
+    };
+    
+    // 设置水印图片源
+    watermarkImg.src = '/res/MindWord二维码.png';
+  };
+  
+  img.onerror = function() {
+    callback(new Error('截图图片加载失败'));
+  };
+  
+  img.src = dataUrl;
+}
+
+// 下载带水印的图片
+function downloadWatermarkedImage(dataUrl, filename) {
+  addWatermarkToImage(dataUrl, function(error, watermarkedDataUrl) {
+    if (error) {
+      console.error('添加水印失败:', error);
+      // 如果水印添加失败，仍然下载原图
+      downloadImage(dataUrl, filename);
+      return;
+    }
+    
+    downloadImage(watermarkedDataUrl, filename);
+  });
+}
+
+// 下载图片（通用的图片下载函数）
+function downloadImage(dataUrl, filename) {
+  try {
+    const link = document.createElement('a');
+    link.download = filename;
+    link.href = dataUrl;
+    link.style.display = 'none';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } catch (error) {
+    console.error('下载图片失败:', error);
+    alert('下载失败，请检查浏览器控制台了解详情');
   }
 }
 
@@ -4244,7 +4350,7 @@ function showPNGDownloadModal() {
           <input type="text" id="pngFilename" value="${defaultFilename}" placeholder="请输入文件名" style="flex: 1; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 14px; box-sizing: border-box;">
         </div>
         
-        <div style="margin-bottom: 24px; display: flex; align-items: center;">
+        <div style="margin-bottom: 16px; display: flex; align-items: center;">
           <label style="font-weight: 500; color: #555; min-width: 80px; margin-right: 12px;">背景色：</label>
           <div style="display: flex; gap: 12px;">
             <label style="display: flex; align-items: center; cursor: pointer;">
@@ -4256,6 +4362,14 @@ function showPNGDownloadModal() {
               <span>白色背景</span>
             </label>
           </div>
+        </div>
+        
+        <div style="margin-bottom: 24px; display: flex; align-items: center;">
+          <label style="font-weight: 500; color: #555; min-width: 80px; margin-right: 12px;">水印：</label>
+          <label style="display: flex; align-items: center; cursor: pointer;">
+            <input type="checkbox" id="showWatermark" style="margin-right: 6px;">
+            <span>显示水印</span>
+          </label>
         </div>
         
         <div style="display: flex; gap: 12px; justify-content: flex-end;">
