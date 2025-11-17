@@ -1415,10 +1415,10 @@ function handleAutoUpdate() {
       }
       refreshAllNotesDisplay();
       saveToLocalStorage();
-      
+
       // 注意：在文本框输入时不自动记录历史记录，让用户使用文本框自带的撤销功能
       // 历史记录将在文本框失焦时通过 blur 事件处理
-      
+
       showAutoUpdateIndicator();
     }
   }, 500);
@@ -1614,10 +1614,10 @@ function updateNodeNotes() {
     // 检查当前是否正在编辑文本框，如果是，则不记录历史（让文本框的blur事件处理）
     const activeElement = document.activeElement;
     const isEditingTextarea = activeElement && (
-      activeElement.id === 'nodeNotes' || 
+      activeElement.id === 'nodeNotes' ||
       activeElement.id === 'nodeTopic'
     );
-    
+
     if (!isEditingTextarea) {
       try {
         window.undoManager.recordIfChanged();
@@ -4183,26 +4183,26 @@ function handlePNGDownload(action) {
       if (!jm) return;
       showPNGDownloadModal();
       break;
-      
+
     case 'close':
       const modal = document.getElementById('pngDownloadModal');
       if (modal) {
         modal.remove();
       }
       break;
-      
+
     case 'confirm':
       const bgColor = document.querySelector('input[name="bgColor"]:checked').value;
       const isWhiteBackground = bgColor === 'white';
       const filenameInput = document.getElementById('pngFilename');
       const filename = filenameInput ? filenameInput.value.trim() || '思维导图' : '思维导图';
-      
+
       try {
         // 设置背景色
         if (jm.screenshot && typeof jm.screenshot.setWhiteBackground === 'function') {
           jm.screenshot.setWhiteBackground(isWhiteBackground);
         }
-        
+
         // 执行下载
         if (jm.screenshot && typeof jm.screenshot.shootDownload === 'function') {
           jm.screenshot.shootDownload(filename + '.png');
@@ -4214,7 +4214,7 @@ function handlePNGDownload(action) {
         console.error('下载思维导图失败:', error);
         alert('下载失败，请检查浏览器控制台了解详情');
       }
-      
+
       handlePNGDownload('close');
       break;
   }
@@ -4230,7 +4230,7 @@ function showPNGDownloadModal() {
       defaultFilename = rootNode.topic.replace(/[<>:"/\\|?*]/g, '_').substring(0, 50); // 清理非法字符，限制长度
     }
   }
-  
+
   const modalHtml = `
     <div id="pngDownloadModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center;">
       <div style="background: white; border-radius: 8px; padding: 24px; max-width: 400px; width: 90%; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
@@ -4239,13 +4239,13 @@ function showPNGDownloadModal() {
           <button onclick="handlePNGDownload('close')" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #999;">×</button>
         </div>
         
-        <div style="margin-bottom: 20px;">
-          <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #555;">文件名：</label>
-          <input type="text" id="pngFilename" value="${defaultFilename}" placeholder="请输入文件名" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 14px; box-sizing: border-box;">
+        <div style="margin-bottom: 16px; display: flex; align-items: center;">
+          <label style="font-weight: 500; color: #555; min-width: 80px; margin-right: 12px;">文件名：</label>
+          <input type="text" id="pngFilename" value="${defaultFilename}" placeholder="请输入文件名" style="flex: 1; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 14px; box-sizing: border-box;">
         </div>
         
-        <div style="margin-bottom: 24px;">
-          <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #555;">背景色设置：</label>
+        <div style="margin-bottom: 24px; display: flex; align-items: center;">
+          <label style="font-weight: 500; color: #555; min-width: 80px; margin-right: 12px;">背景色：</label>
           <div style="display: flex; gap: 12px;">
             <label style="display: flex; align-items: center; cursor: pointer;">
               <input type="radio" name="bgColor" value="transparent" style="margin-right: 6px;">
@@ -4265,11 +4265,11 @@ function showPNGDownloadModal() {
       </div>
     </div>
   `;
-  
+
   document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 // 暴露PNG下载相关函数到全局作用域
-try { 
+try {
   window.downloadMindmap = () => handlePNGDownload('show');
   window.handlePNGDownload = handlePNGDownload;
 } catch (e) { /* ignore */ }
