@@ -4173,22 +4173,106 @@ function setupLocalStorageWatcher() {
 }
 
 // 下载思维导图为图片
-function downloadMindmap() {
-  if (!jm) return;
-  try {
-    // 使用jsMind 0.5.7版本匹配的截图插件API
-    if (jm.screenshot && typeof jm.screenshot.shootDownload === 'function') {
-      jm.screenshot.shootDownload();
-    } else {
-      console.warn('截图插件未正确加载或API不兼容');
-    }
-  } catch (error) {
-    console.error('下载思维导图失败:', error);
-    alert('下载失败，请检查浏览器控制台了解详情');
+/**
+ * PNG下载管理函数
+ * @param {string} action - 操作类型: 'show' 显示模态框, 'close' 关闭模态框, 'confirm' 确认下载
+ */
+function handlePNGDownload(action) {
+  switch (action) {
+    case 'show':
+      if (!jm) return;
+      showPNGDownloadModal();
+      break;
+      
+    case 'close':
+      const modal = document.getElementById('pngDownloadModal');
+      if (modal) {
+        modal.remove();
+      }
+      break;
+      
+    case 'confirm':
+      const bgColor = document.querySelector('input[name="bgColor"]:checked').value;
+      const isWhiteBackground = bgColor === 'white';
+      const filenameInput = document.getElementById('pngFilename');
+      const filename = filenameInput ? filenameInput.value.trim() || '思维导图' : '思维导图';
+      
+      try {
+        // 设置背景色
+        if (jm.screenshot && typeof jm.screenshot.setWhiteBackground === 'function') {
+          jm.screenshot.setWhiteBackground(isWhiteBackground);
+        }
+        
+        // 执行下载
+        if (jm.screenshot && typeof jm.screenshot.shootDownload === 'function') {
+          jm.screenshot.shootDownload(filename + '.png');
+        } else {
+          console.warn('截图插件未正确加载或API不兼容');
+          alert('下载失败，截图插件未正确加载');
+        }
+      } catch (error) {
+        console.error('下载思维导图失败:', error);
+        alert('下载失败，请检查浏览器控制台了解详情');
+      }
+      
+      handlePNGDownload('close');
+      break;
   }
 }
-// 最小修复：确保页面中使用的 inline onclick 可见到该函数
-try { window.downloadMindmap = downloadMindmap; } catch (e) { /* ignore */ }
+
+// 显示PNG下载设置模态框
+function showPNGDownloadModal() {
+  // 获取根节点名称作为默认文件名
+  let defaultFilename = '思维导图';
+  if (jm && jm.get_root && jm.get_root()) {
+    const rootNode = jm.get_root();
+    if (rootNode && rootNode.topic) {
+      defaultFilename = rootNode.topic.replace(/[<>:"/\\|?*]/g, '_').substring(0, 50); // 清理非法字符，限制长度
+    }
+  }
+  
+  const modalHtml = `
+    <div id="pngDownloadModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center;">
+      <div style="background: white; border-radius: 8px; padding: 24px; max-width: 400px; width: 90%; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <h3 style="margin: 0; font-size: 18px; color: #333;">PNG下载设置</h3>
+          <button onclick="handlePNGDownload('close')" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #999;">×</button>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #555;">文件名：</label>
+          <input type="text" id="pngFilename" value="${defaultFilename}" placeholder="请输入文件名" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 14px; box-sizing: border-box;">
+        </div>
+        
+        <div style="margin-bottom: 24px;">
+          <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #555;">背景色设置：</label>
+          <div style="display: flex; gap: 12px;">
+            <label style="display: flex; align-items: center; cursor: pointer;">
+              <input type="radio" name="bgColor" value="transparent" style="margin-right: 6px;">
+              <span>透明背景</span>
+            </label>
+            <label style="display: flex; align-items: center; cursor: pointer;">
+              <input type="radio" name="bgColor" value="white" checked style="margin-right: 6px;">
+              <span>白色背景</span>
+            </label>
+          </div>
+        </div>
+        
+        <div style="display: flex; gap: 12px; justify-content: flex-end;">
+          <button onclick="handlePNGDownload('close')" style="padding: 8px 16px; border: 1px solid #d1d5db; background: white; border-radius: 4px; cursor: pointer; font-size: 14px;">取消</button>
+          <button onclick="handlePNGDownload('confirm')" style="padding: 8px 16px; border: none; background: #4c9aff; color: white; border-radius: 4px; cursor: pointer; font-size: 14px;">确定下载</button>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+// 暴露PNG下载相关函数到全局作用域
+try { 
+  window.downloadMindmap = () => handlePNGDownload('show');
+  window.handlePNGDownload = handlePNGDownload;
+} catch (e) { /* ignore */ }
 
 
 

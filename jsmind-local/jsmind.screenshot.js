@@ -133,9 +133,9 @@
             // 禁用水印以避免影响自动裁剪范围
         },
 
-        shootDownload: function () {
+        shootDownload: function (customName) {
             this.shoot(function () {
-                this._download();
+                this._download(customName);
             }.bind(this));
         },
 
@@ -368,9 +368,9 @@
             }
         },
 
-        _download: function () {
+        _download: function (customName) {
             var c = this.canvas_elem;
-            var name = this.jm.mind.name + '.png';
+            var name = customName || (this.jm.mind.name + '.png');
 
             if (navigator.msSaveBlob && (!!c.msToBlob)) {
                 var dataurl = this._getCroppedDataURL();
