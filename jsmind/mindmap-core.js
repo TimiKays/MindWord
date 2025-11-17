@@ -4191,7 +4191,26 @@ function handlePNGDownload(action) {
       }
       break;
 
-    case 'confirm':
+    case 'copy':
+      handlePNGDownload('process', true); // true表示复制模式
+      break;
+
+    case 'download':
+      handlePNGDownload('process', false); // false表示下载模式
+      break;
+
+    case 'process':
+      const isCopyMode = arguments[1];
+      processPNGDownload(isCopyMode);
+      break;
+
+    case 'confirm': // 保留旧的confirm case以保持兼容性
+      processPNGDownload(false);
+      break;
+  }
+}
+
+function processPNGDownload(isCopyMode) {
       const bgColor = document.querySelector('input[name="bgColor"]:checked').value;
       const isWhiteBackground = bgColor === 'white';
       const filenameInput = document.getElementById('pngFilename');
@@ -4211,7 +4230,20 @@ function handlePNGDownload(action) {
           if (jm.screenshot && typeof jm.screenshot.shootAsDataURL === 'function') {
             jm.screenshot.shootAsDataURL(function (dataUrl) {
               if (dataUrl) {
-                downloadWatermarkedImage(dataUrl, filename + '.png');
+                if (isCopyMode) {
+                  // 复制模式：先添加水印再复制
+                  addWatermarkToImage(dataUrl, function(error, watermarkedDataUrl) {
+                    if (error) {
+                      console.error('添加水印失败:', error);
+                      // 如果水印添加失败，仍然复制原图
+                      copyImageToClipboard(dataUrl);
+                    } else {
+                      copyImageToClipboard(watermarkedDataUrl);
+                    }
+                  });
+                } else {
+                  downloadWatermarkedImage(dataUrl, filename + '.png');
+                }
               } else {
                 alert('截图失败，请重试');
               }
@@ -4220,16 +4252,30 @@ function handlePNGDownload(action) {
             console.warn('截图插件不支持获取DataURL，使用普通下载');
             // 降级处理：使用普通下载
             if (jm.screenshot && typeof jm.screenshot.shootDownload === 'function') {
-              jm.screenshot.shootDownload(filename + '.png', screenshotMode);
+              if (isCopyMode) {
+                alert('复制功能需要浏览器支持，请使用下载功能');
+              } else {
+                jm.screenshot.shootDownload(filename + '.png', screenshotMode);
+              }
             }
           }
         } else {
-          // 不需要水印，直接下载
-          if (jm.screenshot && typeof jm.screenshot.shootDownload === 'function') {
-            jm.screenshot.shootDownload(filename + '.png', screenshotMode);
+          // 不需要水印，直接处理
+          if (jm.screenshot && typeof jm.screenshot.shootAsDataURL === 'function') {
+            jm.screenshot.shootAsDataURL(function (dataUrl) {
+              if (dataUrl) {
+                if (isCopyMode) {
+                  copyImageToClipboard(dataUrl);
+                } else {
+                  downloadImage(dataUrl, filename + '.png');
+                }
+              } else {
+                alert('截图失败，请重试');
+              }
+            }, screenshotMode);
           } else {
             console.warn('截图插件未正确加载或API不兼容');
-            alert('下载失败，截图插件未正确加载');
+            alert('处理失败，截图插件未正确加载');
           }
         }
       } catch (error) {
@@ -4238,9 +4284,8 @@ function handlePNGDownload(action) {
       }
 
       handlePNGDownload('close');
-      break;
-  }
 }
+
 
 // 添加水印到图片
 function addWatermarkToImage(dataUrl, callback) {
@@ -4309,6 +4354,33 @@ function downloadWatermarkedImage(dataUrl, filename) {
 
     downloadImage(watermarkedDataUrl, filename);
   });
+}
+
+// 复制图片到剪切板
+function copyImageToClipboard(dataUrl) {
+  try {
+    // 将dataUrl转换为blob
+    fetch(dataUrl)
+      .then(res => res.blob())
+      .then(blob => {
+        // 创建ClipboardItem
+        const item = new ClipboardItem({ 'image/png': blob });
+        // 写入剪切板
+        navigator.clipboard.write([item]).then(() => {
+          alert('图片已复制到剪切板');
+        }).catch(err => {
+          console.error('复制到剪切板失败:', err);
+          alert('复制失败，请检查浏览器权限或使用下载功能');
+        });
+      })
+      .catch(err => {
+        console.error('转换图片失败:', err);
+        alert('图片处理失败，请使用下载功能');
+      });
+  } catch (error) {
+    console.error('复制图片失败:', error);
+    alert('复制功能不可用，请使用下载功能');
+  }
 }
 
 // 下载图片（通用的图片下载函数）
@@ -4390,7 +4462,8 @@ function showPNGDownloadModal() {
         
         <div style="display: flex; gap: 12px; justify-content: flex-end;">
           <button onclick="handlePNGDownload('close')" style="padding: 8px 16px; border: 1px solid #d1d5db; background: white; border-radius: 4px; cursor: pointer; font-size: 14px;">取消</button>
-          <button onclick="handlePNGDownload('confirm')" style="padding: 8px 16px; border: none; background: #4c9aff; color: white; border-radius: 4px; cursor: pointer; font-size: 14px;">确定下载</button>
+          <button onclick="handlePNGDownload('copy')" style="padding: 8px 16px; border: 1px solid #4c9aff; background: white; color: #4c9aff; border-radius: 4px; cursor: pointer; font-size: 14px;">复制图片</button>
+          <button onclick="handlePNGDownload('download')" style="padding: 8px 16px; border: none; background: #4c9aff; color: white; border-radius: 4px; cursor: pointer; font-size: 14px;">下载</button>
         </div>
       </div>
     </div>
