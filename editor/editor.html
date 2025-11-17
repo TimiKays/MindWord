@@ -764,7 +764,7 @@
             insertAtCursor(text) {
                 // 使用工具库的insertAtCursor函数，保持编辑器状态同步
                 HtmlMarkdownUtils.insertAtCursor(this.editor, text);
-                
+
                 // 触发编辑器特有的内容变化回调
                 this.onContentChange();
             }
@@ -776,23 +776,24 @@
             async exportContent() {
                 const content = this.getContent();
                 const hasImages = this.images.size > 0;
+                const fileName = this.getDocumentFileName(content);
 
                 if (!hasImages) {
                     // 只导出MD文件
-                    this.downloadFile('document.md', content, 'text/markdown');
+                    this.downloadFile(`${fileName}.md`, content, 'text/markdown');
                     this.showMessage('📄 MD文件已导出', 'success');
                 } else {
                     // 导出ZIP包
-                    await this.exportZip(content);
+                    await this.exportZip(content, fileName);
                     this.showMessage('📦 ZIP包已导出', 'success');
                 }
             }
 
-            async exportZip(content) {
+            async exportZip(content, fileName) {
                 const zip = new JSZip();
 
                 // 添加MD文件
-                zip.file('document.md', content);
+                zip.file(`${fileName}.md`, content);
 
                 // 添加图片文件夹
                 const imagesFolder = zip.folder('images');
@@ -808,7 +809,7 @@
 
                 // 生成ZIP并下载
                 const zipBlob = await zip.generateAsync({ type: 'blob' });
-                this.downloadFile('markdown-export.zip', zipBlob, 'application/zip');
+                this.downloadFile(`${fileName}.zip`, zipBlob, 'application/zip');
             }
 
             getImageExtension(mimeType) {
@@ -830,6 +831,34 @@
                 a.download = filename;
                 a.click();
                 URL.revokeObjectURL(url);
+            }
+
+            // 获取文档文件名 - 复用 app.html 中的标题提取函数
+            getDocumentFileName(content) {
+                try {
+                    // 优先使用 app.html 中已有的标题提取函数
+                    if (typeof mw_extractTitleFromMd === 'function') {
+                        const title = mw_extractTitleFromMd(content);
+                        // 清理文件名中的特殊字符
+                        const cleanTitle = title.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_');
+                        // 限制长度
+                        return cleanTitle.length > 50 ? cleanTitle.substring(0, 50) : cleanTitle;
+                    }
+                    
+                    // 备用方案：如果没有 mw_extractTitleFromMd，使用简单实现
+                    const lines = content.split('\n');
+                    for (let line of lines) {
+                        line = line.trim();
+                        if (line.startsWith('#')) {
+                            let title = line.replace(/^#+\s*/, '').trim();
+                            title = title.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_');
+                            return title.length > 50 ? title.substring(0, 50) : title;
+                        }
+                    }
+                    return 'document';
+                } catch (e) {
+                    return 'document';
+                }
             }
 
             // ===================================
