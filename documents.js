@@ -1168,7 +1168,7 @@ async function showImportConflictDialog(conflicts) {
       `导入修改时间：${new Date(conflict.importTime).toLocaleString()}\n`
     ).join('\n---\n\n');
 
-    const message = `检测到 ${conflicts.length} 个文档ID冲突：\n\n${conflictList}\n` +
+    const message = `检测到文档冲突：\n\n${conflictList}\n` +
       '请选择处理方式：\n\n' +
       '【保留最新的】保留修改时间较新的文档（推荐）\n' +
       '【替换为导入的】用导入的文档完全替换现有文档\n' +

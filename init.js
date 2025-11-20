@@ -6,7 +6,7 @@ MindWord 应用的 主初始化模块 ，核心职责是：
 3. 绑定所有全局对话框 （新建、删除确认）的交互与快捷键
 4. 注入 AI 弹窗托管层 （ aiModalFrame ），让子页面通过 postMessage 调用 AI 服务
 5. 预加载 AI 提示词模板 到全局变量 window.__prompt_templates
-6. 启动移动端自动专注模式 （ initMobileFocus ）
+6. 调用移动端自动专注模式 （ initMobileFocus ），移动端把三个面板显示到下面。
 7. 统一监听子页面消息 （通知、AI 调用等）
 
 */

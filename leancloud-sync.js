@@ -188,6 +188,7 @@
       id: cDoc.id,
       name: cDoc.name || '',
       md: cDoc.md || '',
+      images: cDoc.images || [], // 添加images数组字段
       updatedAt: Number(cDoc.updatedAt || 0),
       deletedAt: cDoc.deletedAt ? Number(cDoc.deletedAt) : undefined
     };
@@ -231,7 +232,7 @@
 
     // 1. 文档数组：按 ID 三向合并（跳过已删除，哈希相同取云端，不同按时间戳）
     const hashDoc = d => {
-      const str = (d.name || '') + '\n' + (d.md || '');
+      const str = (d.name || '') + '\n' + (d.md || '') + '\n' + JSON.stringify(d.images || []);
       let h = 5381;
       for (let i = 0; i < str.length; i++) h = (h << 5) + h + str.charCodeAt(i);
       return h >>> 0;          // 转成正 32 位整数
@@ -358,8 +359,8 @@
       target.aiConfigHash === cloudFullData.aiConfigHash &&
       target.promptTemplatesHash === cloudFullData.promptTemplatesHash &&
       target.myPromptTemplatesHash === cloudFullData.myPromptTemplatesHash &&
-      JSON.stringify(mergedDocs.map(d => ({ id: d.id, updatedAt: d.updatedAt, deleted: d.deleted }))) ===
-      JSON.stringify(cloudFullData.docs.map(d => ({ id: d.id, updatedAt: d.updatedAt, deleted: d.deleted })))) {
+      JSON.stringify(mergedDocs.map(d => ({ id: d.id, updatedAt: d.updatedAt, deleted: d.deleted, images: d.images || [] }))) ===
+      JSON.stringify(cloudFullData.docs.map(d => ({ id: d.id, updatedAt: d.updatedAt, deleted: d.deleted, images: d.images || [] })))) {
       showSuccess('云端与本地一致，无需同步');
       return;   // 无需真正落库
     }
@@ -716,8 +717,27 @@
       const cloudDoc = cloudDocMap.get(docId);
 
       if (localDoc && cloudDoc) {
-        // 两边都有 - 检查内容是否一致
-        const isContentSame = localDoc.md === cloudDoc.md;
+        // 两边都有 - 检查内容是否一致（包含图片数据）
+        const isContentSame = localDoc.md === cloudDoc.md && JSON.stringify(localDoc.images || []) === JSON.stringify(cloudDoc.images || []);
+        let description = '';
+        
+        if (isContentSame) {
+          description = '<span style="color: #28a745;">内容一致 ✓</span>';
+        } else {
+          // 检查是否有图片变化
+          const localImages = localDoc.images || [];
+          const cloudImages = cloudDoc.images || [];
+          const imagesChanged = JSON.stringify(localImages) !== JSON.stringify(cloudImages);
+          const mdChanged = localDoc.md !== cloudDoc.md;
+          
+          if (mdChanged && imagesChanged) {
+            description = '<span style="color: #dc3545;">内容和图片都已变更</span>';
+          } else if (imagesChanged) {
+            description = '<span style="color: #ffc107;">图片已变更</span>';
+          } else {
+            description = '<span style="color: #dc3545;">内容不一致</span>';
+          }
+        }
         const localTime = new Date(Number(localDoc.updatedAt)).toLocaleString();
         const cloudTime = new Date(Number(cloudDoc.updatedAt)).toLocaleString();
         const recommendLocal = localDoc.updatedAt >= cloudDoc.updatedAt;
@@ -730,12 +750,12 @@
           key: `doc_${docId}`,
           local: {
             name: localDoc.name || '未命名文档',
-            description: localDeleted ? '<span style="color: #dc3545;">本地已删除文档</span>' : (isContentSame ? '内容一致 ✓' : '内容不一致'),
+            description: localDeleted ? '<span style="color: #dc3545;">本地已删除文档</span>' : description,
             updatedAt: localTime
           },
           cloud: {
             name: cloudDoc.name || '未命名文档',
-            description: cloudDeleted ? '<span style="color: #dc3545;">云端已删除文档</span>' : (isContentSame ? '内容一致 ✓' : '内容不一致'),
+            description: cloudDeleted ? '<span style="color: #dc3545;">云端已删除文档</span>' : description,
             updatedAt: cloudTime
           },
           recommendLocal: recommendLocal,
