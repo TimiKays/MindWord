@@ -5233,7 +5233,7 @@ document.addEventListener('focusout', (e) => {
   // 从localStorage读取语言设置
   function readLanguageFromStorage() {
     try {
-      return localStorage.getItem('mindword-language');
+      return localStorage.getItem('mw_lang');
     } catch (e) {
       return null;
     }
@@ -5253,7 +5253,7 @@ document.addEventListener('focusout', (e) => {
 
   // 监听storage事件（同一浏览器标签页间的同步）
   window.addEventListener('storage', function (e) {
-    if (e.key === 'mindword-language') {
+    if (e.key === 'mw_lang') {
       syncLanguage();
     }
   });

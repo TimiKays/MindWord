@@ -68,7 +68,7 @@ class I18nManager {
    */
   getStoredLanguage() {
     try {
-      return localStorage.getItem('mindword-language');
+      return localStorage.getItem('mw_lang');
     } catch (error) {
       console.warn('[I18nManager] Failed to get stored language:', error);
       return null;
@@ -80,7 +80,7 @@ class I18nManager {
    */
   storeLanguage(language) {
     try {
-      localStorage.setItem('mindword-language', language);
+      localStorage.setItem('mw_lang', language);
     } catch (error) {
       console.warn('[I18nManager] Failed to store language:', error);
     }
@@ -259,7 +259,7 @@ class I18nManager {
     menuElements.forEach(element => {
       const key = element.getAttribute('data-i18n');
       const translation = this.t(key);
-      
+
       if (translation && translation !== key) {
         element.textContent = translation;
       }
@@ -373,7 +373,7 @@ class I18nManager {
     try {
       // 获取所有iframe元素
       const iframes = document.querySelectorAll('iframe');
-      
+
       iframes.forEach(iframe => {
         try {
           // 检查iframe是否加载完成
