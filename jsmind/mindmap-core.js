@@ -4211,79 +4211,79 @@ function handlePNGDownload(action) {
 }
 
 function processPNGDownload(isCopyMode) {
-      const bgColor = document.querySelector('input[name="bgColor"]:checked').value;
-      const isWhiteBackground = bgColor === 'white';
-      const filenameInput = document.getElementById('pngFilename');
-      const filename = filenameInput ? filenameInput.value.trim() || '思维导图' : '思维导图';
-      const showWatermark = document.getElementById('showWatermark') ? document.getElementById('showWatermark').checked : true;
-      const nodeScope = document.querySelector('input[name="nodeScope"]:checked').value;
-      const screenshotMode = nodeScope === 'all' ? 'all' : 'visible';
+  const bgColor = document.querySelector('input[name="bgColor"]:checked').value;
+  const isWhiteBackground = bgColor === 'white';
+  const filenameInput = document.getElementById('pngFilename');
+  const filename = filenameInput ? filenameInput.value.trim() || '思维导图' : '思维导图';
+  const showWatermark = document.getElementById('showWatermark') ? document.getElementById('showWatermark').checked : true;
+  const nodeScope = document.querySelector('input[name="nodeScope"]:checked').value;
+  const screenshotMode = nodeScope === 'all' ? 'all' : 'visible';
 
-      try {
-        // 设置背景色
-        if (jm.screenshot && typeof jm.screenshot.setWhiteBackground === 'function') {
-          jm.screenshot.setWhiteBackground(isWhiteBackground);
-        }
+  try {
+    // 设置背景色
+    if (jm.screenshot && typeof jm.screenshot.setWhiteBackground === 'function') {
+      jm.screenshot.setWhiteBackground(isWhiteBackground);
+    }
 
-        if (showWatermark) {
-          // 如果需要水印，先获取截图数据，然后添加水印
-          if (jm.screenshot && typeof jm.screenshot.shootAsDataURL === 'function') {
-            jm.screenshot.shootAsDataURL(function (dataUrl) {
-              if (dataUrl) {
-                if (isCopyMode) {
-                  // 复制模式：先添加水印再复制
-                  addWatermarkToImage(dataUrl, function(error, watermarkedDataUrl) {
-                    if (error) {
-                      console.error('添加水印失败:', error);
-                      // 如果水印添加失败，仍然复制原图
-                      copyImageToClipboard(dataUrl);
-                    } else {
-                      copyImageToClipboard(watermarkedDataUrl);
-                    }
-                  });
-                } else {
-                  downloadWatermarkedImage(dataUrl, filename + '.png');
-                }
-              } else {
-                alert('截图失败，请重试');
-              }
-            }, screenshotMode);
-          } else {
-            console.warn('截图插件不支持获取DataURL，使用普通下载');
-            // 降级处理：使用普通下载
-            if (jm.screenshot && typeof jm.screenshot.shootDownload === 'function') {
-              if (isCopyMode) {
-                alert('复制功能需要浏览器支持，请使用下载功能');
-              } else {
-                jm.screenshot.shootDownload(filename + '.png', screenshotMode);
-              }
-            }
-          }
-        } else {
-          // 不需要水印，直接处理
-          if (jm.screenshot && typeof jm.screenshot.shootAsDataURL === 'function') {
-            jm.screenshot.shootAsDataURL(function (dataUrl) {
-              if (dataUrl) {
-                if (isCopyMode) {
+    if (showWatermark) {
+      // 如果需要水印，先获取截图数据，然后添加水印
+      if (jm.screenshot && typeof jm.screenshot.shootAsDataURL === 'function') {
+        jm.screenshot.shootAsDataURL(function (dataUrl) {
+          if (dataUrl) {
+            if (isCopyMode) {
+              // 复制模式：先添加水印再复制
+              addWatermarkToImage(dataUrl, function (error, watermarkedDataUrl) {
+                if (error) {
+                  console.error('添加水印失败:', error);
+                  // 如果水印添加失败，仍然复制原图
                   copyImageToClipboard(dataUrl);
                 } else {
-                  downloadImage(dataUrl, filename + '.png');
+                  copyImageToClipboard(watermarkedDataUrl);
                 }
-              } else {
-                alert('截图失败，请重试');
-              }
-            }, screenshotMode);
+              });
+            } else {
+              downloadWatermarkedImage(dataUrl, filename + '.png');
+            }
           } else {
-            console.warn('截图插件未正确加载或API不兼容');
-            alert('处理失败，截图插件未正确加载');
+            alert('截图失败，请重试');
+          }
+        }, screenshotMode);
+      } else {
+        console.warn('截图插件不支持获取DataURL，使用普通下载');
+        // 降级处理：使用普通下载
+        if (jm.screenshot && typeof jm.screenshot.shootDownload === 'function') {
+          if (isCopyMode) {
+            alert('复制功能需要浏览器支持，请使用下载功能');
+          } else {
+            jm.screenshot.shootDownload(filename + '.png', screenshotMode);
           }
         }
-      } catch (error) {
-        console.error('下载思维导图失败:', error);
-        alert('下载失败，请检查浏览器控制台了解详情');
       }
+    } else {
+      // 不需要水印，直接处理
+      if (jm.screenshot && typeof jm.screenshot.shootAsDataURL === 'function') {
+        jm.screenshot.shootAsDataURL(function (dataUrl) {
+          if (dataUrl) {
+            if (isCopyMode) {
+              copyImageToClipboard(dataUrl);
+            } else {
+              downloadImage(dataUrl, filename + '.png');
+            }
+          } else {
+            alert('截图失败，请重试');
+          }
+        }, screenshotMode);
+      } else {
+        console.warn('截图插件未正确加载或API不兼容');
+        alert('处理失败，截图插件未正确加载');
+      }
+    }
+  } catch (error) {
+    console.error('下载思维导图失败:', error);
+    alert('下载失败，请检查浏览器控制台了解详情');
+  }
 
-      handlePNGDownload('close');
+  handlePNGDownload('close');
 }
 
 
@@ -5323,51 +5323,62 @@ document.addEventListener('focusout', (e) => {
 })();
 
 // 从父页面同步语言设置（iframe环境）
-(function() {
-  // 尝试从父页面获取当前语言设置
-  function syncLanguageFromParent() {
+(function () {
+  let lastLanguage = null;
+  
+  // 从localStorage读取语言设置
+  function readLanguageFromStorage() {
     try {
-      // 检查是否在iframe中
-      if (window.parent && window.parent !== window) {
-        // 尝试从父页面获取语言设置
-        const parentLang = window.parent.localStorage.getItem('mindword-language');
-        if (parentLang && window.i18nManager && window.i18nManager.currentLanguage !== parentLang) {
-          console.log('[LanguageSync] 从父页面同步语言:', parentLang);
-          window.i18nManager.setLanguage(parentLang);
-        }
-      }
+      return localStorage.getItem('mindword-language');
     } catch (e) {
-      // 跨域访问会被阻止，忽略错误
-      console.log('[LanguageSync] 无法访问父页面，可能在同一域名下');
-    }
-
-    // 尝试通过postMessage获取语言设置
-    if (window.parent && window.parent !== window) {
-      window.parent.postMessage({type: 'getLanguage'}, '*');
+      return null;
     }
   }
-
-  // 监听来自父页面的消息
+  
+  // 同步语言设置
+  function syncLanguage() {
+    if (!window.i18nManager) return;
+    
+    const currentLang = readLanguageFromStorage();
+    if (currentLang && currentLang !== lastLanguage && currentLang !== window.i18nManager.currentLanguage) {
+      console.log('[LanguageSync] 同步语言:', currentLang);
+      window.i18nManager.setLanguage(currentLang);
+      lastLanguage = currentLang;
+    }
+  }
+  
+  // 监听storage事件（同一浏览器标签页间的同步）
+  window.addEventListener('storage', function(e) {
+    if (e.key === 'mindword-language') {
+      syncLanguage();
+    }
+  });
+  
+  // 监听来自父页面的消息（跨iframe通信）
   window.addEventListener('message', function(e) {
     if (e.data && e.data.type === 'languageChanged' && e.data.language) {
       console.log('[LanguageSync] 收到父页面语言变更:', e.data.language);
       if (window.i18nManager && window.i18nManager.currentLanguage !== e.data.language) {
         window.i18nManager.setLanguage(e.data.language);
+        lastLanguage = e.data.language;
       }
     }
   });
-
+  
   // 页面加载完成后同步语言
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() {
-      setTimeout(syncLanguageFromParent, 1000);
-    });
-  } else {
-    setTimeout(syncLanguageFromParent, 1000);
+  function initLanguageSync() {
+    syncLanguage();
+    // 只在iframe环境中请求父页面语言
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'getLanguage' }, '*');
+    }
   }
-
-  // 定期同步语言（作为后备机制）
-  setInterval(syncLanguageFromParent, 3000);
-
-  console.log('[LanguageSync] 父页面语言同步功能已初始化');
+  
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initLanguageSync);
+  } else {
+    initLanguageSync();
+  }
+  
+  console.log('[LanguageSync] 语言同步功能已初始化');
 })();
