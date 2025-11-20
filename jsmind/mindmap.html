@@ -2116,6 +2116,113 @@
         hideLoadingModal();
       }
     }
+
+    // 更新工具栏按钮的国际化提示
+    function updateToolbarI18n() {
+      if (typeof i18nManager === 'undefined') return;
+      
+      // 撤销重做按钮
+      const undoBtn = document.querySelector('[onclick="undoMindmap()"]');
+      if (undoBtn) undoBtn.title = i18nManager.t('app.toolbar.undo');
+      
+      const redoBtn = document.querySelector('[onclick="redoMindmap()"]');
+      if (redoBtn) redoBtn.title = i18nManager.t('app.toolbar.redo');
+      
+      // 下载按钮
+      const downloadBtn = document.querySelector('[onclick="downloadMindmap()"]');
+      if (downloadBtn) downloadBtn.title = i18nManager.t('app.toolbar.downloadImage');
+      
+      // JSON导出按钮
+      const jsonBtn = document.querySelector('[onclick="exportData()"]');
+      if (jsonBtn) jsonBtn.title = i18nManager.t('app.toolbar.viewJSON');
+      
+      // AI生成初始树按钮
+      const aiInitBtn = document.querySelector('[onclick="showAIGenerateInitialTreeModal()"]');
+      if (aiInitBtn) aiInitBtn.title = i18nManager.t('app.toolbar.aiGenerateInitialTree');
+      
+      // 配置按钮
+      const configBtn = document.querySelector('[onclick="openConfigModal()"]');
+      if (configBtn) configBtn.title = i18nManager.t('app.toolbar.config');
+      
+      // 下钻按钮
+      const drillDownBtn = document.getElementById('drilldown-btn');
+      if (drillDownBtn) drillDownBtn.title = i18nManager.t('app.toolbar.drillDown');
+      
+      // 上钻按钮
+      const drillUpBtn = document.getElementById('return-btn');
+      if (drillUpBtn) drillUpBtn.title = i18nManager.t('app.toolbar.drillUp');
+      
+      // AI操作按钮
+      const addSubtreeBtn = document.querySelector('[onclick="addSubtree()"]');
+      if (addSubtreeBtn) addSubtreeBtn.title = i18nManager.t('app.toolbar.addSubtree');
+      
+      const aiChildBtn = document.querySelector('[onclick="aiCreateChild()"]');
+      if (aiChildBtn) aiChildBtn.title = i18nManager.t('app.toolbar.aiGenerateChild');
+      
+      const aiSiblingBtn = document.querySelector('[onclick="aiCreateSibling()"]');
+      if (aiSiblingBtn) aiSiblingBtn.title = i18nManager.t('app.toolbar.aiGenerateSibling');
+      
+      const aiExpandBtn = document.querySelector('[onclick="aiExpandNotes()"]');
+      if (aiExpandBtn) aiExpandBtn.title = i18nManager.t('app.toolbar.aiExpandNotes');
+      
+      const nodeDetailsBtn = document.querySelector('[onclick="quickModifyNode()"]');
+      if (nodeDetailsBtn) nodeDetailsBtn.title = i18nManager.t('app.toolbar.nodeDetails');
+      
+      const deleteNodeBtn = document.querySelector('[onclick="quickDeleteNode()"]');
+      if (deleteNodeBtn) deleteNodeBtn.title = i18nManager.t('app.toolbar.deleteNode');
+      
+      // 图标选择器按钮
+      const iconPickerBtn = document.getElementById('iconPickerBtn');
+      if (iconPickerBtn) iconPickerBtn.title = i18nManager.t('app.toolbar.selectIcon');
+      
+      // 层级展开按钮
+      const levelButtons = document.querySelectorAll('.level-expand-btn');
+      levelButtons.forEach(btn => {
+        const onclick = btn.getAttribute('onclick');
+        if (onclick && onclick.includes('expandToLevel')) {
+          const level = onclick.match(/expandToLevel\((\d+|'all')\)/)?.[1];
+          if (level === '1') btn.title = i18nManager.t('app.toolbar.expandToLevel1');
+          else if (level === '2') btn.title = i18nManager.t('app.toolbar.expandToLevel2');
+          else if (level === '3') btn.title = i18nManager.t('app.toolbar.expandToLevel3');
+          else if (level === '4') btn.title = i18nManager.t('app.toolbar.expandToLevel4');
+          else if (level === '5') btn.title = i18nManager.t('app.toolbar.expandToLevel5');
+          else if (level === 'all') btn.title = i18nManager.t('app.toolbar.expandAll');
+        }
+      });
+      
+      // 快速AI生成按钮
+      const quickAIBtn = document.getElementById('toggleQuickAIBtn');
+      if (quickAIBtn) quickAIBtn.title = i18nManager.t('app.toolbar.quickAIGenerate');
+      
+      // 详情面板按钮
+      const detailPanelBtn = document.getElementById('toggleNodeDetailsBtn');
+      if (detailPanelBtn) detailPanelBtn.title = i18nManager.t('app.toolbar.detailPanelPermanent');
+      
+      // 帮助按钮
+      const helpBtn = document.getElementById('help-btn');
+      if (helpBtn) helpBtn.title = i18nManager.t('app.toolbar.help');
+      
+      console.log('[updateToolbarI18n] Toolbar tooltips updated');
+    }
+
+    // 监听语言变化事件
+    document.addEventListener('DOMContentLoaded', function() {
+      // 等待i18nManager初始化
+      setTimeout(function() {
+        if (typeof i18nManager !== 'undefined') {
+          updateToolbarI18n();
+          
+          // 添加语言变化监听器
+          i18nManager.addLanguageChangeListener(function(newLanguage) {
+            updateToolbarI18n();
+          });
+          
+          console.log('[mindmap.html] Toolbar i18n initialized');
+        } else {
+          console.warn('[mindmap.html] i18nManager not found');
+        }
+      }, 100);
+    });
   </script>
 </body>
 
