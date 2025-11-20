@@ -20,9 +20,7 @@ MindWord应用的用户认证系统核心模块，主要功能包括：
 - 自定义对话框界面
 - 完整的错误处理和用户反馈
 ### 4. 智能同步机制
-- 登录后根据语言自动选择同步方式：
-  - 中文模式 : 使用LeanCloud同步
-  - 英文模式 : 使用Cloudflare Worker同步
+- 登录后使用LeanCloud同步
 - 延迟重试机制确保组件完全初始化
 ### 5. 用户菜单交互
 - 下拉菜单系统
@@ -211,8 +209,12 @@ MindWord应用的用户认证系统核心模块，主要功能包括：
 
   // 首次渲染
   refreshAuthUI();
-  // 刷新云同步UI（如果已加载脚本）
-  try { if (typeof window.__mw_initCloudSyncUI === 'function') window.__mw_initCloudSyncUI(); } catch (_) { }
+  // 刷新云同步UI（统一使用LeanCloud方案）
+  try { 
+    if (typeof window.MW_LC_SYNC !== 'undefined' && typeof window.MW_LC_SYNC.updateStatus === 'function') {
+      window.MW_LC_SYNC.updateStatus();
+    }
+  } catch (_) { }
 
   // 延迟重试，确保LeanCloud SDK完全初始化
   setTimeout(function () {
@@ -227,52 +229,28 @@ MindWord应用的用户认证系统核心模块，主要功能包括：
       refreshAuthUI();
     }, 2000);
 
-    // 登录后根据当前语言自动执行同步
-    setTimeout(function () {
-      console.log('[AUTH] 登录后自动同步检测');
-      try {
-        const currentLang = (function () {
+    // 登录后执行LeanCloud同步
+        setTimeout(function () {
+          console.log('[AUTH] 登录后自动同步检测');
           try {
-            return localStorage.getItem('mw_lang') || 'zh';
-          } catch (_) {
-            return 'zh';
+            // 使用LeanCloud同步
+            if (window.MW_LC_SYNC && typeof window.MW_LC_SYNC.sync === 'function') {
+              console.log('[AUTH] 执行LeanCloud自动同步');
+              window.MW_LC_SYNC.sync();
+            } else {
+              console.log('[AUTH] LeanCloud同步未准备好，等待初始化');
+              // 如果同步功能还没准备好，稍后再试
+              setTimeout(function () {
+                if (window.MW_LC_SYNC && typeof window.MW_LC_SYNC.sync === 'function') {
+                  console.log('[AUTH] 重试LeanCloud自动同步');
+                  window.MW_LC_SYNC.sync();
+                }
+              }, 3000);
+            }
+          } catch (error) {
+            console.error('[AUTH] 自动同步失败:', error);
           }
-        })();
-
-        if (currentLang === 'zh') {
-          // 中文模式：使用LeanCloud同步
-          if (window.MW_LC_SYNC && typeof window.MW_LC_SYNC.sync === 'function') {
-            console.log('[AUTH] 检测到中文模式，执行LeanCloud自动同步');
-            window.MW_LC_SYNC.sync();
-          } else {
-            console.log('[AUTH] LeanCloud同步未准备好，等待初始化');
-            // 如果同步功能还没准备好，稍后再试
-            setTimeout(function () {
-              if (window.MW_LC_SYNC && typeof window.MW_LC_SYNC.sync === 'function') {
-                console.log('[AUTH] 重试LeanCloud自动同步');
-                window.MW_LC_SYNC.sync();
-              }
-            }, 3000);
-          }
-        } else {
-          // 英文模式：使用Cloudflare Worker同步
-          if (typeof window.bidirectionalSyncLatest === 'function') {
-            console.log('[AUTH] 检测到英文模式，执行Cloudflare Worker自动同步');
-            window.bidirectionalSyncLatest();
-          } else {
-            console.log('[AUTH] Cloudflare Worker同步未准备好，等待初始化');
-            setTimeout(function () {
-              if (typeof window.bidirectionalSyncLatest === 'function') {
-                console.log('[AUTH] 重试Cloudflare Worker自动同步');
-                window.bidirectionalSyncLatest();
-              }
-            }, 3000);
-          }
-        }
-      } catch (error) {
-        console.error('[AUTH] 自动同步失败:', error);
-      }
-    }, 4000); // 比认证状态刷新稍晚一些，确保所有组件都初始化完成
+        }, 4000); // 比认证状态刷新稍晚一些，确保所有组件都初始化完成
   }
 
   // 个人菜单下拉功能（增强版，支持点击外部区域自动关闭，包括iframe）

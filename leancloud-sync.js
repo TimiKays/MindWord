@@ -720,7 +720,7 @@
         // 两边都有 - 检查内容是否一致（包含图片数据）
         const isContentSame = localDoc.md === cloudDoc.md && JSON.stringify(localDoc.images || []) === JSON.stringify(cloudDoc.images || []);
         let description = '';
-        
+
         if (isContentSame) {
           description = '<span style="color: #28a745;">内容一致 ✓</span>';
         } else {
@@ -729,7 +729,7 @@
           const cloudImages = cloudDoc.images || [];
           const imagesChanged = JSON.stringify(localImages) !== JSON.stringify(cloudImages);
           const mdChanged = localDoc.md !== cloudDoc.md;
-          
+
           if (mdChanged && imagesChanged) {
             description = '<span style="color: #dc3545;">内容和图片都已变更</span>';
           } else if (imagesChanged) {
@@ -942,7 +942,7 @@
 
     allDocIds.forEach(docId => {
       const choice = choices[`doc_${docId}`];
-      
+
       // 用户明确选择了本地版本
       if (choice === 'local') {
         if (localDocMap.has(docId)) {
@@ -1013,7 +1013,6 @@
   // 新的同步逻辑：按照用户方案实现
   async function bidirectionalSync() {
     try {
-      if (getLang() !== 'zh') { showInfo('当前为英文模式，已使用 Cloudflare Worker 同步'); return; }
       if (!isLoggedIn()) { throw new Error('未登录'); }
       showInfo('正在智能同步...');
 
@@ -1150,7 +1149,6 @@
 
   async function clearCloud() {
     try {
-      if (getLang() !== 'zh') { showInfo('当前为英文模式，请用“清空备份”按钮'); return; }
       if (!isLoggedIn()) { throw new Error('未登录'); }
       if (!confirm('确认清空云端数据？此操作不可撤销')) return;
       const { obj } = await downloadCloud();
@@ -1201,20 +1199,13 @@
     // 登录状态或语言变化时切换显示
     function refreshVisible() {
       const authUser = document.getElementById('auth-user');
-      const enCtrls = document.getElementById('cloud-sync-controls');
-      // 未登录：两组隐藏，避免初次闪现
+      // 未登录：隐藏同步控制区域，避免初次闪现
       if (!authUser || authUser.style.display === 'none') {
-        if (enCtrls) enCtrls.style.display = 'none';
         if (zhCtrls) zhCtrls.style.display = 'none';
         return;
       }
-      if (getLang() === 'zh') {
-        if (enCtrls) enCtrls.style.display = 'none';
-        if (zhCtrls) zhCtrls.style.display = 'inline-flex';
-      } else {
-        if (enCtrls) enCtrls.style.display = 'inline-flex';
-        if (zhCtrls) zhCtrls.style.display = 'none';
-      }
+      // 始终显示中文同步控制区域，不受语言设置影响
+      if (zhCtrls) zhCtrls.style.display = 'inline-flex';
     }
 
     document.addEventListener('DOMContentLoaded', refreshVisible);
@@ -1250,19 +1241,28 @@
     // 初始化个人菜单状态
     setTimeout(() => {
       updateSyncStatus();
-      // 同时更新Cloudflare Worker的个人菜单状态
-      if (typeof window.__mw_initCloudSyncUI === 'function') {
-        window.__mw_initCloudSyncUI();
-      }
+      // 初始化个人菜单状态
+      updateSyncStatus();
     }, 100);
   });
 
   // 显示文件大小和同步状态
   function updateSyncStatus() {
     try {
-      // 根据当前语言选择对应的缓存键
+      // 获取当前语言
       const currentLang = getLang();
-      const cacheKey = currentLang === 'en' ? 'mw_cloud_sync_cache_en' : 'mw_cloud_sync_cache_cn';
+      const t = window.i18nManager ? window.i18nManager.getTranslation : null;
+
+      // 获取翻译文本的辅助函数
+      function getText(key, fallback) {
+        if (t && t.call) {
+          return t.call(window.i18nManager, key) || fallback;
+        }
+        return fallback;
+      }
+
+      // 使用中文缓存键（保持不变）
+      const cacheKey = 'mw_cloud_sync_cache_cn';
 
       // 首先尝试从本地缓存获取数据
       let cachedData = null;
@@ -1291,26 +1291,51 @@
           const diffDays = Math.floor(diffMs / 86400000);
 
           if (diffMins < 1) {
-            timeText = '刚刚';
+            timeText = getText('cloud.justNow', currentLang === 'en' ? 'Just now' : '刚刚');
           } else if (diffMins < 60) {
-            timeText = `${diffMins}分钟前`;
+            if (currentLang === 'en') {
+              timeText = `${diffMins} ${getText('cloud.minutesAgo', 'minutes ago')}`;
+            } else {
+              timeText = `${diffMins}${getText('cloud.minutesAgo', '分钟前')}`;
+            }
           } else if (diffHours < 24) {
-            timeText = `${diffHours}小时前`;
+            if (currentLang === 'en') {
+              timeText = `${diffHours} ${getText('cloud.hoursAgo', 'hours ago')}`;
+            } else {
+              timeText = `${diffHours}${getText('cloud.hoursAgo', '小时前')}`;
+            }
           } else if (diffDays < 7) {
-            timeText = `${diffDays}天前`;
+            if (currentLang === 'en') {
+              timeText = `${diffDays} ${getText('cloud.daysAgo', 'days ago')}`;
+            } else {
+              timeText = `${diffDays}${getText('cloud.daysAgo', '天前')}`;
+            }
           } else {
-            timeText = date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+            timeText = date.toLocaleDateString(currentLang === 'zh' ? 'zh-CN' : 'en-US', { month: 'short', day: 'numeric' });
           }
         }
 
         // 更新状态显示（主界面）
         const statusElement = document.getElementById('lc-sync-status');
         if (statusElement) {
-          statusElement.innerHTML = `
-            <small style="color: #666; font-size: 11px;">
-              文件: ${fileCount}个<br>${totalSizeKB}KB / 10MB${timeText ? '<br>备份: ' + timeText : ''}
-            </small>
-          `;
+          if (currentLang === 'en') {
+            // 英文环境下使用更简洁的格式
+            statusElement.innerHTML = `
+              <small style="color: #666; font-size: 11px;">
+                ${fileCount} files<br>${totalSizeKB}KB / 10MB${timeText ? '<br>' + timeText : ''}
+              </small>
+            `;
+          } else {
+            // 中文环境下使用中文格式
+            const filesText = getText('cloud.files', '文件');
+            const backupText = getText('cloud.backupTime', '备份');
+            const fileCountText = `${fileCount}${getText('cloud.fileCount', '个')}`;
+            statusElement.innerHTML = `
+              <small style="color: #666; font-size: 11px;">
+                ${filesText}: ${fileCountText}<br>${totalSizeKB}KB / 10MB${timeText ? '<br>' + backupText + ': ' + timeText : ''}
+              </small>
+            `;
+          }
 
           // 根据使用情况改变颜色
           if (sizeBytes > 8 * 1024 * 1024) { // 超过8MB
@@ -1323,7 +1348,16 @@
         // 更新个人菜单中的状态显示
         const menuStatusElement = document.getElementById('lc-sync-status-menu');
         if (menuStatusElement) {
-          menuStatusElement.innerHTML = `文件: ${fileCount}个<br>${totalSizeKB}KB / 10MB${timeText ? '<br>备份: ' + timeText : ''}`;
+          if (currentLang === 'en') {
+            // 英文环境下使用更简洁的格式
+            menuStatusElement.innerHTML = `${fileCount} files<br>${totalSizeKB}KB / 10MB${timeText ? '<br>' + timeText : ''}`;
+          } else {
+            // 中文环境下使用中文格式
+            const filesText = getText('cloud.files', '文件');
+            const backupText = getText('cloud.backupTime', '备份');
+            const fileCountText = `${fileCount}${getText('cloud.fileCount', '个')}`;
+            menuStatusElement.innerHTML = `${filesText}: ${fileCountText}<br>${totalSizeKB}KB / 10MB${timeText ? '<br>' + backupText + ': ' + timeText : ''}`;
+          }
 
           // 根据使用情况改变颜色
           if (sizeBytes > 8 * 1024 * 1024) { // 超过8MB
@@ -1339,7 +1373,7 @@
         const syncBtn = document.getElementById('lc-sync-btn');
         if (syncBtn) {
           syncBtn.disabled = false;
-          syncBtn.title = '一键同步';
+          syncBtn.title = getText('cloud.oneClickSync', '一键同步');
           syncBtn.style.opacity = '1';
         }
 
@@ -1347,7 +1381,7 @@
         const menuSyncBtn = document.getElementById('lc-sync-btn-menu');
         if (menuSyncBtn) {
           menuSyncBtn.disabled = false;
-          menuSyncBtn.title = '一键同步';
+          menuSyncBtn.title = getText('cloud.oneClickSync', '一键同步');
           menuSyncBtn.style.opacity = '1';
         }
 
@@ -1365,12 +1399,24 @@
       if (statusElement) {
         const totalSizeMB = (sizeCheck.totalSize / 1024).toFixed(1);
         const fileCount = validDocs.length;
-
-        statusElement.innerHTML = `
-          <small style="color: #666; font-size: 11px;">
-            文件: ${fileCount}个<br>${totalSizeMB}KB / 10MB
-          </small>
-        `;
+        
+        if (currentLang === 'en') {
+          // 英文环境下使用更简洁的格式
+          statusElement.innerHTML = `
+            <small style="color: #666; font-size: 11px;">
+              ${fileCount} files<br>${totalSizeMB}KB / 10MB
+            </small>
+          `;
+        } else {
+          // 中文环境下使用中文格式
+          const filesText = getText('cloud.files', '文件');
+          const fileCountText = `${fileCount}${getText('cloud.fileCount', '个')}`;
+          statusElement.innerHTML = `
+            <small style="color: #666; font-size: 11px;">
+              ${filesText}: ${fileCountText}<br>${totalSizeMB}KB / 10MB
+            </small>
+          `;
+        }
 
         // 根据使用情况改变颜色
         if (sizeCheck.totalSize > 8 * 1024 * 1024) { // 超过8MB
@@ -1385,8 +1431,16 @@
       if (menuStatusElement) {
         const totalSizeMB = (sizeCheck.totalSize / 1024).toFixed(1);
         const fileCount = validDocs.length;
-
-        menuStatusElement.innerHTML = `文件: ${fileCount}个<br>${totalSizeMB}KB / 10MB`;
+        
+        if (currentLang === 'en') {
+          // 英文环境下使用更简洁的格式
+          menuStatusElement.innerHTML = `${fileCount} files<br>${totalSizeMB}KB / 10MB`;
+        } else {
+          // 中文环境下使用中文格式
+          const filesText = getText('cloud.files', '文件');
+          const fileCountText = `${fileCount}${getText('cloud.fileCount', '个')}`;
+          menuStatusElement.innerHTML = `${filesText}: ${fileCountText}<br>${totalSizeMB}KB / 10MB`;
+        }
 
         // 根据使用情况改变颜色
         if (sizeCheck.totalSize > 8 * 1024 * 1024) { // 超过8MB
@@ -1403,11 +1457,11 @@
       if (syncBtn) {
         if (!sizeCheck.valid) {
           syncBtn.disabled = true;
-          syncBtn.title = '文件大小检查失败：' + sizeCheck.errors.join('；');
+          syncBtn.title = getText('cloud.fileSizeCheckFailed', '文件大小检查失败') + '：' + sizeCheck.errors.join('；');
           syncBtn.style.opacity = '0.6';
         } else {
           syncBtn.disabled = false;
-          syncBtn.title = '一键同步';
+          syncBtn.title = getText('cloud.oneClickSync', '一键同步');
           syncBtn.style.opacity = '1';
         }
       }
@@ -1417,11 +1471,11 @@
       if (menuSyncBtn) {
         if (!sizeCheck.valid) {
           menuSyncBtn.disabled = true;
-          menuSyncBtn.title = '文件大小检查失败：' + sizeCheck.errors.join('；');
+          menuSyncBtn.title = getText('cloud.fileSizeCheckFailed', '文件大小检查失败') + '：' + sizeCheck.errors.join('；');
           menuSyncBtn.style.opacity = '0.6';
         } else {
           menuSyncBtn.disabled = false;
-          menuSyncBtn.title = '一键同步';
+          menuSyncBtn.title = getText('cloud.oneClickSync', '一键同步');
           menuSyncBtn.style.opacity = '1';
         }
       }
@@ -1433,5 +1487,13 @@
 
   // 暴露手动入口（如需）
   window.MW_LC_SYNC = { sync: bidirectionalSync, clear: clearCloud, updateStatus: updateSyncStatus };
+
+  // 注册语言变化监听器 - 当语言切换时重新更新同步状态
+  if (window.i18nManager && window.i18nManager.addLanguageChangeListener) {
+    window.i18nManager.addLanguageChangeListener(function(newLanguage) {
+      console.log('[LeanCloudSync] Language changed to:', newLanguage, ' - updating sync status');
+      updateSyncStatus();
+    });
+  }
 
 })();

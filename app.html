@@ -798,8 +798,8 @@
                         </div>
 
                         <div class="user-menu-items" style="padding: 8px 0;">
-                            <!-- 云同步控制区（英文）：Cloudflare Worker 方案 -->
-                            <div class="menu-item" id="cloud-sync-controls-menu"
+                            <!-- 云同步控制区：LeanCloud Data 方案 -->
+                            <div class="menu-item" id="lc-sync-controls-menu"
                                 style="display:flex; align-items:center; gap:8px; padding: 8px 16px; cursor: pointer; transition: background-color 0.15s ease;">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                     stroke-width="2">
@@ -809,34 +809,13 @@
                                     <line x1="12" y1="22.08" x2="12" y2="12" />
                                 </svg>
                                 <div style="flex: 1;">
-                                    <div style="font-size: 13px; color: #374151;" data-i18n="cloud.backupTitle">云同步
-                                    </div>
-                                    <div style="font-size: 11px; color: #9ca3af;" id="cloud-sync-status-menu"
-                                        data-i18n="docs.bidirectionalSync">双向同步为最新</div>
-                                </div>
-                                <button id="cloud-sync-sync-btn-menu" class="btn btn-small"
-                                    style="height:24px; font-size:11px; padding: 0 8px;"
-                                    data-i18n="cloud.sync">同步</button>
-                            </div>
-
-                            <!-- 云同步控制区（中文）：LeanCloud Data 方案 -->
-                            <div class="menu-item" id="lc-sync-controls-menu"
-                                style="display:none; align-items:center; gap:8px; padding: 8px 16px; cursor: pointer; transition: background-color 0.15s ease;">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2">
-                                    <path
-                                        d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                                    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                                    <line x1="12" y1="22.08" x2="12" y2="12" />
-                                </svg>
-                                <div style="flex: 1;">
-                                    <div style="font-size: 13px; color: #374151;" data-i18n="cloud.backupTitle">云同步
+                                    <div style="font-size: 13px; color: #374151;" data-i18n="cloud.backupTitle">云备份
                                     </div>
                                     <div style="font-size: 11px; color: #9ca3af;" id="lc-sync-status-menu"
                                         data-i18n="docs.oneClickSync">一键同步</div>
                                 </div>
                                 <button id="lc-sync-btn-menu" class="btn btn-small"
-                                    style="height:24px; font-size:11px; padding: 0 8px;">同步</button>
+                        style="height:24px; font-size:11px; padding: 0 8px;" data-i18n="cloud.sync">同步</button>
                             </div>
 
                             <div class="menu-item"
@@ -875,59 +854,10 @@
                     <!-- 隐藏的退出登录按钮（用于菜单调用） -->
                     <button id="auth-logout-menu" style="display:none;"></button>
 
-                    <!-- 云同步弹窗（英文方案使用） -->
-                    <div id="cloud-sync-modal"
-                        style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;">
-                        <div
-                            style="background: white; padding: 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); max-width: 420px; width: 90%;">
-                            <h3 style="margin: 0 0 10px 0; color: #333;" data-i18n="cloud.backupTitle">云备份</h3>
-                            <div style="font-size: 13px; color: #555; margin-bottom: 12px;">
-                                <div>最新备份时间：<span id="cloud-sync-latest-time">—</span></div>
-                                <div>已备份文件数：<span id="cloud-sync-file-count">—</span></div>
-                                <div>总体大小：<span id="cloud-sync-total-size">—</span></div>
-                                <div style="color:#888; margin-top:6px;" data-i18n="cloud.capacityLimit">容量上限：每用户
-                                    10MB（仅保留最新一份）</div>
-                            </div>
-                            <div style="display:flex; gap:8px; justify-content:flex-end;">
-                                <button id="cloud-sync-modal-sync" class="btn btn-small" style="height:30px;"
-                                    data-i18n="cloud.sync">一键同步</button>
-                                <button id="cloud-sync-modal-clear" class="btn btn-small"
-                                    style="height:30px; background:#e74c3c; color:#fff;"
-                                    data-i18n="cloud.clear">清空备份</button>
-                                <button id="cloud-sync-modal-close" class="btn btn-small" style="height:30px;"
-                                    data-i18n="cloud.close">关闭</button>
-                            </div>
-                        </div>
-                    </div>
+
                 </div>
 
-                <!-- 云同步弹窗（英文方案使用） -->
-                <div id="cloud-sync-modal"
-                    style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;">
-                    <div
-                        style="background: white; padding: 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); max-width: 420px; width: 90%;">
-                        <h3 style="margin: 0 0 10px 0; color: #333;">云备份</h3>
-                        <div style="font-size: 13px; color: #555; margin-bottom: 12px;">
-                            <div><span data-i18n="cloud.latestBackup">最新备份时间</span>：<span
-                                    id="cloud-sync-latest-time">—</span></div>
-                            <div><span data-i18n="cloud.fileCount">已备份文件数</span>：<span
-                                    id="cloud-sync-file-count">—</span></div>
-                            <div><span data-i18n="cloud.totalSize">总体大小</span>：<span id="cloud-sync-total-size">—</span>
-                            </div>
-                            <div style="color:#888; margin-top:6px;"><span data-i18n="cloud.capacityLimit">容量上限：每用户
-                                    10MB（仅保留最新一份）</span></div>
-                        </div>
-                        <div style="display:flex; gap:8px; justify-content:flex-end;">
-                            <button id="cloud-sync-modal-sync" class="btn btn-small" style="height:30px;"
-                                data-i18n="docs.oneClickSync">一键同步</button>
-                            <button id="cloud-sync-modal-clear" class="btn btn-small"
-                                style="height:30px; background:#e74c3c; color:#fff;"
-                                data-i18n="cloud.clear">清空备份</button>
-                            <button id="cloud-sync-modal-close" class="btn btn-small" style="height:30px;"
-                                data-i18n="cloud.close">关闭</button>
-                        </div>
-                    </div>
-                </div>
+
             </div>
         </div>
     </header>
@@ -1028,8 +958,6 @@
     <!-- AI配置和提示词模板的修改监听 -->
     <script src="monitor-AIset.js"></script>
 
-    <!-- 云同步逻辑脚本（英文方案：Cloudflare Worker/R2） -->
-    <script src="cloud-sync.js"></script>
     <!-- 中文方案：LeanCloud Data 同步脚本 -->
     <script src="leancloud-sync.js"></script>
 </body>

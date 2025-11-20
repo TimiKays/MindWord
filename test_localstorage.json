@@ -1,0 +1,21 @@
+{
+  "documents": [
+    {
+      "title": "测试图片同步文档",
+      "content": "这是一个包含图片的测试文档",
+      "images": [
+        {
+          "id": "img1",
+          "url": "test1.jpg",
+          "alt": "测试图片1"
+        },
+        {
+          "id": "img2",
+          "url": "test2.png",
+          "alt": "测试图片2"
+        }
+      ],
+      "timestamp": 1234567890
+    }
+  ]
+}

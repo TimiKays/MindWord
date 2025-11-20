@@ -755,8 +755,17 @@ const i18nLocales = {
       clear: 'Clear',
       close: 'Close',
       latestBackup: 'Latest backup time',
-      fileCount: 'Number of backed up files',
-      totalSize: 'Total size'
+      fileCount: 'Files backed up',
+      totalSize: 'Total size',
+      oneClickSync: 'One-click sync',
+      files: 'Files',
+      backupTime: 'Backup',
+      justNow: 'Just now',
+      minutesAgo: 'minutes ago',
+      hoursAgo: 'hours ago',
+      daysAgo: 'days ago',
+      fileSizeCheckFailed: 'File size check failed',
+      syncStatus: 'Sync status'
     },
 
     // 文档管理

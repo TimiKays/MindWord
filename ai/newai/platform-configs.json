@@ -39,7 +39,7 @@
       "modelsFetched": false
     },
     "cloudflare": {
-      "name": "Cloudflare Workers AI",
+      "name": "Workers AI",
       "baseUrl": "https://api.cloudflare.com/client/v4/accounts/ACCOUNT_ID_PLACEHOLDER/ai/v1",
       "modelsUrl": "https://api.cloudflare.com/client/v4/accounts/ACCOUNT_ID_PLACEHOLDER/ai/models",
       "apiKeyUrl": "https://dash.cloudflare.com/profile/api-tokens",

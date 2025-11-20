@@ -1115,7 +1115,7 @@
 
                 isConfigured() {
                     // 原有逻辑：需要 platform/model/apiKey
-                    // 增强：若 apiKey 缺失但平台在配置中提供了 proxyUrl（例如通过后端代理/Cloudflare Worker），
+                    // 增强：若 apiKey 缺失但平台在配置中提供了 proxyUrl（例如通过后端代理），
                     // 则视作已配置以允许代理转发路径（前端仍不保存或暴露任何密钥）。
                     if (!this.config.selectedPlatform || !this.config.selectedModel) {
                         return false;
@@ -1542,7 +1542,7 @@
                 async _callZhipu(prompt, temperature, maxTokens) {
                     // 支持两种调用模式：
                     // 1) 用户提供 apiKey：按原有逻辑直接请求平台
-                    // 2) 用户未提供 apiKey，但平台配置中提供了 proxyUrl：将请求转发到 proxyUrl（由 Cloudflare Worker 等在服务端持有内置 Key 并完成真实调用）
+                    // 2) 用户未提供 apiKey，但平台配置中提供了 proxyUrl：将请求转发到 proxyUrl（由服务端代理完成真实调用）
                     const messages = Array.isArray(prompt)
                         ? prompt
                         : [{ role: "user", content: prompt }];
@@ -1831,11 +1831,7 @@
                     // //  2) 如果需要提供“免配置”体验，请在后端通过受保护的服务端代理或在运行时由受信任的后端注入密钥（推荐），
                     // //     前端仅接收是否可用的布尔标志或短期一次性 token（不在代码/LocalStorage 中保存长期密钥）。
                     // //  3) 仍保留默认模型名称提示，但不包含任何可调用 API 的凭据。
-                    // //  4) 仅在英文环境下自动创建默认配置，避免中文环境下自动创建
-                    // const currentLang = window.i18nManager.getCurrentLanguage();
-                    // console.log('新用户无配置，当前语言:', currentLang);
-
-                    // if (currentLang === 'en') {
+                    // //  4) 统一使用LeanCloud同步方案，不再区分语言环境
                     //     console.log('英文环境，创建安全的默认占位配置');
                     //     allPlatformConfigs = {
                     //         // 仅预填充平台元信息（不含 apiKey）

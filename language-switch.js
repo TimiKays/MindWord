@@ -1,25 +1,13 @@
 const LANG_KEY = 'mw_lang';
 function getLang() { try { return localStorage.getItem(LANG_KEY) || 'zh'; } catch (_) { return 'zh'; } }
 function applyLangToUI() {
-  const lang = getLang();
   const authUser = document.getElementById('auth-user');
-  const enCtrls = document.getElementById('cloud-sync-controls');
   const zhCtrls = document.getElementById('lc-sync-controls');
-  const enMenuCtrls = document.getElementById('cloud-sync-controls-menu');
   const zhMenuCtrls = document.getElementById('lc-sync-controls-menu');
   if (!authUser || authUser.style.display === 'none') return;
-  if (lang === 'zh') {
-    if (enCtrls) enCtrls.style.display = 'none';
-    if (zhCtrls) zhCtrls.style.display = 'inline-flex';
-    if (enMenuCtrls) enMenuCtrls.style.display = 'none';
-    if (zhMenuCtrls) zhMenuCtrls.style.display = 'flex';
-  }
-  else {
-    if (enCtrls) enCtrls.style.display = 'inline-flex';
-    if (zhCtrls) zhCtrls.style.display = 'none';
-    if (enMenuCtrls) enMenuCtrls.style.display = 'flex';
-    if (zhMenuCtrls) zhMenuCtrls.style.display = 'none';
-  }
+  // 始终显示中文同步控制区域，不受语言设置影响
+  if (zhCtrls) zhCtrls.style.display = 'inline-flex';
+  if (zhMenuCtrls) zhMenuCtrls.style.display = 'flex';
 }
 document.addEventListener('DOMContentLoaded', function () {
   var sel = document.getElementById('lang-switch');
@@ -27,6 +15,10 @@ document.addEventListener('DOMContentLoaded', function () {
     try { sel.value = getLang(); } catch (_) { }
     sel.addEventListener('change', function () {
       try { localStorage.setItem(LANG_KEY, sel.value); } catch (_) { }
+      // 使用i18n管理器切换语言，这会触发所有监听器
+      if (window.i18nManager && window.i18nManager.setLanguage) {
+        window.i18nManager.setLanguage(sel.value);
+      }
       applyLangToUI();
     });
   }
