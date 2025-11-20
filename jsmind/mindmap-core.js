@@ -740,78 +740,7 @@ function initMindmap() {
 function setupMindmapScrolling() {
   if (!jm) return;
 
-  // 视口保存/恢复工具（用于在删除/撤销/重载时保持画布位置）
-  let __mw_savedViewport = null;
-  function saveViewport() {
-    try {
-      const container = document.getElementById('fullScreenMindmap');
-      if (!container) return;
-      const inner = container.querySelector('.jsmind-inner') || container;
-      // 优先保存当前选中节点 id（若有）
-      let selectedId = null;
-      try {
-        selectedId = (window.jm && typeof jm.get_selected_node === 'function' && jm.get_selected_node()) ? jm.get_selected_node().id : null;
-      } catch (e) { selectedId = null; }
-      // 优先使用 jm.view（若存在）读取缩放与平移
-      let zoom = null, pan = null;
-      try {
-        if (window.jm && jm.view && typeof jm.view.get_scale === 'function') {
-          zoom = jm.view.get_scale && jm.view.get_scale();
-        }
-        if (window.jm && jm.view && typeof jm.view.get_translate === 'function') {
-          pan = jm.view.get_translate && jm.view.get_translate();
-        }
-      } catch (e) { /* ignore */ }
-      __mw_savedViewport = {
-        scrollTop: inner.scrollTop,
-        scrollLeft: inner.scrollLeft,
-        zoom: zoom,
-        pan: pan,
-        selectedId: selectedId,
-        // also save container transform style as fallback
-        transform: container.style.transform || ''
-      };
-      try { console.log('[MMAP] saveViewport', __mw_savedViewport); } catch (e) { }
-    } catch (e) { /* ignore */ }
-  }
-  function restoreViewport() {
-    try {
-      if (!__mw_savedViewport) return;
-      const container = document.getElementById('fullScreenMindmap');
-      if (!container) return;
-      const inner = container.querySelector('.jsmind-inner') || container;
-      // 优先使用 jm.view API 恢复缩放与平移
-      try {
-        if (window.jm && jm.view && typeof jm.view.set_scale === 'function' && __mw_savedViewport.zoom != null) {
-          jm.view.set_scale && jm.view.set_scale(__mw_savedViewport.zoom);
-        }
-        if (window.jm && jm.view && typeof jm.view.set_translate === 'function' && __mw_savedViewport.pan != null) {
-          jm.view.set_translate && jm.view.set_translate(__mw_savedViewport.pan);
-        }
-      } catch (e) { /* ignore */ }
-      // 恢复 scroll
-      try { inner.scrollTop = __mw_savedViewport.scrollTop || 0; } catch (e) { }
-      try { inner.scrollLeft = __mw_savedViewport.scrollLeft || 0; } catch (e) { }
-      // 恢复 transform 样式作为最后手段
-      if (container.style && __mw_savedViewport.transform) {
-        container.style.transform = __mw_savedViewport.transform;
-      }
-      // 优先恢复之前的选中节点（仅当节点仍然存在且不是 root 被强制选中时）
-      try {
-        const wanted = __mw_savedViewport.selectedId;
-        if (wanted && window.jm && typeof jm.get_node === 'function' && jm.get_node(wanted)) {
-          const cur = (jm.get_selected_node && jm.get_selected_node()) ? jm.get_selected_node().id : null;
-          if (cur !== wanted) {
-            // 仅在必要时恢复选中，避免触发不必要的焦点变换
-            try { jm.select_node && jm.select_node(wanted); } catch (e) { /* ignore */ }
-            try { console.log('[MMAP] restoreSelection ->', wanted); } catch (e) { }
-          }
-        }
-      } catch (e) { /* ignore */ }
-      try { console.log('[MMAP] restoreViewport', __mw_savedViewport); } catch (e) { }
-      __mw_savedViewport = null;
-    } catch (e) { /* ignore */ }
-  }
+
 
   const container = document.getElementById('fullScreenMindmap');
   if (!container) return;
@@ -943,31 +872,6 @@ function setupMindmapScrolling() {
                     // 捕获自输入域：跳过立即显示详情以避免在 mouseup 时抢占输入焦点
                     console.log('[MW][details] skipped showNodeDetails due to active input capture');
                   }
-
-                  // AFTER showing details, ensure node has sufficient margin from all four edges (left/right/top/bottom)
-                  // try {
-                  //   const panel = document.getElementById('fullScreenMindmap') && document.getElementById('fullScreenMindmap').querySelector('.jsmind-inner');
-                  //   const nodeEl = node && node._data && node._data.view && node._data.view.element ? node._data.view.element : targetElem;
-                  //   if (panel && nodeEl && typeof panel.getBoundingClientRect === 'function' && typeof nodeEl.getBoundingClientRect === 'function') {
-                  //     const panelRect = panel.getBoundingClientRect();
-                  //     const nodeRect = nodeEl.getBoundingClientRect();
-                  //     const rightGap = panelRect.right - nodeRect.right; // px
-                  //     const MIN_GAP = 350; // px
-                  //     if (rightGap < MIN_GAP) {
-                  //       const delta = Math.round(MIN_GAP - rightGap);
-                  //       const before = panel.scrollLeft;
-                  //       try {
-                  //         panel.scrollBy({ left: delta, behavior: 'auto' });
-                  //       } catch (e) {
-                  //         panel.scrollLeft = panel.scrollLeft + delta;
-                  //       }
-                  //       const after = panel.scrollLeft;
-                  //       console.log('[MW][details] adjusted scroll to keep node left of right edge', { id: lastId, rightGap: rightGap, delta: delta, scrollBefore: before, scrollAfter: after });
-                  //     } else {
-                  //       console.log('[MW][details] no scroll adjustment needed', { id: lastId, rightGap: rightGap });
-                  //     }
-                  //   }
-                  // } catch (e) { console.warn('[MW][details] scroll adjust failed', e); }
                 }
               } catch (e) { console.warn('[MW][details] mouseup showNodeDetails failed', e); }
             } else {
@@ -5325,7 +5229,7 @@ document.addEventListener('focusout', (e) => {
 // 从父页面同步语言设置（iframe环境）
 (function () {
   let lastLanguage = null;
-  
+
   // 从localStorage读取语言设置
   function readLanguageFromStorage() {
     try {
@@ -5334,11 +5238,11 @@ document.addEventListener('focusout', (e) => {
       return null;
     }
   }
-  
+
   // 同步语言设置
   function syncLanguage() {
     if (!window.i18nManager) return;
-    
+
     const currentLang = readLanguageFromStorage();
     if (currentLang && currentLang !== lastLanguage && currentLang !== window.i18nManager.currentLanguage) {
       console.log('[LanguageSync] 同步语言:', currentLang);
@@ -5346,16 +5250,16 @@ document.addEventListener('focusout', (e) => {
       lastLanguage = currentLang;
     }
   }
-  
+
   // 监听storage事件（同一浏览器标签页间的同步）
-  window.addEventListener('storage', function(e) {
+  window.addEventListener('storage', function (e) {
     if (e.key === 'mindword-language') {
       syncLanguage();
     }
   });
-  
+
   // 监听来自父页面的消息（跨iframe通信）
-  window.addEventListener('message', function(e) {
+  window.addEventListener('message', function (e) {
     if (e.data && e.data.type === 'languageChanged' && e.data.language) {
       console.log('[LanguageSync] 收到父页面语言变更:', e.data.language);
       if (window.i18nManager && window.i18nManager.currentLanguage !== e.data.language) {
@@ -5364,7 +5268,7 @@ document.addEventListener('focusout', (e) => {
       }
     }
   });
-  
+
   // 页面加载完成后同步语言
   function initLanguageSync() {
     syncLanguage();
@@ -5373,12 +5277,12 @@ document.addEventListener('focusout', (e) => {
       window.parent.postMessage({ type: 'getLanguage' }, '*');
     }
   }
-  
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initLanguageSync);
   } else {
     initLanguageSync();
   }
-  
+
   console.log('[LanguageSync] 语言同步功能已初始化');
 })();
