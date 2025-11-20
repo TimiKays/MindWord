@@ -280,6 +280,9 @@
         <span id="help-btn" class="ico-btn" role="button" tabindex="0" title="帮助"
             style="--ico: url('res/help.svg'); "></span>
 
+        <span id="cleanup-btn" class="ico-btn" role="button" tabindex="0" title="清理未使用图片"
+            style="--ico: url('../res/删除.svg'); "></span>
+
 
         <style>
             /* ==== Editor: help button 调整，移除按钮背景避免 svg 与按钮背景叠层 ==== */
@@ -377,7 +380,7 @@
 1. 有序列表
 2. 第二项
 
-`代码片段`
+``代码片段``
 
 > 这是一个引用
 
@@ -527,6 +530,7 @@
                 document.getElementById('export-btn').addEventListener('click', () => this.exportContent());
                 document.getElementById('upload-btn').addEventListener('click', () => this.uploadFile());
                 document.getElementById('help-btn').addEventListener('click', () => this.toggleHelp());
+                document.getElementById('cleanup-btn').addEventListener('click', () => this.manualCleanupImages());
                 document.getElementById('help-close').addEventListener('click', () => this.toggleHelp());
 
                 // 文件上传
@@ -583,17 +587,99 @@
 
             hasUnsavedChanges() {
                 const current = this.getContent();
-                const saved = localStorage.getItem('markdown-content');
+                const saved = localStorage.getItem('mindword_markdown_data');
                 return current !== saved;
+            }
+
+            /**
+             * 从markdown内容中提取所有图片引用，补充缺失的图片对象
+             */
+            extractAndSupplementImages(content) {
+                const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+                let match;
+
+                while ((match = imageRegex.exec(content)) !== null) {
+                    const imageName = match[1]; // 图片名称
+                    const imageId = match[2]; // 图片ID或URL
+
+                    // 只处理本地图片ID（排除http://, https://等外部链接）
+                    if (imageId && !imageId.match(/^(https?:\/\/|data:)/)) {
+                        // 如果图片不存在于images Map中，创建一个空的图片对象
+                        if (!this.images.has(imageId)) {
+                            this.images.set(imageId, {
+                                name: imageName || imageId,
+                                data: '', // 数据为空，因为无法从markdown中恢复图片数据
+                                type: 'image/png' // 默认类型
+                            });
+                            console.log(`补充图片引用: ${imageId} (${imageName})`);
+                        }
+                    }
+                }
+            }
+
+            /**
+             * 清理未在Markdown内容中引用的图片
+             */
+            cleanupUnusedImages() {
+                const content = this.getContent();
+                let removedCount = 0;
+
+                // 获取所有在Markdown中被引用的图片ID
+                const referencedIds = new Set();
+                const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+                let match;
+
+                while ((match = imageRegex.exec(content)) !== null) {
+                    const imageId = match[2]; // 获取图片ID或URL
+                    // 只处理本地图片ID（排除http://, https://等外部链接）
+                    if (imageId && !imageId.match(/^(https?:\/\/|data:)/)) {
+                        referencedIds.add(imageId);
+                    }
+                }
+
+                // 清理未引用的图片
+                for (const [id, data] of this.images.entries()) {
+                    if (!referencedIds.has(id)) {
+                        this.images.delete(id);
+                        removedCount++;
+                    }
+                }
+
+                if (removedCount > 0) {
+                    console.log(`清理了 ${removedCount} 张未使用的图片`);
+                }
+
+                return removedCount;
+            }
+
+            /**
+             * 手动清理图片，带用户提示
+             */
+            manualCleanupImages() {
+                const removedCount = this.cleanupUnusedImages();
+
+                if (removedCount > 0) {
+                    this.saveToStorage(true);
+                    this.showMessage(`✅ 已清理 ${removedCount} 张未使用的图片`, 'success');
+                } else {
+                    this.showMessage('📝 没有发现未使用的图片', 'info');
+                }
             }
 
             saveToStorage(manual = false) {
                 const content = this.getContent();
+
+                // 从markdown内容中提取所有图片引用，补充缺失的图片对象
+                this.extractAndSupplementImages(content);
+
+                // 清理未使用的图片
+                this.cleanupUnusedImages();
+
                 const images = Array.from(this.images.entries());
 
                 localStorage.setItem('mindword_markdown_data', content);
                 localStorage.setItem('markdown-images', JSON.stringify(images));
-                localStorage.setItem('markdown-save-time', Date.now().toString());
+                localStorage.setItem('mindword-save-time', Date.now().toString());
 
                 // 使用 converter 的同步能力，联动更新 AST 与 NodeTree 并写入缓存
                 if (window.syncAll) {
@@ -611,11 +697,12 @@
                 if (!window.__mw_receiving) {
                     try {
                         const activeId = window.__mw_activeDocId || null;
-                        // 将 Map entries 转为导出/存库通用的数组格式
-                        const imgList = Array.from(this.images.values()).map(v => ({
-                            name: v.name || '',
-                            mime: v.type || 'image/png',
-                            dataUrl: v.data || ''
+                        // 将 Map entries 转为导出/存库通用的数组格式，保留ID信息
+                        const imgList = Array.from(this.images.entries()).map(([id, data]) => ({
+                            id: id,
+                            name: data.name || '',
+                            mime: data.type || 'image/png',
+                            dataUrl: data.data || ''
                         }));
                         window.parent.postMessage({
                             type: 'mw_document_changed',
@@ -666,9 +753,42 @@
                 if (savedImages) {
                     try {
                         const imageArray = JSON.parse(savedImages);
-                        this.images = new Map(imageArray);
+                        // 检查图片数据格式，确保正确加载
+                        if (Array.isArray(imageArray)) {
+                            // 如果是数组格式，检查是否是 [[key, value], [key, value], ...] 或 [{name, dataUrl, mime}, ...]
+                            if (imageArray.length > 0) {
+                                const firstItem = imageArray[0];
+                                if (Array.isArray(firstItem)) {
+                                    // [[key, value], [key, value], ...] 格式
+                                    this.images = new Map(imageArray);
+                                } else if (typeof firstItem === 'object' && firstItem !== null) {
+                                    // [{id, name, dataUrl, mime}, ...] 或 [{name, dataUrl, mime}, ...] 格式
+                                    const imagesMap = new Map();
+                                    imageArray.forEach(img => {
+                                        // 优先使用已有的ID，如果没有则尝试从Markdown中提取，最后才生成新ID
+                                        const imageId = img.id ||
+                                            this.extractImageIdFromMarkdown(img.name) ||
+                                            'img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                                        imagesMap.set(imageId, {
+                                            name: img.name || '',
+                                            data: img.dataUrl || '',  // dataUrl -> data
+                                            type: img.mime || 'image/png'  // mime -> type
+                                        });
+                                    });
+                                    this.images = imagesMap;
+                                } else {
+                                    // 其他格式，使用默认空Map
+                                    this.images = new Map();
+                                }
+                            } else {
+                                this.images = new Map();
+                            }
+                        } else {
+                            this.images = new Map();
+                        }
                     } catch (e) {
                         console.warn('Failed to load images from storage:', e);
+                        this.images = new Map();  // 出错时使用空Map
                     }
                 }
 
@@ -761,6 +881,22 @@
                 return 'img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
             }
 
+            // 从Markdown内容中提取图片ID
+            extractImageIdFromMarkdown(imageName) {
+                if (!this.editor) return null;
+
+                const content = this.editor.getValue();
+                // 匹配 ![imageName](imageId) 格式的图片引用
+                const regex = new RegExp(`!\\[${imageName.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\]\\(([^)]+)\\)`, 'g');
+                const matches = [...content.matchAll(regex)];
+
+                if (matches.length > 0) {
+                    // 返回第一个匹配的图片ID
+                    return matches[0][1];
+                }
+                return null;
+            }
+
             insertAtCursor(text) {
                 // 使用工具库的insertAtCursor函数，保持编辑器状态同步
                 HtmlMarkdownUtils.insertAtCursor(this.editor, text);
@@ -844,7 +980,7 @@
                         // 限制长度
                         return cleanTitle.length > 50 ? cleanTitle.substring(0, 50) : cleanTitle;
                     }
-                    
+
                     // 备用方案：如果没有 mw_extractTitleFromMd，使用简单实现
                     const lines = content.split('\n');
                     for (let line of lines) {
@@ -923,6 +1059,21 @@
                     throw new Error('ZIP文件中未找到.md文件');
                 }
 
+                // 建立图片ID映射（用于从文件名查找图片ID）
+                const imageIdMap = new Map();
+                
+                // 从markdown内容中提取图片引用，建立文件名到图片ID的映射
+                const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+                let match;
+                while ((match = imageRegex.exec(markdownContent)) !== null) {
+                    const imageId = match[2]; // 图片ID
+                    const imageName = match[1]; // 图片名称
+                    
+                    // 从图片ID中提取文件名（移除扩展名）
+                    const fileNameWithoutExt = imageId.replace(/\.[^.]+$/, '');
+                    imageIdMap.set(fileNameWithoutExt, imageId);
+                }
+
                 // 处理图片文件
                 for (let [filename, zipEntry] of Object.entries(zipContent.files)) {
                     if (this.isImageFile(filename) && !zipEntry.dir) {
@@ -930,19 +1081,15 @@
                         const mimeType = this.getMimeTypeFromExtension(filename);
                         const dataUrl = `data:${mimeType};base64,${imageData}`;
 
-                        const imageId = this.generateImageId();
+                        // 从文件名（不含扩展名）查找对应的图片ID
+                        const fileNameWithoutExt = filename.replace(/^images\//, '').replace(/\.[^.]+$/, '');
+                        const imageId = imageIdMap.get(fileNameWithoutExt) || this.generateImageId();
+                        
                         newImages.set(imageId, {
                             name: filename,
                             data: dataUrl,
                             type: mimeType
                         });
-
-                        // 替换MD内容中的图片引用
-                        const imagePath = filename.replace(/^images\//, '');
-                        markdownContent = markdownContent.replace(
-                            new RegExp(`!\\[([^\\]]*)\\]\\(images/${imagePath}\\)`, 'g'),
-                            `![$1](${imageId})`
-                        );
                     }
                 }
 
@@ -1512,7 +1659,18 @@
                         // 设置图片 Map（兼容数组或对象）
                         try {
                             if (Array.isArray(images)) {
-                                window.markdownEditor.images = new Map(images);
+                                // 转换数组格式 [{name, dataUrl, mime}, ...] 为 Map<id, {name, data, type}>
+                                const imagesMap = new Map();
+                                images.forEach(img => {
+                                    // 优先使用图片的ID，如果没有则使用名称，最后才生成新ID
+                                    const imageId = img.id || img.name || 'img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                                    imagesMap.set(imageId, {
+                                        name: img.name || '',
+                                        data: img.dataUrl || '',  // dataUrl -> data
+                                        type: img.mime || 'image/png'  // mime -> type
+                                    });
+                                });
+                                window.markdownEditor.images = imagesMap;
                             } else if (images && typeof images === 'object') {
                                 window.markdownEditor.images = new Map(Object.entries(images));
                             } else {
@@ -1562,7 +1720,18 @@
                             // 同步图片（兼容数组或对象）
                             try {
                                 if (Array.isArray(images)) {
-                                    window.markdownEditor.images = new Map(images);
+                                    // 转换数组格式 [{name, dataUrl, mime}, ...] 为 Map<id, {name, data, type}>
+                                    const imagesMap = new Map();
+                                    images.forEach(img => {
+                                        // 优先使用图片的ID，如果没有则使用名称，最后才生成新ID
+                                        const imageId = img.id || img.name || 'img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                                        imagesMap.set(imageId, {
+                                            name: img.name || '',
+                                            data: img.dataUrl || '',  // dataUrl -> data
+                                            type: img.mime || 'image/png'  // mime -> type
+                                        });
+                                    });
+                                    window.markdownEditor.images = imagesMap;
                                 } else if (images && typeof images === 'object') {
                                     window.markdownEditor.images = new Map(Object.entries(images));
                                 } else {

@@ -2607,7 +2607,7 @@
             const doc = {
                 id, name,
                 md: '# ' + name + '\n',
-                images: [], // {name, mime, dataUrl}
+                images: [], // {id, name, mime, dataUrl}
                 createdAt: Date.now(),
                 updatedAt: Date.now(),
                 version: 1
@@ -2624,7 +2624,7 @@
             if (useAIGenerate) {
                 // 立即隐藏文档侧边栏
                 mw_toggleSidebar(false);
-                
+
                 setTimeout(() => {
                     const mindmapFrame = document.querySelector('iframe[data-panel="mindmap"], iframe#iframe-mindmap, iframe[src*="jsmind/mindmap.html"]');
                     if (mindmapFrame && mindmapFrame.contentWindow && mindmapFrame.contentWindow.aiGenerateInitialTreeMini) {
@@ -2885,13 +2885,13 @@
 
         function mw_notifyEditorLoad(doc) {
             const editorIframe = document.querySelector('iframe[data-panel="editor"], iframe#iframe-editor, iframe[src*="editor/editor.html"]');
+            // 确保图片数据格式正确传递给编辑器
+            const images = doc.images || [];
             const payload = {
                 id: doc.id,
                 name: doc.name,
                 md: doc.md,
-                images: doc.images || [],
-                aiPlatformConfigs: doc.aiPlatformConfigs || null,
-                aiPromptTemplates: doc.aiPromptTemplates || null,
+                images: images,
                 rev: doc.version || doc.updatedAt || Date.now(),
                 origin: 'index'
             };
@@ -2979,12 +2979,39 @@
             // images
             if (doc.images && doc.images.length) {
                 const imgFolder = root.folder('images');
-                for (const img of doc.images) {
-                    const fname = img.name || ('img_' + Date.now() + '.png');
+                for (let i = 0; i < doc.images.length; i++) {
+                    const img = doc.images[i];
+                    // 生成唯一的文件名，优先使用图片ID，确保与markdown引用保持一致
+                    let fname;
+                    if (img.id) {
+                        // 如果有ID，直接使用ID作为文件名，保持与markdown引用一致
+                        fname = img.id + '.png';
+                    } else if (img.name) {
+                        // 如果有名字，使用名字
+                        fname = img.name;
+                    } else {
+                        // 如果都没有，生成带索引的唯一名称
+                        fname = 'img_' + i + '_' + Date.now() + '.png';
+                    }
+
+                    // 确保文件名唯一（防止多个图片同名）
+                    const baseName = fname.replace(/\.[^.]+$/, '');
+                    const ext = fname.match(/\.[^.]+$/) ? fname.match(/\.[^.]+$/)[0] : '.png';
+                    let finalName = fname;
+                    let counter = 1;
+
+                    // 检查文件名是否已存在，如果存在则添加序号
+                    while (imgFolder.file(finalName)) {
+                        finalName = baseName + '_' + counter + ext;
+                        counter++;
+                    }
+
                     // 将 dataURL 转为二进制
                     const blob = await mw_dataUrlToBlob(img.dataUrl || '', img.mime || 'image/png');
                     const ab = await blob.arrayBuffer();
-                    imgFolder.file(fname, ab);
+                    imgFolder.file(finalName, ab);
+
+                    console.log('mw_exportDocZip: 导出图片', finalName, '原ID:', img.id, '原name:', img.name);
                 }
             }
 
@@ -3003,51 +3030,93 @@
             try { showSuccess && showSuccess('ZIP 导出完成'); } catch (_) { }
         }
 
+        // 导出全部为 ZIP
         async function mw_exportAllZip() {
             const docs = mw_loadDocs();
             if (!docs.length) return alert('没有文档可导出');
+
+            const loadingMsg = "正在打包 " + docs.length + " 个文档...";
+            try { showInfo && showInfo(loadingMsg, 2000); } catch (_) { }
+
             const zip = new JSZip();
 
-            // 创建AI文件夹（与文档文件夹平级）
+            // 1. 导出 AI 辅助配置
             const aiFolder = zip.folder('ai');
             const aiCfg = mw_fetchAIPlatformConfigsSnapshot();
             if (aiCfg) aiFolder.file('platform-configs.json', JSON.stringify(aiCfg, null, 2));
 
-            // 从LocalStorage获取myPromptTemplates
             let myPromptTemplates = [];
             try {
                 const stored = localStorage.getItem('myPromptTemplates');
-                if (stored) {
-                    myPromptTemplates = JSON.parse(stored);
-                }
-            } catch (e) {
-                console.warn('从LocalStorage获取myPromptTemplates失败:', e);
-            }
+                if (stored) myPromptTemplates = JSON.parse(stored);
+            } catch (e) { console.warn('Export templates warning:', e); }
 
-            // 如果有myPromptTemplates数据，导出为my-prompt-templates.json
             if (myPromptTemplates && myPromptTemplates.length > 0) {
                 aiFolder.file('my-prompt-templates.json', JSON.stringify(myPromptTemplates, null, 2));
             }
 
+            // 2. 循环导出每个文档
             for (const doc of docs) {
-                const safeName = (doc.name || 'document').replace(/[\\/:*?"<>|]+/g, '_');
+                // 安全的文件名处理
+                let safeName = (doc.name || 'document').replace(/[\\/:*?"<>|]+/g, '_').trim();
+                if (!safeName) safeName = "Untitled_" + doc.id;
+
+                // 为每个文档创建一个文件夹
                 const root = zip.folder(safeName);
                 root.file('index.md', doc.md || '');
 
-                if (doc.images && doc.images.length) {
+                // 处理图片导出
+                if (doc.images && Array.isArray(doc.images) && doc.images.length > 0) {
                     const imgFolder = root.folder('images');
-                    for (const img of doc.images) {
-                        const fname = img.name || ('img_' + Date.now() + '.png');
-                        const blob = await mw_dataUrlToBlob(img.dataUrl || '', img.mime || 'image/png');
-                        const ab = await blob.arrayBuffer();
-                        imgFolder.file(fname, ab);
+                    for (let i = 0; i < doc.images.length; i++) {
+                        const img = doc.images[i];
+                        // 生成唯一的文件名，优先使用图片ID，确保与markdown引用保持一致
+                        let fname;
+                        if (img.id) {
+                            // 如果有ID，直接使用ID作为文件名，保持与markdown引用一致
+                            fname = img.id + '.png';
+                        } else if (img.name) {
+                            // 如果有名字，使用名字
+                            fname = img.name;
+                        } else {
+                            // 如果都没有，生成带索引的唯一名称
+                            fname = 'img_' + i + '_' + Date.now() + '.png';
+                        }
+
+                        // 确保文件名唯一（防止多个图片同名）
+                        const baseName = fname.replace(/\.[^.]+$/, '');
+                        const ext = fname.match(/\.[^.]+$/) ? fname.match(/\.[^.]+$/)[0] : '.png';
+                        let finalName = fname;
+                        let counter = 1;
+
+                        // 检查文件名是否已存在，如果存在则添加序号
+                        while (imgFolder.file(finalName)) {
+                            finalName = baseName + '_' + counter + ext;
+                            counter++;
+                        }
+
+                        try {
+                            // dataUrl 转 Blob 再转 ArrayBuffer
+                            const blob = await mw_dataUrlToBlob(img.dataUrl || '', img.mime || 'image/png');
+                            const ab = await blob.arrayBuffer();
+                            imgFolder.file(finalName, ab);
+                            console.log('mw_exportAllZip: 导出图片', finalName, '文档:', safeName, '原ID:', img.id, '原name:', img.name);
+                        } catch (err) {
+                            console.error(`导出图片 ${finalName} 失败:`, err);
+                        }
                     }
                 }
 
+                // 导出元数据
                 root.file('meta.json', JSON.stringify({
-                    id: doc.id, name: doc.name, version: doc.version || 1
+                    id: doc.id,
+                    name: doc.name,
+                    version: doc.version || 1,
+                    updatedAt: doc.updatedAt
                 }, null, 2));
             }
+
+            // 生成并下载
             const blob = await zip.generateAsync({ type: 'blob' });
             saveAs(blob, 'MindWord_AllDocs.zip');
             try { showSuccess && showSuccess('全部 ZIP 导出完成'); } catch (_) { }
@@ -3126,37 +3195,87 @@
                     console.warn('mw_importZip: 读取meta.json失败，将使用新ID:', err);
                 }
 
-                const images = [];
-                const imgFolder = folder.folder('images');
-                if (imgFolder) {
-                    const files = Object.values(imgFolder.files).filter(f => !f.dir);
-                    for (const entry of files) {
+                // 只在有图片文件时才处理图片相关逻辑
+                let images = [];
+
+                // 从markdown内容中提取图片引用，建立图片ID到图片ID的映射（用于后续查找）
+                const imageIdMap = new Map();
+                const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+                let match;
+                while ((match = imageRegex.exec(md)) !== null) {
+                    const imageName = match[1]; // 图片名称
+                    const imageId = match[2]; // 图片ID
+                    if (imageId && !imageId.match(/^(https?:\/\/|data:)/)) {
+                        // 建立图片ID到自身的映射，用于后续通过文件名（不含扩展名）查找
+                        imageIdMap.set(imageId, imageId);
+                        console.log('mw_importZip: 发现图片引用', imageName, '->', imageId);
+                    }
+                }
+
+                // 检查是否有图片文件（不依赖folder方法，直接扫描所有文件）
+                const imageFiles = [];
+                const folderPrefix = folderName ? folderName : '';
+                const imagesPrefix = folderPrefix + (folderPrefix.endsWith('/') ? '' : '/') + 'images/';
+
+                // 遍历zip中的所有文件，找到属于当前文档的图片文件
+                Object.values(zip.files).forEach(file => {
+                    if (file.dir) return;
+                    const fileName = file.name;
+                    if (fileName.startsWith(imagesPrefix)) {
+                        imageFiles.push(file);
+                        console.log('mw_importZip: 发现图片文件', fileName);
+                    }
+                });
+
+                // 如果有图片文件，才进行处理
+                if (imageFiles.length > 0) {
+                    for (const entry of imageFiles) {
                         try {
                             const fullName = entry.name || '';
                             const mime = mw_guessMime(fullName);
+
+                            // 只处理图片文件，过滤掉非图片文件（如meta.json、index.md等）
+                            if (!mime.startsWith('image/')) {
+                                console.log('mw_importZip: 跳过非图片文件', fullName);
+                                continue;
+                            }
+
                             // entry 本身就是 JSZip 的 file 对象 —— 直接调用其 async 方法更稳健
                             const ab = await entry.async('arraybuffer');
                             const dataUrl = await mw_arrayBufferToDataUrl(ab, mime);
                             // 只保留文件名，不带路径
                             const fname = fullName.split('/').pop() || fullName;
-                            images.push({ name: fname, mime, dataUrl });
+
+                            // 优先使用markdown中已有的图片ID，通过文件名（不含扩展名）匹配
+                            const fileNameWithoutExt = fname.replace(/\.[^.]+$/, ''); // 移除扩展名
+                            let imageId = imageIdMap.get(fileNameWithoutExt);
+                            if (!imageId) {
+                                imageId = 'img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                                console.log('mw_importZip: 生成新图片ID', fname, '->', imageId);
+                            } else {
+                                console.log('mw_importZip: 使用现有图片ID', fname, '->', imageId);
+                            }
+
+                            images.push({ id: imageId, name: fname, mime, dataUrl });
                         } catch (err) {
                             console.warn('mw_importZip: 读取图片条目失败，已跳过', entry && entry.name, err);
                         }
                     }
                 }
-                // AI - 仅使用根级 ai 文件夹（导出已将 AI 配置移至根级 ai/，与文档文件夹平级）
+                // AI配置信息不应该存储在单个文档中，它们是全局配置
                 // 从上层预读取的 rootAiCfg / rootTpl 直接复用（避免查找已被移除的子文件夹）
                 let aiCfg = rootAiCfg;
                 let tpl = rootTpl;
                 // 说明：旧的子文件夹兼容逻辑已弃用，故不再尝试 folder.folder('ai')，以避免覆盖或读取失败。
                 const safeName = originalName || folderName.replace(/\/$/, '').replace(/[\\/:*?"<>|]+/g, '_');
                 const id = originalId || ('doc_' + Date.now() + '_' + Math.floor(Math.random() * 1000));
-                docs.push({
+
+                // 创建文档对象，不再包含AI配置信息（它们应该存储在独立的localStorage键中）
+                const newDoc = {
                     id, name: safeName || '导入文档', md, images,
-                    aiPlatformConfigs: aiCfg, aiPromptTemplates: tpl,
                     createdAt: Date.now(), updatedAt: Date.now(), version: originalVersion
-                });
+                };
+                docs.push(newDoc);
             };
 
             if (topFolders.length) {
@@ -3249,11 +3368,19 @@
                 r.readAsDataURL(blob);
             });
         }
+
+        // 辅助函数：DataURL 转 Blob (保持原有逻辑，确保健壮性)
         async function mw_dataUrlToBlob(dataUrl, mime) {
-            if (!dataUrl) return new Blob([], { type: mime || 'application/octet-stream' });
-            const arr = dataUrl.split(','), bstr = atob(arr[1]);
-            let n = bstr.length, u8 = new Uint8Array(n);
-            while (n--) u8[n] = bstr.charCodeAt(n);
+            if (!dataUrl || !dataUrl.includes(',')) {
+                return new Blob([], { type: mime || 'application/octet-stream' });
+            }
+            const arr = dataUrl.split(',');
+            const bstr = atob(arr[1]);
+            let n = bstr.length;
+            const u8 = new Uint8Array(n);
+            while (n--) {
+                u8[n] = bstr.charCodeAt(n);
+            }
             return new Blob([u8], { type: mime || 'application/octet-stream' });
         }
 
@@ -3422,7 +3549,50 @@
             const msg = e && e.data;
             if (!msg || typeof msg !== 'object') return;
 
-            // 编辑器请求当前活动文档（如刷新后）
+            // 1. 编辑器内容变更同步 (修复图片丢失和导出无图片的核心)
+            // 当 editor.html 执行 saveToStorage 时会发送此消息
+            if (msg.type === 'mw_document_changed') {
+                const payload = msg.payload || {};
+                // 获取目标文档ID，优先使用payload里的ID，否则使用当前活动ID
+                const targetId = payload.id || mw_getActive();
+
+                if (targetId) {
+                    const docs = mw_loadDocs();
+                    const idx = docs.findIndex(d => d.id === targetId);
+
+                    if (idx >= 0) {
+                        // 更新主数据库中的文档数据
+                        docs[idx].md = payload.md;
+                        // 关键：同步图片数据。payload.images 是 [{id, name, mime, dataUrl}, ...] 数组
+                        docs[idx].images = Array.isArray(payload.images) ? payload.images.map(img => ({ id: img.id, name: img.name, mime: img.mime, dataUrl: img.dataUrl })) : [];
+                        docs[idx].updatedAt = Date.now();
+
+                        // 如果版本号存在则更新
+                        if (payload.rev) {
+                            docs[idx].version = payload.rev;
+                        }
+
+                        // 尝试更新文档标题（如果内容变了）
+                        const newName = mw_extractTitleFromMd(payload.md);
+                        if (newName && docs[idx].name !== newName) {
+                            docs[idx].name = newName;
+                        }
+
+                        mw_saveDocs(docs);
+
+                        // 如果处于非批量模式，刷新列表以更新标题或选中状态
+                        const isBatchMode = document.getElementById('batch-actions').classList.contains('show');
+                        if (!isBatchMode) {
+                            mw_renderList();
+                        }
+
+                        console.log(`[SYNC] 文档 ${targetId} 已同步至主数据库 (含 ${docs[idx].images.length} 张图片)`);
+                    }
+                }
+                return;
+            }
+
+            // 2. 编辑器请求当前活动文档（如编辑器iframe刷新后）
             if (msg.type === 'mw_request_active') {
                 const activeId = mw_getActive();
                 if (!activeId) return;
@@ -3432,8 +3602,8 @@
                 return;
             }
 
-            // 来自 mindmap 或其他子页面：要求父页统一应用一份 Markdown 到“当前活动文档”
-            // 效果：立即更新本地文档库并同时广播给 editor / preview / mindmap，无需刷新
+            // 3. 来自 AI 或其他插件的 "应用 Markdown" 请求
+            // 效果：立即更新本地文档库并同时广播给 editor / preview / mindmap
             if (msg.type === 'mw_apply_markdown') {
                 try {
                     const payload = msg.payload || {};
@@ -3447,16 +3617,18 @@
                         if (idx >= 0) {
                             // 覆盖当前活动文档
                             docs[idx].md = md;
-                            docs[idx].images = images;
+                            docs[idx].images = images.map(img => ({ id: img.id, name: img.name, mime: img.mime, dataUrl: img.dataUrl }));
                             docs[idx].updatedAt = Date.now();
-                            // 版本自增（或初始化）
                             docs[idx].version = (Number(docs[idx].version || 1) + 1);
+
                             const newName = mw_extractTitleFromMd(md);
                             if (newName && docs[idx].name !== newName) docs[idx].name = newName;
+
                             mw_saveDocs(docs);
                             mw_renderList();
+
                             const doc = docs[idx];
-                            // 广播到三端（携带 rev）
+                            // 广播到三端
                             mw_notifyEditorLoad(doc);
                             mw_notifyPreviewLoad(doc);
                             mw_notifyMindmapLoad(doc);
@@ -3465,14 +3637,14 @@
                         }
                     }
 
-                    // 无活动文档或未找到：创建新的并设为活动
+                    // 无活动文档：创建新文档
                     const newId = 'doc_' + Date.now();
                     const name = mw_extractTitleFromMd(md || '');
                     const doc = {
                         id: newId,
                         name,
                         md: md || ('# ' + name + '\n'),
-                        images: images,
+                        images: images.map(img => ({ id: img.id, name: img.name, mime: img.mime, dataUrl: img.dataUrl })),
                         createdAt: Date.now(),
                         updatedAt: Date.now(),
                         version: 1
@@ -3481,14 +3653,11 @@
                     mw_saveDocs(docs);
                     mw_setActive(newId);
                     mw_renderList();
-                    // 广播到三端
+
                     mw_notifyEditorLoad(doc);
-                    // mw_notifyPreviewLoad(doc);
-                    // mw_notifyMindmapLoad(doc);
                     try { showSuccess && showSuccess('已创建新文档并应用'); } catch (_) { }
                     return;
                 } catch (err) {
-                    try { showError && showError('应用 AI 内容失败'); } catch (_) { }
                     console.warn('[INDEX] mw_apply_markdown failed', err);
                 }
             }
@@ -4251,14 +4420,13 @@
             // 更新markdown内容中的根标题
             const updatedMd = mw_updateRootTitle(sourceDoc.md || '', newName);
 
-            // 创建新文档对象，复制原文档的所有内容
+            // 创建新文档对象，复制原文档的核心内容
+            // AI配置信息是全局的，不应该存储在单个文档中
             const newDoc = {
                 id: newId,
                 name: newName,
                 md: updatedMd, // 使用更新后的markdown内容
                 images: sourceDoc.images ? [...sourceDoc.images] : [], // 深拷贝图片数组
-                aiPlatformConfigs: sourceDoc.aiPlatformConfigs ? JSON.parse(JSON.stringify(sourceDoc.aiPlatformConfigs)) : null, // 深拷贝AI配置
-                aiPromptTemplates: sourceDoc.aiPromptTemplates ? JSON.parse(JSON.stringify(sourceDoc.aiPromptTemplates)) : null, // 深拷贝提示词模板
                 createdAt: Date.now(),
                 updatedAt: Date.now(),
                 version: 1
