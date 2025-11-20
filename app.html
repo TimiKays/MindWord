@@ -3142,6 +3142,10 @@
             const topFolders = Array.from(topFolderSet);
             const docs = mw_loadDocs();
 
+            // 新增：ID冲突处理相关变量
+            let conflictResolution = null; // 用户选择的冲突处理方式: 'keep_latest', 'replace', 'create_new'
+            const conflicts = []; // 存储检测到的冲突信息
+
             // 读取根级 ai 配置（若存在），并供所有文档复用。
             // 说明：导出的 AI 配置现在放在 ZIP 根目录的 ai/ 文件夹下（与各文档文件夹平级）。
             let rootAiCfg = null, rootTpl = null;
@@ -3181,6 +3185,7 @@
                 let originalId = null;
                 let originalName = null;
                 let originalVersion = 1;
+                let originalUpdatedAt = null;
                 try {
                     const metaFile = folder.file('meta.json');
                     if (metaFile) {
@@ -3189,7 +3194,8 @@
                         originalId = meta.id;
                         originalName = meta.name;
                         originalVersion = meta.version || 1;
-                        console.log('mw_importZip: 从meta.json读取到原始ID:', originalId, '名称:', originalName);
+                        originalUpdatedAt = meta.updatedAt;
+                        console.log('mw_importZip: 从meta.json读取到原始ID:', originalId, '名称:', originalName, '更新时间:', originalUpdatedAt);
                     }
                 } catch (err) {
                     console.warn('mw_importZip: 读取meta.json失败，将使用新ID:', err);
@@ -3268,12 +3274,77 @@
                 let tpl = rootTpl;
                 // 说明：旧的子文件夹兼容逻辑已弃用，故不再尝试 folder.folder('ai')，以避免覆盖或读取失败。
                 const safeName = originalName || folderName.replace(/\/$/, '').replace(/[\\/:*?"<>|]+/g, '_');
-                const id = originalId || ('doc_' + Date.now() + '_' + Math.floor(Math.random() * 1000));
+                
+                // ID冲突检测和处理
+                let finalId = originalId || ('doc_' + Date.now() + '_' + Math.floor(Math.random() * 1000));
+                let finalName = safeName || '导入文档';
+                let finalUpdatedAt = Date.now();
+                
+                if (originalId) {
+                    // 检查本地是否已存在相同ID的文档
+                    const existingDoc = docs.find(d => d.id === originalId);
+                    if (existingDoc) {
+                        // 发现ID冲突
+                        if (conflictResolution === null) {
+                            // 第一次发现冲突，显示选择对话框
+                            conflicts.push({
+                                id: originalId,
+                                localName: existingDoc.name,
+                                importName: safeName,
+                                localTime: existingDoc.updatedAt || 0,
+                                importTime: originalUpdatedAt || Date.now()
+                            });
+                            conflictResolution = await showImportConflictDialog(conflicts);
+                        }
+                        
+                        // 根据用户选择处理冲突
+                        switch (conflictResolution) {
+                            case 'keep_latest':
+                                // 保留最新的（比较updatedAt）
+                                const existingTime = existingDoc.updatedAt || 0;
+                                const importTime = originalUpdatedAt || Date.now();
+                                if (importTime > existingTime) {
+                                    // 导入的文档更新，替换现有文档
+                                    console.log('mw_importZip: 保留最新文档，替换现有文档:', originalId);
+                                    // 移除现有文档，使用导入的文档
+                                    docs.splice(docs.indexOf(existingDoc), 1);
+                                } else {
+                                    // 现有文档更新，跳过导入
+                                    console.log('mw_importZip: 现有文档更新，跳过导入:', originalId);
+                                    return;
+                                }
+                                break;
+                                
+                            case 'replace':
+                                // 替换为导入的文档
+                                console.log('mw_importZip: 替换为导入文档:', originalId);
+                                docs.splice(docs.indexOf(existingDoc), 1);
+                                break;
+                                
+                            case 'create_new':
+                                // 创建新ID
+                                finalId = 'doc_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+                                finalName = (safeName || '导入文档') + '_副本';
+                                console.log('mw_importZip: 创建新ID文档:', finalId, '名称:', finalName);
+                                break;
+                                
+                            default:
+                                // 默认跳过
+                                console.log('mw_importZip: 默认跳过冲突文档:', originalId);
+                                return;
+                        }
+                    }
+                }
 
                 // 创建文档对象，不再包含AI配置信息（它们应该存储在独立的localStorage键中）
                 const newDoc = {
-                    id, name: safeName || '导入文档', md, images,
-                    createdAt: Date.now(), updatedAt: Date.now(), version: originalVersion
+                    id: finalId, 
+                    name: finalName, 
+                    md, 
+                    images,
+                    createdAt: Date.now(), 
+                    updatedAt: finalUpdatedAt, 
+                    version: originalVersion
                 };
                 docs.push(newDoc);
             };
@@ -3399,6 +3470,169 @@
             try {
                 return window.__prompt_templates || null;
             } catch (_) { return null; }
+        }
+
+        // ===== ZIP导入冲突处理相关函数 =====
+        // 显示ID冲突选择对话框
+        async function showImportConflictDialog(conflicts) {
+            if (!conflicts || conflicts.length === 0) return 'keep_latest';
+            
+            return new Promise((resolve) => {
+                const conflictList = conflicts.map(conflict => 
+                    `文档：${conflict.importName}\n` +
+                    `文档ID：${conflict.id}\n` +
+                    `本地修改时间：${new Date(conflict.localTime).toLocaleString()}\n` +
+                    `导入修改时间：${new Date(conflict.importTime).toLocaleString()}\n`
+                ).join('\n---\n\n');
+                
+                const message = `检测到 ${conflicts.length} 个文档ID冲突：\n\n${conflictList}\n` +
+                    '请选择处理方式：\n\n' +
+                    '【保留最新的】保留修改时间较新的文档（推荐）\n' +
+                    '【替换为导入的】用导入的文档完全替换现有文档\n' +
+                    '【另外创建】为导入的文档生成新ID，保留两份文档\n\n' +
+                    '注意：您的选择将应用于本次导入的所有冲突文档。';
+                
+                // 创建自定义对话框
+                const dialog = document.createElement('div');
+                dialog.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0,0,0,0.5);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 10000;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                `;
+                
+                const content = document.createElement('div');
+                content.style.cssText = `
+                    background: white;
+                    border-radius: 8px;
+                    padding: 24px;
+                    max-width: 600px;
+                    max-height: 80vh;
+                    overflow-y: auto;
+                    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+                    border: 1px solid #e5e7eb;
+                `;
+                
+                const title = document.createElement('h3');
+                title.textContent = '文档导入冲突处理';
+                title.style.cssText = `
+                    margin: 0 0 16px 0;
+                    color: #1f2937;
+                    font-size: 18px;
+                    font-weight: 600;
+                `;
+                
+                const messageDiv = document.createElement('div');
+                messageDiv.style.cssText = `
+                    white-space: pre-line;
+                    margin-bottom: 24px;
+                    color: #4b5563;
+                    font-size: 14px;
+                    line-height: 1.5;
+                `;
+                messageDiv.textContent = message;
+                
+                const buttonContainer = document.createElement('div');
+                buttonContainer.style.cssText = `
+                    display: flex;
+                    gap: 12px;
+                    justify-content: flex-end;
+                    margin-top: 20px;
+                `;
+                
+                const createButton = (text, value, isPrimary = false) => {
+                    const btn = document.createElement('button');
+                    btn.textContent = text;
+                    btn.style.cssText = `
+                        padding: 8px 16px;
+                        border: 1px solid ${isPrimary ? '#3b82f6' : '#d1d5db'};
+                        background: ${isPrimary ? '#3b82f6' : 'white'};
+                        color: ${isPrimary ? 'white' : '#374151'};
+                        border-radius: 6px;
+                        font-size: 14px;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                        font-weight: 500;
+                    `;
+                    btn.onmouseover = () => {
+                        btn.style.background = isPrimary ? '#2563eb' : '#f9fafb';
+                        btn.style.borderColor = isPrimary ? '#2563eb' : '#9ca3af';
+                    };
+                    btn.onmouseout = () => {
+                        btn.style.background = isPrimary ? '#3b82f6' : 'white';
+                        btn.style.borderColor = isPrimary ? '#3b82f6' : '#d1d5db';
+                    };
+                    btn.onclick = () => {
+                        document.body.removeChild(dialog);
+                        resolve(value);
+                    };
+                    return btn;
+                };
+                
+                // 创建三个按钮
+                const keepLatestBtn = createButton('保留最新的', 'keep_latest', true);
+                const replaceBtn = createButton('替换为导入的', 'replace');
+                const createNewBtn = createButton('另外创建', 'create_new');
+                
+                buttonContainer.appendChild(createNewBtn);
+                buttonContainer.appendChild(replaceBtn);
+                buttonContainer.appendChild(keepLatestBtn);
+                
+                content.appendChild(title);
+                content.appendChild(messageDiv);
+                content.appendChild(buttonContainer);
+                dialog.appendChild(content);
+                
+                document.body.appendChild(dialog);
+                
+                // 点击背景关闭对话框（默认选择保留最新的）
+                dialog.onclick = (e) => {
+                    if (e.target === dialog) {
+                        document.body.removeChild(dialog);
+                        resolve('keep_latest');
+                    }
+                };
+                
+                // ESC键关闭对话框
+                const handleEscape = (e) => {
+                    if (e.key === 'Escape') {
+                        document.body.removeChild(dialog);
+                        document.removeEventListener('keydown', handleEscape);
+                        resolve('keep_latest');
+                    }
+                };
+                document.addEventListener('keydown', handleEscape);
+            });
+        }
+
+        // 处理单个文档的ID冲突
+        function resolveDocIdConflict(existingDoc, importDoc, resolution) {
+            switch (resolution) {
+                case 'keep_latest':
+                    // 保留修改时间较新的文档
+                    if (Number(existingDoc.updatedAt) >= Number(importDoc.updatedAt)) {
+                        return { action: 'skip', doc: existingDoc };
+                    } else {
+                        return { action: 'replace', doc: importDoc };
+                    }
+                case 'replace':
+                    // 总是用导入的文档替换
+                    return { action: 'replace', doc: importDoc };
+                case 'create_new':
+                    // 为导入文档生成新ID
+                    const newDoc = { ...importDoc };
+                    newDoc.id = 'doc_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+                    return { action: 'create', doc: newDoc };
+                default:
+                    return { action: 'skip', doc: existingDoc };
+            }
         }
 
         // ===== 清空所有本地数据 =====
