@@ -107,7 +107,8 @@ const i18nLocales = {
 
     // 页脚
     footer: {
-      copyright: '© 2025 MindWord. 保留所有权利。'
+      copyright: '© 2025 MindWord. 保留所有权利。',
+      changelog: '更新日志'
     },
 
     // 导航栏
@@ -535,7 +536,8 @@ const i18nLocales = {
 
     // 页脚
     footer: {
-      copyright: '© 2025 MindWord. All rights reserved.'
+      copyright: '© 2025 MindWord. All rights reserved.',
+      changelog: 'Changelog'
     },
 
     // 项目背景
