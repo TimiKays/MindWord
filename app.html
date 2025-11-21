@@ -760,6 +760,11 @@
         <div class="header-right">
             <!-- 账号区：未登录显示"注册/登录"，已登录显示"用户名/退出登录" -->
             <div id="auth-area" style="display:inline-flex; align-items:center; gap:6px; ">
+                <!-- 更新日志 -->
+                <button id="changelog-btn" title="更新日志" onclick="window.open('changelog/changelog.html', '_blank')"
+                    style="height:30px; width:30px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; color:#334155; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px;">
+                    😺
+                </button>
                 <!-- 语言切换 -->
                 <select id="lang-switch" title="Language" onchange="window.i18nManager.setLanguage(this.value)"
                     style="height:30px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; color:#334155; font-size:12px; padding:0px;">
@@ -815,7 +820,8 @@
                                         data-i18n="docs.oneClickSync">一键同步</div>
                                 </div>
                                 <button id="lc-sync-btn-menu" class="btn btn-small"
-                        style="height:24px; font-size:11px; padding: 0 8px;" data-i18n="cloud.sync">同步</button>
+                                    style="height:24px; font-size:11px; padding: 0 8px;"
+                                    data-i18n="cloud.sync">同步</button>
                             </div>
 
                             <div class="menu-item"

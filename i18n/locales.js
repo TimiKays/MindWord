@@ -791,6 +791,15 @@ const i18nLocales = {
       aiGenerate: 'AI Generate',
       confirmBatchDelete: 'Are you sure you want to delete the selected documents?',
       noDocsSelected: 'Please select at least one document'
+    },
+
+    // 导航栏
+    nav: {
+      features: 'Features',
+      scenarios: 'Scenarios',
+      guide: 'Quick Start',
+      feedback: 'Feedback',
+      changelog: 'Changelog'
     }
   }
 };

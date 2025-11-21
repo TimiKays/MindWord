@@ -280,8 +280,7 @@
         <span id="help-btn" class="ico-btn" role="button" tabindex="0" title="帮助"
             style="--ico: url('res/help.svg'); "></span>
 
-        <span id="cleanup-btn" class="ico-btn" role="button" tabindex="0" title="清理未使用图片"
-            style="--ico: url('../res/删除.svg'); "></span>
+
 
 
         <style>
@@ -530,7 +529,6 @@
                 document.getElementById('export-btn').addEventListener('click', () => this.exportContent());
                 document.getElementById('upload-btn').addEventListener('click', () => this.uploadFile());
                 document.getElementById('help-btn').addEventListener('click', () => this.toggleHelp());
-                document.getElementById('cleanup-btn').addEventListener('click', () => this.manualCleanupImages());
                 document.getElementById('help-close').addEventListener('click', () => this.toggleHelp());
 
                 // 文件上传
@@ -652,19 +650,7 @@
                 return removedCount;
             }
 
-            /**
-             * 手动清理图片，带用户提示
-             */
-            manualCleanupImages() {
-                const removedCount = this.cleanupUnusedImages();
 
-                if (removedCount > 0) {
-                    this.saveToStorage(true);
-                    this.showMessage(`✅ 已清理 ${removedCount} 张未使用的图片`, 'success');
-                } else {
-                    this.showMessage('📝 没有发现未使用的图片', 'info');
-                }
-            }
 
             saveToStorage(manual = false) {
                 const content = this.getContent();
