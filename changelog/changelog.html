@@ -46,6 +46,59 @@
             min-height: 100vh;
         }
 
+        /* 顶部导航栏 - 从 app.html 复制 */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            z-index: 1000;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .brand {
+            font-family: 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            margin-left: 0;
+            font-weight: 700;
+            font-size: 26px;
+            display: flex;
+            align-items: center;
+        }
+
+        .brand-clickable {
+            background: linear-gradient(0deg, #0b82e4 0%, #11c49d 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+        }
+
+        .brand-clickable:hover {
+            opacity: 0.8;
+        }
+
+        .brand-clickable img {
+            width: 32px;
+            height: 32px;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+
+        /* 为固定导航栏添加主体内容偏移 */
+        .main-wrapper {
+            margin-top: 80px;
+        }
+
         /* 滚动条美化 */
         ::-webkit-scrollbar {
             width: 8px;
@@ -468,7 +521,19 @@
 </head>
 
 <body>
-    <div class="layout">
+    <!-- 顶部导航栏 - 从 app.html 复制 -->
+    <header class="header">
+        <div class="brand">
+            <a href="../index.html" class="brand-clickable" title="返回首页">
+                <img src="../favicon.ico" alt="favicon">
+                MindWord
+            </a>
+        </div>
+    </header>
+
+    <!-- 主体内容包装器 - 为固定导航栏添加偏移 -->
+    <div class="main-wrapper">
+        <div class="layout">
         <div class="sidebar">
             <div class="sidebar-header">
                 <h3>版本导航</h3>
@@ -832,6 +897,7 @@
             });
         });
     </script>
+    </div> <!-- 关闭 main-wrapper -->
 </body>
 
 </html>
