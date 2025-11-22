@@ -6,7 +6,6 @@ Sitemap: https://mindword.dpdns.org/sitemap.xml
 
 # 禁止爬取后台管理相关路径
 Disallow: /ai/
-Disallow: /docs/
 Disallow: /private/
 
 # 允许爬取静态资源
