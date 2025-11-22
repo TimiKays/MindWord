@@ -1,0 +1,62 @@
+/* TEAM */
+Developer: Timi Kays
+Contact: TimiKays (WeChat ID)
+Languages: Chinese, English
+开发团队：Timi Kays
+联系方式：TimiKays(微信号)
+来自：中国
+语言：中文，英文
+
+/* THANKS */
+Name: KIMI K2, ChatGPT (My AI Development Engineers)
+感谢：KIMI K2、ChatGPT（我的开发工程师）
+
+/* SITE */
+Last update: 2025/11/22
+Standards: HTML5, CSS3, ES6
+Components: Tailwind CSS, Font Awesome, i18next
+Software: TRAE CN, Git, GitHub
+网站更新：2025/11/22
+标准：HTML5, CSS3, ES6
+组件：Tailwind CSS, Font Awesome, i18next
+软件：TRAE CN, Git, GitHub
+
+/* SEO */
+Language: Bilingual (Chinese/English)
+Target: Global
+Category: Productivity Software
+Keywords: AI tools, mind mapping, writing tool, document generation, productivity
+Description: MindWord is a mind mapping writing tool that helps users create documents like drawing, building a collaborative platform for human-AI thinking.
+SEO语言：中英双语
+目标：全球用户
+类别：生产力软件
+关键词：AI工具，思维导图, 写作工具, 文档生成, 生产力
+描述：思维词是一款思维导图写作工具，帮助用户像画画一样创建文档，构建人与AI的思维共创平台。
+
+/* TECHNOLOGY */
+Frontend: HTML5, CSS3, JavaScript ES6
+Mind Mapping: jsMind
+Cloud Sync: LeanCloud
+Testing: Playwright
+Storage: localStorage, LeanCloud
+Framework: Tailwind CSS
+Icons: Font Awesome
+Internationalization: i18next
+Version Control: Git
+Repository: GitHub
+Hosting: Static hosting
+技术栈：
+前端：HTML5, CSS3, JavaScript ES6
+思维导图：jsMind
+云同步：LeanCloud
+测试：Playwright
+存储：localStorage, LeanCloud
+框架：Tailwind CSS
+图标：Font Awesome
+国际化：i18next
+版本控制：Git
+代码仓库：GitHub
+托管：静态托管
+
+/* SOCIAL */
+GitHub: https://github.com/TimiKays

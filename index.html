@@ -1,40 +1,104 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" itemscope itemtype="https://schema.org/WebPage">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <title>MindWord - 树心 | 像画图一样写文档的思维导图写作工具</title>
 
-    <!-- SEO Meta Tags -->
+    <!-- SEO Meta Tags - Bilingual -->
+    <!-- Chinese Meta Tags -->
     <meta name="description"
-        content="MindWord是一款创新的思维导图写作工具，像画图一样写文档。支持Markdown与思维导图双向实时同步，AI辅助生成内容，一键导出Word文档。让创作思路与正文完美融合，重新定义结构化写作体验。">
-    <meta name="keywords" content="思维导图,写作工具,Markdown,AI写作,文档生成,思维导图软件,写作软件,MindWord,树心,结构化写作">
-    <meta name="author" content="MindWord Team">
+        content="MindWord是一个人与AI的思维共创平台，支持像画图一样写文档。支持Markdown与思维导图双向实时同步，AI辅助生成内容，一键导出Word文档。让创作思路与正文完美融合，重新定义结构化写作体验。">
+    <meta name="keywords" content="MindWord,思维导图,AI工具,AI生成思维导图,结构化写作,Markdown编辑器,markdown转思维导图,树心,一句话生成思维导图,生产力工具">
+
+    <!-- English Meta Tags -->
+    <meta name="description" lang="en"
+        content="MindWord is an innovative mind mapping writing tool that lets you write documents like drawing. Supports bidirectional real-time sync between Markdown and mind maps, AI-assisted content generation, and one-click Word document export.">
+    <meta name="keywords" lang="en"
+        content="MindWord,mind mapping,AI tools,AI mind map generation,structured writing,Markdown editor,markdown to mind map,tree mind,one-sentence mind map,productivity tool">
+    <meta name="author" content="Timi Kays">
     <meta name="robots" content="index, follow">
     <meta name="googlebot" content="index, follow">
     <meta name="baiduspider" content="index, follow">
 
-    <!-- Canonical URL -->
-    <link rel="canonical" href="https://mindword.app">
+    <!-- Additional SEO Meta Tags - Bilingual -->
+    <meta name="application-name" content="MindWord - 树心">
+    <meta name="application-name" lang="en" content="MindWord - Mind Mapping Writing Tool">
+    <meta name="apple-mobile-web-app-title" content="MindWord">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="theme-color" content="#619dff">
+    <meta name="mobile-web-app-capable" content="yes">
 
-    <!-- Open Graph Meta Tags -->
+    <!-- Language and Region Meta Tags -->
+    <meta name="language" content="zh-CN">
+    <meta name="language" lang="en" content="en-US">
+    <meta name="content-language" content="zh-CN, en-US">
+    <meta name="distribution" content="global">
+    <meta name="rating" content="general">
+
+    <!-- Business/Organization Schema Meta Tags -->
+    <meta name="publisher" content="Timi Kays">
+    <meta name="copyright" content="© 2025 Timi Kays. All rights reserved.">
+    <meta name="revisit-after" content="7 days">
+    <meta name="expires" content="never">
+
+    <!-- Additional SEO Meta Tags -->
+    <meta name="resource-type" content="document">
+    <meta name="document-classification" content="productivity software">
+    <meta name="document-classification" lang="en" content="productivity software">
+    <meta name="subject" content="思维导图写作工具">
+    <meta name="subject" lang="en" content="mind mapping writing tool">
+    <meta name="page-topic" content="思维导图,写作,文档生成">
+    <meta name="page-topic" lang="en" content="mind mapping, writing, document generation">
+    <meta name="page-type" content="software application">
+    <meta name="audience" content="学生,写作者,职场人士">
+    <meta name="audience" lang="en" content="students, writers, professionals">
+    <meta name="classification" content="productivity, writing, mind mapping">
+
+    <!-- Canonical and Alternative URLs -->
+    <link rel="canonical" href="https://mindword.dpdns.org">
+    <link rel="alternate" hreflang="zh-CN" href="https://mindword.dpdns.org/">
+    <link rel="alternate" hreflang="en-US" href="https://mindword.dpdns.org/">
+    <link rel="alternate" hreflang="x-default" href="https://mindword.dpdns.org/">
+
+    <!-- Sitemap and Robots References -->
+    <link rel="sitemap" type="application/xml" title="Sitemap" href="https://mindword.dpdns.org/sitemap.xml">
+    <link rel="author" type="text/plain" href="https://mindword.dpdns.org/humans.txt">
+
+    <!-- Open Graph Meta Tags - Bilingual -->
+    <!-- Chinese Open Graph -->
     <meta property="og:title" content="MindWord - 树心 | 像画图一样写文档的思维导图写作工具">
     <meta property="og:description"
         content="MindWord是一款创新的思维导图写作工具，像画图一样写文档。支持Markdown与思维导图双向实时同步，AI辅助生成内容，一键导出Word文档。">
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://mindword.app">
-    <meta property="og:image" content="https://mindword.app/res/screenShot-all.png">
+    <meta property="og:url" content="https://mindword.dpdns.org">
+    <meta property="og:image" content="https://mindword.dpdns.org/res/screenShot-all.png">
     <meta property="og:site_name" content="MindWord">
     <meta property="og:locale" content="zh_CN">
+    <meta property="og:locale:alternate" content="en_US">
 
-    <!-- Twitter Card Meta Tags -->
+    <!-- English Open Graph -->
+    <meta property="og:title" content="MindWord | Mind Mapping Writing Tool - Write Documents Like Drawing">
+    <meta property="og:description" lang="en"
+        content="MindWord is an innovative mind mapping writing tool that lets you write documents like drawing. Supports bidirectional real-time sync between Markdown and mind maps, AI-assisted content generation, and one-click Word document export.">
+    <meta property="og:locale:alternate" content="zh_CN">
+
+    <!-- Twitter Card Meta Tags - Bilingual -->
+    <!-- Chinese Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="MindWord - 树心 | 像画图一样写文档的思维导图写作工具">
     <meta name="twitter:description"
         content="MindWord是一款创新的思维导图写作工具，像画图一样写文档。支持Markdown与思维导图双向实时同步，AI辅助生成内容，一键导出Word文档。">
-    <meta name="twitter:image" content="https://mindword.app/res/screenShot-all.png">
+    <meta name="twitter:image" content="https://mindword.dpdns.org/res/screenShot-all.png">
     <meta name="twitter:site" content="@MindWordApp">
+
+    <!-- English Twitter Card -->
+    <meta name="twitter:title" lang="en" content="MindWord | Mind Mapping Writing Tool - Write Documents Like Drawing">
+    <meta name="twitter:description" lang="en"
+        content="MindWord is an innovative mind mapping writing tool that lets you write documents like drawing. Supports bidirectional real-time sync between Markdown and mind maps, AI-assisted content generation, and one-click Word document export.">
 
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
@@ -52,81 +116,107 @@
     <link rel="preload" href="i18n/locales.js" as="script">
     <link rel="preload" href="i18n/i18n-manager.js" as="script">
 
-    <!-- Structured Data (JSON-LD) -->
+    <!-- Structured Data (JSON-LD) - Bilingual -->
+    <!-- WebApplication Schema - Main application description -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
+      "@type": "WebApplication",
       "name": "MindWord - 树心",
-      "alternateName": "MindWord",
-      "description": "MindWord是一款创新的思维导图写作工具，像画图一样写文档。支持Markdown与思维导图双向实时同步，AI辅助生成内容，一键导出Word文档。让创作思路与正文完美融合，重新定义结构化写作体验。",
-      "url": "https://mindword.app",
+      "alternateName": "MindWord思维导图写作工具",
+      "url": "https://mindword.dpdns.org",
       "applicationCategory": "ProductivityApplication",
-      "operatingSystem": "Web, Windows, macOS, Linux",
+      "browserRequirements": "Requires JavaScript. Requires HTML5.",
       "offers": {
         "@type": "Offer",
         "price": "0",
         "priceCurrency": "CNY",
-        "availability": "https://schema.org/InStock"
+        "category": "free"
       },
+      "operatingSystem": "Web, Windows, macOS, Linux, iOS, Android",
       "author": {
-        "@type": "Organization",
-        "name": "MindWord Team",
-        "url": "https://mindword.app"
+        "@type": "Person",
+        "name": "Timi Kays",
+        "url": "https://github.com/TimiKays",
+        "nationality": "China",
+        "knowsLanguage": ["Chinese", "English"]
       },
       "publisher": {
-        "@type": "Organization",
-        "name": "MindWord Team",
-        "url": "https://mindword.app"
+        "@type": "Person",
+        "name": "TimiKays",
+        "url": "https://github.com/TimiKays"
       },
-      "datePublished": "2024-01-01",
-      "dateModified": "2024-01-01",
+      "copyrightHolder": {
+        "@type": "Person",
+        "name": "TimiKays",
+        "url": "https://github.com/TimiKays"
+      },
+      "datePublished": "2025-11-17",
+      "dateModified": "2025-11-22",
       "inLanguage": ["zh-CN", "en-US"],
-      "keywords": ["思维导图", "写作工具", "Markdown", "AI写作", "文档生成", "思维导图软件", "写作软件", "结构化写作"],
+      "keywords": ["思维导图写作", "AI写作工具", "Markdown编辑器", "文档生成器", "在线思维导图", "mind mapping writing", "AI writing tool", "Markdown editor", "document generator", "online mind mapping"],
+      "description": "像画图一样写文档的思维导图写作工具，支持AI辅助生成和云同步。An innovative mind mapping writing tool that lets you write documents like drawing, with AI assistance and cloud sync.",
+      "screenshot": "https://mindword.dpdns.org/res/screenShot-all.png",
       "featureList": [
-        "思维导图与Markdown双向同步",
-        "AI辅助内容生成",
-        "一键导出Word文档",
-        "多平台支持",
-        "实时协作",
-        "云端存储"
+        "思维导图与文档双向同步",
+        "AI智能内容生成",
+        "多格式导出支持",
+        "实时云同步",
+        "多人协作编辑",
+        "Bidirectional sync between mind maps and documents",
+        "AI intelligent content generation",
+        "Multiple format export support",
+        "Real-time cloud sync",
+        "Multi-user collaborative editing"
       ],
-      "screenshot": "https://mindword.app/res/screenShot-all.png",
-      "softwareHelp": "https://mindword.app/help",
-      "downloadUrl": "https://mindword.app/app.html",
-      "installUrl": "https://mindword.app/app.html",
-      "supportMultipleLanguages": true,
-      "languages": ["中文", "English"],
-      "license": "https://mindword.app/license",
-      "aggregateRating": {
-        "@type": "AggregateRating",
-        "ratingValue": "4.8",
-        "ratingCount": "1000",
-        "bestRating": "5",
-        "worstRating": "1"
-      }
+      "accessibilitySummary": "支持键盘导航，适配屏幕阅读器。Supports keyboard navigation and screen reader compatibility.",
+      "availabilityStarts": "2025-11-17T00:00:00Z",
+      "availabilityEnds": "2030-12-31T23:59:59Z"
     }
     </script>
 
-    <!-- WebSite Schema -->
+    <!-- Chinese WebSite Schema -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "WebSite",
       "name": "MindWord - 树心",
       "alternateName": "MindWord",
-      "url": "https://mindword.app",
+      "url": "https://mindword.dpdns.org",
       "description": "MindWord是一款创新的思维导图写作工具，像画图一样写文档。支持Markdown与思维导图双向实时同步，AI辅助生成内容，一键导出Word文档。",
       "potentialAction": {
         "@type": "SearchAction",
-        "target": "https://mindword.app/search?q={search_term_string}",
+        "target": "https://mindword.dpdns.org/search?q={search_term_string}",
         "query-input": "required name=search_term_string"
       },
       "inLanguage": ["zh-CN", "en-US"],
       "copyrightHolder": {
-        "@type": "Organization",
-        "name": "MindWord Team",
-        "url": "https://mindword.app"
+        "@type": "Person",
+        "name": "TimiKays",
+        "url": "https://github.com/TimiKays"
+      }
+    }
+    </script>
+
+    <!-- English WebSite Schema -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "MindWord - Mind Mapping Writing Tool",
+      "alternateName": "MindWord",
+      "url": "https://mindword.dpdns.org",
+      "description": "MindWord is an innovative mind mapping writing tool that lets you write documents like drawing. Supports bidirectional real-time sync between Markdown and mind maps, AI-assisted content generation, and one-click Word document export.",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://mindword.dpdns.org/search?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      },
+      "inLanguage": ["en-US", "zh-CN"],
+      "copyrightHolder": {
+        "@type": "Person",
+        "name": "TimiKays",
+        "url": "https://github.com/TimiKays"
       }
     }
     </script>
@@ -135,7 +225,28 @@
     <script src="i18n/locales.js"></script>
     <script src="i18n/i18n-manager.js"></script>
 
-    <!-- 确保页面加载完成后立即应用翻译 -->
+    <!-- Language Detection Script for SEO -->
+    <script>
+        // Auto-detect browser language and set appropriate lang attribute
+        (function () {
+            const userLang = navigator.language || navigator.userLanguage;
+            const htmlElement = document.documentElement;
+
+            // If browser language is English, add English lang attribute
+            if (userLang && userLang.startsWith('en')) {
+                htmlElement.setAttribute('lang', 'en-US');
+                htmlElement.setAttribute('xml:lang', 'en-US');
+            }
+
+            // Add itemprop for Schema.org
+            htmlElement.setAttribute('itemprop', 'mainEntityOfPage');
+
+            // Add additional SEO attributes
+            const head = document.head;
+            head.setAttribute('itemscope', '');
+            head.setAttribute('itemtype', 'https://schema.org/WebSite');
+        })();
+    </script>
     <script>
         // 在页面完全加载后立即应用翻译
         function applyTranslationsWhenReady() {
