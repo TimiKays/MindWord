@@ -1,4 +1,23 @@
 /**
+ * MindWord - 树心 | 像画图一样写文档的思维导图写作工具
+ * GitHub: https://github.com/TimiKays/MindWord
+ * 
+ * Copyright 2025 Timi Kays
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
  * 面向文档的撤销管理器（UndoManager），专为 jsMind 设计
  * - 使用完整的 JSON 快照字符串作为历史记录
  * - 为每个文档维护独立的撤销栈（undoStack）与重做栈（redoStack）

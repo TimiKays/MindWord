@@ -1,3 +1,22 @@
+/**
+ * MindWord - 树心 | 像画图一样写文档的思维导图写作工具
+ * GitHub: https://github.com/TimiKays/MindWord
+ * 
+ * Copyright 2025 Timi Kays
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 // 国际化语言配置文件
 const i18nLocales = {
   zh: {
@@ -102,7 +121,8 @@ const i18nLocales = {
       title: '反馈建议',
       subtitle: '本产品由1名产品经理+ChatGPT+KIMI独立开发，如有问题或建议，欢迎随时联系我~',
       contactInfo: '产品 | UI | 开发 | 测试 | 运营 | 客服',
-      wechat: '微信：TimiKays'
+      wechat: '微信号：TimiKays',
+      github: 'GitHub项目'
     },
 
     // 页脚
@@ -532,7 +552,8 @@ const i18nLocales = {
       title: 'Feedback & Suggestions',
       subtitle: 'This product was independently developed by 1 product manager + ChatGPT + KIMI. For any questions or suggestions, feel free to contact me~',
       contactInfo: 'Product | UI | Development | Testing | Operations | Support',
-      wechat: 'WeChat ID: TimiKays'
+      wechat: 'WeChat ID: TimiKays',
+      github: 'GitHub Project'
     },
 
     // 页脚

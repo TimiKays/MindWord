@@ -1,0 +1,149 @@
+MindWord - 第三方依赖声明
+=====================================
+
+本软件包含以下第三方库和组件，特此声明：
+
+一、JavaScript 库
+------------------
+
+1. jsMind (思维导图核心库)
+   - 版本: 0.5.7
+   - 许可证: BSD 许可证
+   - 版权所有: 2014-2025 hizzgdev@163.com
+   - 项目主页: https://github.com/hizzgdev/jsmind/
+   - 文件位置: jsmind-local/ 目录下所有文件
+   - 使用方式: 本地修改版本，包含拖拽节点功能增强
+
+2. jQuery (JavaScript 工具库)
+   - 版本: 3.6.0 和 3.6.4
+   - 许可证: MIT 许可证
+   - 版权所有: JS Foundation 和其他贡献者
+   - 来源: 
+     * https://code.jquery.com/jquery-3.6.0.min.js
+     * https://cdn.jsdelivr.net/npm/jquery@3.6.4/dist/jquery.min.js
+   - 使用页面: app.html, editor/editor.html, jsmind/mindmap.html, converter/mindmap-test.html, md2word/md2word.html
+
+3. Bootstrap (CSS 框架)
+   - 版本: 4.6.2
+   - 许可证: MIT 许可证
+   - 版权所有: Twitter, Inc. 和其他贡献者
+   - 来源: https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/
+   - 使用页面: app.html, editor/editor.html, jsmind/mindmap.html, converter/mindmap-test.html, md2word/md2word.html
+
+4. Font Awesome (图标库)
+   - 版本: 4.7.0
+   - 许可证: SIL OFL 1.1 和 MIT 许可证
+   - 版权所有: Font Awesome 项目
+   - 来源: https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/
+   - 使用页面: index.html, ai/newai/AIServiceModal.html, ai/newai/user-template-manager.html
+
+5. LeanCloud Storage (云服务 SDK)
+   - 版本: 4.x
+   - 许可证: MIT 许可证
+   - 版权所有: LeanCloud 项目
+   - 来源: https://cdn.jsdelivr.net/npm/leancloud-storage@4/dist/av-min.js
+   - 使用页面: app.html, auth.html
+
+6. JSZip (JavaScript 压缩库)
+   - 版本: 3.10.1
+   - 许可证: MIT 许可证 或 GPLv3 许可证（双许可）
+   - 版权所有: Stuart Knightley 和其他贡献者
+   - 来源: https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js
+   - 使用页面: app.html, editor/editor.html
+
+7. FileSaver.js (文件保存库)
+   - 版本: 2.0.5
+   - 许可证: MIT 许可证
+   - 版权所有: Eli Grey
+   - 来源: https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js
+   - 使用页面: app.html, editor/editor.html, md2word/md2word.html
+
+8. Markdown-it (Markdown 解析器)
+   - 版本: 13.0.1
+   - 许可证: MIT 许可证
+   - 版权所有: Vitaly Puzrin 和 Alex Kocharin
+   - 来源: https://cdn.jsdelivr.net/npm/markdown-it@13.0.1/dist/markdown-it.min.js
+   - 使用页面: md2word/md2word.html
+
+9. PizZip (ZIP 压缩库)
+   - 版本: 3.1.5
+   - 许可证: MIT 许可证
+   - 版权所有: various contributors
+   - 来源: https://cdn.jsdelivr.net/npm/pizzip@3.1.5/dist/pizzip.min.js
+   - 使用页面: md2word/md2word.html
+
+10. Tailwind CSS (CSS 框架)
+    - 版本: 最新版本 (通过 CDN)
+    - 许可证: MIT 许可证
+    - 版权所有: Tailwind Labs Inc.
+    - 来源: https://cdn.tailwindcss.com/
+    - 使用页面: index.html, ai/newai/AIServiceModal.html, ai/newai/user-template-manager.html
+
+11. 自定义国际化系统（I18nManager）
+    - 类型: 自定义实现
+    - 许可证: 无（自定义代码，无外部依赖）
+    - 版权所有: MindWord 项目
+    - 使用文件: i18n/locales.js, i18n/i18n-manager.js
+    - 功能: 提供多语言支持，包含中文和英文翻译
+
+12. dom-to-image (DOM转图像库)
+    - 版本: 2.6.0
+    - 许可证: MIT 许可证
+    - 版权所有: Paul Bakaus
+    - 来源: https://unpkg.com/dom-to-image@2.6.0/dist/dom-to-image.min.js
+    - 使用页面: jsmind/mindmap.html, converter/mindmap-test.html
+    - 功能: 将DOM元素转换为图像，用于思维导图截图功能
+
+二、开发依赖
+------------
+
+1. Playwright (端到端测试框架)
+   - 版本: ^1.40.0
+   - 许可证: Apache 2.0 许可证
+   - 版权所有: Microsoft Corporation
+   - 用途: 开发环境测试工具
+
+三、项目许可证
+--------------
+
+MindWord 项目主体代码采用 Apache License 2.0 许可证。
+
+四、许可证兼容性说明
+--------------------
+
+本项目使用的第三方库许可证兼容性良好：
+- MIT 许可证: jQuery, Bootstrap, LeanCloud, JSZip, FileSaver.js, Markdown-it, PizZip
+- BSD 许可证: jsMind
+- Apache 2.0 许可证: Playwright
+- SIL OFL 1.1: Font Awesome (字体部分)
+
+这些许可证都允许商业使用、修改和分发，符合 Apache 2.0 许可证的要求。
+
+特别说明：
+- jsMind 的 BSD 许可证与 Apache 2.0 许可证兼容
+- MIT 许可证与 Apache 2.0 许可证完全兼容
+- SIL OFL 1.1 专门用于字体，与 Apache 2.0 许可证无冲突
+
+五、版权归属
+------------
+
+MindWord 项目：
+- 版权所有 © 2025 MindWord. 保留所有权利。
+- 项目主页: [https://github.com/TimiKays/MindWord]
+
+六、合规性声明
+--------------
+
+1. 所有第三方库的原始版权和许可证信息均已保留
+2. 对 jsMind 库的修改已在源代码中标注
+3. 本项目符合各第三方库的许可证要求
+4. 如需查看各许可证的详细内容，请访问相应的项目主页
+
+七、联系方式
+------------
+
+如有任何关于许可证的问题，请联系项目维护者。
+
+---
+最后更新时间: 2025年
+本文件遵循 Apache License 2.0 许可证要求
