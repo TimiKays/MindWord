@@ -764,6 +764,16 @@ function setupMindmapScrolling() {
   const container = document.getElementById('fullScreenMindmap');
   if (!container) return;
 
+  // 为主容器添加滚动事件监听，滚动时显示滚动条
+  let containerScrollTimeout;
+  container.addEventListener('scroll', function() {
+    container.classList.add('scrolling');
+    clearTimeout(containerScrollTimeout);
+    containerScrollTimeout = setTimeout(function() {
+      container.classList.remove('scrolling');
+    }, 500); // 滚动停止500ms后隐藏滚动条
+  }, { passive: true });
+
   // 等待jsmind完全初始化
   setTimeout(() => {
     // 查找jsmind创建的jmnodes容器
@@ -781,6 +791,16 @@ function setupMindmapScrolling() {
       jsmindInner.style.overflow = 'auto';
       jsmindInner.style.width = '100%';
       jsmindInner.style.height = '100%';
+
+      // 滚动时显示滚动条
+      let scrollTimeout;
+      jsmindInner.addEventListener('scroll', function() {
+        jsmindInner.classList.add('scrolling');
+        clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(function() {
+          jsmindInner.classList.remove('scrolling');
+        }, 500); // 滚动停止500ms后隐藏滚动条
+      }, { passive: true });
 
       // Add pointer handlers to show node details only on mouseup (if not dragged)
       try {
@@ -3823,6 +3843,17 @@ function applySiblingOrParentType(nodeOrId, parentNode) {
   if (typeof refType === 'undefined') return; // 没有可参考类型则不改
   const curType = getNodeType(node);
   const curLevel = getNodeLevel(node);
+
+  // 如果节点已经有显式的类型信息（从原始数据中保存的），且与参考类型不同，优先保留原始类型
+  // 这确保 AI 生成的列表节点不会被错误地转换为标题节点
+  const hasExplicitType = (node.data && node.data.type !== undefined) || 
+                          (node.data && node.data.data && node.data.data.type !== undefined) ||
+                          (node.type !== undefined);
+  
+  if (hasExplicitType && curType !== undefined && curType !== refType) {
+    // 节点已有显式类型且与参考类型不同，保留原始类型，不覆盖
+    return;
+  }
 
   if (curType !== refType) {
     setNodeType(node, refType);

@@ -1,22 +1,3 @@
-/**
- * MindWord - 树心 | 像画图一样写文档的思维导图写作工具
- * GitHub: https://github.com/TimiKays/MindWord
- * 
- * Copyright 2025 Timi Kays
- * 
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 /* ===================================
    现代简约基础样式
    =================================== */
@@ -318,6 +299,50 @@ iframe .btn:not([class*="btn-"]):hover {
 .panel-content {
     height: calc(100% - 44px);
     overflow: auto;
+    /* Firefox 滚动条样式 - 美观优化：不动时隐藏变小变细 */
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    transition: scrollbar-color 0.3s ease;
+}
+
+.panel-content:hover,
+.panel-content.scrolling {
+    scrollbar-color: rgba(193, 193, 193, 0.6) transparent;
+}
+
+/* WebKit 滚动条样式优化 */
+.panel-content::-webkit-scrollbar {
+    width: 3px;
+    height: 3px;
+    transition: width 0.3s ease, height 0.3s ease;
+}
+
+.panel-content::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 2px;
+}
+
+.panel-content::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 2px;
+    transition: background 0.3s ease, width 0.3s ease, height 0.3s ease;
+}
+
+/* 悬停或滚动时显示滚动条 */
+.panel-content:hover::-webkit-scrollbar,
+.panel-content.scrolling::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.panel-content:hover::-webkit-scrollbar-thumb,
+.panel-content.scrolling::-webkit-scrollbar-thumb {
+    background: rgba(193, 193, 193, 0.6);
+}
+
+.panel-content:hover::-webkit-scrollbar-thumb:hover,
+.panel-content.scrolling::-webkit-scrollbar-thumb:hover {
+    background: rgba(168, 168, 168, 0.8);
 }
 
 .panel iframe {
@@ -806,6 +831,20 @@ iframe .btn:not([class*="btn-"]):hover {
     background-repeat: no-repeat;
     background-position: center;
     background-size: contain; */
+}
+
+/* 悬浮圆形快捷按钮里的图标：在某些浏览器 / 场景下 mask 渲染可能失败，
+   这里强制使用 background-image 显示，避免出现白色圆圈里看不到图标的情况。 */
+.mw-fab .ico-btn {
+    width: 22px;
+    height: 22px;
+    background-color: transparent;
+    -webkit-mask: none;
+    mask: none;
+    background-image: var(--ico);
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
 }
 
 /* 三种状态色直接作用于元素本身 */

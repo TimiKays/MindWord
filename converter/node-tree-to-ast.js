@@ -1,23 +1,4 @@
 /**
- * MindWord - 树心 | 像画图一样写文档的思维导图写作工具
- * GitHub: https://github.com/TimiKays/MindWord
- * 
- * Copyright 2025 Timi Kays
- * 
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-/**
  * jsMind节点树转AST转换器
  * 将jsMind的node_tree格式转换为AST结构
  */
@@ -75,9 +56,12 @@ export class NodeTreeToAstConverter {
     // 优先使用节点中已有的depth值，如果没有则使用默认值
     const nodeDepth = node.depth !== undefined ? node.depth : depth;
     
-    // 计算缩进：标题下的直属列表节点缩进为0，列表下的子级列表节点每层+2
+    // 计算缩进：优先使用保存的 indent，否则根据节点类型和父节点计算
     let indent = 0;
-    if (nodeType.type === 'list') {
+    // 优先使用保存的 indent 信息（如果存在）
+    if (data && typeof data.indent !== 'undefined' && data.indent !== null) {
+      indent = data.indent;
+    } else if (nodeType.type === 'list') {
       if (parentInfo && (parentInfo.type === 'heading' || parentInfo.type === 'Document')) {
         // 标题或文档下的直属列表节点，缩进为0
         indent = 0;

@@ -65,6 +65,50 @@
       flex: 1;
       overflow-y: auto;
       min-height: 0;
+      /* Firefox 滚动条样式 - 美观优化：不动时隐藏变小变细 */
+      scrollbar-width: thin;
+      scrollbar-color: transparent transparent;
+      transition: scrollbar-color 0.3s ease;
+    }
+
+    .preview-container:hover,
+    .preview-container.scrolling {
+      scrollbar-color: rgba(193, 193, 193, 0.6) transparent;
+    }
+
+    /* WebKit 滚动条样式优化 */
+    .preview-container::-webkit-scrollbar {
+      width: 3px;
+      height: 3px;
+      transition: width 0.3s ease, height 0.3s ease;
+    }
+
+    .preview-container::-webkit-scrollbar-track {
+      background: transparent;
+      border-radius: 2px;
+    }
+
+    .preview-container::-webkit-scrollbar-thumb {
+      background: transparent;
+      border-radius: 2px;
+      transition: background 0.3s ease, width 0.3s ease, height 0.3s ease;
+    }
+
+    /* 悬停或滚动时显示滚动条 */
+    .preview-container:hover::-webkit-scrollbar,
+    .preview-container.scrolling::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    .preview-container:hover::-webkit-scrollbar-thumb,
+    .preview-container.scrolling::-webkit-scrollbar-thumb {
+      background: rgba(193, 193, 193, 0.6);
+    }
+
+    .preview-container:hover::-webkit-scrollbar-thumb:hover,
+    .preview-container.scrolling::-webkit-scrollbar-thumb:hover {
+      background: rgba(168, 168, 168, 0.8);
     }
 
     /* 全局基准：1rem = 12px */
@@ -452,6 +496,18 @@
       const errlogEl = document.getElementById('errlog');
       const previewEl = document.getElementById('markdownPreview');
       const templateSelect = document.getElementById('templateSelect');
+
+      // 滚动时显示滚动条
+      if (previewEl) {
+        let scrollTimeout;
+        previewEl.addEventListener('scroll', function() {
+          previewEl.classList.add('scrolling');
+          clearTimeout(scrollTimeout);
+          scrollTimeout = setTimeout(function() {
+            previewEl.classList.remove('scrolling');
+          }, 500); // 滚动停止500ms后隐藏滚动条
+        }, { passive: true });
+      }
 
       // 用户上传的模板存储
       const userTemplates = new Map();

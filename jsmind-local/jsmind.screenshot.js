@@ -80,6 +80,161 @@
         }
     };
 
+    // 将字体字符串转换为加粗版本
+    // 字体字符串格式: "font-style font-variant font-weight font-size/line-height font-family"
+    // 例如: "normal normal 400 14px/20px Arial"
+    // 直接替换 font-weight 部分（第三个词，在 font-size 之前）
+    var makeBoldFont = function (fontStr) {
+        if (!fontStr) return fontStr;
+        
+        // 按空格分割字体字符串
+        var parts = fontStr.split(/\s+/);
+        
+        // 查找包含 "px" 的部分（font-size）
+        var sizeIndex = -1;
+        for (var i = 0; i < parts.length; i++) {
+            if (/\d+px/i.test(parts[i])) {
+                sizeIndex = i;
+                break;
+            }
+        }
+        
+        // 如果找到 font-size，它前面的部分应该是 font-weight
+        if (sizeIndex > 0) {
+            var weightIndex = sizeIndex - 1;
+            // 检查是否是 font-weight 值（normal 或数字）
+            if (weightIndex >= 0 && /^(normal|400|300|200|100|500|600|700|800|900)$/i.test(parts[weightIndex])) {
+                parts[weightIndex] = 'bold';
+                return parts.join(' ');
+            }
+        }
+        
+        // 如果无法通过位置识别，使用正则替换
+        // 匹配在 font-size（数字px）之前的 normal 或数字
+        var result = fontStr.replace(/\s+(normal|400|300|200|100|500|600|700|800|900)\s+(?=\d+px)/i, ' bold ');
+        if (result !== fontStr) {
+            return result;
+        }
+        
+        // 最后的回退：替换第一个匹配的 normal 或数字
+        return fontStr.replace(/\b(normal|400|300|200|100|500|600|700|800|900)\b/i, 'bold');
+    };
+
+    // 解析 HTML 文本并分段绘制，支持 <strong> 标签的加粗效果
+    jcanvas.text_html = function (ctx, htmlText, x, y, w, h, lineheight, baseFont, boldFont) {
+        if (!htmlText) return;
+        
+        // 提取纯文本并记录样式信息
+        var segments = [];
+        var tempDiv = document.createElement('div');
+        tempDiv.innerHTML = htmlText;
+        
+        function extractSegments(node, isBold) {
+            if (node.nodeType === 3) { // 文本节点
+                var text = node.textContent;
+                if (text && text.trim()) {
+                    segments.push({ text: text, bold: isBold });
+                }
+            } else if (node.nodeType === 1) { // 元素节点
+                var tagName = node.tagName.toLowerCase();
+                var childIsBold = isBold || (tagName === 'strong' || tagName === 'b');
+                
+                for (var i = 0; i < node.childNodes.length; i++) {
+                    extractSegments(node.childNodes[i], childIsBold);
+                }
+            }
+        }
+        
+        extractSegments(tempDiv, false);
+        
+        if (segments.length === 0) return;
+        
+        // 分段绘制文本
+        var currentX = x;
+        var currentY = y;
+        var currentLine = '';
+        var currentLineBold = false;
+        
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        
+        for (var i = 0; i < segments.length; i++) {
+            var seg = segments[i];
+            var words = seg.text.split(/(\s+)/);
+            
+            for (var j = 0; j < words.length; j++) {
+                var word = words[j];
+                if (!word) continue;
+                
+                // 如果样式改变，先绘制当前行
+                if (currentLine && currentLineBold !== seg.bold) {
+                    ctx.font = currentLineBold ? (boldFont || makeBoldFont(baseFont)) : baseFont;
+                    ctx.fillText(currentLine, currentX, currentY);
+                    currentX += ctx.measureText(currentLine).width;
+                    currentLine = '';
+                }
+                
+                // 设置当前段的字体样式
+                var segBold = seg.bold;
+                var segFont = segBold ? (boldFont || makeBoldFont(baseFont)) : baseFont;
+                ctx.font = segFont;
+                
+                // 测试是否超出宽度（使用当前段的字体测量）
+                var testLine = currentLine + word;
+                var testWidth = ctx.measureText(testLine).width;
+                
+                if (testWidth > w && currentLine) {
+                    // 绘制当前行并换行（使用当前行的字体）
+                    ctx.font = currentLineBold ? (boldFont || makeBoldFont(baseFont)) : baseFont;
+                    ctx.fillText(currentLine, currentX, currentY);
+                    currentY += lineheight;
+                    currentX = x;
+                    currentLine = word;
+                    currentLineBold = segBold;
+                    // 更新字体以匹配新行的样式
+                    ctx.font = currentLineBold ? (boldFont || makeBoldFont(baseFont)) : baseFont;
+                } else {
+                    currentLine = testLine;
+                    currentLineBold = segBold;
+                }
+            }
+        }
+        
+        // 绘制最后一行
+        if (currentLine) {
+            ctx.font = currentLineBold ? (boldFont || makeBoldFont(baseFont)) : baseFont;
+            ctx.fillText(currentLine, currentX, currentY);
+        }
+    };
+
+    // 处理 HTML 文本的省略号版本
+    jcanvas.text_html_ellipsis = function (ctx, htmlText, x, y, w, h, baseFont, boldFont) {
+        if (!htmlText) return;
+        
+        // 提取纯文本（去掉 HTML 标签用于测量宽度）
+        var tempDiv = document.createElement('div');
+        tempDiv.innerHTML = htmlText;
+        var plainText = tempDiv.textContent || tempDiv.innerText || '';
+        
+        // 使用纯文本计算省略号（使用正常字体测量）
+        ctx.font = baseFont;
+        var fittedText = jcanvas.fittingString(ctx, plainText, w);
+        
+        // 如果文本被截断，需要重新构建 HTML 结构
+        if (fittedText !== plainText) {
+            // 简化处理：只显示纯文本（带省略号）
+            var center_y = y + h / 2;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.font = baseFont;
+            ctx.fillText(fittedText, x, center_y, w);
+        } else {
+            // 文本完整，可以分段绘制
+            var lineheight = parseInt(baseFont.match(/\/(\d+)/)?.[1] || '16');
+            jcanvas.text_html(ctx, htmlText, x, y, w, h, lineheight, baseFont, boldFont);
+        }
+    };
+
     jcanvas.image = function (ctx, url, x, y, w, h, r, rotation, callback) {
         var img = new Image();
         img.onload = function () {
@@ -288,9 +443,11 @@
             var padding_top = parseInt(css(ncs, 'padding-top'));
             var padding_bottom = parseInt(css(ncs, 'padding-bottom'));
             var text_overflow = css(ncs, 'text-overflow');
+            // 保存原始 font-weight，用于后续加粗处理
+            var baseFontWeight = css(ncs, 'font-weight');
             var font = css(ncs, 'font-style') + ' ' +
                 css(ncs, 'font-variant') + ' ' +
-                css(ncs, 'font-weight') + ' ' +
+                baseFontWeight + ' ' +
                 css(ncs, 'font-size') + '/' + css(ncs, 'line-height') + ' ' +
                 css(ncs, 'font-family');
 
@@ -328,11 +485,32 @@
                     });
             }
             if (!!node.topic) {
-                if (text_overflow === 'ellipsis') {
-                    jcanvas.text_ellipsis(ctx, node.topic, tb.x, tb.y, tb.w, tb.h);
+                // 检查是否包含 HTML 标签（如 <strong>）
+                var hasHtml = /<[^>]+>/.test(node.topic);
+                
+                if (hasHtml) {
+                    // 包含 HTML 标签，使用 HTML 渲染函数
+                    // 构建加粗字体字符串：直接使用 CSS 属性构建，确保 font-weight 为 bold
+                    var boldFont = css(ncs, 'font-style') + ' ' +
+                        css(ncs, 'font-variant') + ' ' +
+                        'bold ' +
+                        css(ncs, 'font-size') + '/' + css(ncs, 'line-height') + ' ' +
+                        css(ncs, 'font-family');
+                    
+                    if (text_overflow === 'ellipsis') {
+                        jcanvas.text_html_ellipsis(ctx, node.topic, tb.x, tb.y, tb.w, tb.h, font, boldFont);
+                    } else {
+                        var line_height = parseInt(css(ncs, 'line-height'));
+                        jcanvas.text_html(ctx, node.topic, tb.x, tb.y, tb.w, tb.h, line_height, font, boldFont);
+                    }
                 } else {
-                    var line_height = parseInt(css(ncs, 'line-height'));
-                    jcanvas.text_multiline(ctx, node.topic, tb.x, tb.y, tb.w, tb.h, line_height);
+                    // 纯文本，使用原有函数
+                    if (text_overflow === 'ellipsis') {
+                        jcanvas.text_ellipsis(ctx, node.topic, tb.x, tb.y, tb.w, tb.h);
+                    } else {
+                        var line_height = parseInt(css(ncs, 'line-height'));
+                        jcanvas.text_multiline(ctx, node.topic, tb.x, tb.y, tb.w, tb.h, line_height);
+                    }
                 }
             }
             if (!!view_data.expander) {

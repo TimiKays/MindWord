@@ -273,7 +273,9 @@ function insertNodeTreeChildren(parentId, ntNode, requestId) {
             }
 
             // 应用兄弟节点或父节点类型（如果函数存在）
-            if (typeof window.applySiblingOrParentType === 'function') {
+            // 只有当节点没有显式类型信息时才应用，避免覆盖 AI 生成的列表节点类型
+            var hasExplicitType = (nodeData && nodeData.type !== undefined);
+            if (typeof window.applySiblingOrParentType === 'function' && !hasExplicitType) {
               try { window.applySiblingOrParentType(nid); } catch (_) { }
             }
           } catch (e) { }

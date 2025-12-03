@@ -285,6 +285,28 @@ function handleTabClick(panelName) {
   try { if (typeof MW_reloadMindmapOnShowIfMobile === 'function') MW_reloadMindmapOnShowIfMobile(panelName); } catch (e) { /* ignore */ }
 }
 
+// 通知思维导图 iframe 重新布局（解决切换专注面板后思维导图挤在一起的问题）
+function requestMindmapRelayout() {
+  try {
+    const iframe =
+      document.getElementById('iframe-mindmap') ||
+      document.querySelector('iframe[data-panel="mindmap"]') ||
+      document.querySelector('iframe[src*="jsmind/mindmap.html"]');
+
+    if (!iframe || !iframe.contentWindow) return;
+
+    // 立即和稍后各发一次，兼容父容器刚刚变更尺寸的情况
+    iframe.contentWindow.postMessage({ type: 'mw_relayout' }, '*');
+    setTimeout(() => {
+      try {
+        iframe.contentWindow.postMessage({ type: 'mw_relayout' }, '*');
+      } catch (_) { /* ignore */ }
+    }, 180);
+  } catch (_) {
+    // 静默失败，避免影响主流程
+  }
+}
+
 // 更新布局
 function updateLayout() {
   const editorPanel = document.getElementById('editor-panel');
@@ -297,6 +319,11 @@ function updateLayout() {
   editorPanel.classList.toggle('hidden', !panels.editor);
   previewPanel.classList.toggle('hidden', !panels.preview);
   mindmapPanel.classList.toggle('hidden', !panels.mindmap);
+
+  // 无论是否处于专注模式，只要当前思维导图是可见面板，就主动通知其重排
+  if (panels.mindmap) {
+    requestMindmapRelayout();
+  }
 
   if (focusMode) {
     resizer1.style.display = 'none';
