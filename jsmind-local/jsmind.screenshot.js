@@ -400,7 +400,7 @@
                     return c.toDataURL(mime || 'image/png', quality);
                 }
 
-                var pad = typeof padding === 'number' ? Math.max(0, Math.floor(padding)) : 2; // 默认留 2px 缓冲
+                var pad = typeof padding === 'number' ? Math.max(0, Math.floor(padding)) : 30;
                 var sx = Math.max(0, minX - pad);
                 var sy = Math.max(0, minY - pad);
                 var sw = Math.min(w - sx, (maxX - minX + 1) + pad * 2);
