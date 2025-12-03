@@ -86,10 +86,10 @@
     // 直接替换 font-weight 部分（第三个词，在 font-size 之前）
     var makeBoldFont = function (fontStr) {
         if (!fontStr) return fontStr;
-        
+
         // 按空格分割字体字符串
         var parts = fontStr.split(/\s+/);
-        
+
         // 查找包含 "px" 的部分（font-size）
         var sizeIndex = -1;
         for (var i = 0; i < parts.length; i++) {
@@ -98,7 +98,7 @@
                 break;
             }
         }
-        
+
         // 如果找到 font-size，它前面的部分应该是 font-weight
         if (sizeIndex > 0) {
             var weightIndex = sizeIndex - 1;
@@ -108,14 +108,14 @@
                 return parts.join(' ');
             }
         }
-        
+
         // 如果无法通过位置识别，使用正则替换
         // 匹配在 font-size（数字px）之前的 normal 或数字
         var result = fontStr.replace(/\s+(normal|400|300|200|100|500|600|700|800|900)\s+(?=\d+px)/i, ' bold ');
         if (result !== fontStr) {
             return result;
         }
-        
+
         // 最后的回退：替换第一个匹配的 normal 或数字
         return fontStr.replace(/\b(normal|400|300|200|100|500|600|700|800|900)\b/i, 'bold');
     };
@@ -123,12 +123,12 @@
     // 解析 HTML 文本并分段绘制，支持 <strong> 标签的加粗效果
     jcanvas.text_html = function (ctx, htmlText, x, y, w, h, lineheight, baseFont, boldFont) {
         if (!htmlText) return;
-        
+
         // 提取纯文本并记录样式信息
         var segments = [];
         var tempDiv = document.createElement('div');
         tempDiv.innerHTML = htmlText;
-        
+
         function extractSegments(node, isBold) {
             if (node.nodeType === 3) { // 文本节点
                 var text = node.textContent;
@@ -138,34 +138,34 @@
             } else if (node.nodeType === 1) { // 元素节点
                 var tagName = node.tagName.toLowerCase();
                 var childIsBold = isBold || (tagName === 'strong' || tagName === 'b');
-                
+
                 for (var i = 0; i < node.childNodes.length; i++) {
                     extractSegments(node.childNodes[i], childIsBold);
                 }
             }
         }
-        
+
         extractSegments(tempDiv, false);
-        
+
         if (segments.length === 0) return;
-        
+
         // 分段绘制文本
         var currentX = x;
         var currentY = y;
         var currentLine = '';
         var currentLineBold = false;
-        
+
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
-        
+
         for (var i = 0; i < segments.length; i++) {
             var seg = segments[i];
             var words = seg.text.split(/(\s+)/);
-            
+
             for (var j = 0; j < words.length; j++) {
                 var word = words[j];
                 if (!word) continue;
-                
+
                 // 如果样式改变，先绘制当前行
                 if (currentLine && currentLineBold !== seg.bold) {
                     ctx.font = currentLineBold ? (boldFont || makeBoldFont(baseFont)) : baseFont;
@@ -173,16 +173,16 @@
                     currentX += ctx.measureText(currentLine).width;
                     currentLine = '';
                 }
-                
+
                 // 设置当前段的字体样式
                 var segBold = seg.bold;
                 var segFont = segBold ? (boldFont || makeBoldFont(baseFont)) : baseFont;
                 ctx.font = segFont;
-                
+
                 // 测试是否超出宽度（使用当前段的字体测量）
                 var testLine = currentLine + word;
                 var testWidth = ctx.measureText(testLine).width;
-                
+
                 if (testWidth > w && currentLine) {
                     // 绘制当前行并换行（使用当前行的字体）
                     ctx.font = currentLineBold ? (boldFont || makeBoldFont(baseFont)) : baseFont;
@@ -199,7 +199,7 @@
                 }
             }
         }
-        
+
         // 绘制最后一行
         if (currentLine) {
             ctx.font = currentLineBold ? (boldFont || makeBoldFont(baseFont)) : baseFont;
@@ -210,16 +210,16 @@
     // 处理 HTML 文本的省略号版本
     jcanvas.text_html_ellipsis = function (ctx, htmlText, x, y, w, h, baseFont, boldFont) {
         if (!htmlText) return;
-        
+
         // 提取纯文本（去掉 HTML 标签用于测量宽度）
         var tempDiv = document.createElement('div');
         tempDiv.innerHTML = htmlText;
         var plainText = tempDiv.textContent || tempDiv.innerText || '';
-        
+
         // 使用纯文本计算省略号（使用正常字体测量）
         ctx.font = baseFont;
         var fittedText = jcanvas.fittingString(ctx, plainText, w);
-        
+
         // 如果文本被截断，需要重新构建 HTML 结构
         if (fittedText !== plainText) {
             // 简化处理：只显示纯文本（带省略号）
@@ -471,6 +471,18 @@
             ctx.closePath();
             ctx.fill();
 
+            // 绘制节点边框
+            var borderColor = css(ncs, 'border-color');
+            var borderWidth = parseInt(css(ncs, 'border-width'));
+
+            ctx.strokeStyle = borderColor;
+            ctx.lineWidth = borderWidth;
+            ctx.beginPath();
+            jcanvas.rect(ctx, rb.x, rb.y, rb.w, rb.h, round_radius);
+            ctx.closePath();
+            ctx.stroke();
+
+
             ctx.fillStyle = color;
             if ('background-image' in node.data) {
                 var backgroundUrl = css(ncs, 'background-image').slice(5, -2);
@@ -487,7 +499,7 @@
             if (!!node.topic) {
                 // 检查是否包含 HTML 标签（如 <strong>）
                 var hasHtml = /<[^>]+>/.test(node.topic);
-                
+
                 if (hasHtml) {
                     // 包含 HTML 标签，使用 HTML 渲染函数
                     // 构建加粗字体字符串：直接使用 CSS 属性构建，确保 font-weight 为 bold
@@ -496,7 +508,7 @@
                         'bold ' +
                         css(ncs, 'font-size') + '/' + css(ncs, 'line-height') + ' ' +
                         css(ncs, 'font-family');
-                    
+
                     if (text_overflow === 'ellipsis') {
                         jcanvas.text_html_ellipsis(ctx, node.topic, tb.x, tb.y, tb.w, tb.h, font, boldFont);
                     } else {

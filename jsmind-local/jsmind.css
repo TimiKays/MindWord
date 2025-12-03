@@ -130,7 +130,7 @@ jmexpander:hover {
 jmnodes.theme-primary jmnode {
     background-color: #ffffff;
     color: #383838;
-    border-color: #357ebd;
+    border-color: rgb(155, 155, 155);
 }
 
 jmnodes.theme-primary jmnode:hover {
