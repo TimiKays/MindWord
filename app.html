@@ -967,6 +967,37 @@
 
     <!-- 中文方案：LeanCloud Data 同步脚本 -->
     <script src="leancloud-sync.js"></script>
+
+    <!-- 滚动条优化：滚动时显示滚动条 -->
+    <script>
+      (function() {
+        // 等待 DOM 加载完成
+        function initScrollbarOptimization() {
+          // 为所有 panel-content 添加滚动事件监听
+          const panelContents = document.querySelectorAll('.panel-content');
+          panelContents.forEach(function(panelContent) {
+            let scrollTimeout;
+            panelContent.addEventListener('scroll', function() {
+              panelContent.classList.add('scrolling');
+              clearTimeout(scrollTimeout);
+              scrollTimeout = setTimeout(function() {
+                panelContent.classList.remove('scrolling');
+              }, 500); // 滚动停止500ms后隐藏滚动条
+            }, { passive: true });
+          });
+        }
+
+        // DOMContentLoaded 时初始化
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', initScrollbarOptimization);
+        } else {
+          initScrollbarOptimization();
+        }
+
+        // 延迟执行，确保 iframe 加载完成
+        setTimeout(initScrollbarOptimization, 1000);
+      })();
+    </script>
 </body>
 
 </html>

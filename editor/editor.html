@@ -74,6 +74,50 @@
             resize: none;
             background-color: #fff;
             color: #333;
+            /* Firefox 滚动条样式 - 美观优化：不动时隐藏变小变细 */
+            scrollbar-width: thin;
+            scrollbar-color: transparent transparent;
+            transition: scrollbar-color 0.3s ease;
+        }
+
+        .editor:hover,
+        .editor.scrolling {
+            scrollbar-color: rgba(193, 193, 193, 0.6) transparent;
+        }
+
+        /* WebKit 滚动条样式优化 */
+        .editor::-webkit-scrollbar {
+            width: 3px;
+            height: 3px;
+            transition: width 0.3s ease, height 0.3s ease;
+        }
+
+        .editor::-webkit-scrollbar-track {
+            background: transparent;
+            border-radius: 2px;
+        }
+
+        .editor::-webkit-scrollbar-thumb {
+            background: transparent;
+            border-radius: 2px;
+            transition: background 0.3s ease, width 0.3s ease, height 0.3s ease;
+        }
+
+        /* 悬停或滚动时显示滚动条 */
+        .editor:hover::-webkit-scrollbar,
+        .editor.scrolling::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .editor:hover::-webkit-scrollbar-thumb,
+        .editor.scrolling::-webkit-scrollbar-thumb {
+            background: rgba(193, 193, 193, 0.6);
+        }
+
+        .editor:hover::-webkit-scrollbar-thumb:hover,
+        .editor.scrolling::-webkit-scrollbar-thumb:hover {
+            background: rgba(168, 168, 168, 0.8);
         }
 
         .editor:focus {
@@ -131,6 +175,50 @@
             overflow-y: auto;
             font-size: 14px;
             line-height: 1.6;
+            /* Firefox 滚动条样式 - 美观优化：不动时隐藏变小变细 */
+            scrollbar-width: thin;
+            scrollbar-color: transparent transparent;
+            transition: scrollbar-color 0.3s ease;
+        }
+
+        .help-content:hover,
+        .help-content.scrolling {
+            scrollbar-color: rgba(193, 193, 193, 0.6) transparent;
+        }
+
+        /* WebKit 滚动条样式优化 */
+        .help-content::-webkit-scrollbar {
+            width: 3px;
+            height: 3px;
+            transition: width 0.3s ease, height 0.3s ease;
+        }
+
+        .help-content::-webkit-scrollbar-track {
+            background: transparent;
+            border-radius: 2px;
+        }
+
+        .help-content::-webkit-scrollbar-thumb {
+            background: transparent;
+            border-radius: 2px;
+            transition: background 0.3s ease, width 0.3s ease, height 0.3s ease;
+        }
+
+        /* 悬停或滚动时显示滚动条 */
+        .help-content:hover::-webkit-scrollbar,
+        .help-content.scrolling::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .help-content:hover::-webkit-scrollbar-thumb,
+        .help-content.scrolling::-webkit-scrollbar-thumb {
+            background: rgba(193, 193, 193, 0.6);
+        }
+
+        .help-content:hover::-webkit-scrollbar-thumb:hover,
+        .help-content.scrolling::-webkit-scrollbar-thumb:hover {
+            background: rgba(168, 168, 168, 0.8);
         }
 
         .help-section {
@@ -487,6 +575,7 @@
                 // this.setupAutoSave();
                 this.setupImagePaste();
                 this.setupDragDrop();
+                this.setupScrollbarOptimization();
 
                 // 监听跨页面/iframe 的缓存变化，markdown 有变更则刷新自己并执行同步
                 window.addEventListener('storage', (e) => {
@@ -541,6 +630,37 @@
                 // 编辑器内容变化
                 this.editor.addEventListener('input', () => this.onContentChange());
 
+            }
+
+            // ===================================
+            // 🎨 滚动条优化
+            // ===================================
+
+            setupScrollbarOptimization() {
+                // 为编辑器添加滚动事件监听
+                if (this.editor) {
+                    let scrollTimeout;
+                    this.editor.addEventListener('scroll', () => {
+                        this.editor.classList.add('scrolling');
+                        clearTimeout(scrollTimeout);
+                        scrollTimeout = setTimeout(() => {
+                            this.editor.classList.remove('scrolling');
+                        }, 500); // 滚动停止500ms后隐藏滚动条
+                    }, { passive: true });
+                }
+
+                // 为帮助面板内容添加滚动事件监听
+                const helpContent = document.querySelector('.help-content');
+                if (helpContent) {
+                    let helpScrollTimeout;
+                    helpContent.addEventListener('scroll', () => {
+                        helpContent.classList.add('scrolling');
+                        clearTimeout(helpScrollTimeout);
+                        helpScrollTimeout = setTimeout(() => {
+                            helpContent.classList.remove('scrolling');
+                        }, 500); // 滚动停止500ms后隐藏滚动条
+                    }, { passive: true });
+                }
             }
 
             // ===================================

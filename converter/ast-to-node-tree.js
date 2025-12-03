@@ -98,6 +98,13 @@ class AstToNodeTreeConverter {
       siblingNodes: siblingNames     // 新增：兄弟节点名称列表
     };
 
+    // 如果是列表节点，保存 ordered、marker 和 indent 信息，确保转换回 Markdown 时保留列表格式
+    if (node.type === 'list') {
+      mindNode.data.ordered = node.ordered !== undefined ? node.ordered : false;
+      mindNode.data.marker = node.marker || '-';
+      mindNode.data.indent = node.indent !== undefined ? node.indent : 0;
+    }
+
     // 如果有notes，添加到节点根级别，而不是data中
     if (node.notes && node.notes.trim()) {
       mindNode.notes = node.notes;
@@ -116,27 +123,47 @@ class AstToNodeTreeConverter {
   }
 
   /**
-   * 提取节点主题（去掉#等标识符）
+   * 将 Markdown 粗体语法转换为 HTML
+   * 将 **文本** 转换为 <strong>文本</strong>
+   */
+  convertMarkdownBoldToHtml(text) {
+    if (!text || typeof text !== 'string') return text;
+    // 匹配 **文本** 或 __文本__ 格式（但不匹配 ***文本*** 或中间有空格的）
+    // 使用非贪婪匹配，避免跨行匹配
+    return text.replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>')
+               .replace(/__([^_]+?)__/g, '<strong>$1</strong>');
+  }
+
+  /**
+   * 提取节点主题（去掉#等标识符，并将 Markdown 粗体转换为 HTML）
    */
   extractTopic(node) {
+    let topic = '';
     switch (node.type) {
       case 'heading':
         // 去掉标题的#标识符，只保留纯文本内容
-        return node.name || 'Heading';
+        topic = node.name || 'Heading';
+        break;
 
       case 'title':
-        return node.name || 'Title';
+        topic = node.name || 'Title';
+        break;
 
       case 'list':
         // 去掉列表标识符，只保留内容
-        return node.name || 'List Item';
+        topic = node.name || 'List Item';
+        break;
 
       case 'document':
-        return 'Document';
+        topic = 'Document';
+        break;
 
       default:
-        return node.name || node.type || 'Node';
+        topic = node.name || node.type || 'Node';
     }
+    
+    // 将 Markdown 粗体语法转换为 HTML，以便在思维导图中显示加粗效果
+    return this.convertMarkdownBoldToHtml(topic);
   }
 
   /**

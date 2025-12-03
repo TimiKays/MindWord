@@ -28,6 +28,22 @@ export class AstToMdConverter {
     let markdown = '';
     const indent = ' '.repeat(depth * this.indentSize);
 
+    // 统一清理标题名称：去掉整段被 ** 包裹的粗体标记，避免生成形如 "#### **标题**"
+    // 只处理首尾成对的 **，中间保留普通粗体格式
+    const sanitizeHeadingText = (text) => {
+      if (!text) return '';
+      const trimmed = String(text).trim();
+      const m = trimmed.match(/^\*\*(.+)\*\*$/);
+      return m ? m[1].trim() : trimmed;
+    };
+
+    // 将 HTML 的 <strong> 标签转换回 Markdown 的 **文本** 格式
+    const convertHtmlBoldToMarkdown = (text) => {
+      if (!text || typeof text !== 'string') return text;
+      // 将 <strong>文本</strong> 转换为 **文本**
+      return text.replace(/<strong>([^<]+?)<\/strong>/gi, '**$1**');
+    };
+
     switch (node.type) {
       case 'document':
       case 'Document':
@@ -40,7 +56,10 @@ export class AstToMdConverter {
       case 'heading':
         const level = Math.min(Math.max(node.level || 1, 1), 6);
         const prefix = '#'.repeat(level);
-        markdown = `${prefix} ${node.name}`;
+        // 先将 HTML 的 <strong> 转换回 **文本**，然后再清理标题首尾的 **
+        const headingNameWithBold = convertHtmlBoldToMarkdown(node.name);
+        const headingText = sanitizeHeadingText(headingNameWithBold);
+        markdown = `${prefix} ${headingText}`;
         if (node.notes) {
           markdown += `\n${indent}  ${node.notes}`;
         }
@@ -54,10 +73,17 @@ export class AstToMdConverter {
         break;
 
       case 'list':
-        const marker = node.ordered ? '1.' : '-';
-        markdown = `${indent}${marker} ${node.name}`;
+        // 优先使用保存的 marker，如果没有则根据 ordered 判断
+        const marker = node.marker || (node.ordered ? '1.' : '-');
+        // 列表节点的缩进应该使用 node.indent（如果存在），否则使用 depth 计算
+        const listIndent = (node.indent !== undefined && node.indent !== null) 
+          ? ' '.repeat(node.indent) 
+          : indent;
+        // 将 HTML 的 <strong> 标签转换回 Markdown 的 **文本** 格式
+        const listName = convertHtmlBoldToMarkdown(node.name);
+        markdown = `${listIndent}${marker} ${listName}`;
         if (node.notes) {
-          markdown += `\n${indent}  ${node.notes}`;
+          markdown += `\n${listIndent}  ${node.notes}`;
         }
         
         // 处理子节点（嵌套列表项）
@@ -72,12 +98,14 @@ export class AstToMdConverter {
         // 标题节点（兼容旧格式）
         const titleLevel = Math.min(Math.max(node.level || 1, 1), 6);
         const titlePrefix = '#'.repeat(titleLevel);
-        markdown = `${titlePrefix} ${node.name}`;
+        const titleNameWithBold = convertHtmlBoldToMarkdown(node.name);
+        markdown = `${titlePrefix} ${sanitizeHeadingText(titleNameWithBold)}`;
         break;
 
       default:
         // 未知类型，按文本处理
-        markdown = node.name || '';
+        const defaultName = convertHtmlBoldToMarkdown(node.name || '');
+        markdown = defaultName;
         if (node.notes) {
           markdown += `\n${indent}  ${node.notes}`;
         }

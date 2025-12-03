@@ -56,9 +56,12 @@ export class NodeTreeToAstConverter {
     // 优先使用节点中已有的depth值，如果没有则使用默认值
     const nodeDepth = node.depth !== undefined ? node.depth : depth;
     
-    // 计算缩进：标题下的直属列表节点缩进为0，列表下的子级列表节点每层+2
+    // 计算缩进：优先使用保存的 indent，否则根据节点类型和父节点计算
     let indent = 0;
-    if (nodeType.type === 'list') {
+    // 优先使用保存的 indent 信息（如果存在）
+    if (data && typeof data.indent !== 'undefined' && data.indent !== null) {
+      indent = data.indent;
+    } else if (nodeType.type === 'list') {
       if (parentInfo && (parentInfo.type === 'heading' || parentInfo.type === 'Document')) {
         // 标题或文档下的直属列表节点，缩进为0
         indent = 0;

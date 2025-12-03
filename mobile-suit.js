@@ -59,10 +59,13 @@ window.MW_reloadMindmapOnShowIfMobile = function (panelName) {
     console.log('[MW_reloadMindmapOnShowIfMobile] not mindmap panel, returning');
     return;
   }
-  if (!isMobile()) {
-    console.log('[MW_reloadMindmapOnShowIfMobile] not mobile, returning');
+  // 桌面和移动端都会在“首次真正显示思维导图面板”时强制刷新一次 iframe，
+  // 避免在专注模式或历史状态恢复后 iframe 在隐藏状态下渲染导致的“全部挤在一起”的问题。
+  if (window.__mw_mindmapReloadScheduledOnce) {
+    console.log('[MW_reloadMindmapOnShowIfMobile] reload already scheduled once, skip');
     return;
   }
-  console.log('[MW_reloadMindmapOnShowIfMobile] mobile mindmap detected, scheduling iframe reload');
+  window.__mw_mindmapReloadScheduledOnce = true;
+  console.log('[MW_reloadMindmapOnShowIfMobile] scheduling iframe reload (desktop/mobile unified)');
   setTimeout(reloadMindmapIframeOnce, 80);
 };

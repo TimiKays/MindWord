@@ -1743,6 +1743,52 @@
   </script>
 
   <script>
+    // 统一的布局刷新函数：在父页面发送 mw_relayout 或子页面尺寸变化时调用
+    // 作用：根据当前容器大小重新计算思维导图布局，避免在隐藏状态渲染后出现“节点挤在一起”。
+    function updateLayout() {
+      try {
+        var container = document.getElementById('fullScreenMindmap');
+        if (!container) return;
+        var inner = container.querySelector('.jsmind-inner');
+        if (inner) {
+          inner.style.overflow = 'auto';
+          inner.style.width = '100%';
+          inner.style.height = '100%';
+        }
+        // 重新绑定/修正滚动行为
+        try {
+          if (typeof window.setupMindmapScrolling === 'function') {
+            window.setupMindmapScrolling();
+          }
+        } catch (e) { }
+        // 让 jsMind 按当前尺寸重新计算布局：
+        // 使用 MW_preserveViewportAround + jm.show(jm.get_data()) 重新跑一遍布局计算，
+        // 以实际可见宽度为基准，避免在隐藏状态下初始化导致的缩放/偏移异常。
+        try {
+          if (window.jm && typeof window.jm.get_data === 'function' && typeof window.jm.show === 'function') {
+            var rerender = function () {
+              try {
+                var data = window.jm.get_data();
+                if (data) window.jm.show(data);
+              } catch (_) { }
+            };
+            if (typeof window.MW_preserveViewportAround === 'function') {
+              window.MW_preserveViewportAround(rerender, 120, { avoidReselect: true });
+            } else {
+              rerender();
+            }
+          } else if (window.jm && typeof window.jm.refresh === 'function') {
+            // 兜底：如果没有 show/get_data，就至少做一次 refresh
+            window.jm.refresh();
+          }
+        } catch (e) { }
+      } catch (e) {
+        try { console.warn('[mindmap] updateLayout error', e); } catch (_) { }
+      }
+    }
+  </script>
+
+  <script>
     (function () {
       function renderMindmapFromMd(payload) {
         const md = payload?.md || '';

@@ -149,6 +149,30 @@ export class MdToAstConverter {
         continue;
       }
 
+      // 检查缩进的纯文本行：如果有缩进（至少2个空格）且前面有节点，则作为子节点
+      const indentMatch = line.match(/^(\s{2,})(.+)$/);
+      if (indentMatch && !isBlockQuote && !isWholeLineInlineCode && (lastNode || parent.children.length > 0)) {
+        const indent = indentMatch[1].length;
+        const content = indentMatch[2].trim();
+        
+        // 如果内容不为空，创建为列表节点
+        if (content) {
+          // 处理前一个节点的备注
+          if (lastNode) {
+            lastNode.notes = currentNotes.join('\n').trim();
+          }
+          currentNotes = [];
+
+          // 创建一个虚拟的列表匹配对象，用于 createListNode
+          const virtualListMatch = [line, indentMatch[1], '-', content];
+          const newNode = this.createListNode(virtualListMatch, lineNum, line);
+          this.addToTree(stack, newNode);
+          lastNode = newNode;
+          i++;
+          continue;
+        }
+      }
+
       // 其他行：当作备注合并到最近的节点（或合并到已有子节点）
       if (lastNode || parent.children.length > 0) {
         currentNotes.push(line);
