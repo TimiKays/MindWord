@@ -56,22 +56,22 @@ export class MdToAstConverter {
     });
 
     this.parseBlocks(lines, tempRoot);
-    
+
     // 如果第一层只有一个节点，则直接返回该节点，并调整其深度
     if (tempRoot.children.length === 1) {
       const singleNode = tempRoot.children[0];
       this.adjustDepths(singleNode, -1);
       return singleNode;
     }
-    
+
     // 如果第一层有多个节点，则返回根节点
     return tempRoot;
   }
 
-   /**
-   * 解析块级元素
-   * @private
-   */
+  /**
+  * 解析块级元素
+  * @private
+  */
   parseBlocks(lines, parent) {
     let i = 0;
     let currentNotes = [];
@@ -168,29 +168,7 @@ export class MdToAstConverter {
         continue;
       }
 
-      // 检查缩进的纯文本行：如果有缩进（至少2个空格）且前面有节点，则作为子节点
-      const indentMatch = line.match(/^(\s{2,})(.+)$/);
-      if (indentMatch && !isBlockQuote && !isWholeLineInlineCode && (lastNode || parent.children.length > 0)) {
-        const indent = indentMatch[1].length;
-        const content = indentMatch[2].trim();
-        
-        // 如果内容不为空，创建为列表节点
-        if (content) {
-          // 处理前一个节点的备注
-          if (lastNode) {
-            lastNode.notes = currentNotes.join('\n').trim();
-          }
-          currentNotes = [];
-
-          // 创建一个虚拟的列表匹配对象，用于 createListNode
-          const virtualListMatch = [line, indentMatch[1], '-', content];
-          const newNode = this.createListNode(virtualListMatch, lineNum, line);
-          this.addToTree(stack, newNode);
-          lastNode = newNode;
-          i++;
-          continue;
-        }
-      }
+      // 文本段落不论是否有缩进，都只作为节点备注。
 
       // 其他行：当作备注合并到最近的节点（或合并到已有子节点）
       if (lastNode || parent.children.length > 0) {
@@ -260,7 +238,7 @@ export class MdToAstConverter {
         return;
       }
     }
-    
+
     stack[0].node.addChild(node);
     this.updateStackForHeading(stack, node);
   }
@@ -268,10 +246,10 @@ export class MdToAstConverter {
   addListToTree(stack, node) {
     // 找到合适的列表父节点
     let parentFound = false;
-    
+
     // 根据缩进规则查找父节点（每2个空格为一级）
     const expectedParentIndent = node.indent - 2;
-    
+
     for (let i = stack.length - 1; i >= 0; i--) {
       const info = stack[i];
       // 查找缩进正好少2个空格的列表节点作为父节点
@@ -282,7 +260,7 @@ export class MdToAstConverter {
         break;
       }
     }
-    
+
     if (!parentFound) {
       // 查找最近的标题或文档作为父节点
       for (let i = stack.length - 1; i >= 0; i--) {
