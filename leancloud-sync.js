@@ -528,7 +528,7 @@
         <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; display: flex; align-items: center; justify-content: center;">
           <div style="background: white; border-radius: 12px; padding: 24px; width: 90%; max-width: 1000px; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
             <div style="display: flex; align-items: center; margin-bottom: 20px;">
-              <h3 style="margin: 0; color: #333; font-size: 20px; font-weight: 600;">🔄 <span data-i18n="cloud.syncPreview">同步预览</span></h3>
+              <h3 style="margin: 0; color: #333; font-size: 20px; font-weight: 600;"><span data-i18n="cloud.syncPreview">🔄 同步预览</span></h3>
               <div style="margin-left: auto; font-size: 12px; color: #666; background: #f8f9fa; padding: 4px 8px; border-radius: 4px;">
                 <span data-i18n="cloud.selectDataToKeep">选择要保留的数据</span>
               </div>
@@ -558,7 +558,7 @@
             <div style="margin-top: 20px; text-align: right; display: flex; justify-content: flex-end; align-items: center;">
               <div>
                 <button id="sync-preview-cancel" style="margin-right: 12px; padding: 10px 20px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s;" data-i18n="docs.cancel">取消</button>
-                <button id="sync-preview-confirm" style="padding: 10px 24px; background: linear-gradient(135deg, #28a745, #20c997); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s; box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);">🔄 <span data-i18n="cloud.confirmSync">确定同步</span></button>
+                <button id="sync-preview-confirm" style="padding: 10px 24px; background: linear-gradient(135deg, #28a745, #20c997); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s; box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);"><span data-i18n="cloud.confirmSync">🔄 确定同步</span></button>
               </div>
             </div>
           </div>
@@ -1511,6 +1511,9 @@
 
   // 暴露手动入口（如需）
   window.MW_LC_SYNC = { sync: bidirectionalSync, clear: clearCloud, updateStatus: updateSyncStatus };
+
+  // 暴露同步预览对话框函数用于测试国际化 (测试完成后应注释掉)
+  // window.showSyncPreviewDialog = showSyncPreviewDialog;
 
   // 注册语言变化监听器 - 当语言切换时重新更新同步状态
   if (window.i18nManager && window.i18nManager.addLanguageChangeListener) {

@@ -371,6 +371,7 @@ const i18nLocales = {
 
     // 认证相关
     auth: {
+      pageTitle: '账户 - 登录 / 注册',
       welcome: '欢迎使用MindWord',
       login: '登录',
       signup: '注册',
@@ -815,6 +816,7 @@ const i18nLocales = {
 
     // 认证相关
     auth: {
+      pageTitle: 'Account - Login / Sign Up',
       welcome: 'Welcome to MindWord',
       login: 'Login',
       signup: 'Sign Up',
