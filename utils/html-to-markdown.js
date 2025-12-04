@@ -23,6 +23,74 @@
  */
 
 /**
+ * 将HTML表格转换为Markdown表格格式
+ * @param {string} htmlTable - HTML表格字符串
+ * @returns {string} - 转换后的Markdown表格
+ */
+function convertHtmlTableToMarkdown(htmlTable) {
+    // 提取表格行
+    const rows = [];
+    let maxCols = 0;
+
+    // 提取所有行
+    const trMatches = htmlTable.match(/<tr[^>]*>[\s\S]*?<\/tr>/gi);
+    if (!trMatches) return '';
+
+    for (const tr of trMatches) {
+        const cells = [];
+        // 提取表头单元格
+        const thMatches = tr.match(/<th[^>]*>([\s\S]*?)<\/th>/gi);
+        if (thMatches) {
+            for (const th of thMatches) {
+                const content = th.replace(/<\/?th[^>]*>/gi, '').trim();
+                cells.push(content);
+            }
+        }
+
+        // 提取数据单元格
+        const tdMatches = tr.match(/<td[^>]*>([\s\S]*?)<\/td>/gi);
+        if (tdMatches) {
+            for (const td of tdMatches) {
+                const content = td.replace(/<\/?td[^>]*>/gi, '').trim();
+                cells.push(content);
+            }
+        }
+
+        if (cells.length > 0) {
+            rows.push(cells);
+            maxCols = Math.max(maxCols, cells.length);
+        }
+    }
+
+    if (rows.length === 0) return '';
+
+    // 生成Markdown表格
+    let markdown = '';
+
+    // 添加表头
+    if (rows.length > 0) {
+        const headerRow = rows[0];
+        markdown += '| ' + headerRow.join(' | ') + ' |\n';
+
+        // 添加分隔行
+        const separator = Array(headerRow.length).fill('---').join(' | ');
+        markdown += '| ' + separator + ' |\n';
+
+        // 添加数据行
+        for (let i = 1; i < rows.length; i++) {
+            const row = rows[i];
+            // 补齐缺失的单元格
+            while (row.length < headerRow.length) {
+                row.push('');
+            }
+            markdown += '| ' + row.join(' | ') + ' |\n';
+        }
+    }
+
+    return markdown;
+}
+
+/**
  * 将HTML内容转换为Markdown格式
  * @param {string} html - HTML字符串
  * @returns {string} - 转换后的Markdown字符串
@@ -66,6 +134,11 @@ function convertHtmlToMarkdown(html) {
     // 换行
     markdown = markdown.replace(/<br[^>]*>/gi, '\n');
 
+    // 表格转换
+    markdown = markdown.replace(/<table[^>]*>[\s\S]*?<\/table>/gi, (match) => {
+        return convertHtmlTableToMarkdown(match);
+    });
+
     // 移除所有其他HTML标签
     markdown = markdown.replace(/<[^>]+>/g, '');
 
@@ -84,16 +157,16 @@ function insertAtCursor(textarea, text) {
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const currentValue = textarea.value;
-    
+
     // 在光标位置插入文本
     textarea.value = currentValue.substring(0, start) + text + currentValue.substring(end);
-    
+
     // 重新设置光标位置
     textarea.selectionStart = textarea.selectionEnd = start + text.length;
-    
+
     // 触发input事件以更新相关状态
     textarea.dispatchEvent(new Event('input', { bubbles: true }));
-    
+
     // 聚焦文本框
     textarea.focus();
 }
@@ -138,6 +211,7 @@ function handlePasteForMarkdown(e, textarea, showMessage) {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         convertHtmlToMarkdown,
+        convertHtmlTableToMarkdown,
         insertAtCursor,
         handlePasteForMarkdown
     };
@@ -146,6 +220,7 @@ if (typeof module !== 'undefined' && module.exports) {
 // 全局暴露函数
 window.HtmlMarkdownUtils = {
     convertHtmlToMarkdown,
+    convertHtmlTableToMarkdown,
     insertAtCursor,
     handlePasteForMarkdown
 };
