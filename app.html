@@ -790,6 +790,7 @@
                     style="height:30px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; color:#334155; font-size:12px; padding:0px;">
                     <option value="zh">中文</option>
                     <option value="en">EN</option>
+                    <option value="es">ES</option>
                 </select>
                 <a id="auth-link" href="auth.html"
                     style="display:inline-flex; align-items:center; height:30px; padding:0 6px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; color:#334155; text-decoration:none; font-size:12px; cursor:pointer;"
@@ -818,6 +819,7 @@
                                     style="height:24px; border:1px solid #e2e8f0; border-radius:4px; background:#fff; color:#334155; font-size:11px; ">
                                     <option value="zh">中文</option>
                                     <option value="en">EN</option>
+                                    <option value="es">ES</option>
                                 </select> -->
                             </div>
                         </div>
@@ -989,33 +991,33 @@
 
     <!-- 滚动条优化：滚动时显示滚动条 -->
     <script>
-      (function() {
-        // 等待 DOM 加载完成
-        function initScrollbarOptimization() {
-          // 为所有 panel-content 添加滚动事件监听
-          const panelContents = document.querySelectorAll('.panel-content');
-          panelContents.forEach(function(panelContent) {
-            let scrollTimeout;
-            panelContent.addEventListener('scroll', function() {
-              panelContent.classList.add('scrolling');
-              clearTimeout(scrollTimeout);
-              scrollTimeout = setTimeout(function() {
-                panelContent.classList.remove('scrolling');
-              }, 500); // 滚动停止500ms后隐藏滚动条
-            }, { passive: true });
-          });
-        }
+        (function () {
+            // 等待 DOM 加载完成
+            function initScrollbarOptimization() {
+                // 为所有 panel-content 添加滚动事件监听
+                const panelContents = document.querySelectorAll('.panel-content');
+                panelContents.forEach(function (panelContent) {
+                    let scrollTimeout;
+                    panelContent.addEventListener('scroll', function () {
+                        panelContent.classList.add('scrolling');
+                        clearTimeout(scrollTimeout);
+                        scrollTimeout = setTimeout(function () {
+                            panelContent.classList.remove('scrolling');
+                        }, 500); // 滚动停止500ms后隐藏滚动条
+                    }, { passive: true });
+                });
+            }
 
-        // DOMContentLoaded 时初始化
-        if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', initScrollbarOptimization);
-        } else {
-          initScrollbarOptimization();
-        }
+            // DOMContentLoaded 时初始化
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initScrollbarOptimization);
+            } else {
+                initScrollbarOptimization();
+            }
 
-        // 延迟执行，确保 iframe 加载完成
-        setTimeout(initScrollbarOptimization, 1000);
-      })();
+            // 延迟执行，确保 iframe 加载完成
+            setTimeout(initScrollbarOptimization, 1000);
+        })();
     </script>
 </body>
 

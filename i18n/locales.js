@@ -921,6 +921,539 @@ const i18nLocales = {
       noDocsSelected: 'Please select at least one document'
     },
 
+  },
+
+  // 西班牙语配置
+  es: {
+    // 语言
+    language: {
+      zh: '中文',
+      en: 'EN',
+      es: 'ES'
+    },
+
+    // 适用场景
+    scenarios: {
+      title: 'Escenarios de Aplicación',
+      description: 'MindWord es adecuado para diversos escenarios de escritura, haciendo su creación más eficiente',
+      learningPlan: {
+        title: 'Plan de Estudio',
+        desc: 'Organizar contenido de aprendizaje, crear planes de estudio y resúmenes',
+        audience: {
+          title: 'Público Objetivo',
+          student: 'Estudiante',
+          lifelongLearner: 'Aprendiz de Por Vida',
+          researcher: 'Investigador'
+        }
+      },
+      productPRD: {
+        title: 'PRD de Producto',
+        desc: 'Escribir documentos de requisitos de producto, especificaciones de funciones',
+        audience: {
+          title: 'Público Objetivo',
+          productManager: 'Gerente de Producto',
+          projectManager: 'Gerente de Proyecto',
+          entrepreneur: 'Emprendedor'
+        }
+      },
+      articleWriting: {
+        title: 'Escritura de Artículos',
+        desc: 'Crear artículos, blogs, ensayos y otro contenido',
+        audience: {
+          title: 'Público Objetivo',
+          writer: 'Escritor',
+          selfMedia: 'Medios Propios',
+          contentCreator: 'Creador de Contenido'
+        }
+      }
+    },
+
+    // 快速上手
+    quickGuide: {
+      title: 'Guía Rápida',
+      description: 'Solo necesita unos simples pasos para comenzar a usar MindWord y mejorar su eficiencia de escritura',
+      steps: {
+        step1: {
+          title: 'Inicialización',
+          description: 'Suba un archivo Markdown, o copie y pegue markdown o texto enriquecido para ver la vista previa y el mapa mental correspondiente.',
+          exampleTitle: 'Fragmento de Markdown de Ejemplo',
+          importTip: 'Importar el siguiente fragmento de Markdown creará la estructura de árbol correspondiente:',
+          exampleContent: '# Documento de Requisitos del Producto\n## Resumen de Funciones\n- Explicación del Contexto\n- Usuario Objetivo\n## Detalles de Funciones\n### Inicio de Sesión\n- Soporte de Número de Teléfono\n- Soporte de Terceros\n### Edición de Escritura\n- Vista de Mapa Mental\n- Editor de Markdown'
+        },
+        step2: {
+          title: 'Método de Edición',
+          description: 'Haga doble clic en los nodos del mapa mental para editar títulos o notas, arrastre para ajustar la estructura; edite la parte correspondiente en el editor Markdown izquierdo, los cambios en cualquier lado se sincronizarán al otro lado.',
+          shortcutsTitle: 'Atajos y Operaciones Comunes',
+          shortcuts: {
+            newChild: '• Nuevo Nodo Hijo: Seleccione un nodo y presione Tab',
+            newSibling: '• Agregar Nodo Hermano: Seleccione un nodo y presione Enter',
+            deleteNode: '• Eliminar Nodo: Seleccione y presione Eliminar',
+            undo: '• Deshacer: Ctrl+z, puede deshacer los últimos 10 cambios',
+            redo: '• Rehacer: Ctrl+Shift+Z',
+            multiSelect: '• Selección Múltiple: Soporte de selección con cuadro del ratón'
+          }
+        },
+        step3: {
+          title: 'Exportar',
+          description: 'Markdown se puede exportar como archivo md, si hay imágenes se empaquetarán juntas como archivo zip. También se puede exportar directamente como documento Word formateado.'
+        }
+      }
+    },
+
+    // 隐私保障
+    privacy: {
+      title: 'Privacidad y Seguridad',
+      subtitle: 'Valoramos su seguridad de datos y protección de privacidad, permitiéndole usar con confianza',
+      localStorage: {
+        title: 'Almacenamiento Local',
+        desc: 'Todos los documentos e imágenes se almacenan en el caché del navegador local o archivos locales (dependiendo del método de importación), no se suben a ningún servidor, asegurando la seguridad de sus datos.'
+      },
+      aiFunction: {
+        title: 'Instrucciones de Función AI',
+        desc: 'Al usar servicios AI externos, el texto relevante se enviará a la plataforma AI que configure para procesamiento, por favor tenga en cuenta.'
+      }
+    },
+
+    // 开始使用
+    getStarted: {
+      title: 'Comenzar a Usar MindWord',
+      subtitle: 'Experimente inmediatamente la forma eficiente de escritura que combina mapas mentales con Markdown, haciendo sus ideas y creatividad más organizadas',
+      webVersion: 'Visitar Versión Web',
+      compatibility: 'Compatible con PC y móviles, experiencia consistente en todas las plataformas'
+    },
+
+    // 反馈建议
+    feedback: {
+      title: 'Comentarios y Sugerencias',
+      subtitle: 'Este producto es desarrollado independientemente por 1 gerente de producto + ChatGPT + KIMI, si tiene problemas o sugerencias, no dude en contactarme~',
+      contactInfo: 'Producto | UI | Desarrollo | Prueba | Operación | Servicio al Cliente',
+      wechat: 'WeChat: TimiKays',
+      github: 'Proyecto GitHub'
+    },
+
+    // 页脚
+    footer: {
+      copyright: '© 2025 MindWord. Todos los derechos reservados.',
+      changelog: 'Registro de Cambios'
+    },
+
+    // 导航栏
+    nav: {
+      features: 'Funciones Principales',
+      scenarios: 'Escenarios de Aplicación',
+      guide: 'Guía Rápida',
+      privacy: 'Privacidad y Seguridad',
+      feedback: 'Comentarios',
+      tryNow: 'Experimentar Ahora',
+      freeTrial: 'Prueba Gratuita',
+      featureIntro: 'Introducción de Funciones'
+    },
+
+    // 英雄区域
+    hero: {
+      title: 'MindWord',
+      subtitle: 'Escriba documentos como si estuviera dibujando',
+      description: 'Herramienta de escritura que combina mapas mentales con Markdown',
+      userGroups: {
+        title: 'Grupos de Usuarios Aplicables',
+        writers: 'Escritores',
+        productManagers: 'Gerentes de Producto',
+        aiEnthusiasts: 'Entusiastas de AI',
+        knowledgeWorkers: 'Trabajadores del Conocimiento'
+      },
+      productShow: {
+        dragWriting: 'Escritura de Arrastre',
+        dragWritingDesc: 'Actualización bidireccional en tiempo real entre documentos y mapas mentales',
+        aiAssist: 'Asistencia de IA',
+        aiAssistDesc: 'Reescribir o expandir capítulos rápidamente',
+        alt: 'Demostración de interfaz de MindWord'
+      }
+    },
+
+    // 项目背景
+    background: {
+      title: 'Contexto del Proyecto',
+      description: '¿Ha encontrado alguna vez tales problemas: después de organizar el marco en el mapa mental, aún necesita reescribir el esquema al escribir el artículo; modificar el artículo o el mapa mental no cambiará el otro lado, llevando a la desconexión entre el marco y el contenido? ¿Buscar lluvia de ideas con IA, pero difícil de integrar en el documento existente? ¿Difícil de modificar localmente o explorar en profundidad?',
+      traditionalPain: {
+        title: 'Puntos Débiles de la Escritura Tradicional',
+        point1: 'Ideas y texto principal separados, difíciles de mantener consistencia',
+        point2: 'Ajuste de formato tedioso, tomando tiempo del borrador al documento formal',
+        point3: 'Asistencia de IA y edición manual difíciles de combinar perfectamente',
+        point4: 'Queriendo guardar respuestas de IA o artículos en el documento, pero perdiendo el formato'
+      },
+      mindwordSolution: {
+        title: 'Soluciones de MindWord',
+        point1: 'Ajuste de estructura de documentos por arrastre, sincronización bidireccional instantánea',
+        point2: 'Exportar documentos Word que cumplan con requisitos de formato con un clic',
+        point3: 'Generación de nodos auxiliares de IA, integrándose perfectamente en el flujo de creación',
+        point4: 'Soporta pegar texto enriquecido para generar documentos, conservando formato y niveles'
+      }
+    },
+
+    // 功能特性
+    features: {
+      title: 'Funciones Principales',
+      description: 'MindWord proporciona potentes funciones de mapas mentales, edición Markdown y generación de documentos, haciendo su creación más eficiente',
+      tabs: {
+        markdown: 'Editor Markdown',
+        mindmap: 'Mapa Mental',
+        word: 'Generación de Documentos Word'
+      },
+      markdown: {
+        title: 'Editor Markdown',
+        description: 'Potente función de recolección de datos e inicialización, soportando múltiples métodos de importación',
+        dataSources: {
+          title: 'Soporte de Múltiples Fuentes de Datos',
+          item1: '• Arrastrar y soltar archivos Markdown',
+          item2: '• Pegar archivos Markdown',
+          item3: '• Pegar imágenes',
+          item4: '• Pegar texto enriquecido con formato'
+        },
+        importExport: {
+          title: 'Importar/Exportar Archivos Fuente',
+          desc: 'Soporta importar y exportar archivos Markdown fuente, conveniente para edición externa y respaldo'
+        },
+        localStorage: {
+          title: 'Almacenamiento Local Fuera de Línea',
+          desc: 'Datos almacenados localmente, sin necesidad de conexión a Internet, asegurando seguridad y privacidad de datos'
+        }
+      },
+      mindmap: {
+        title: 'Lienzo de Mapa Mental',
+        description: 'Edición visual intuitiva de estructura de documentos, operación simple y directa',
+        nodeDefinition: {
+          title: 'Definición de Nodos en Forma de Árbol',
+          desc: 'Cada nodo representa un tema, arrastre para ajustar el orden y nivel jerárquico'
+        },
+        syncEdit: {
+          title: 'Edición de Sincronización Bidireccional',
+          desc: 'Edite en el editor Markdown o en el mapa mental, el contenido se sincronizará en tiempo real'
+        },
+        aiSubnodes: {
+          title: 'IA Genera Subnodos',
+          desc: 'Seleccione un nodo, use IA para generar automáticamente contenido de subnodos relacionados'
+        }
+      },
+      word: {
+        title: 'Generación de Archivos Word',
+        description: 'Exportar documentos estructurados a formato Word estándar con un clic',
+        presetTemplates: {
+          title: 'Plantillas Preestablecidas',
+          desc: 'Proporciona múltiples plantillas de documentos para diferentes escenarios, cumpliendo con necesidades de variados estilos de formato'
+        },
+        customTemplates: {
+          title: 'Plantillas Personalizadas',
+          desc: 'Soporta plantillas personalizadas, puede definir estilos de formato de acuerdo a necesidades específicas'
+        },
+        structurePreservation: {
+          title: 'Preservación Completa de Estructura',
+          desc: 'Exporta mientras mantiene completamente la estructura jerárquica y relaciones de nodos del mapa mental'
+        }
+      }
+    },
+
+    // 面板标题
+    app: {
+      editor: 'Editor de Texto',
+      preview: 'Vista Previa del Documento',
+      mindmap: 'Mapa Mental',
+      focus: 'Enfoque',
+
+      // 标签页
+      tabs: {
+        mindmap: 'Mapa Mental',
+        editor: 'Editor de Documentos',
+        export: 'Configuración de Exportación'
+      },
+
+      // 工具栏
+      toolbar: {
+        newDoc: 'Nuevo Documento',
+        save: 'Guardar',
+        export: 'Exportar',
+        copy: 'Copiar',
+        settings: 'Configuración',
+        language: 'Idioma',
+        undo: 'Deshacer',
+        redo: 'Rehacer',
+        downloadImage: 'Descargar Imagen',
+        viewJSON: 'Ver JSON',
+        aiGenerateInitialTree: 'IA Genera Árbol Inicial',
+        config: 'Configuración',
+        drillDown: 'Profundizar',
+        drillUp: 'Subir',
+        addSubtree: 'Agregar Subárbol',
+        aiGenerateChild: 'IA Genera Nodo Hijo',
+        aiGenerateSibling: 'IA Genera Nodo Hermano',
+        aiExpandNotes: 'IA Expande Notas',
+        nodeDetails: 'Detalles del Nodo',
+        deleteNode: 'Eliminar Nodo',
+        selectIcon: 'Seleccionar Icono',
+        expandToLevel1: 'Expandir al Nivel 1',
+        expandToLevel2: 'Expandir al Nivel 2',
+        expandToLevel3: 'Expandir al Nivel 3',
+        expandToLevel4: 'Expandir al Nivel 4',
+        expandToLevel5: 'Expandir al Nivel 5',
+        expandAll: 'Expandir Todo',
+        quickAIGenerate: 'Generación Rápida de IA: Cuando está habilitado, la ventana emergente de IA se desactivará y el contenido se generará directamente',
+        detailPanelPermanent: 'Panel de Detalles Permanente',
+        help: 'Ayuda'
+      },
+
+      // 节点操作
+      node: {
+        addSibling: 'Agregar Hermano',
+        addChild: 'Agregar Hijo',
+        delete: 'Eliminar',
+        edit: 'Editar',
+        expand: 'Expandir',
+        collapse: 'Contraer'
+      },
+
+      // 右键菜单
+      contextMenu: {
+        editNode: 'Editar Nodo',
+        drillDown: 'Profundizar',
+        aiGenerateChild: 'IA Genera Nodo Hijo',
+        aiGenerateSibling: 'IA Genera Nodo Hermano',
+        aiExpandNotes: 'IA Expande Notas',
+        addSubtree: 'Agregar Subárbol',
+        addChildNode: 'Agregar Nodo Hijo',
+        addSiblingNode: 'Agregar Nodo Hermano',
+        deleteNode: 'Eliminar Nodo'
+      },
+
+      // 导出选项
+      export: {
+        word: 'Exportar como Word',
+        pdf: 'Exportar como PDF',
+        image: 'Exportar como Imagen',
+        markdown: 'Exportar como Markdown'
+      },
+
+      // 设置
+      settings: {
+        title: 'Configuración',
+        language: 'Configuración de Idioma',
+        theme: 'Configuración de Tema',
+        sync: 'Configuración de Sincronización',
+        about: 'Acerca de'
+      },
+
+      // 提示信息
+      messages: {
+        saveSuccess: 'Guardado exitosamente',
+        saveFailed: 'Falló al guardar',
+        exportSuccess: 'Exportado exitosamente',
+        exportFailed: 'Falló al exportar',
+        syncSuccess: 'Sincronizado exitosamente',
+        syncFailed: 'Falló al sincronizar',
+        confirmDelete: '¿Está seguro de que desea eliminar este nodo?',
+        loading: 'Cargando...',
+        loadingEditor: 'Cargando editor...',
+        loadingPreview: 'Cargando vista previa...',
+        loadingMindmap: 'Cargando mapa mental...',
+        noData: 'Sin datos',
+        notConfigured: 'No configurado'
+      },
+
+      // 地址
+      address: 'Dirección'
+    },
+
+    // 错误信息
+    errors: {
+      networkError: 'Error de red, por favor verifique su conexión',
+      fileTooLarge: 'Archivo demasiado grande, por favor reduzca el tamaño del archivo',
+      invalidFormat: 'Formato inválido',
+      operationFailed: 'Operación fallida',
+      pageNotConfigured: 'Dirección de página no configurada',
+      setPageAddress: 'Por favor configure la dirección de página en PAGE_CONFIG.${panelName}.url',
+      pageLoadFailed: 'Falló al cargar la página',
+      retry: 'Reintentar',
+      reloading: 'Recargando',
+      keepOnePanel: '¡Se debe mantener al menos un panel de vista!'
+    },
+
+    // 节点操作
+    node: {
+      addSibling: 'Agregar Hermano',
+      addChild: 'Agregar Hijo',
+      delete: 'Eliminar',
+      edit: 'Editar',
+      expand: 'Expandir',
+      collapse: 'Contraer'
+    },
+
+    // 右键菜单
+    contextMenu: {
+      editNode: 'Editar Nodo',
+      drillDown: 'Profundizar',
+      aiGenerateChild: 'IA Genera Nodo Hijo',
+      aiGenerateSibling: 'IA Genera Nodo Hermano',
+      aiExpandNotes: 'IA Expande Notas',
+      addSubtree: 'Agregar Subárbol',
+      addChildNode: 'Agregar Nodo Hijo',
+      addSiblingNode: 'Agregar Nodo Hermano',
+      deleteNode: 'Eliminar Nodo'
+    },
+
+    // 导出选项
+    export: {
+      word: 'Exportar como Word',
+      pdf: 'Exportar como PDF',
+      image: 'Exportar como Imagen',
+      markdown: 'Exportar como Markdown'
+    },
+
+    // 设置
+    settings: {
+      title: 'Configuración',
+      language: 'Configuración de Idioma',
+      theme: 'Configuración de Tema',
+      sync: 'Configuración de Sincronización',
+      about: 'Acerca de'
+    },
+
+    // 提示信息
+    messages: {
+      saveSuccess: 'Guardado exitosamente',
+      saveFailed: 'Falló al guardar',
+      exportSuccess: 'Exportado exitosamente',
+      exportFailed: 'Falló al exportar',
+      syncSuccess: 'Sincronizado exitosamente',
+      syncFailed: 'Falló al sincronizar',
+      confirmDelete: '¿Está seguro de que desea eliminar este nodo?',
+      loading: 'Cargando...',
+      loadingEditor: 'Cargando editor...',
+      loadingPreview: 'Cargando vista previa...',
+      loadingMindmap: 'Cargando mapa mental...',
+      noData: 'Sin datos',
+      address: 'Dirección',
+      notConfigured: 'No configurado'
+    },
+
+    // 错误信息
+    errors: {
+      networkError: 'Error de red, por favor verifique su conexión',
+      fileTooLarge: 'Archivo demasiado grande, por favor reduzca el tamaño del archivo',
+      invalidFormat: 'Formato inválido',
+      operationFailed: 'Operación fallida',
+      pageNotConfigured: 'Dirección de página no configurada',
+      setPageAddress: 'Por favor configure la dirección de página en PAGE_CONFIG.${panelName}.url',
+      pageLoadFailed: 'Falló al cargar la página',
+      retry: 'Reintentar',
+      reloading: 'Recargando',
+      keepOnePanel: '¡Se debe mantener al menos un panel de vista!'
+    },
+
+    // 认证相关
+    auth: {
+      pageTitle: 'Cuenta - Iniciar Sesión / Registrarse',
+      welcome: 'Bienvenido a MindWord',
+      login: 'Iniciar Sesión',
+      signup: 'Registrarse',
+      resetPassword: 'Olvidé mi Contraseña',
+      email: 'Correo Electrónico',
+      password: 'Contraseña',
+      confirmPassword: 'Confirmar Contraseña',
+      emailPlaceholder: 'Por favor ingrese su dirección de correo electrónico',
+      passwordPlaceholder: 'Por favor ingrese su contraseña',
+      confirmPasswordPlaceholder: 'Por favor ingrese su contraseña nuevamente',
+      passwordMinLength: 'La contraseña debe tener al menos 6 caracteres',
+      passwordMismatch: 'Las contraseñas no coinciden',
+      signupEmailPlaceholder: 'El correo electrónico se usará como nombre de usuario',
+      signupPasswordPlaceholder: 'Por favor establezca una contraseña de al menos 6 caracteres',
+      signupHint: 'Después del registro, se enviará un correo de verificación a su bandeja de entrada',
+      resetHint: 'Le enviaremos un correo para restablecer su contraseña a su dirección de correo electrónico',
+      returnToApp: 'Volver a la Aplicación',
+      verificationEmailSent: 'Correo de Verificación Enviado',
+      verificationEmailContent: 'Se ha enviado un correo de verificación. Por favor revise su bandeja de entrada y haga clic en el enlace para completar el registro antes de iniciar sesión',
+      verifiedGoLogin: 'He verificado, ir a iniciar sesión',
+      resendActivationEmail: 'Reenviar Correo de Activación',
+      sending: 'Enviando...',
+      sent: 'Enviado',
+      resendFailed: 'Falló al reenviar',
+      networkError: 'Falló la conexión de red, por favor verifique su red e intente nuevamente',
+      invalidEmailFormat: 'Formato de correo electrónico inválido, por favor ingrese una dirección de correo válida',
+      emailAlreadyVerified: 'Este correo electrónico ya ha sido verificado, por favor inicie sesión directamente',
+      loginFailed: 'Falló al iniciar sesión, por favor verifique su correo electrónico y contraseña',
+      emailNotVerified: 'Por favor verifique su correo electrónico antes de iniciar sesión',
+      emailNotRegistered: 'Correo electrónico no registrado, por favor verifique la dirección o regístrese primero',
+      emailNotFoundOrWrongPassword: 'Correo electrónico no encontrado o contraseña incorrecta',
+      loginSuccess: 'Inicio de sesión exitoso, volviendo...',
+      loggingIn: 'Iniciando sesión...',
+      pleaseEnterEmailAndPassword: 'Por favor ingrese correo electrónico y contraseña',
+      pleaseEnterEmail: 'Por favor ingrese correo electrónico',
+      registrationFailed: 'Falló el registro, por favor intente más tarde',
+      emailAlreadyRegistered: 'Este correo electrónico ya está registrado, por favor inicie sesión directamente',
+      emailAlreadyExists: 'Este correo electrónico ya está registrado, por favor inicie sesión directamente',
+      registering: 'Registrando...',
+      pleaseEnterEmailAndPasswordForReg: 'Por favor ingrese correo electrónico y contraseña',
+      passwordTooShort: 'La contraseña debe tener al menos 6 caracteres',
+      passwordsDoNotMatch: 'Las contraseñas no coinciden',
+      passwordRequirements: 'La contraseña debe tener al menos 6 caracteres',
+      signupSuccess: 'Registro exitoso, correo de verificación enviado',
+      resetEmailSent: 'Se ha enviado el correo de restablecimiento, por favor revise su bandeja de entrada',
+      sendResetEmail: 'Enviar Correo de Restablecimiento',
+      sendFailedRetry: 'Falló al enviar, por favor intente nuevamente más tarde',
+      activationEmailResent: 'Se ha reenviado el correo de activación, por favor revise su bandeja de entrada',
+      emailNotFound: 'Este correo electrónico no está registrado, por favor verifique la dirección o regístrese primero',
+      logout: 'Cerrar Sesión'
+    },
+
+    // 云备份
+    cloud: {
+      backupTitle: 'Copia de Seguridad en la Nube',
+      capacityLimit: 'Límite de capacidad: 10MB por usuario (solo la versión más reciente)',
+      sync: 'Sincronizar',
+      clear: 'Limpiar',
+      close: 'Cerrar',
+      latestBackup: 'Última hora de copia de seguridad',
+      fileCount: 'Archivos respaldados',
+      totalSize: 'Tamaño total',
+      oneClickSync: 'Sincronización con un clic',
+      files: 'Archivos',
+      backupTime: 'Copia de seguridad',
+      justNow: 'Ahora mismo',
+      minutesAgo: 'hace minutos',
+      hoursAgo: 'hace horas',
+      daysAgo: 'hace días',
+      fileSizeCheckFailed: 'Falló la verificación del tamaño del archivo',
+      syncStatus: 'Estado de sincronización',
+      syncPreview: 'Vista Previa de Sincronización',
+      selectDataToKeep: 'Seleccionar datos para mantener',
+      localData: 'Datos Locales',
+      cloudData: 'Datos en la Nube',
+      confirmSync: 'Confirmar Sincronización',
+      updatedAt: 'Actualizado en'
+    },
+
+    // 文档管理
+    docs: {
+      myDocuments: 'Mis Documentos',
+      newDoc: 'Nuevo Documento',
+      exportAllZip: 'Exportar Todo ZIP',
+      importZip: 'Importar ZIP',
+      clearData: 'Limpiar Datos',
+      registerLogin: 'Registrarse/Iniciar Sesión',
+      personalAccount: 'Cuenta Personal',
+      clearCloudData: 'Limpiar Datos en la Nube',
+      deleteAllCloudBackups: 'Eliminar todas las copias de seguridad en la nube',
+      bidirectionalSync: 'Sincronización bidireccional está actualizada',
+      oneClickSync: 'sincronizar',
+      batchMode: 'Modo por Lotes',
+      selectAll: 'Seleccionar Todo',
+      selectNone: 'No Seleccionar Nada',
+      batchDelete: 'Eliminar por Lotes',
+      cancel: 'Cancelar',
+      confirm: 'Confirmar',
+      create: 'Crear',
+      aiGenerate: 'Generar con IA',
+      confirmBatchDelete: '¿Está seguro de que desea eliminar los documentos seleccionados?',
+      noDocsSelected: 'Por favor seleccione al menos un documento'
+    },
+
   }
 };
 

@@ -77,6 +77,7 @@ class I18nManager {
       const languageCode = lang.toLowerCase().split('-')[0];
       if (languageCode === 'zh') return 'zh';
       if (languageCode === 'en') return 'en';
+      if (languageCode === 'es') return 'es';
     }
 
     return null;
@@ -143,7 +144,12 @@ class I18nManager {
     if (!this.locales[language]) return;
 
     // 更新HTML lang属性
-    document.documentElement.lang = language === 'zh' ? 'zh-CN' : 'en';
+    const langMap = {
+      'zh': 'zh-CN',
+      'en': 'en',
+      'es': 'es'
+    };
+    document.documentElement.lang = langMap[language] || 'en';
 
     // 立即更新页面上的所有翻译元素（无需等待DOM加载）
     this.updatePageTranslations();
@@ -190,7 +196,7 @@ class I18nManager {
   getAvailableLanguages() {
     return Object.keys(this.locales).map(lang => ({
       code: lang,
-      name: lang === 'zh' ? '中文' : 'EN'
+      name: lang === 'zh' ? '中文' : (lang === 'en' ? 'EN' : 'ES')
     }));
   }
 
