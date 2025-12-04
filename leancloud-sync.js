@@ -528,9 +528,9 @@
         <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; display: flex; align-items: center; justify-content: center;">
           <div style="background: white; border-radius: 12px; padding: 24px; width: 90%; max-width: 1000px; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
             <div style="display: flex; align-items: center; margin-bottom: 20px;">
-              <h3 style="margin: 0; color: #333; font-size: 20px; font-weight: 600;">🔄 同步预览</h3>
+              <h3 style="margin: 0; color: #333; font-size: 20px; font-weight: 600;">🔄 <span data-i18n="cloud.syncPreview">同步预览</span></h3>
               <div style="margin-left: auto; font-size: 12px; color: #666; background: #f8f9fa; padding: 4px 8px; border-radius: 4px;">
-                选择要保留的数据
+                <span data-i18n="cloud.selectDataToKeep">选择要保留的数据</span>
               </div>
             </div>
             <div style="flex: 1; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 8px; background: #fafafa;">
@@ -540,13 +540,13 @@
                     <th style="padding: 16px; text-align: center; border-bottom: 1px solid #ddd; width: 50%; color: #333; font-weight: 600; font-size: 14px;">
                       <span style="display: inline-flex; align-items: center; gap: 8px;">
                         <span>📁</span>
-                        <span>本地数据</span>
+                        <span data-i18n="cloud.localData">本地数据</span>
                       </span>
                     </th>
                     <th style="padding: 16px; text-align: center; border-bottom: 1px solid #ddd; width: 50%; color: #333; font-weight: 600; font-size: 14px;">
                       <span style="display: inline-flex; align-items: center; gap: 8px;">
                         <span>☁️</span>
-                        <span>云端数据</span>
+                        <span data-i18n="cloud.cloudData">云端数据</span>
                       </span>
                     </th>
                   </tr>
@@ -557,8 +557,8 @@
             </div>
             <div style="margin-top: 20px; text-align: right; display: flex; justify-content: flex-end; align-items: center;">
               <div>
-                <button id="sync-preview-cancel" style="margin-right: 12px; padding: 10px 20px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s;">取消</button>
-                <button id="sync-preview-confirm" style="padding: 10px 24px; background: linear-gradient(135deg, #28a745, #20c997); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s; box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);">🔄 确定同步</button>
+                <button id="sync-preview-cancel" style="margin-right: 12px; padding: 10px 20px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s;" data-i18n="docs.cancel">取消</button>
+                <button id="sync-preview-confirm" style="padding: 10px 24px; background: linear-gradient(135deg, #28a745, #20c997); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s; box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);">🔄 <span data-i18n="cloud.confirmSync">确定同步</span></button>
               </div>
             </div>
           </div>
@@ -566,6 +566,11 @@
       `;
 
       document.body.appendChild(dialog);
+
+      // 应用国际化翻译
+      if (window.i18nManager && window.i18nManager.updatePageTranslations) {
+        window.i18nManager.updatePageTranslations();
+      }
 
       // 生成对比数据
       const tbody = document.getElementById('sync-preview-tbody');
@@ -623,7 +628,7 @@
             <span class="check-mark" style="color: #28a745; font-size: 16px; display: ${item.isContentSame ? 'none' : (row.dataset.choice === 'local' ? 'block' : 'none')};">✓</span>
           </div>
           <div style="font-size: 11px; color: #666; line-height: 1.3;">${item.local.description}</div>
-          <div style="font-size: 11px; color: #999; margin-top: 2px;">更新时间: ${item.local.updatedAt}</div>
+          <div style="font-size: 11px; color: #999; margin-top: 2px;"><span data-i18n="cloud.updatedAt">更新时间</span>: ${item.local.updatedAt}</div>
         `;
 
         // 点击本地列选择本地 - 内容一致时禁用点击
@@ -673,7 +678,7 @@
             <span class="check-mark" style="color: #28a745; font-size: 16px; display: ${item.isContentSame ? 'none' : (row.dataset.choice === 'cloud' ? 'block' : 'none')};">✓</span>
           </div>
           <div style="font-size: 11px; color: #666; line-height: 1.3;">${item.cloud.description}</div>
-          <div style="font-size: 11px; color: #999; margin-top: 2px;">更新时间: ${item.cloud.updatedAt}</div>
+          <div style="font-size: 11px; color: #999; margin-top: 2px;"><span data-i18n="cloud.updatedAt">更新时间</span>: ${item.cloud.updatedAt}</div>
         `;
 
         // 点击云端列选择云端 - 内容一致时禁用点击
@@ -1418,7 +1423,7 @@
       if (statusElement) {
         const totalSizeMB = (sizeCheck.totalSize / 1024).toFixed(1);
         const fileCount = validDocs.length;
-        
+
         if (currentLang === 'en') {
           // 英文环境下使用更简洁的格式
           statusElement.innerHTML = `
@@ -1450,7 +1455,7 @@
       if (menuStatusElement) {
         const totalSizeMB = (sizeCheck.totalSize / 1024).toFixed(1);
         const fileCount = validDocs.length;
-        
+
         if (currentLang === 'en') {
           // 英文环境下使用更简洁的格式
           menuStatusElement.innerHTML = `${fileCount} files<br>${totalSizeMB}KB / 10MB`;
@@ -1509,7 +1514,7 @@
 
   // 注册语言变化监听器 - 当语言切换时重新更新同步状态
   if (window.i18nManager && window.i18nManager.addLanguageChangeListener) {
-    window.i18nManager.addLanguageChangeListener(function(newLanguage) {
+    window.i18nManager.addLanguageChangeListener(function (newLanguage) {
       console.log('[LeanCloudSync] Language changed to:', newLanguage, ' - updating sync status');
       updateSyncStatus();
     });

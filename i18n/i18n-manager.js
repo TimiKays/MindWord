@@ -431,3 +431,14 @@ function initializeI18n() {
 
 // 立即执行初始化（无需等待任何事件）
 initializeI18n();
+
+// 创建全局 i18n 对象，兼容使用 i18n.t() 的代码
+window.i18n = {
+  t: function (key) {
+    if (window.i18nManager && window.i18nManager.isInitialized) {
+      return window.i18nManager.t(key);
+    }
+    // 如果 i18nManager 未初始化，返回 key 本身作为后备
+    return key;
+  }
+};

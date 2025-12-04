@@ -23,8 +23,28 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>账户 - 登录 / 注册</title>
+    <title data-i18n="auth.pageTitle">账户 - 登录 / 注册</title>
     <link rel="icon" href="favicon.ico" />
+
+    <!-- i18n scripts -->
+    <script src="i18n/locales.js"></script>
+    <script src="i18n/i18n-manager.js"></script>
+
+    <!-- Language Detection Script -->
+    <script>
+        // Auto-detect browser language and set appropriate lang attribute
+        (function () {
+            const userLang = navigator.language || navigator.userLanguage;
+            const htmlElement = document.documentElement;
+
+            // If browser language is English, add English lang attribute
+            if (userLang && userLang.startsWith('en')) {
+                htmlElement.setAttribute('lang', 'en-US');
+                htmlElement.setAttribute('xml:lang', 'en-US');
+            }
+        })();
+    </script>
+
     <style>
         * {
             margin: 0;
@@ -366,48 +386,53 @@
 
     </div display="flex" flex-direction="column" align-items="center">
     <div class="container">
-        <h1>欢迎使用MindWord</h1>
+        <h1 data-i18n="auth.welcome">欢迎使用MindWord</h1>
         <div class="tabs">
-            <div class="tab active" data-t="login">登录</div>
-            <div class="tab" data-t="signup">注册</div>
-            <div class="tab" data-t="reset">忘记密码</div>
+            <div class="tab active" data-t="login" data-i18n="auth.login">登录</div>
+            <div class="tab" data-t="signup" data-i18n="auth.signup">注册</div>
+            <div class="tab" data-t="reset" data-i18n="auth.resetPassword">忘记密码</div>
         </div>
 
         <form id="f-login" class="active">
-            <label>邮箱</label>
-            <input id="login-email" type="email" placeholder="请输入您的邮箱地址" required autocomplete="email" />
-            <label>密码</label>
-            <input id="login-pass" type="password" placeholder="请输入您的密码" required autocomplete="current-password" />
+            <label data-i18n="auth.email">邮箱</label>
+            <input id="login-email" type="email" data-i18n-placeholder="auth.emailPlaceholder" placeholder="请输入您的邮箱地址"
+                required autocomplete="email" />
+            <label data-i18n="auth.password">密码</label>
+            <input id="login-pass" type="password" data-i18n-placeholder="auth.passwordPlaceholder"
+                placeholder="请输入您的密码" required autocomplete="current-password" />
             <div class="row">
-                <button id="btn-login" type="button">登录</button>
+                <button id="btn-login" type="button" data-i18n="auth.login">登录</button>
 
             </div>
             <div id="login-msg" class="hint"></div>
         </form>
 
         <form id="f-signup">
-            <label>邮箱（将作为用户名）</label>
-            <input id="signup-email" type="email" placeholder="请输入您的邮箱地址" required autocomplete="email" />
-            <label>密码</label>
-            <input id="signup-pass" type="password" placeholder="请设置至少6位密码" required autocomplete="new-password" />
-            <label>确认密码</label>
-            <input id="signup-pass-confirm" type="password" placeholder="请再次输入密码" required
-                autocomplete="new-password" />
+            <label data-i18n="auth.email">邮箱（将作为用户名）</label>
+            <input id="signup-email" type="email" data-i18n-placeholder="auth.signupEmailPlaceholder"
+                placeholder="请输入您的邮箱地址" required autocomplete="email" />
+            <label data-i18n="auth.password">密码</label>
+            <input id="signup-pass" type="password" data-i18n-placeholder="auth.signupPasswordPlaceholder"
+                placeholder="请设置至少6位密码" required autocomplete="new-password" />
+            <label data-i18n="auth.confirmPassword">确认密码</label>
+            <input id="signup-pass-confirm" type="password" data-i18n-placeholder="auth.confirmPasswordPlaceholder"
+                placeholder="请再次输入密码" required autocomplete="new-password" />
             <div class="row">
-                <button id="btn-signup" type="button">注册</button>
+                <button id="btn-signup" type="button" data-i18n="auth.signup">注册</button>
 
             </div>
-            <div id="signup-msg" class="hint">注册后会发送验证邮件到您的邮箱</div>
+            <div id="signup-msg" class="hint" data-i18n="auth.signupHint">注册后会发送验证邮件到您的邮箱</div>
         </form>
 
         <form id="f-reset">
-            <label>邮箱</label>
-            <input id="reset-email" type="email" placeholder="请输入您的邮箱地址" required autocomplete="email" />
+            <label data-i18n="auth.email">邮箱</label>
+            <input id="reset-email" type="email" data-i18n-placeholder="auth.emailPlaceholder" placeholder="请输入您的邮箱地址"
+                required autocomplete="email" />
             <div class="row">
-                <button id="btn-reset" type="button">发送重置邮件</button>
+                <button id="btn-reset" type="button" data-i18n="auth.sendResetEmail">发送重置邮件</button>
 
             </div>
-            <div id="reset-msg" class="hint">我们将向你的邮箱发送重置密码邮件</div>
+            <div id="reset-msg" class="hint" data-i18n="auth.resetHint">我们将向你的邮箱发送重置密码邮件</div>
         </form>
 
     </div>
@@ -417,16 +442,17 @@
     <!-- 返回应用链接 - 移动到登录注册面板下方 -->
 
     <a class="back" href="app.html"
-        style="display: inline-block; padding: 12px 24px; text-decoration: none; color: #53a8cf; font-size: 14px; transition: all 0.3s ease; ">返回应用</a>
+        style="display: inline-block; padding: 12px 24px; text-decoration: none; color: #53a8cf; font-size: 14px; transition: all 0.3s ease; "
+        data-i18n="auth.returnToApp">返回应用</a>
     </div>
     </div>
 
     <!-- 验证邮件发送成功弹窗 -->
     <div id="emailVerifyModal" class="modal">
         <div class="modal-content">
-            <h3>验证邮件已发送</h3>
-            <p>验证邮件已发送。请查看邮箱并点击链接，完成注册后即可登录</p>
-            <button id="btn-verify-complete" class="modal-button">我已验证，去登录</button>
+            <h3 data-i18n="auth.verificationEmailSent">验证邮件已发送</h3>
+            <p data-i18n="auth.verificationEmailContent">验证邮件已发送。请查看邮箱并点击链接，完成注册后即可登录</p>
+            <button id="btn-verify-complete" class="modal-button" data-i18n="auth.verifiedGoLogin">我已验证，去登录</button>
         </div>
 
 
@@ -495,8 +521,8 @@
             document.getElementById('btn-login').addEventListener('click', async function () {
                 var email = document.getElementById('login-email').value.trim();
                 var pass = document.getElementById('login-pass').value;
-                if (!email || !pass) return setMsg('login-msg', '请输入邮箱和密码', 'err');
-                setMsg('login-msg', '正在登录...', 'hint');
+                if (!email || !pass) return setMsg('login-msg', i18n.t('auth.pleaseEnterEmailAndPassword'), 'err');
+                setMsg('login-msg', i18n.t('auth.loggingIn'), 'hint');
 
                 try {
                     // 仅使用邮箱登录
@@ -505,57 +531,57 @@
                     // 检查邮箱是否已验证
                     var currentUser = AV.User.current();
                     if (currentUser && !currentUser.get('emailVerified')) {
-                        setMsg('login-msg', '请先验证您的邮箱后再登录', 'err');
+                        setMsg('login-msg', i18n.t('auth.emailNotVerified'), 'err');
                         // 登出未验证的用户
                         await AV.User.logOut();
                         return;
                     }
 
-                    setMsg('login-msg', '登录成功，正在返回...', 'success');
+                    setMsg('login-msg', i18n.t('auth.loginSuccess'), 'success');
                     setTimeout(function () { window.location.href = 'app.html'; }, 600);
                 } catch (e) {
-                    let errorMsg = '登录失败，请检查邮箱和密码';
+                    let errorMsg = i18n.t('auth.loginFailed');
                     if (e && e.message) {
                         // 根据LeanCloud错误消息提供更友好的提示
                         if (e.message.includes("Email address isn't verified.")) {
-                            errorMsg = '邮箱尚未验证，请先验证您的邮箱';
+                            errorMsg = i18n.t('auth.emailNotVerified');
                             setMsg('login-msg', errorMsg, 'err');
 
                             // 添加重新发送激活邮件的按钮
                             setTimeout(() => {
                                 const loginMsg = document.getElementById('login-msg');
-                                if (loginMsg && loginMsg.textContent.includes('邮箱尚未验证')) {
+                                if (loginMsg && loginMsg.textContent.includes(i18n.t('auth.emailNotVerified'))) {
                                     const resendBtn = document.createElement('button');
-                                    resendBtn.textContent = '重新发送激活邮件';
+                                    resendBtn.textContent = i18n.t('auth.resendActivationEmail');
                                     resendBtn.className = 'resend-email-btn';
                                     resendBtn.onclick = async function () {
                                         try {
                                             resendBtn.disabled = true;
-                                            resendBtn.textContent = '发送中...';
+                                            resendBtn.textContent = i18n.t('auth.sending');
 
                                             // 请求发送验证邮件
                                             await AV.User.requestEmailVerify(email);
 
-                                            resendBtn.textContent = '已发送';
+                                            resendBtn.textContent = i18n.t('auth.sent');
 
-                                            setMsg('login-msg', '激活邮件已重新发送，请检查邮箱', 'success');
+                                            setMsg('login-msg', i18n.t('auth.activationEmailResent'), 'success');
                                         } catch (resendError) {
                                             resendBtn.disabled = false;
-                                            resendBtn.textContent = '重新发送激活邮件';
+                                            resendBtn.textContent = i18n.t('auth.resendActivationEmail');
 
-                                            let resendErrorMsg = '发送失败，请稍后重试';
+                                            let resendErrorMsg = i18n.t('auth.sendFailedRetry');
                                             if (resendError && resendError.message) {
                                                 if (resendError.message.includes('network') || resendError.message.includes('timeout')) {
-                                                    resendErrorMsg = '网络连接失败，请检查网络后重试';
+                                                    resendErrorMsg = i18n.t('auth.networkError');
                                                 } else if (resendError.message.includes('email')) {
-                                                    resendErrorMsg = '邮箱格式不正确，请输入正确的邮箱地址';
+                                                    resendErrorMsg = i18n.t('auth.invalidEmailFormat');
                                                 } else if (resendError.message.includes('already verified')) {
-                                                    resendErrorMsg = '该邮箱已经验证过了，请直接登录';
+                                                    resendErrorMsg = i18n.t('auth.emailAlreadyVerified');
                                                 } else {
                                                     resendErrorMsg = resendError.message;
                                                 }
                                             }
-                                            setMsg('login-msg', `重新发送失败：${resendErrorMsg}`, 'err');
+                                            setMsg('login-msg', `${i18n.t('auth.resendFailed')}: ${resendErrorMsg}`, 'err');
                                         }
                                     };
                                     loginMsg.appendChild(resendBtn);
@@ -563,9 +589,9 @@
                             }, 100);
                             return;
                         } else if (e.message.includes('network') || e.message.includes('timeout')) {
-                            errorMsg = '网络连接失败，请检查网络后重试';
+                            errorMsg = i18n.t('auth.networkError');
                         } else {
-                            errorMsg = '邮箱未注册或密码错误，请检查后重试';
+                            errorMsg = i18n.t('auth.emailNotFoundOrWrongPassword');
                         }
                     }
                     return setMsg('login-msg', errorMsg, 'err');
@@ -587,10 +613,10 @@
                 var email = document.getElementById('signup-email').value.trim();
                 var pass = document.getElementById('signup-pass').value;
                 var passConfirm = document.getElementById('signup-pass-confirm').value;
-                if (!email || !pass) return setMsg('signup-msg', '请输入邮箱和密码', 'err');
-                if (pass.length < 6) return setMsg('signup-msg', '密码至少 6 位', 'err');
-                if (pass !== passConfirm) return setMsg('signup-msg', '两次输入的密码不一致', 'err');
-                setMsg('signup-msg', '正在注册...', 'hint');
+                if (!email || !pass) return setMsg('signup-msg', i18n.t('auth.pleaseEnterEmailAndPassword'), 'err');
+                if (pass.length < 6) return setMsg('signup-msg', i18n.t('auth.passwordTooShort'), 'err');
+                if (pass !== passConfirm) return setMsg('signup-msg', i18n.t('auth.passwordsDoNotMatch'), 'err');
+                setMsg('signup-msg', i18n.t('auth.registering'), 'info');
                 try {
                     var user = new AV.User();
                     user.setUsername(email);
@@ -609,18 +635,21 @@
                     // 显示验证邮件弹窗
                     showEmailVerifyModal(email);
 
+                    // 显示注册成功消息
+                    setMsg('signup-msg', i18n.t('auth.signupSuccess'), 'ok');
+
                 } catch (e) {
-                    let errorMsg = '注册失败，请稍后重试';
+                    let errorMsg = i18n.t('auth.registrationFailed');
                     if (e && e.message) {
                         // 根据LeanCloud错误消息提供更友好的提示
                         if (e.message.includes('already exists') || e.message.includes('taken') || e.message.includes('此电子邮箱已经被占用')) {
-                            errorMsg = '该邮箱已注册，请直接登录。';
+                            errorMsg = i18n.t('auth.emailAlreadyExists');
                         } else if (e.message.includes('email')) {
-                            errorMsg = '邮箱格式不正确，请输入正确的邮箱地址';
+                            errorMsg = i18n.t('auth.invalidEmailFormat');
                         } else if (e.message.includes('password')) {
-                            errorMsg = '密码不符合要求，请确保密码至少6位';
+                            errorMsg = i18n.t('auth.passwordRequirements');
                         } else if (e.message.includes('network') || e.message.includes('timeout')) {
-                            errorMsg = '网络连接失败，请检查网络后重试';
+                            errorMsg = i18n.t('auth.networkError');
                         } else {
                             errorMsg = e.message; // 其他未知错误显示原始消息
                         }
@@ -652,21 +681,21 @@
             // 忘记密码（发送重置邮件）
             document.getElementById('btn-reset').addEventListener('click', async function () {
                 var email = document.getElementById('reset-email').value.trim();
-                if (!email) return setMsg('reset-msg', '请输入邮箱', 'err');
-                setMsg('reset-msg', '正在发送重置邮件...', 'hint');
+                if (!email) return setMsg('reset-msg', i18n.t('auth.pleaseEnterEmail'), 'err');
+                setMsg('reset-msg', i18n.t('auth.sendingResetEmail'), 'hint');
                 try {
                     await AV.User.requestPasswordReset(email);
-                    setMsg('reset-msg', '重置邮件已发送，请检查邮箱', 'success');
+                    setMsg('reset-msg', i18n.t('auth.resetEmailSent'), 'success');
                 } catch (e) {
-                    let errorMsg = '发送失败，请稍后重试';
+                    let errorMsg = i18n.t('auth.sendFailedRetry');
                     if (e && e.message) {
                         // 根据LeanCloud错误消息提供更友好的提示
                         if (e.message.includes('not found') || e.message.includes('user')) {
-                            errorMsg = '该邮箱未注册，请检查邮箱地址或先注册账号';
+                            errorMsg = i18n.t('auth.emailNotRegistered');
                         } else if (e.message.includes('email')) {
-                            errorMsg = '邮箱格式不正确，请输入正确的邮箱地址';
+                            errorMsg = i18n.t('auth.invalidEmailFormat');
                         } else if (e.message.includes('network') || e.message.includes('timeout')) {
-                            errorMsg = '网络连接失败，请检查网络后重试';
+                            errorMsg = i18n.t('auth.networkError');
                         } else {
                             errorMsg = e.message; // 其他未知错误显示原始消息
                         }
@@ -682,6 +711,29 @@
                     window.location.replace('app.html');
                 }
             } catch (_) { }
+        </script>
+
+        <!-- Translation Application Script -->
+        <script>
+            // 在页面完全加载后立即应用翻译
+            function applyTranslationsWhenReady() {
+                if (window.i18nManager && window.i18nManager.isInitialized) {
+                    // 如果i18n管理器已初始化，立即应用翻译
+                    window.i18nManager.updatePageTranslations();
+                    window.i18nManager.updatePageTitle();
+                } else {
+                    // 如果还未初始化，等待一下再试
+                    setTimeout(applyTranslationsWhenReady, 100);
+                }
+            }
+
+            // 多种方式确保翻译被应用
+            if (document.readyState === 'complete') {
+                applyTranslationsWhenReady();
+            } else {
+                window.addEventListener('load', applyTranslationsWhenReady);
+                document.addEventListener('DOMContentLoaded', applyTranslationsWhenReady);
+            }
         </script>
 </body>
 
