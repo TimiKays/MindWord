@@ -466,7 +466,8 @@ const i18nLocales = {
     // 语言
     language: {
       zh: '中文',
-      en: 'EN'
+      en: 'EN',
+      es: 'ES'
     },
 
     // 导航栏
