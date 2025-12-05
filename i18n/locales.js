@@ -23,7 +23,8 @@ const i18nLocales = {
     // 语言
     language: {
       zh: '中文',
-      en: 'EN'
+      en: 'EN',
+      es: 'ES'
     },
 
     // 适用场景
@@ -113,6 +114,7 @@ const i18nLocales = {
       title: '开始使用 MindWord',
       subtitle: '立即体验思维导图与Markdown结合的高效写作方式，让您的创意和思路更加井井有条',
       webVersion: '访问网页版',
+      downloadWindows: '下载Windows客户端',
       compatibility: '兼容PC和移动端，全平台一致体验'
     },
 
@@ -592,6 +594,7 @@ const i18nLocales = {
       title: 'Start Using MindWord',
       subtitle: 'Experience the efficient writing method combining mind maps and Markdown immediately, making your creativity and ideas more organized',
       webVersion: 'Visit Web Version',
+      downloadWindows: 'Download Windows Client',
       compatibility: 'Compatible with PC and mobile, consistent experience across all platforms'
     },
 
@@ -1019,6 +1022,7 @@ const i18nLocales = {
       title: 'Comenzar a Usar MindWord',
       subtitle: 'Experimente inmediatamente la forma eficiente de escritura que combina mapas mentales con Markdown, haciendo sus ideas y creatividad más organizadas',
       webVersion: 'Visitar Versión Web',
+      downloadWindows: 'Descargar Cliente Windows',
       compatibility: 'Compatible con PC y móviles, experiencia consistente en todas las plataformas'
     },
 
