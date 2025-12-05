@@ -1,5 +1,5 @@
 # MindWord — 像画图一样写文档
-  [![Demo](https://img.shields.io/badge/demo-在线体验地址1-brightgreen)](https://mindword.pages.dev/) [![Demo](https://img.shields.io/badge/demo-在线体验地址2-brightgreen)](https://timikays.github.io/MindWord/) 
+   [![Demo](https://img.shields.io/badge/demo-在线体验地址1-brightgreen)](https://mindword.dpdns.org/) [![Demo](https://img.shields.io/badge/demo-在线体验地址2-brightgreen)](https://mindword.pages.dev/) [![Demo](https://img.shields.io/badge/demo-在线体验地址3-brightgreen)](https://timikays.github.io/MindWord/) 
 
 > **把一句话逐层结构化扩展成可控、可编辑、可导出的成品文档。**
 
