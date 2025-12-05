@@ -1,0 +1,12 @@
+{
+  "fastQuit": true,
+  "singleInstance": true,
+  "fileDownloadOptions": {
+    "saveAs": false
+  },
+  "browserwindowOptions": {
+    "webPreferences": {
+      "partition": "persist:mindword"
+    }
+  }
+}
