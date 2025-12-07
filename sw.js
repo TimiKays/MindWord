@@ -3,7 +3,7 @@
  * 处理离线缓存和PWA功能
  */
 
-const CACHE_NAME = 'mindword-v7';
+const CACHE_NAME = 'mindword-v8';
 const MAX_CACHE_SIZE = 200; // 最大缓存文件数量
 const MAX_CACHE_AGE = 7 * 24 * 60 * 60 * 1000; // 7天缓存有效期
 
@@ -69,8 +69,8 @@ const JSMIND_CORE_FILES = [
 
 // 运行时缓存配置 - 严格限制缓存范围
 const RUNTIME_CACHE_PATTERNS = [
-  // 只允许缓存核心资源文件
-  { pattern: /^\/res\/(edit|download|code|setting|tag|undo|redo|help|empty|LOGO)\.(svg|png|ico)$/, type: 'core-icon' },
+  // 只允许缓存核心资源文件 - 包含英文和中文文件名的SVG
+  { pattern: /^\/res\/.*\.(svg|png|ico)$/, type: 'core-icon' },
   { pattern: /^\/fonts\//, type: 'font' },
   { pattern: /^\/local-deps\/(FileSaver|markdown-it|dom-to-image)\.min\.(js|css)$/, type: 'core-dep' },
   { pattern: /^\/jsmind-local\/jsmind\.(css|js)$/, type: 'core-module' }
@@ -141,6 +141,72 @@ self.addEventListener('fetch', event => {
 
   // 跳过Chrome扩展和API请求
   if (url.pathname.startsWith('/api/') || url.protocol === 'chrome-extension:') {
+    return;
+  }
+
+  // 特殊处理：跳过i18n文件，避免循环加载
+  if (url.pathname.includes('/i18n/')) {
+    // 对于i18n文件，使用简单的缓存优先策略，避免复杂的缓存逻辑导致循环
+    event.respondWith(
+      caches.match(request).then(response => {
+        if (response) {
+          return response;
+        }
+        return fetch(request).then(fetchResponse => {
+          if (fetchResponse.status === 200) {
+            const responseClone = fetchResponse.clone();
+            caches.open(CACHE_NAME).then(cache => {
+              cache.put(request, responseClone);
+            });
+          }
+          return fetchResponse;
+        }).catch(() => {
+          // 如果网络和缓存都失败，返回一个空的语言配置
+          if (url.pathname.includes('locales.js')) {
+            return new Response('window.i18nLocales = {};', {
+              status: 200,
+              headers: new Headers({
+                'Content-Type': 'application/javascript'
+              })
+            });
+          }
+          if (url.pathname.includes('i18n-manager.js')) {
+            return new Response('// i18n manager fallback', {
+              status: 200,
+              headers: new Headers({
+                'Content-Type': 'application/javascript'
+              })
+            });
+          }
+          return caches.match('/index.html');
+        });
+      })
+    );
+    return;
+  }
+
+  // 特殊处理：screenShot-all.png，避免preload和meta标签导致的循环
+  if (url.pathname.includes('screenShot-all.png')) {
+    event.respondWith(
+      caches.match(request).then(response => {
+        if (response) {
+          return response;
+        }
+        return fetch(request).then(fetchResponse => {
+          if (fetchResponse.status === 200) {
+            const responseClone = fetchResponse.clone();
+            caches.open(CACHE_NAME).then(cache => {
+              cache.put(request, responseClone);
+            });
+          }
+          return fetchResponse;
+        }).catch(() => {
+          // 返回一个1x1透明PNG像素作为fallback
+          const transparentPixel = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+          return fetch(transparentPixel).then(r => r);
+        });
+      })
+    );
     return;
   }
 
