@@ -3,7 +3,7 @@
  * 处理离线缓存和PWA功能
  */
 
-const CACHE_NAME = 'mindword-v8';
+const CACHE_NAME = 'mindword-v9';
 const MAX_CACHE_SIZE = 200; // 最大缓存文件数量
 const MAX_CACHE_AGE = 7 * 24 * 60 * 60 * 1000; // 7天缓存有效期
 
@@ -144,14 +144,16 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // 特殊处理：跳过i18n文件，避免循环加载
+  // ===== 第一步：特殊处理 - 这些文件直接返回缓存，避免循环 =====
+
+  // 特殊处理1：i18n文件 - 直接缓存优先，避免循环加载
   if (url.pathname.includes('/i18n/')) {
-    // 对于i18n文件，使用简单的缓存优先策略，避免复杂的缓存逻辑导致循环
     event.respondWith(
       caches.match(request).then(response => {
         if (response) {
-          return response;
+          return response; // 有缓存直接返回
         }
+        // 没有缓存则网络请求并缓存
         return fetch(request).then(fetchResponse => {
           if (fetchResponse.status === 200) {
             const responseClone = fetchResponse.clone();
@@ -161,31 +163,27 @@ self.addEventListener('fetch', event => {
           }
           return fetchResponse;
         }).catch(() => {
-          // 如果网络和缓存都失败，返回一个空的语言配置
+          // 网络失败时提供fallback
           if (url.pathname.includes('locales.js')) {
             return new Response('window.i18nLocales = {};', {
               status: 200,
-              headers: new Headers({
-                'Content-Type': 'application/javascript'
-              })
+              headers: new Headers({ 'Content-Type': 'application/javascript' })
             });
           }
           if (url.pathname.includes('i18n-manager.js')) {
             return new Response('// i18n manager fallback', {
               status: 200,
-              headers: new Headers({
-                'Content-Type': 'application/javascript'
-              })
+              headers: new Headers({ 'Content-Type': 'application/javascript' })
             });
           }
           return caches.match('/index.html');
         });
       })
     );
-    return;
+    return; // 重要：这里必须return，阻止后续逻辑执行
   }
 
-  // 特殊处理：screenShot-all.png，避免preload和meta标签导致的循环
+  // 特殊处理2：screenShot-all.png - 避免preload循环
   if (url.pathname.includes('screenShot-all.png')) {
     event.respondWith(
       caches.match(request).then(response => {
@@ -201,13 +199,54 @@ self.addEventListener('fetch', event => {
           }
           return fetchResponse;
         }).catch(() => {
-          // 返回一个1x1透明PNG像素作为fallback
           const transparentPixel = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
           return fetch(transparentPixel).then(r => r);
         });
       })
     );
-    return;
+    return; // 重要：这里必须return，阻止后续逻辑执行
+  }
+
+  // 特殊处理3：编码的SVG文件名 - 处理URL编码的中文文件名
+  if (url.pathname.includes('.svg') && url.pathname.includes('%')) {
+    // 解码URL以匹配原始文件名
+    const decodedPath = decodeURIComponent(url.pathname);
+
+    event.respondWith(
+      caches.match(request).then(response => {
+        if (response) {
+          return response;
+        }
+
+        // 尝试使用解码后的路径查找缓存
+        return caches.match(decodedPath).then(decodedResponse => {
+          if (decodedResponse) {
+            return decodedResponse;
+          }
+
+          // 网络请求并缓存
+          return fetch(request).then(fetchResponse => {
+            if (fetchResponse.status === 200) {
+              const responseClone = fetchResponse.clone();
+              caches.open(CACHE_NAME).then(cache => {
+                cache.put(request, responseClone);
+                // 同时用解码路径缓存一份
+                cache.put(decodedPath, responseClone.clone());
+              });
+            }
+            return fetchResponse;
+          }).catch(() => {
+            // 返回一个空的SVG作为fallback
+            const emptySvg = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"></svg>';
+            return new Response(emptySvg, {
+              status: 200,
+              headers: new Headers({ 'Content-Type': 'image/svg+xml' })
+            });
+          });
+        });
+      })
+    );
+    return; // 重要：这里必须return，阻止后续逻辑执行
   }
 
   // 运行时缓存策略 - 匹配模式的新资源自动缓存
