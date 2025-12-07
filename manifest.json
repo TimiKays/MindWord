@@ -1,0 +1,57 @@
+{
+  "name": "MindWord - 树心",
+  "short_name": "MindWord",
+  "description": "像画图一样写文档的思维导图写作工具",
+  "start_url": "/app.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#619dff",
+  "orientation": "any",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "res/LOGO32.ico",
+      "sizes": "32x32",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "res/LOGO256.ico",
+      "sizes": "256x256",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "res/LOGO.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": [
+    "productivity",
+    "utilities"
+  ],
+  "screenshots": [
+    {
+      "src": "res/screenShot-all.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "新建思维导图",
+      "short_name": "新建",
+      "description": "创建新的思维导图",
+      "url": "/app.html",
+      "icons": [
+        {
+          "src": "res/add.svg",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "lang": "zh-CN",
+  "dir": "ltr"
+}

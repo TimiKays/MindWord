@@ -123,6 +123,16 @@
     <link rel="icon" type="image/x-icon" href="/res/LOGO32.ico">
     <link rel="apple-touch-icon" sizes="180x180" href="/res/LOGO32.ico">
 
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="MindWord">
+    <meta name="apple-mobile-web-app-title" content="MindWord">
+    <meta name="theme-color" content="#619dff">
+    <meta name="msapplication-navbutton-color" content="#619dff">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
     <!-- Preconnect to external domains for performance -->
     <link rel="preconnect" href="https://cdn.tailwindcss.com">
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
@@ -1572,6 +1582,54 @@
                     });
                 }
             });
+        });
+    </script>
+
+    <!-- PWA Service Worker Registration -->
+    <script>
+        // 注册Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('MindWord PWA: Service Worker 注册成功');
+
+                        // 监听更新
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    // 发现新版本
+                                    console.log('MindWord PWA: 发现新版本');
+                                    if (confirm('MindWord有新版本可用，是否立即更新？')) {
+                                        newWorker.postMessage({ type: 'SKIP_WAITING' });
+                                        window.location.reload();
+                                    }
+                                }
+                            });
+                        });
+                    })
+                    .catch(error => {
+                        console.error('MindWord PWA: Service Worker 注册失败:', error);
+                    });
+            });
+        }
+
+        // PWA安装提示
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // 阻止默认的安装提示
+            e.preventDefault();
+            deferredPrompt = e;
+
+            // 显示自定义安装按钮（可选）
+            console.log('MindWord PWA: 安装提示已准备');
+        });
+
+        // 监听应用安装成功
+        window.addEventListener('appinstalled', () => {
+            console.log('MindWord PWA: 应用安装成功');
+            deferredPrompt = null;
         });
     </script>
 </body>
