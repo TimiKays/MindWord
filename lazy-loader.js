@@ -43,7 +43,7 @@ class MindWordLazyLoader {
         // 定义需要懒加载的资源
         this.resources.set('bootstrap', {
             type: 'script',
-            url: 'https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js',
+            url: '/local-deps/bootstrap.bundle.min.js',
             priority: 'low',
             condition: () => document.querySelector('[data-toggle="modal"]') !== null
         });
@@ -56,7 +56,7 @@ class MindWordLazyLoader {
         });
 
         this.resources.set('leancloud-extra', {
-            type: 'script', 
+            type: 'script',
             url: 'leancloud-extra.js',
             priority: 'low',
             condition: () => window.LeanCloud !== undefined
@@ -81,7 +81,7 @@ class MindWordLazyLoader {
 
         // 监听用户交互，提前加载可能需要的资源
         this.setupUserInteractionListeners();
-        
+
         // 监听iframe加载，按需加载相关资源
         this.setupIframeListeners();
     }
@@ -138,7 +138,7 @@ class MindWordLazyLoader {
      */
     setupUserInteractionListeners() {
         const interactions = ['click', 'touchstart', 'mouseover'];
-        
+
         interactions.forEach(event => {
             document.addEventListener(event, () => {
                 // 用户开始交互，加载中等优先级资源
@@ -165,7 +165,7 @@ class MindWordLazyLoader {
 
         // 定期检查
         setInterval(checkEditorIframe, 1000);
-        
+
         // 使用MutationObserver监听DOM变化
         if ('MutationObserver' in window) {
             const observer = new MutationObserver(checkEditorIframe);

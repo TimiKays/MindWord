@@ -3,8 +3,10 @@
  * 处理离线缓存和PWA功能
  */
 
-const CACHE_NAME = 'mindword-v1';
-const urlsToCache = [
+const CACHE_NAME = 'mindword-v6';
+
+// 核心文件 - 必须预缓存的关键文件
+const CORE_FILES = [
   '/',
   '/index.html',
   '/app.html',
@@ -12,26 +14,82 @@ const urlsToCache = [
   '/init.js',
   '/documents.js',
   '/language-switch.js',
+  '/lazy-loader.js',
+  '/user.js',
+  '/copynew_file.js',
+  '/mobile-suit.js',
+  '/msg-listener-show.js',
+  '/notification-bridge.js',
   '/i18n/locales.js',
   '/i18n/i18n-manager.js',
-  '/jsmind/mindmap-core.js',
-  '/jsmind/mindmap.css',
-  '/jsmind/node-data-structure.js',
-  '/jsmind/node-operator.js',
-  '/jsmind/tree-operator.js',
-  '/jsmind/icons.js',
-  '/local-deps/bootstrap.min.css',
-  '/local-deps/bootstrap.bundle.min.js',
-  '/local-deps/jquery.min.js',
-  '/res/LOGO32.ico',
-  '/res/LOGO256.ico',
-  '/res/LOGO.png',
-  '/res/add.svg',
+  '/three-iframes.js',
+  '/sw.js',
+  '/manifest.json'
+];
+
+// iframe 核心文件
+const IFRAME_FILES = [
+  '/editor/editor.html',
+  '/md2word/md2word.html',
+  '/jsmind/mindmap.html'
+];
+
+// mindmap 图标文件 - 预缓存所有图标确保离线可用
+const MINDMAP_ICONS = [
   '/res/edit.svg',
-  '/res/export.svg',
-  '/res/import.svg',
+  '/res/下钻.svg',
+  '/res/上钻.svg',
+  '/res/添加子级.svg',
+  '/res/添加同级.svg',
+  '/res/添加子树.svg',
+  '/res/扩写备注.svg',
+  '/res/删除.svg',
+  '/res/生成初始树.svg',
+  '/res/undo.svg',
+  '/res/redo.svg',
   '/res/download.svg',
-  '/res/close.svg'
+  '/res/code.svg',
+  '/res/setting.svg',
+  '/res/tag.svg',
+  '/res/kuaisu.svg',
+  '/res/detail.svg',
+  '/res/help.svg',
+  '/res/empty.svg'
+];
+
+// jsmind 核心文件 - 确保思维导图功能离线可用
+const JSMIND_CORE_FILES = [
+  '/jsmind-local/jsmind.css',
+  '/jsmind-local/jsmind.js',
+  '/jsmind-local/jsmind.draggable-node.js',
+  '/jsmind-local/jsmind.screenshot.js'
+];
+
+// 运行时缓存配置 - 按目录和文件类型自动缓存
+const RUNTIME_CACHE_PATTERNS = [
+  // iframe 相关文件
+  { pattern: /^\/editor\//, type: 'iframe' },
+  { pattern: /^\/md2word\//, type: 'iframe' },
+  { pattern: /^\/jsmind\//, type: 'iframe' },
+  // 静态资源目录
+  { pattern: /^\/res\//, type: 'resource' },
+  { pattern: /^\/fonts\//, type: 'resource' },
+  { pattern: /^\/local-deps\//, type: 'dependency' },
+  { pattern: /^\/jsmind-local\//, type: 'module' },
+  { pattern: /^\/converter\//, type: 'module' },
+  { pattern: /^\/ai\//, type: 'module' },
+  // 特定文件类型
+  { pattern: /\.(js|css|html)$/, type: 'document' },
+  { pattern: /\.(png|jpg|jpeg|gif|svg|ico)$/, type: 'image' },
+  { pattern: /\.(woff|woff2|ttf|eot)$/, type: 'font' }
+];
+
+// 完整的预缓存列表
+const urlsToCache = [
+  ...CORE_FILES,
+  ...IFRAME_FILES,
+  ...MINDMAP_ICONS,
+  ...JSMIND_CORE_FILES
 ];
 
 // 安装事件 - 缓存资源
@@ -71,6 +129,14 @@ self.addEventListener('activate', event => {
   );
 });
 
+// 检查请求是否匹配任何运行时缓存模式
+function matchesRuntimeCachePattern(request) {
+  const url = new URL(request.url);
+  return RUNTIME_CACHE_PATTERNS.some(patternConfig =>
+    patternConfig.pattern.test(url.pathname)
+  );
+}
+
 // 获取事件 - 网络优先策略
 self.addEventListener('fetch', event => {
   const { request } = event;
@@ -83,6 +149,142 @@ self.addEventListener('fetch', event => {
 
   // 跳过Chrome扩展和API请求
   if (url.pathname.startsWith('/api/') || url.protocol === 'chrome-extension:') {
+    return;
+  }
+
+  // 运行时缓存策略 - 匹配模式的新资源自动缓存
+  if (matchesRuntimeCachePattern(request)) {
+    // 特殊检查：如果是iframe相关文件，跳过运行时缓存，让后面的专门逻辑处理
+    const iframePaths = ['/editor/editor.html', '/md2word/md2word.html', '/jsmind/mindmap.html'];
+    const isIframeSource = iframePaths.some(path => url.pathname.startsWith(path));
+
+    if (isIframeSource) {
+      // 不处理iframe文件，让后面的专门逻辑处理
+      // 继续执行到下面的iframe特殊处理逻辑
+    } else {
+      // 处理非iframe的运行时缓存
+      event.respondWith(
+        caches.open(CACHE_NAME).then(cache => {
+          return cache.match(request).then(cachedResponse => {
+            if (cachedResponse) {
+              // 有缓存，返回缓存并在后台更新
+              fetch(request).then(fetchResponse => {
+                if (fetchResponse.status === 200) {
+                  cache.put(request, fetchResponse.clone());
+                }
+              }).catch(() => {
+                // 后台更新失败也没关系
+              });
+              return cachedResponse;
+            }
+
+            // 没有缓存，尝试网络请求
+            return fetch(request).then(fetchResponse => {
+              if (fetchResponse.status === 200) {
+                cache.put(request, fetchResponse.clone());
+              }
+              return fetchResponse;
+            }).catch(() => {
+              // 网络和缓存都失败，返回基础离线页面
+              return cache.match('/index.html');
+            });
+          });
+        })
+      );
+      return;
+    }
+  }
+
+  // 特殊处理iframe源文件 - 使用缓存优先策略
+  const iframePaths = ['/editor/editor.html', '/md2word/md2word.html', '/jsmind/mindmap.html'];
+  const isIframeSource = iframePaths.some(path => url.pathname.startsWith(path));
+
+  if (isIframeSource) {
+    event.respondWith(
+      // 尝试匹配无参数的缓存版本（基础文件）
+      caches.match(url.pathname).then(response => {
+        if (response) {
+          return response;
+        }
+
+        // 如果没有基础缓存，尝试匹配带参数的请求
+        return caches.match(request).then(response => {
+          if (response) {
+            return response;
+          }
+
+          // 如果都没有，尝试网络请求
+          return fetch(request).then(fetchResponse => {
+            if (fetchResponse.status === 200) {
+              const responseClone = fetchResponse.clone();
+              // 缓存基础版本（无参数）用于后续请求
+              caches.open(CACHE_NAME).then(cache => {
+                cache.put(url.pathname, responseClone);
+              });
+            }
+            return fetchResponse;
+          }).catch(() => {
+            // 返回有意义的离线页面
+            return new Response(`
+              <!DOCTYPE html>
+              <html>
+              <head>
+                <meta charset="UTF-8">
+                <title>离线模式 - MindWord</title>
+                <style>
+                  body { 
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    display: flex; 
+                    align-items: center; 
+                    justify-content: center; 
+                    height: 100vh; 
+                    margin: 0;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    text-align: center;
+                  }
+                  .offline-container {
+                    background: rgba(255, 255, 255, 0.1);
+                    padding: 40px;
+                    border-radius: 15px;
+                    backdrop-filter: blur(10px);
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+                  }
+                  .offline-icon {
+                    font-size: 48px;
+                    margin-bottom: 20px;
+                  }
+                  h2 { 
+                    margin: 0 0 15px 0; 
+                    font-size: 24px;
+                    font-weight: 600;
+                  }
+                  p { 
+                    margin: 0; 
+                    opacity: 0.9;
+                    font-size: 16px;
+                    line-height: 1.5;
+                  }
+                </style>
+              </head>
+              <body>
+                <div class="offline-container">
+                  <div class="offline-icon">🌐</div>
+                  <h2>离线模式</h2>
+                  <p>当前处于离线状态，部分功能可能受限。<br>请连接网络以获取完整功能。</p>
+                </div>
+              </body>
+              </html>
+            `, {
+              status: 200,
+              headers: new Headers({
+                'Content-Type': 'text/html'
+              })
+            });
+          });
+        });
+      })
+    );
     return;
   }
 

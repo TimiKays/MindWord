@@ -45,7 +45,7 @@
       "url": "/app.html",
       "icons": [
         {
-          "src": "res/add.svg",
+          "src": "res/添加子级.svg",
           "sizes": "96x96"
         }
       ]

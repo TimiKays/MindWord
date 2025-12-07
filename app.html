@@ -342,10 +342,10 @@
         }
     </style>
     <!-- ZIP 打包依赖 -->
-    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+    <script src="/local-deps/jszip.min.js"></script>
+    <script src="/local-deps/FileSaver.min.js"></script>
     <!-- LeanCloud SDK（仅前端 AppID/AppKey，切勿使用 Master Key） -->
-    <script src="https://cdn.jsdelivr.net/npm/leancloud-storage@4/dist/av-min.js"></script>
+    <script src="/local-deps/av-min.js"></script>
 
     <!-- PWA加载动画样式 -->
     <style>
@@ -1056,10 +1056,10 @@
         // 延迟加载Bootstrap，提高首屏性能
         setTimeout(() => {
             const jqueryScript = document.createElement('script');
-            jqueryScript.src = 'https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js';
+            jqueryScript.src = '/local-deps/jquery.min.js';
             jqueryScript.onload = () => {
                 const bootstrapScript = document.createElement('script');
-                bootstrapScript.src = 'https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js';
+                bootstrapScript.src = '/local-deps/bootstrap.bundle.min.js';
                 document.body.appendChild(bootstrapScript);
             };
             document.body.appendChild(jqueryScript);

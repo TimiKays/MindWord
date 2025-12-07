@@ -369,9 +369,9 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
 
     <!-- Preconnect to external domains for performance -->
-    <link rel="preconnect" href="https://cdn.tailwindcss.com">
+    <!-- <link rel="preconnect" href="https://cdn.tailwindcss.com"> -->
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
-    <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
+    <!-- <link rel="dns-prefetch" href="https://cdn.tailwindcss.com"> -->
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
 
     <!-- Preload critical resources -->
@@ -484,8 +484,8 @@
       }
     }
     </script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="/local-deps/tailwindcss.min.js"></script>
+    <link href="/local-deps/font-awesome.min.css" rel="stylesheet">
     <script src="i18n/locales.js"></script>
     <script src="i18n/i18n-manager.js"></script>
 
@@ -1688,9 +1688,9 @@
                         本产品由1名产品经理 + ChatGPT + KIMI 独立开发完成，如有任何问题或建议，欢迎联系我~
                     </p>
                     <div class="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg inline-block">
-                        <p class="text-green-800 font-medium">
+                        <p class="text-green-800 font-medium" data-i18n="feedback.openSource">
                             <i class="fa fa-code-fork mr-2"></i>
-                            MindWord 是一个开源项目，欢迎访问我们的 GitHub 仓库参与贡献！
+                            MindWord 项目已开源，欢迎访问我们的 GitHub 仓库参与贡献！
                         </p>
                     </div>
                 </div>

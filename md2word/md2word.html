@@ -26,7 +26,7 @@
   <title>Markdown → Word（兼容 PizZip 版本）</title>
   <link rel="stylesheet" href="../styles.css">
   <!-- Bootstrap CSS for notifications -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/local-deps/bootstrap.min.css" rel="stylesheet">
   <style>
     body {
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
@@ -472,9 +472,9 @@
   </div>
 
   <!-- CDN 依赖：如果你使用其它版本，请替换这些 URL -->
-  <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.5/dist/pizzip.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/markdown-it@13.0.1/dist/markdown-it.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+  <script src="/local-deps/pizzip.min.js"></script>
+  <script src="/local-deps/markdown-it.min.js"></script>
+  <script src="/local-deps/FileSaver.min.js"></script>
 
   <script>
     (async function () {
@@ -485,11 +485,11 @@
       const md = window.markdownit({ html: true, linkify: true, typographer: true, breaks: true });
 
       // 自定义列表项渲染规则，在渲染阶段就包装文本内容
-      md.renderer.rules.list_item_open = function(tokens, idx, options, env, renderer) {
+      md.renderer.rules.list_item_open = function (tokens, idx, options, env, renderer) {
         return '<li><span class="mw-li-text-wrapper">';
       };
 
-      md.renderer.rules.list_item_close = function(tokens, idx, options, env, renderer) {
+      md.renderer.rules.list_item_close = function (tokens, idx, options, env, renderer) {
         return '</span></li>';
       };
       const statusEl = document.getElementById('status');
@@ -500,10 +500,10 @@
       // 滚动时显示滚动条
       if (previewEl) {
         let scrollTimeout;
-        previewEl.addEventListener('scroll', function() {
+        previewEl.addEventListener('scroll', function () {
           previewEl.classList.add('scrolling');
           clearTimeout(scrollTimeout);
-          scrollTimeout = setTimeout(function() {
+          scrollTimeout = setTimeout(function () {
             previewEl.classList.remove('scrolling');
           }, 500); // 滚动停止500ms后隐藏滚动条
         }, { passive: true });
@@ -817,11 +817,11 @@
                 // 对于li元素，优先查找内部的p元素，其次使用文本包装器
                 const p = targetEl.querySelector('p');
                 if (p) return p;
-                
+
                 // 使用渲染阶段创建的文本包装器
                 const textWrapper = targetEl.querySelector('.mw-li-text-wrapper');
                 if (textWrapper) return textWrapper;
-                
+
                 // 如果都没有，回退到整个li
                 return targetEl;
               }
@@ -849,8 +849,8 @@
             if (prevTimer) clearTimeout(prevTimer);
 
             const t = setTimeout(() => {
-              try { 
-                highlightEl.classList.remove('mw-preview-highlight'); 
+              try {
+                highlightEl.classList.remove('mw-preview-highlight');
               } catch (e) { }
               try { window.__mw_previewHighlightTimers.delete(highlightEl); } catch (e) { }
             }, 1600);
@@ -2257,8 +2257,8 @@
   </script>
 
   <!-- Bootstrap JS for notifications -->
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/local-deps/jquery.min.js"></script>
+  <script src="/local-deps/bootstrap.bundle.min.js"></script>
   <!-- 通知桥接器 -->
   <script src="../notification-bridge.js"></script>
   <script>

@@ -26,7 +26,7 @@
     <title>Markdown 编辑器</title>
     <link rel="stylesheet" href="../styles.css">
     <!-- Bootstrap CSS for notifications -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/local-deps/bootstrap.min.css" rel="stylesheet">
     <!-- HTML转Markdown工具库 -->
     <script src="../utils/html-to-markdown.js"></script>
     <style>
@@ -572,7 +572,7 @@
     <!-- 状态消息 -->
     <div class="status-message" id="status-message"></div>
 
-    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="/local-deps/jszip.min.js"></script>
     <script>
         // ===================================
         // 🎯 核心功能类
@@ -1186,14 +1186,14 @@
 
                 // 建立图片ID映射（用于从文件名查找图片ID）
                 const imageIdMap = new Map();
-                
+
                 // 从markdown内容中提取图片引用，建立文件名到图片ID的映射
                 const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
                 let match;
                 while ((match = imageRegex.exec(markdownContent)) !== null) {
                     const imageId = match[2]; // 图片ID
                     const imageName = match[1]; // 图片名称
-                    
+
                     // 从图片ID中提取文件名（移除扩展名）
                     const fileNameWithoutExt = imageId.replace(/\.[^.]+$/, '');
                     imageIdMap.set(fileNameWithoutExt, imageId);
@@ -1209,7 +1209,7 @@
                         // 从文件名（不含扩展名）查找对应的图片ID
                         const fileNameWithoutExt = filename.replace(/^images\//, '').replace(/\.[^.]+$/, '');
                         const imageId = imageIdMap.get(fileNameWithoutExt) || this.generateImageId();
-                        
+
                         newImages.set(imageId, {
                             name: filename,
                             data: dataUrl,
@@ -1762,8 +1762,8 @@
     <script type="module" src="../converter/load.js"></script>
 
     <!-- Bootstrap JS for notifications -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/local-deps/jquery.min.js"></script>
+    <script src="/local-deps/bootstrap.bundle.min.js"></script>
     <!-- 通知桥接器 -->
     <script src="../notification-bridge.js"></script>
     <script>

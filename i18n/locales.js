@@ -125,7 +125,8 @@ const i18nLocales = {
       subtitle: '本产品由1名产品经理+ChatGPT+KIMI独立开发，如有问题或建议，欢迎随时联系我~',
       contactInfo: '产品 | UI | 开发 | 测试 | 运营 | 客服',
       wechat: '微信号：TimiKays',
-      github: 'GitHub项目'
+      github: 'GitHub项目',
+      openSource: 'MindWord 项目已开源，欢迎访问我们的 GitHub 仓库参与贡献！'
     },
 
     // 页脚
@@ -608,7 +609,8 @@ const i18nLocales = {
       subtitle: 'This product was independently developed by 1 product manager + ChatGPT + KIMI. For any questions or suggestions, feel free to contact me~',
       contactInfo: 'Product | UI | Development | Testing | Operations | Support',
       wechat: 'WeChat ID: TimiKays',
-      github: 'GitHub Project'
+      github: 'GitHub Project',
+      openSource: 'MindWord project is open source, welcome to visit our GitHub repository to contribute!'
     },
 
     // 页脚
@@ -1038,7 +1040,8 @@ const i18nLocales = {
       subtitle: 'Este producto es desarrollado independientemente por 1 gerente de producto + ChatGPT + KIMI, si tiene problemas o sugerencias, no dude en contactarme~',
       contactInfo: 'Producto | UI | Desarrollo | Prueba | Operación | Servicio al Cliente',
       wechat: 'WeChat: TimiKays',
-      github: 'Proyecto GitHub'
+      github: 'Proyecto GitHub',
+      openSource: '¡El proyecto MindWord es de código abierto, bienvenido a visitar nuestro repositorio de GitHub para contribuir!'
     },
 
     // 页脚
