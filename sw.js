@@ -146,61 +146,33 @@ self.addEventListener('fetch', event => {
 
   // ===== 第一步：特殊处理 - 这些文件直接返回缓存，避免循环 =====
 
-  // 特殊处理1：i18n文件 - 直接缓存优先，避免循环加载
+  // 特殊处理1：i18n文件 - 完全绕过Service Worker，避免循环加载
   if (url.pathname.includes('/i18n/')) {
-    event.respondWith(
-      caches.match(request).then(response => {
-        if (response) {
-          return response; // 有缓存直接返回
-        }
-        // 没有缓存则网络请求并缓存
-        return fetch(request).then(fetchResponse => {
-          if (fetchResponse.status === 200) {
-            const responseClone = fetchResponse.clone();
-            caches.open(CACHE_NAME).then(cache => {
-              cache.put(request, responseClone);
-            });
-          }
-          return fetchResponse;
-        }).catch(() => {
-          // 网络失败时提供fallback
-          if (url.pathname.includes('locales.js')) {
-            return new Response('window.i18nLocales = {};', {
-              status: 200,
-              headers: new Headers({ 'Content-Type': 'application/javascript' })
-            });
-          }
-          if (url.pathname.includes('i18n-manager.js')) {
-            return new Response('// i18n manager fallback', {
-              status: 200,
-              headers: new Headers({ 'Content-Type': 'application/javascript' })
-            });
-          }
-          return caches.match('/index.html');
-        });
-      })
-    );
-    return; // 重要：这里必须return，阻止后续逻辑执行
+    // 直接让浏览器处理i18n文件，不进行任何Service Worker干预
+    return;
   }
 
   // 特殊处理2：screenShot-all.png - 避免preload循环
   if (url.pathname.includes('screenShot-all.png')) {
+    // 使用标准化的缓存键（URL路径）
+    const cacheKey = url.pathname;
+
     event.respondWith(
-      caches.match(request).then(response => {
-        if (response) {
-          return response;
-        }
-        return fetch(request).then(fetchResponse => {
-          if (fetchResponse.status === 200) {
-            const responseClone = fetchResponse.clone();
-            caches.open(CACHE_NAME).then(cache => {
-              cache.put(request, responseClone);
-            });
+      caches.open(CACHE_NAME).then(cache => {
+        return cache.match(cacheKey).then(cachedResponse => {
+          if (cachedResponse) {
+            return cachedResponse;
           }
-          return fetchResponse;
-        }).catch(() => {
-          const transparentPixel = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
-          return fetch(transparentPixel).then(r => r);
+          return fetch(request).then(fetchResponse => {
+            if (fetchResponse.status === 200) {
+              const responseClone = fetchResponse.clone();
+              cache.put(cacheKey, responseClone); // 使用标准化键缓存
+            }
+            return fetchResponse;
+          }).catch(() => {
+            const transparentPixel = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+            return fetch(transparentPixel).then(r => r);
+          });
         });
       })
     );
@@ -211,28 +183,22 @@ self.addEventListener('fetch', event => {
   if (url.pathname.includes('.svg') && url.pathname.includes('%')) {
     // 解码URL以匹配原始文件名
     const decodedPath = decodeURIComponent(url.pathname);
+    // 创建标准化的缓存键（使用解码后的路径）
+    const cacheKey = decodedPath;
 
     event.respondWith(
-      caches.match(request).then(response => {
-        if (response) {
-          return response;
-        }
-
-        // 尝试使用解码后的路径查找缓存
-        return caches.match(decodedPath).then(decodedResponse => {
-          if (decodedResponse) {
-            return decodedResponse;
+      caches.open(CACHE_NAME).then(cache => {
+        // 使用标准化键查找缓存
+        return cache.match(cacheKey).then(cachedResponse => {
+          if (cachedResponse) {
+            return cachedResponse;
           }
 
           // 网络请求并缓存
           return fetch(request).then(fetchResponse => {
             if (fetchResponse.status === 200) {
               const responseClone = fetchResponse.clone();
-              caches.open(CACHE_NAME).then(cache => {
-                cache.put(request, responseClone);
-                // 同时用解码路径缓存一份
-                cache.put(decodedPath, responseClone.clone());
-              });
+              cache.put(cacheKey, responseClone); // 使用标准化键缓存
             }
             return fetchResponse;
           }).catch(() => {
@@ -282,8 +248,11 @@ self.addEventListener('fetch', event => {
               }
               return fetchResponse;
             }).catch(() => {
-              // 网络和缓存都失败，返回基础离线页面
-              return cache.match('/index.html');
+              // 网络和缓存都失败，返回404而不是HTML页面
+              return new Response('Resource not found', {
+                status: 404,
+                headers: new Headers({ 'Content-Type': 'text/plain' })
+              });
             });
           });
         })
@@ -300,36 +269,31 @@ self.addEventListener('fetch', event => {
     // 检测Edge浏览器
     const userAgent = request.headers.get('User-Agent') || '';
     const isEdge = userAgent.includes('Edg/') || userAgent.includes('Edge/');
+    // 使用标准化的缓存键（去除查询参数的版本）
+    const cacheKey = url.pathname;
 
     event.respondWith(
-      // 尝试匹配无参数的缓存版本（基础文件）
-      caches.match(url.pathname).then(response => {
-        if (response && !isEdge) {
-          // Edge浏览器跳过缓存，直接网络请求避免缓存问题
-          return response;
-        }
-
-        // 如果没有基础缓存，尝试匹配带参数的请求
-        return caches.match(request).then(response => {
-          if (response && !isEdge) {
-            return response;
+      caches.open(CACHE_NAME).then(cache => {
+        // 使用标准化键查找缓存
+        return cache.match(cacheKey).then(cachedResponse => {
+          if (cachedResponse && !isEdge) {
+            // 有缓存且非Edge浏览器，直接返回缓存
+            return cachedResponse;
           }
 
-          // Edge浏览器或没有缓存时，优先网络请求
+          // 没有缓存或是Edge浏览器，优先网络请求
           return fetch(request).then(fetchResponse => {
             if (fetchResponse.status === 200) {
               const responseClone = fetchResponse.clone();
               // 只在非Edge浏览器缓存，避免Edge缓存问题
               if (!isEdge) {
-                caches.open(CACHE_NAME).then(cache => {
-                  cache.put(url.pathname, responseClone);
-                });
+                cache.put(cacheKey, responseClone); // 使用标准化键缓存
               }
             }
             return fetchResponse;
           }).catch(() => {
-            // 网络失败时，回退到缓存（即使是Edge也尝试缓存）
-            return caches.match(url.pathname).then(cachedResponse => {
+            // 网络失败时，回退到缓存（即使是Edge也尝试回退）
+            return cache.match(cacheKey).then(cachedResponse => {
               if (cachedResponse) {
                 return cachedResponse;
               }
@@ -454,8 +418,11 @@ self.addEventListener('fetch', event => {
         return fetchResponse;
       });
     }).catch(() => {
-      // 网络和缓存都失败，返回离线页面
-      return caches.match('/index.html');
+      // 网络和缓存都失败，返回404而不是HTML页面
+      return new Response('Resource not found', {
+        status: 404,
+        headers: new Headers({ 'Content-Type': 'text/plain' })
+      });
     })
   );
 });
