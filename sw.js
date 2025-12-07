@@ -7,7 +7,6 @@ const CACHE_NAME = 'mindword-v10';
 
 // 只缓存最关键的核心文件
 const CORE_FILES = [
-  './',
   'index.html',
   'app.html',
   'styles.css',
@@ -41,14 +40,13 @@ self.addEventListener('activate', event => {
 // 获取事件 - 只处理核心文件，其他全部走网络
 self.addEventListener('fetch', event => {
   const { request } = event;
-  const url = new URL(request.url);
 
   // 只处理GET请求
   if (request.method !== 'GET') return;
 
-  // 只处理核心文件
-  const pathname = url.pathname;
-  if (!CORE_FILES.includes(pathname)) return;
+  // 只处理核心文件 - 简单文件名匹配
+  const filename = request.url.split('/').pop();
+  if (!CORE_FILES.includes(filename)) return;
 
   // 缓存优先策略
   event.respondWith(
