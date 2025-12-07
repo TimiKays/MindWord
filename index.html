@@ -77,6 +77,241 @@
     <meta name="audience" lang="en" content="students, writers, professionals">
     <meta name="classification" content="productivity, writing, mind mapping">
 
+    <!-- 营销页面骨架屏样式 -->
+    <style>
+        /* 骨架屏占位符动画 */
+        .skeleton-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #ffffff;
+            z-index: 9999;
+            transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
+        }
+
+        .skeleton-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        /* 骨架屏基础样式 */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: skeleton-loading 1.5s infinite;
+            border-radius: 4px;
+        }
+
+        @keyframes skeleton-loading {
+            0% {
+                background-position: 200% 0;
+            }
+
+            100% {
+                background-position: -200% 0;
+            }
+        }
+
+        /* 导航栏占位符 */
+        .skeleton-navbar {
+            height: 70px;
+            background: #ffffff;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+        }
+
+        .skeleton-logo {
+            width: 120px;
+            height: 32px;
+            background: #f0f0f0;
+            border-radius: 4px;
+        }
+
+        .skeleton-nav-links {
+            display: flex;
+            gap: 24px;
+            margin-left: auto;
+            margin-right: 48px;
+        }
+
+        .skeleton-nav-link {
+            width: 80px;
+            height: 16px;
+            background: #f0f0f0;
+            border-radius: 4px;
+        }
+
+        .skeleton-nav-button {
+            width: 100px;
+            height: 36px;
+            background: #f0f0f0;
+            border-radius: 6px;
+        }
+
+        /* Hero区域占位符 */
+        .skeleton-hero {
+            padding: 80px 24px;
+            text-align: center;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        }
+
+        .skeleton-hero-title {
+            width: 60%;
+            max-width: 600px;
+            height: 48px;
+            margin: 0 auto 24px;
+            background: #e0e0e0;
+            border-radius: 8px;
+        }
+
+        .skeleton-hero-subtitle {
+            width: 40%;
+            max-width: 400px;
+            height: 24px;
+            margin: 0 auto 32px;
+            background: #e0e0e0;
+            border-radius: 6px;
+        }
+
+        .skeleton-hero-button {
+            width: 160px;
+            height: 48px;
+            margin: 0 auto;
+            background: #e0e0e0;
+            border-radius: 8px;
+        }
+
+        /* 内容区域占位符 */
+        .skeleton-content {
+            padding: 60px 24px;
+        }
+
+        .skeleton-section-title {
+            width: 200px;
+            height: 32px;
+            margin: 0 auto 48px;
+            background: #e0e0e0;
+            border-radius: 6px;
+        }
+
+        .skeleton-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .skeleton-card {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .skeleton-card-icon {
+            width: 48px;
+            height: 48px;
+            background: #f0f0f0;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        .skeleton-card-title {
+            width: 60%;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            margin-bottom: 12px;
+        }
+
+        .skeleton-card-content {
+            width: 100%;
+            height: 16px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+
+        .skeleton-card-content:last-child {
+            width: 80%;
+        }
+
+        /* 深色模式适配 */
+        @media (prefers-color-scheme: dark) {
+            .skeleton-overlay {
+                background: #1a1a1a;
+            }
+
+            .skeleton-navbar {
+                background: #1a1a1a;
+                border-bottom-color: #374151;
+            }
+
+            .skeleton-logo,
+            .skeleton-nav-link,
+            .skeleton-nav-button {
+                background: #374151;
+            }
+
+            .skeleton-hero {
+                background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            }
+
+            .skeleton-hero-title,
+            .skeleton-hero-subtitle,
+            .skeleton-hero-button,
+            .skeleton-section-title {
+                background: #374151;
+            }
+
+            .skeleton-card {
+                background: #1f2937;
+                border-color: #374151;
+            }
+
+            .skeleton-card-icon,
+            .skeleton-card-content {
+                background: #374151;
+            }
+
+            .skeleton-card-title {
+                background: #4b5563;
+            }
+
+            .skeleton {
+                background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
+            }
+        }
+
+        /* 响应式适配 */
+        @media (max-width: 768px) {
+            .skeleton-nav-links {
+                display: none;
+            }
+
+            .skeleton-hero-title {
+                width: 80%;
+                height: 36px;
+            }
+
+            .skeleton-hero-subtitle {
+                width: 60%;
+                height: 20px;
+            }
+
+            .skeleton-cards {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+        }
+    </style>
+
     <!-- Canonical and Alternative URLs -->
     <link rel="canonical" href="https://mindword.dpdns.org">
     <link rel="alternate" hreflang="zh-CN" href="https://mindword.dpdns.org/">
@@ -569,6 +804,56 @@
 </head>
 
 <body class="bg-light text-dark antialiased">
+    <!-- 营销页面骨架屏占位符 -->
+    <div id="skeleton-overlay" class="skeleton-overlay">
+        <!-- 导航栏占位符 -->
+        <div class="skeleton-navbar">
+            <div class="skeleton-logo skeleton"></div>
+            <div class="skeleton-nav-links">
+                <div class="skeleton-nav-link skeleton"></div>
+                <div class="skeleton-nav-link skeleton"></div>
+                <div class="skeleton-nav-link skeleton"></div>
+                <div class="skeleton-nav-link skeleton"></div>
+            </div>
+            <div class="skeleton-nav-button skeleton"></div>
+        </div>
+
+        <!-- Hero区域占位符 -->
+        <div class="skeleton-hero">
+            <div class="skeleton-hero-title skeleton"></div>
+            <div class="skeleton-hero-subtitle skeleton"></div>
+            <div class="skeleton-hero-button skeleton"></div>
+        </div>
+
+        <!-- 内容区域占位符 -->
+        <div class="skeleton-content">
+            <div class="skeleton-section-title skeleton"></div>
+            <div class="skeleton-cards">
+                <div class="skeleton-card">
+                    <div class="skeleton-card-icon skeleton"></div>
+                    <div class="skeleton-card-title skeleton"></div>
+                    <div class="skeleton-card-content skeleton"></div>
+                    <div class="skeleton-card-content skeleton"></div>
+                    <div class="skeleton-card-content skeleton"></div>
+                </div>
+                <div class="skeleton-card">
+                    <div class="skeleton-card-icon skeleton"></div>
+                    <div class="skeleton-card-title skeleton"></div>
+                    <div class="skeleton-card-content skeleton"></div>
+                    <div class="skeleton-card-content skeleton"></div>
+                    <div class="skeleton-card-content skeleton"></div>
+                </div>
+                <div class="skeleton-card">
+                    <div class="skeleton-card-icon skeleton"></div>
+                    <div class="skeleton-card-title skeleton"></div>
+                    <div class="skeleton-card-content skeleton"></div>
+                    <div class="skeleton-card-content skeleton"></div>
+                    <div class="skeleton-card-content skeleton"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 导航栏 -->
     <header id="navbar" class="fixed w-full top-0 z-50 transition-all duration-300 bg-white/80 bg-blur shadow-sm">
         <div class="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -1367,6 +1652,10 @@
                             class="bg-white text-primary hover:bg-gray-100 px-8 py-4 rounded-lg font-medium transition-all shadow-lg hover:shadow-xl flex items-center justify-center">
                             <i class="fa fa-globe mr-2"></i> <span data-i18n="getStarted.webVersion">访问网页版</span>
                         </a>
+                        <button id="pwa-install-btn-index" onclick="installPWAIndex()" style="display:none;"
+                            class="bg-white text-primary hover:bg-gray-100 px-8 py-4 rounded-lg font-medium transition-all shadow-lg hover:shadow-xl flex items-center justify-center">
+                            📥 <span data-i18n="getStarted.installPWA">安装网页应用</span>
+                        </button>
                         <a href="https://download.mindword.dpdns.org/release/MindWordOnline-win32-x64-v0.56.zip"
                             download="https://download.mindword.dpdns.org/release/MindWordOnline-win32-x64-v0.56.zip"
                             class="bg-white text-primary hover:bg-gray-100 px-8 py-4 rounded-lg font-medium transition-all shadow-lg hover:shadow-xl flex items-center justify-center">
@@ -1587,6 +1876,39 @@
 
     <!-- PWA Service Worker Registration -->
     <script>
+        // 骨架屏加载动画控制
+        function hideSkeletonLoading() {
+            const skeletonElement = document.getElementById('skeleton-overlay');
+            if (skeletonElement) {
+                skeletonElement.classList.add('hidden');
+                // 可选：完全移除DOM元素
+                setTimeout(() => {
+                    skeletonElement.remove();
+                }, 300);
+            }
+        }
+
+        // 页面加载完成后隐藏骨架屏
+        window.addEventListener('load', () => {
+            setTimeout(hideSkeletonLoading, 800); // 至少显示0.8秒
+
+            // 检查是否已经安装（对于已安装的PWA，隐藏安装按钮）
+            if (window.matchMedia('(display-mode: standalone)').matches ||
+                window.navigator.standalone === true) {
+                // 当前已经是独立应用模式，隐藏安装按钮
+                const installButtonIndex = document.getElementById('pwa-install-btn-index');
+                if (installButtonIndex) {
+                    installButtonIndex.style.display = 'none';
+                }
+                console.log('MindWord PWA: 当前已是独立应用模式');
+            }
+        });
+
+        // 如果页面已经加载完成，立即隐藏
+        if (document.readyState === 'complete') {
+            setTimeout(hideSkeletonLoading, 300);
+        }
+
         // 注册Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -1622,9 +1944,43 @@
             e.preventDefault();
             deferredPrompt = e;
 
-            // 显示自定义安装按钮（可选）
-            console.log('MindWord PWA: 安装提示已准备');
+            // 显示index页面的PWA安装按钮
+            const installButtonIndex = document.getElementById('pwa-install-btn-index');
+            if (installButtonIndex) {
+                installButtonIndex.style.display = 'flex';
+                console.log('MindWord PWA: Index页面安装按钮已显示');
+            }
         });
+
+        // Index页面PWA安装函数
+        function installPWAIndex() {
+            if (!deferredPrompt) {
+                console.log('MindWord PWA: 当前环境不支持安装');
+                alert('当前浏览器或设备不支持PWA安装功能');
+                return;
+            }
+
+            // 显示安装提示
+            deferredPrompt.prompt();
+
+            // 等待用户选择
+            deferredPrompt.userChoice.then((choiceResult) => {
+                if (choiceResult.outcome === 'accepted') {
+                    console.log('MindWord PWA: 用户接受了安装');
+                    alert('应用安装成功！请检查桌面或应用列表');
+                    // 隐藏安装按钮
+                    document.getElementById('pwa-install-btn-index').style.display = 'none';
+                } else {
+                    console.log('MindWord PWA: 用户拒绝了安装');
+                    alert('您取消了安装，可随时点击安装按钮重试');
+                }
+                // 清空deferredPrompt
+                deferredPrompt = null;
+            }).catch((error) => {
+                console.error('MindWord PWA: 安装过程出错:', error);
+                alert('安装过程中出现错误，请稍后重试');
+            });
+        }
 
         // 监听应用安装成功
         window.addEventListener('appinstalled', () => {

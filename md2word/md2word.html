@@ -514,10 +514,8 @@
 
       function status(msg) {
         if (statusEl) statusEl.textContent = '状态：' + msg;
-        // 使用通知桥接器显示状态信息
-        if (window.NotificationBridge) {
-          window.NotificationBridge.showInfo(msg);
-        }
+        // 只在控制台输出状态信息，不显示弹窗通知
+        console.log('状态：' + msg);
       }
       function showError(e) {
         errlogEl.style.display = 'block';

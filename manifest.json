@@ -5,7 +5,6 @@
   "start_url": "/app.html",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#619dff",
   "orientation": "any",
   "scope": "/",
   "icons": [

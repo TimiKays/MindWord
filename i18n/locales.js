@@ -114,6 +114,7 @@ const i18nLocales = {
       title: '开始使用 MindWord',
       subtitle: '立即体验思维导图与Markdown结合的高效写作方式，让您的创意和思路更加井井有条',
       webVersion: '访问网页版',
+      installPWA: '安装网页应用',
       downloadWindows: '下载Windows客户端',
       compatibility: '兼容PC和移动端，全平台一致体验'
     },
@@ -294,7 +295,8 @@ const i18nLocales = {
         expandAll: '展开全部',
         quickAIGenerate: '快速AI生成：开启时将关闭AI弹窗，直接生成内容',
         detailPanelPermanent: '详情面板常驻',
-        help: '帮助'
+        help: '帮助',
+        installPWA: '安装网页应用到设备'
       },
 
       // 节点操作
@@ -595,6 +597,7 @@ const i18nLocales = {
       title: 'Start Using MindWord',
       subtitle: 'Experience the efficient writing method combining mind maps and Markdown immediately, making your creativity and ideas more organized',
       webVersion: 'Visit Web Version',
+      installPWA: 'Install Web App',
       downloadWindows: 'Download Windows Client',
       compatibility: 'Compatible with PC and mobile, consistent experience across all platforms'
     },
@@ -742,7 +745,8 @@ const i18nLocales = {
         expandAll: 'Expand All',
         quickAIGenerate: 'Quick AI Generate: When enabled, AI popup will be disabled and content will be generated directly',
         detailPanelPermanent: 'Detail Panel Permanent',
-        help: 'Help'
+        help: 'Help',
+        installPWA: 'Install Web App to Device'
       },
 
       // 节点操作
@@ -1023,6 +1027,7 @@ const i18nLocales = {
       title: 'Comenzar a Usar MindWord',
       subtitle: 'Experimente inmediatamente la forma eficiente de escritura que combina mapas mentales con Markdown, haciendo sus ideas y creatividad más organizadas',
       webVersion: 'Visitar Versión Web',
+      installPWA: 'Instalar Aplicación Web',
       downloadWindows: 'Descargar Cliente Windows',
       compatibility: 'Compatible con PC y móviles, experiencia consistente en todas las plataformas'
     },
@@ -1202,7 +1207,8 @@ const i18nLocales = {
         expandAll: 'Expandir Todo',
         quickAIGenerate: 'Generación Rápida de IA: Cuando está habilitado, la ventana emergente de IA se desactivará y el contenido se generará directamente',
         detailPanelPermanent: 'Panel de Detalles Permanente',
-        help: 'Ayuda'
+        help: 'Ayuda',
+        installPWA: 'Instalar Aplicación Web en el Dispositivo'
       },
 
       // 节点操作

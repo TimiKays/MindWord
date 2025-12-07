@@ -346,9 +346,89 @@
     <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
     <!-- LeanCloud SDK（仅前端 AppID/AppKey，切勿使用 Master Key） -->
     <script src="https://cdn.jsdelivr.net/npm/leancloud-storage@4/dist/av-min.js"></script>
+
+    <!-- PWA加载动画样式 -->
+    <style>
+        .pwa-loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease-out, visibility 0.5s ease-out;
+        }
+
+        .pwa-loading-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .pwa-loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(97, 157, 255, 0.3);
+            border-top: 3px solid #619dff;
+            border-radius: 50%;
+            animation: pwa-spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+
+        .pwa-loading-text {
+            color: #333;
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .pwa-loading-subtext {
+            color: #666;
+            font-size: 12px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        @keyframes pwa-spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* 深色模式适配 */
+        @media (prefers-color-scheme: dark) {
+            .pwa-loading-overlay {
+                background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            }
+
+            .pwa-loading-text {
+                color: #fff;
+            }
+
+            .pwa-loading-subtext {
+                color: #ccc;
+            }
+        }
+    </style>
 </head>
 
 <body>
+    <!-- PWA加载动画 -->
+    <div id="pwa-loading" class="pwa-loading-overlay">
+        <div class="pwa-loading-spinner"></div>
+        <div class="pwa-loading-text">MindWord 正在初始化...</div>
+        <div class="pwa-loading-subtext">正在加载思维导图编辑器</div>
+    </div>
+
     <!-- 文档侧栏触发按钮与侧栏 -->
     <style>
         #doc-menu-btn {
@@ -789,6 +869,15 @@
             <!-- 账号区：未登录显示"注册/登录"，已登录显示"用户名/退出登录" -->
             <div id="auth-area" style="display:inline-flex; align-items:center; gap:6px; ">
 
+                <!-- PWA安装按钮 -->
+                <button id="pwa-install-btn" data-i18n-title="app.toolbar.installPWA" title="安装网页应用到设备"
+                    onclick="installPWA()"
+                    style="height:30px; width:30px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; color:#334155; cursor:pointer; display:none; align-items:center; justify-content:center; font-size:14px; transition: all 0.2s ease;"
+                    onmouseover="this.style.borderColor='#3b82f6'; this.style.color='#3b82f6'"
+                    onmouseout="this.style.borderColor='#e2e8f0'; this.style.color='#334155'">
+                    📥
+                </button>
+
                 <!-- 更新日志 -->
                 <button id="changelog-btn" title="更新日志" onclick="window.open('changelog/changelog.html', '_blank')"
                     style="height:30px; width:30px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; color:#334155; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px;">
@@ -959,12 +1048,31 @@
         </div>
     </main>
 
-    <!-- Bootstrap JS for notifications -->
-    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- 懒加载器 -->
+    <script src="lazy-loader.js"></script>
+
+    <!-- Bootstrap JS for notifications - 延迟加载 -->
+    <script>
+        // 延迟加载Bootstrap，提高首屏性能
+        setTimeout(() => {
+            const jqueryScript = document.createElement('script');
+            jqueryScript.src = 'https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js';
+            jqueryScript.onload = () => {
+                const bootstrapScript = document.createElement('script');
+                bootstrapScript.src = 'https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js';
+                document.body.appendChild(bootstrapScript);
+            };
+            document.body.appendChild(jqueryScript);
+        }, 1000);
+    </script>
+
+    <!-- 关键资源预加载 -->
+    <link rel="preload" href="three-iframes.js" as="script">
+    <link rel="preload" href="init.js" as="script">
+    <link rel="preload" href="documents.js" as="script">
 
     <!-- 管理三个Iframe的展示、切换、拖拽调整宽度、专注模式、移动端自动专注 -->
-    <script src="three-iframes.js"></script>
+    <script src="three-iframes.js" defer></script>
 
     <!-- 初始化应用，包括 
         1. 恢复用户状态 （专注模式、布局等）
@@ -974,7 +1082,7 @@
         5. 预加载 AI 提示词模板 到全局变量 window.__prompt_templates
         6. 调用移动端自动专注模式 （ initMobileFocus ），移动端把三个面板显示到下面。
         7. 统一监听子页面消息 （通知、AI 调用等）-->
-    <script src="init.js"> </script>
+    <script src="init.js" defer> </script>
 
     <!-- 如果是移动端需要重新绘制 -->
     <script src="mobile-suit.js"></script>
@@ -992,11 +1100,28 @@
 
     <script src="language-switch.js"> </script>
 
-    <!-- AI配置和提示词模板的修改监听 -->
-    <script src="monitor-AIset.js"></script>
+    <!-- AI配置和提示词模板的修改监听 - 延迟加载 -->
+    <script>
+        setTimeout(() => {
+            const script = document.createElement('script');
+            script.src = 'monitor-AIset.js';
+            document.body.appendChild(script);
+        }, 3000);
+    </script>
 
-    <!-- 中文方案：LeanCloud Data 同步脚本 -->
-    <script src="leancloud-sync.js"></script>
+    <!-- 中文方案：LeanCloud Data 同步脚本 - 延迟加载 -->
+    <script>
+        // 当用户首次交互时加载
+        const loadLeanCloudSync = () => {
+            const script = document.createElement('script');
+            script.src = 'leancloud-sync.js';
+            document.body.appendChild(script);
+        };
+
+        // 延迟3秒后自动加载，或者用户首次交互时加载
+        setTimeout(loadLeanCloudSync, 3000);
+        document.addEventListener('click', loadLeanCloudSync, { once: true });
+    </script>
 
     <!-- 滚动条优化：滚动时显示滚动条 -->
     <script>
@@ -1027,6 +1152,135 @@
             // 延迟执行，确保 iframe 加载完成
             setTimeout(initScrollbarOptimization, 1000);
         })();
+
+        // 隐藏PWA加载动画
+        function hidePWALoading() {
+            const loadingElement = document.getElementById('pwa-loading');
+            if (loadingElement) {
+                loadingElement.classList.add('hidden');
+                setTimeout(() => {
+                    loadingElement.remove();
+                }, 500);
+            }
+        }
+
+        // 页面加载完成后隐藏加载动画
+        window.addEventListener('load', () => {
+            setTimeout(hidePWALoading, 1500); // 比index.html稍长，因为功能更复杂
+        });
+
+        // 如果页面已经加载完成，立即隐藏
+        if (document.readyState === 'complete') {
+            setTimeout(hidePWALoading, 800);
+        }
+    </script>
+
+    <!-- PWA安装功能 -->
+    <script>
+        // PWA安装事件处理
+        let deferredPrompt = null;
+
+        // 监听beforeinstallprompt事件
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // 防止默认的浏览器安装提示
+            e.preventDefault();
+            // 保存事件对象
+            deferredPrompt = e;
+            // 显示安装按钮
+            const installButton = document.getElementById('pwa-install-btn');
+            if (installButton) {
+                installButton.style.display = 'flex';
+                console.log('MindWord PWA: 安装按钮已显示');
+            }
+        });
+
+        // PWA安装函数
+        function installPWA() {
+            if (!deferredPrompt) {
+                console.log('MindWord PWA: 当前环境不支持安装');
+                showInstallMessage('当前浏览器或设备不支持PWA安装功能', 'warning');
+                return;
+            }
+
+            // 显示安装提示
+            deferredPrompt.prompt();
+
+            // 等待用户选择
+            deferredPrompt.userChoice.then((choiceResult) => {
+                if (choiceResult.outcome === 'accepted') {
+                    console.log('MindWord PWA: 用户接受了安装');
+                    showInstallMessage('应用安装成功！请检查桌面或应用列表', 'success');
+                    // 隐藏安装按钮
+                    document.getElementById('pwa-install-btn').style.display = 'none';
+                } else {
+                    console.log('MindWord PWA: 用户拒绝了安装');
+                    showInstallMessage('您取消了安装，可随时点击安装按钮重试', 'info');
+                }
+                // 清空deferredPrompt
+                deferredPrompt = null;
+            }).catch((error) => {
+                console.error('MindWord PWA: 安装过程出错:', error);
+                showInstallMessage('安装过程中出现错误，请稍后重试', 'error');
+            });
+        }
+
+        // 显示安装消息提示
+        function showInstallMessage(message, type = 'info') {
+            // 创建消息元素
+            const messageDiv = document.createElement('div');
+
+            // 设置基础样式
+            messageDiv.style.position = 'fixed';
+            messageDiv.style.top = '20px';
+            messageDiv.style.right = '20px';
+            messageDiv.style.padding = '12px 16px';
+            messageDiv.style.borderRadius = '6px';
+            messageDiv.style.fontSize = '14px';
+            messageDiv.style.zIndex = '10000';
+            messageDiv.style.maxWidth = '300px';
+            messageDiv.style.wordWrap = 'break-word';
+            messageDiv.style.transition = 'all 0.3s ease';
+            messageDiv.style.color = 'white';
+
+            // 根据类型设置背景色
+            if (type === 'success') {
+                messageDiv.style.backgroundColor = '#10b981';
+            } else if (type === 'warning') {
+                messageDiv.style.backgroundColor = '#f59e0b';
+            } else if (type === 'error') {
+                messageDiv.style.backgroundColor = '#ef4444';
+            } else {
+                messageDiv.style.backgroundColor = '#3b82f6';
+            }
+
+            messageDiv.textContent = message;
+
+            // 添加到页面
+            document.body.appendChild(messageDiv);
+
+            // 3秒后自动移除
+            setTimeout(() => {
+                if (messageDiv.parentNode) {
+                    messageDiv.style.opacity = '0';
+                    setTimeout(() => {
+                        messageDiv.remove();
+                    }, 300);
+                }
+            }, 3000);
+        }
+
+        // 检查是否已经安装（对于已安装的PWA，隐藏安装按钮）
+        window.addEventListener('load', () => {
+            if (window.matchMedia('(display-mode: standalone)').matches ||
+                window.navigator.standalone === true) {
+                // 当前已经是独立应用模式，隐藏安装按钮
+                const installButton = document.getElementById('pwa-install-btn');
+                if (installButton) {
+                    installButton.style.display = 'none';
+                }
+                console.log('MindWord PWA: 当前已是独立应用模式');
+            }
+        });
     </script>
 
     <!-- PWA Service Worker Registration -->
@@ -1058,17 +1312,6 @@
                     });
             });
         }
-
-        // PWA安装提示
-        let deferredPrompt;
-        window.addEventListener('beforeinstallprompt', (e) => {
-            // 阻止默认的安装提示
-            e.preventDefault();
-            deferredPrompt = e;
-
-            // 显示自定义安装按钮（可选）
-            console.log('MindWord PWA: 安装提示已准备');
-        });
 
         // 监听应用安装成功
         window.addEventListener('appinstalled', () => {
