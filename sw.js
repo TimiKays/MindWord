@@ -3,7 +3,9 @@
  * 处理离线缓存和PWA功能
  */
 
-const CACHE_NAME = 'mindword-v6';
+const CACHE_NAME = 'mindword-v7';
+const MAX_CACHE_SIZE = 200; // 最大缓存文件数量
+const MAX_CACHE_AGE = 7 * 24 * 60 * 60 * 1000; // 7天缓存有效期
 
 // 核心文件 - 必须预缓存的关键文件
 const CORE_FILES = [
@@ -65,23 +67,13 @@ const JSMIND_CORE_FILES = [
   '/jsmind-local/jsmind.screenshot.js'
 ];
 
-// 运行时缓存配置 - 按目录和文件类型自动缓存
+// 运行时缓存配置 - 严格限制缓存范围
 const RUNTIME_CACHE_PATTERNS = [
-  // iframe 相关文件
-  { pattern: /^\/editor\//, type: 'iframe' },
-  { pattern: /^\/md2word\//, type: 'iframe' },
-  { pattern: /^\/jsmind\//, type: 'iframe' },
-  // 静态资源目录
-  { pattern: /^\/res\//, type: 'resource' },
-  { pattern: /^\/fonts\//, type: 'resource' },
-  { pattern: /^\/local-deps\//, type: 'dependency' },
-  { pattern: /^\/jsmind-local\//, type: 'module' },
-  { pattern: /^\/converter\//, type: 'module' },
-  { pattern: /^\/ai\//, type: 'module' },
-  // 特定文件类型
-  { pattern: /\.(js|css|html)$/, type: 'document' },
-  { pattern: /\.(png|jpg|jpeg|gif|svg|ico)$/, type: 'image' },
-  { pattern: /\.(woff|woff2|ttf|eot)$/, type: 'font' }
+  // 只允许缓存核心资源文件
+  { pattern: /^\/res\/(edit|download|code|setting|tag|undo|redo|help|empty|LOGO)\.(svg|png|ico)$/, type: 'core-icon' },
+  { pattern: /^\/fonts\//, type: 'font' },
+  { pattern: /^\/local-deps\/(FileSaver|markdown-it|dom-to-image)\.min\.(js|css)$/, type: 'core-dep' },
+  { pattern: /^\/jsmind-local\/jsmind\.(css|js)$/, type: 'core-module' }
 ];
 
 // 完整的预缓存列表

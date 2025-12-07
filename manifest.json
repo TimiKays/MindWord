@@ -7,6 +7,12 @@
   "background_color": "#ffffff",
   "orientation": "any",
   "scope": "/",
+  "id": "/",
+  "display_override": [
+    "standalone",
+    "fullscreen",
+    "minimal-ui"
+  ],
   "icons": [
     {
       "src": "res/LOGO32.ico",
@@ -21,6 +27,36 @@
     {
       "src": "res/LOGO.png",
       "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "res/LOGO.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "res/LOGO.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "res/LOGO.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "res/LOGO.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "res/LOGO.png",
+      "sizes": "48x48",
       "type": "image/png",
       "purpose": "any maskable"
     }
