@@ -355,21 +355,21 @@
         content="MindWord is an innovative mind mapping writing tool that lets you write documents like drawing. Supports bidirectional real-time sync between Markdown and mind maps, AI-assisted content generation, and one-click Word document export.">
 
     <!-- Favicon -->
-    <link rel="icon" type="image/x-icon" href="/res/LOGO32.ico">
-    <link rel="apple-touch-icon" sizes="180x180" href="/res/LOGO.png">
-    <link rel="apple-touch-icon" sizes="152x152" href="/res/LOGO.png">
-    <link rel="apple-touch-icon" sizes="144x144" href="/res/LOGO.png">
-    <link rel="apple-touch-icon" sizes="120x120" href="/res/LOGO.png">
-    <link rel="apple-touch-icon" sizes="114x114" href="/res/LOGO.png">
-    <link rel="apple-touch-icon" sizes="76x76" href="/res/LOGO.png">
-    <link rel="apple-touch-icon" sizes="72x72" href="/res/LOGO.png">
-    <link rel="apple-touch-icon" sizes="57x57" href="/res/LOGO.png">
-    <link rel="icon" sizes="192x192" href="/res/LOGO.png">
-    <link rel="icon" sizes="128x128" href="/res/LOGO.png">
-    <link rel="icon" sizes="96x96" href="/res/LOGO.png">
+    <link rel="icon" type="image/x-icon" href="res/LOGO32.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="res/LOGO.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="res/LOGO.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="res/LOGO.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="res/LOGO.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="res/LOGO.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="res/LOGO.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="res/LOGO.png">
+    <link rel="apple-touch-icon" sizes="57x57" href="res/LOGO.png">
+    <link rel="icon" sizes="192x192" href="res/LOGO.png">
+    <link rel="icon" sizes="128x128" href="res/LOGO.png">
+    <link rel="icon" sizes="96x96" href="res/LOGO.png">
 
     <!-- PWA Manifest -->
-    <link rel="manifest" href="/manifest.json">
+    <link rel="manifest" href="manifest.json">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="application-name" content="MindWord">
@@ -494,8 +494,8 @@
       }
     }
     </script>
-    <script src="/local-deps/tailwindcss.min.js"></script>
-    <link href="/local-deps/font-awesome.min.css" rel="stylesheet">
+    <script src="local-deps/tailwindcss.min.js"></script>
+    <link href="local-deps/font-awesome.min.css" rel="stylesheet">
     <script src="i18n/locales.js"></script>
     <script src="i18n/i18n-manager.js"></script>
 
@@ -1922,7 +1922,7 @@
         // 注册Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
+                navigator.serviceWorker.register('sw.js')
                     .then(registration => {
                         console.log('MindWord PWA: Service Worker 注册成功');
 

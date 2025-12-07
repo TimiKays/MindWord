@@ -9,71 +9,71 @@ const MAX_CACHE_AGE = 7 * 24 * 60 * 60 * 1000; // 7天缓存有效期
 
 // 核心文件 - 必须预缓存的关键文件
 const CORE_FILES = [
-  '/',
-  '/index.html',
-  '/app.html',
-  '/styles.css',
-  '/init.js',
-  '/documents.js',
-  '/language-switch.js',
-  '/lazy-loader.js',
-  '/user.js',
-  '/copynew_file.js',
-  '/mobile-suit.js',
-  '/msg-listener-show.js',
-  '/notification-bridge.js',
-  '/i18n/locales.js',
-  '/i18n/i18n-manager.js',
-  '/three-iframes.js',
-  '/sw.js',
-  '/manifest.json'
+  './',
+  'index.html',
+  'app.html',
+  'styles.css',
+  'init.js',
+  'documents.js',
+  'language-switch.js',
+  'lazy-loader.js',
+  'user.js',
+  'copynew_file.js',
+  'mobile-suit.js',
+  'msg-listener-show.js',
+  'notification-bridge.js',
+  'i18n/locales.js',
+  'i18n/i18n-manager.js',
+  'three-iframes.js',
+  'sw.js',
+  'manifest.json'
 ];
 
 // iframe 核心文件
 const IFRAME_FILES = [
-  '/editor/editor.html',
-  '/md2word/md2word.html',
-  '/jsmind/mindmap.html'
+  'editor/editor.html',
+  'md2word/md2word.html',
+  'jsmind/mindmap.html'
 ];
 
 // mindmap 图标文件 - 预缓存所有图标确保离线可用
 const MINDMAP_ICONS = [
-  '/res/edit.svg',
-  '/res/下钻.svg',
-  '/res/上钻.svg',
-  '/res/添加子级.svg',
-  '/res/添加同级.svg',
-  '/res/添加子树.svg',
-  '/res/扩写备注.svg',
-  '/res/删除.svg',
-  '/res/生成初始树.svg',
-  '/res/undo.svg',
-  '/res/redo.svg',
-  '/res/download.svg',
-  '/res/code.svg',
-  '/res/setting.svg',
-  '/res/tag.svg',
-  '/res/kuaisu.svg',
-  '/res/detail.svg',
-  '/res/help.svg',
-  '/res/empty.svg'
+  'res/edit.svg',
+  'res/下钻.svg',
+  'res/上钻.svg',
+  'res/添加子级.svg',
+  'res/添加同级.svg',
+  'res/添加子树.svg',
+  'res/扩写备注.svg',
+  'res/删除.svg',
+  'res/生成初始树.svg',
+  'res/undo.svg',
+  'res/redo.svg',
+  'res/download.svg',
+  'res/code.svg',
+  'res/setting.svg',
+  'res/tag.svg',
+  'res/kuaisu.svg',
+  'res/detail.svg',
+  'res/help.svg',
+  'res/empty.svg'
 ];
 
 // jsmind 核心文件 - 确保思维导图功能离线可用
 const JSMIND_CORE_FILES = [
-  '/jsmind-local/jsmind.css',
-  '/jsmind-local/jsmind.js',
-  '/jsmind-local/jsmind.draggable-node.js',
-  '/jsmind-local/jsmind.screenshot.js'
+  'jsmind-local/jsmind.css',
+  'jsmind-local/jsmind.js',
+  'jsmind-local/jsmind.draggable-node.js',
+  'jsmind-local/jsmind.screenshot.js'
 ];
 
 // 运行时缓存配置 - 严格限制缓存范围
 const RUNTIME_CACHE_PATTERNS = [
   // 只允许缓存核心资源文件 - 包含英文和中文文件名的SVG
-  { pattern: /^\/res\/.*\.(svg|png|ico)$/, type: 'core-icon' },
-  { pattern: /^\/fonts\//, type: 'font' },
-  { pattern: /^\/local-deps\/(FileSaver|markdown-it|dom-to-image)\.min\.(js|css)$/, type: 'core-dep' },
-  { pattern: /^\/jsmind-local\/jsmind\.(css|js)$/, type: 'core-module' }
+  { pattern: /^res\/.*\.(svg|png|ico)$/, type: 'core-icon' },
+  { pattern: /^fonts\//, type: 'font' },
+  { pattern: /^local-deps\/(FileSaver|markdown-it|dom-to-image)\.min\.(js|css)$/, type: 'core-dep' },
+  { pattern: /^jsmind-local\/jsmind\.(css|js)$/, type: 'core-module' }
 ];
 
 // 完整的预缓存列表
