@@ -297,86 +297,99 @@ self.addEventListener('fetch', event => {
   const isIframeSource = iframePaths.some(path => url.pathname.startsWith(path));
 
   if (isIframeSource) {
+    // 检测Edge浏览器
+    const userAgent = request.headers.get('User-Agent') || '';
+    const isEdge = userAgent.includes('Edg/') || userAgent.includes('Edge/');
+
     event.respondWith(
       // 尝试匹配无参数的缓存版本（基础文件）
       caches.match(url.pathname).then(response => {
-        if (response) {
+        if (response && !isEdge) {
+          // Edge浏览器跳过缓存，直接网络请求避免缓存问题
           return response;
         }
 
         // 如果没有基础缓存，尝试匹配带参数的请求
         return caches.match(request).then(response => {
-          if (response) {
+          if (response && !isEdge) {
             return response;
           }
 
-          // 如果都没有，尝试网络请求
+          // Edge浏览器或没有缓存时，优先网络请求
           return fetch(request).then(fetchResponse => {
             if (fetchResponse.status === 200) {
               const responseClone = fetchResponse.clone();
-              // 缓存基础版本（无参数）用于后续请求
-              caches.open(CACHE_NAME).then(cache => {
-                cache.put(url.pathname, responseClone);
-              });
+              // 只在非Edge浏览器缓存，避免Edge缓存问题
+              if (!isEdge) {
+                caches.open(CACHE_NAME).then(cache => {
+                  cache.put(url.pathname, responseClone);
+                });
+              }
             }
             return fetchResponse;
           }).catch(() => {
-            // 返回有意义的离线页面
-            return new Response(`
-              <!DOCTYPE html>
-              <html>
-              <head>
-                <meta charset="UTF-8">
-                <title>离线模式 - MindWord</title>
-                <style>
-                  body { 
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                    display: flex; 
-                    align-items: center; 
-                    justify-content: center; 
-                    height: 100vh; 
-                    margin: 0;
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    color: white;
-                    text-align: center;
-                  }
-                  .offline-container {
-                    background: rgba(255, 255, 255, 0.1);
-                    padding: 40px;
-                    border-radius: 15px;
-                    backdrop-filter: blur(10px);
-                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-                  }
-                  .offline-icon {
-                    font-size: 48px;
-                    margin-bottom: 20px;
-                  }
-                  h2 { 
-                    margin: 0 0 15px 0; 
-                    font-size: 24px;
-                    font-weight: 600;
-                  }
-                  p { 
-                    margin: 0; 
-                    opacity: 0.9;
-                    font-size: 16px;
-                    line-height: 1.5;
-                  }
-                </style>
-              </head>
-              <body>
-                <div class="offline-container">
-                  <div class="offline-icon">🌐</div>
-                  <h2>离线模式</h2>
-                  <p>当前处于离线状态，部分功能可能受限。<br>请连接网络以获取完整功能。</p>
-                </div>
-              </body>
-              </html>
-            `, {
-              status: 200,
-              headers: new Headers({
-                'Content-Type': 'text/html'
-              })
+            // 网络失败时，回退到缓存（即使是Edge也尝试缓存）
+            return caches.match(url.pathname).then(cachedResponse => {
+              if (cachedResponse) {
+                return cachedResponse;
+              }
+              // 返回有意义的离线页面
+              return new Response(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                  <meta charset="UTF-8">
+                  <title>离线模式 - MindWord</title>
+                  <style>
+                    body { 
+                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                      display: flex; 
+                      align-items: center; 
+                      justify-content: center; 
+                      height: 100vh; 
+                      margin: 0;
+                      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                      color: white;
+                      text-align: center;
+                    }
+                    .offline-container {
+                      background: rgba(255, 255, 255, 0.1);
+                      padding: 40px;
+                      border-radius: 15px;
+                      backdrop-filter: blur(10px);
+                      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+                    }
+                    .offline-icon {
+                      font-size: 48px;
+                      margin-bottom: 20px;
+                    }
+                    h2 { 
+                      margin: 0 0 15px 0; 
+                      font-size: 24px;
+                      font-weight: 600;
+                    }
+                    p { 
+                      margin: 0; 
+                      opacity: 0.9;
+                      font-size: 16px;
+                      line-height: 1.5;
+                    }
+                  </style>
+                </head>
+                <body>
+                  <div class="offline-container">
+                    <div class="offline-icon">🌐</div>
+                    <h2>离线模式</h2>
+                    <p>当前处于离线状态，部分功能可能受限。<br>请连接网络以获取完整功能。</p>
+                  </div>
+                </body>
+                </html>
+              `, {
+                status: 200,
+                headers: new Headers({
+                  'Content-Type': 'text/html'
+                })
+              });
             });
           });
         });

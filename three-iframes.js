@@ -23,19 +23,19 @@
 const PAGE_CONFIG = {
   // Markdown 编辑器页面地址
   editor: {
-    url: 'editor/editor', // 填入您的编辑器页面地址，例如: 'https://your-domain.com/editor'
+    url: 'editor/editor.html', // 填入您的编辑器页面地址，例如: 'https://your-domain.com/editor.html'
     title: 'Markdown 编辑器'
   },
 
   // Markdown 预览页面地址
   preview: {
-    url: 'md2word/md2word', // 填入您的预览页面地址，例如: 'https://your-domain.com/preview'
+    url: 'md2word/md2word.html', // 填入您的预览页面地址，例如: 'https://your-domain.com/preview.html'
     title: 'Markdown 预览'
   },
 
   // 思维导图页面地址
   mindmap: {
-    url: 'jsmind/mindmap', // 填入您的思维导图页面地址，例如: 'https://your-domain.com/mindmap'
+    url: 'jsmind/mindmap.html', // 填入您的思维导图页面地址，例如: 'https://your-domain.com/mindmap.html'
     title: '思维导图'
   }
 };
@@ -126,13 +126,27 @@ function loadPanelContent(panelName) {
     placeholder.style.display = 'none';
     iframe.style.display = 'block';
 
+    // Edge浏览器检测
+    const isEdge = navigator.userAgent.includes('Edg/') || navigator.userAgent.includes('Edge/');
+
     // 请求子页重排，防止首次渲染时尺寸未就绪
     try {
       if (iframe.contentWindow) {
+        // Edge浏览器需要更长的延迟来确保iframe完全就绪
+        const delay = isEdge ? 500 : 200;
+
         iframe.contentWindow.postMessage({ type: 'mw_relayout' }, '*');
         setTimeout(() => {
           try { iframe.contentWindow.postMessage({ type: 'mw_relayout' }, '*'); } catch (e) { }
-        }, 200);
+        }, delay);
+
+        // Edge浏览器需要额外的重试机制
+        if (isEdge) {
+          setTimeout(() => {
+            try { iframe.contentWindow.postMessage({ type: 'mw_relayout' }, '*'); } catch (e) { }
+          }, 1000);
+        }
+
         // 若存在待发送的markdown/文档，在iframe就绪后立刻发送，确保“即点即切”
         try {
           if (panelName === 'editor' && window.__mw_pendingEditorDocument) {
@@ -155,8 +169,13 @@ function loadPanelContent(panelName) {
   };
 
   iframe.onerror = function () {
+    const isEdge = navigator.userAgent.includes('Edg/') || navigator.userAgent.includes('Edge/');
+    const errorMsg = isEdge ?
+      'Edge浏览器加载失败，可能是缓存问题。请尝试清除缓存或使用Chrome浏览器。' :
+      '页面加载失败';
+
     placeholder.innerHTML = `
-                    <div style="color: #e74c3c;">❌ <span data-i18n="errors.pageLoadFailed">页面加载失败</span></div>
+                    <div style="color: #e74c3c;">❌ <span data-i18n="errors.pageLoadFailed">${errorMsg}</span></div>
                     <small><span data-i18n="app.address">地址</span>: ${config.url}</small>
                     <br>
                     <button onclick="retryLoad('${panelName}')" style="margin-top: 10px; padding: 5px 10px; border: 1px solid #3498db; background: white; color: #3498db; border-radius: 4px; cursor: pointer;"><span data-i18n="errors.retry">重试</span></button>
