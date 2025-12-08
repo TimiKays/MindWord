@@ -188,9 +188,16 @@ self.addEventListener('fetch', event => {
   // 只处理GET请求
   if (request.method !== 'GET') return;
 
-  // 只处理核心文件 - 简单文件名匹配
-  const filename = request.url.split('/').pop();
-  if (!CORE_FILES.includes(filename)) return;
+  // 获取请求的路径部分（从域名后开始）
+  const url = new URL(request.url);
+  const requestPath = url.pathname;
+
+  // 检查请求路径是否在CORE_FILES中，支持带/和不带/的两种情况
+  const isCoreFile = CORE_FILES.includes(requestPath) ||
+    CORE_FILES.includes(requestPath.substring(1)) ||
+    (requestPath === '/' && CORE_FILES.includes('/'));
+
+  if (!isCoreFile) return;
 
   // 缓存优先策略
   event.respondWith(
