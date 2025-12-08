@@ -7,7 +7,8 @@ const CACHE_NAME = 'mindword-v13';
 
 // 只缓存最关键的核心文件
 const CORE_FILES = [
-  '/',
+  // 修复：移除根路径缓存以避免重定向循环
+  // '/',
 
   // 根目录文件（除了.md和.txt文件，按文件名升序排列）
   '/ai-modal.js',
@@ -33,6 +34,7 @@ const CORE_FILES = [
   '/sw.js',
   '/three-iframes.js',
   '/user.js',
+  '/offline.html', // 离线页面
 
   // ai目录
   '/ai/newai/AIServiceModal.html',
@@ -179,9 +181,20 @@ self.addEventListener('activate', event => {
   );
 });
 
-// --- 纯缓存模式 ---
+// --- 修复重定向循环问题 ---
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
+
+  // 修复：避免处理根路径重定向和导航请求
+  const url = new URL(event.request.url);
+  if (url.pathname === '/' || url.pathname === '/index.html' || url.pathname === '/app.html') {
+    return; // 让浏览器处理导航请求
+  }
+
+  // 修复：避免处理重定向响应
+  if (event.request.mode === 'navigate') {
+    return; // 让浏览器处理页面导航
+  }
 
   event.respondWith(
     caches.match(event.request).then(cached => {
@@ -194,6 +207,12 @@ self.addEventListener('fetch', event => {
           );
         }
         return netRes;
+      }).catch(() => {
+        // 修复：网络失败时返回离线页面
+        if (event.request.destination === 'document') {
+          return caches.match('/offline.html');
+        }
+        return new Response('Offline', { status: 503 });
       });
     })
   );

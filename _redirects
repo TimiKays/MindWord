@@ -1,5 +1,19 @@
-/            /index.html    200
-/app         /app.html      200
+# 修复重定向循环问题 - 使用明确的重定向规则
+# 处理根路径和index.html
+/            /index.html  301
+/index.html  /index.html  200
+
+# 处理app路径和app.html
+/app         /app.html    301
+/app.html    /app.html    200
+
+# 处理编辑器路径
 /editor/*    /editor/editor.html     200
 /jsmind/*    /jsmind/mindmap.html    200
 /md2word/*   /md2word/md2word.html   200
+
+# 移除尾部斜杠以避免重定向问题
+/:splat/     /:splat      301
+
+# SPA 支持 - 确保单页应用路由正常工作
+/*           /index.html  200
