@@ -23,19 +23,19 @@
 const PAGE_CONFIG = {
   // Markdown 编辑器页面地址
   editor: {
-    url: '/editor/', // 填入您的编辑器页面地址，例如: 'https://your-domain.com/editor.html'
+    url: '/editor/editor.html', // 填入您的编辑器页面地址，例如: 'https://your-domain.com/editor.html'
     title: 'Markdown 编辑器'
   },
 
   // Markdown 预览页面地址
   preview: {
-    url: '/md2word/', // 填入您的预览页面地址，例如: 'https://your-domain.com/preview.html'
+    url: '/md2word/md2word.html', // 填入您的预览页面地址，例如: 'https://your-domain.com/preview.html'
     title: 'Markdown 预览'
   },
 
   // 思维导图页面地址
   mindmap: {
-    url: '/jsmind/', // 填入您的思维导图页面地址，例如: 'https://your-domain.com/mindmap.html'
+    url: '/jsmind/mindmap.html', // 填入您的思维导图页面地址，例如: 'https://your-domain.com/mindmap.html'
     title: '思维导图'
   }
 };

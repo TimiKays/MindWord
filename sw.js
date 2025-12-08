@@ -185,35 +185,35 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
 
-  // 修复：避免处理根路径重定向和导航请求
-  const url = new URL(event.request.url);
-  if (url.pathname === '/' || url.pathname === '/index.html' || url.pathname === '/app.html') {
-    return; // 让浏览器处理导航请求
-  }
-
-  // 修复：避免处理重定向响应
+  // 修复：避免处理导航请求，让浏览器直接处理
   if (event.request.mode === 'navigate') {
-    return; // 让浏览器处理页面导航
+    return; // 让浏览器处理所有导航请求，避免Service Worker干扰
   }
 
-  event.respondWith(
-    caches.match(event.request).then(cached => {
-      if (cached) return cached;
+  // 修复：避免处理关键页面的资源请求
+  const url = new URL(event.request.url);
 
-      return fetch(event.request).then(netRes => {
-        if (netRes.ok) {
-          caches.open(CACHE_NAME).then(c =>
-            c.put(event.request, netRes.clone())
-          );
-        }
-        return netRes;
-      }).catch(() => {
-        // 修复：网络失败时返回离线页面
-        if (event.request.destination === 'document') {
-          return caches.match('/offline.html');
-        }
-        return new Response('Offline', { status: 503 });
-      });
-    })
-  );
+  // 只缓存静态资源，不缓存HTML文档
+  if (url.pathname.includes('.') && !url.pathname.endsWith('.html')) {
+    event.respondWith(
+      caches.match(event.request).then(cached => {
+        if (cached) return cached;
+
+        return fetch(event.request).then(netRes => {
+          if (netRes.ok) {
+            caches.open(CACHE_NAME).then(c =>
+              c.put(event.request, netRes.clone())
+            );
+          }
+          return netRes;
+        }).catch(() => {
+          // 网络失败时返回离线页面或错误
+          if (event.request.destination === 'document') {
+            return caches.match('/offline.html');
+          }
+          return new Response('Offline', { status: 503 });
+        });
+      })
+    );
+  }
 });
