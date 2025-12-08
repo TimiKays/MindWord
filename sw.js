@@ -200,10 +200,16 @@ self.addEventListener('fetch', event => {
         if (cached) return cached;
 
         return fetch(event.request).then(netRes => {
+          // 修复：先克隆响应，避免body被使用后无法克隆
+          const resClone = netRes.clone();
+
           if (netRes.ok) {
-            caches.open(CACHE_NAME).then(c =>
-              c.put(event.request, netRes.clone())
-            );
+            caches.open(CACHE_NAME).then(c => {
+              // 使用克隆的响应进行缓存
+              return c.put(event.request, resClone);
+            }).catch(err => {
+              console.error('缓存存储失败:', err);
+            });
           }
           return netRes;
         }).catch(() => {
