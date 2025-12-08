@@ -106,9 +106,8 @@ function loadPanelContent(panelName) {
 
   // 创建iframe
   const iframe = document.createElement('iframe');
-  // 添加时间戳参数避免缓存
-  const timestamp = new Date().getTime();
-  iframe.src = config.url + (config.url.includes('?') ? '&' : '?') + '_t=' + timestamp;
+  // 直接使用配置的URL，不添加时间戳以便支持离线缓存
+  iframe.src = config.url;
 
   // 标识 iframe 便于后续选择与消息转发
   iframe.dataset.panel = panelName;
