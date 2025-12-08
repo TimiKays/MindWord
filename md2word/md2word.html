@@ -280,10 +280,8 @@
           + String(now.getHours()).padStart(2, '0')
           + String(now.getMinutes()).padStart(2, '0')
           + String(now.getSeconds()).padStart(2, '0');
-        if (!location.search.includes('_t=')) {
-          // 使用 replace 避免在历史记录中添加多条记录
-          location.replace(location.pathname + location.search + (location.search ? '&' : '?') + '_t=' + ts + location.hash);
-        }
+        // 移除自动添加时间戳的逻辑，以便支持离线缓存
+        // 时间戳会导致Service Worker无法正确匹配缓存的资源
       } catch (e) {
         // 不影响主流程
         console.warn('timestamp reload failed', e);

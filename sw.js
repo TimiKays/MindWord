@@ -3,12 +3,13 @@
  * 只缓存核心文件，避免路径重复问题
  */
 
-const CACHE_NAME = 'mindword-v10';
+const CACHE_NAME = 'mindword-v11';
 
 // 只缓存最关键的核心文件
 const CORE_FILES = [
   '/',
   '/app',
+
   // 根目录文件（除了.md和.txt文件，按文件名升序排列）
   'ai-modal.js',
   'app.html',
@@ -160,7 +161,7 @@ const CORE_FILES = [
 
 ];
 
-// 安装事件 - 缓存核心资源
+// 安装 SW 并缓存全部核心资源
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -169,52 +170,54 @@ self.addEventListener('install', event => {
   );
 });
 
-// 激活事件 - 清理旧缓存
+// 激活 SW，清除旧缓存
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheName !== CACHE_NAME) {
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    }).then(() => self.clients.claim())
+    caches.keys().then(keys =>
+      Promise.all(
+        keys.map(k => k !== CACHE_NAME && caches.delete(k))
+      )
+    ).then(() => self.clients.claim())
   );
 });
 
-// 获取事件 - 只处理核心文件，其他全部走网络
+// 统一路径为真实文件路径，例如 /app → /app.html
+function normalize(urlPath) {
+  let clean = urlPath.startsWith('/') ? urlPath.slice(1) : urlPath;
+
+  // 让 / 映射到 index.html
+  if (clean === '') return 'index.html';
+
+  // 无后缀但存在对应的 .html 文件
+  if (!clean.includes('.') && CORE_FILES.includes(clean + '.html')) {
+    return clean + '.html';
+  }
+
+  return clean;
+}
+
+// fetch 拦截
 self.addEventListener('fetch', event => {
-  const { request } = event;
+  if (event.request.method !== 'GET') return;
 
-  // 只处理GET请求
-  if (request.method !== 'GET') return;
+  const url = new URL(event.request.url);
+  const key = normalize(url.pathname);
 
-  // 获取请求的路径部分（从域名后开始）
-  const url = new URL(request.url);
-  const requestPath = url.pathname;
+  // 不在核心列表的不拦截
+  if (!CORE_FILES.includes(key)) return;
 
-  // 检查请求路径是否在CORE_FILES中，支持带/和不带/的两种情况
-  const isCoreFile = CORE_FILES.includes(requestPath) ||
-    CORE_FILES.includes(requestPath.substring(1)) ||
-    (requestPath === '/' && CORE_FILES.includes('/'));
+  const cacheKey = new Request('/' + key);
 
-  if (!isCoreFile) return;
-
-  // 缓存优先策略
   event.respondWith(
-    caches.match(request).then(response => {
-      if (response) return response;
+    caches.match(cacheKey).then(cached => {
+      if (cached) return cached;
 
-      return fetch(request).then(fetchResponse => {
-        if (fetchResponse.status === 200) {
-          const responseClone = fetchResponse.clone();
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put(request, responseClone);
-          });
+      return fetch(event.request).then(networkResponse => {
+        if (networkResponse && networkResponse.status === 200) {
+          const clone = networkResponse.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(cacheKey, clone));
         }
-        return fetchResponse;
+        return networkResponse;
       });
     })
   );
