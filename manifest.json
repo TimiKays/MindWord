@@ -2,7 +2,7 @@
   "name": "MindWord - 树心",
   "short_name": "MindWord",
   "description": "像画图一样写文档的思维导图写作工具",
-  "start_url": "app.html",
+  "start_url": "app",
   "display": "standalone",
   "background_color": "#ffffff",
   "orientation": "any",
