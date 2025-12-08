@@ -181,45 +181,58 @@ self.addEventListener('activate', event => {
   );
 });
 
-// --- 修复重定向循环问题 ---
+// --- 修复重定向循环和离线导航问题 ---
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
 
-  // 修复：避免处理导航请求，让浏览器直接处理
+  // 修复：正确处理导航请求，支持离线访问
   if (event.request.mode === 'navigate') {
-    return; // 让浏览器处理所有导航请求，避免Service Worker干扰
-  }
-
-  // 修复：避免处理关键页面的资源请求
-  const url = new URL(event.request.url);
-
-  // 只缓存静态资源，不缓存HTML文档
-  if (url.pathname.includes('.') && !url.pathname.endsWith('.html')) {
     event.respondWith(
-      caches.match(event.request).then(cached => {
-        if (cached) return cached;
+      // 先尝试从网络获取
+      fetch(event.request).catch(() => {
+        // 网络失败时，从缓存获取对应HTML文档
+        const url = new URL(event.request.url);
+        const pathname = url.pathname;
 
-        return fetch(event.request).then(netRes => {
-          // 修复：先克隆响应，避免body被使用后无法克隆
-          const resClone = netRes.clone();
+        // 处理根路径
+        if (pathname === '/') {
+          return caches.match('/index.html');
+        }
 
-          if (netRes.ok) {
-            caches.open(CACHE_NAME).then(c => {
-              // 使用克隆的响应进行缓存
-              return c.put(event.request, resClone);
-            }).catch(err => {
-              console.error('缓存存储失败:', err);
-            });
-          }
-          return netRes;
-        }).catch(() => {
-          // 网络失败时返回离线页面或错误
-          if (event.request.destination === 'document') {
-            return caches.match('/offline.html');
-          }
-          return new Response('Offline', { status: 503 });
-        });
+        // 处理其他HTML页面
+        return caches.match(pathname) || caches.match('/offline.html');
       })
     );
+    return;
   }
+
+  // 修复：处理资源请求
+  const url = new URL(event.request.url);
+
+  event.respondWith(
+    caches.match(event.request).then(cached => {
+      if (cached) return cached;
+
+      return fetch(event.request).then(netRes => {
+        // 修复：先克隆响应，避免body被使用后无法克隆
+        const resClone = netRes.clone();
+
+        // 缓存所有成功的GET请求响应
+        if (netRes.ok) {
+          caches.open(CACHE_NAME).then(c => {
+            return c.put(event.request, resClone);
+          }).catch(err => {
+            console.error('缓存存储失败:', err);
+          });
+        }
+        return netRes;
+      }).catch(() => {
+        // 网络失败时返回离线页面或错误
+        if (event.request.destination === 'document') {
+          return caches.match('/offline.html');
+        }
+        return new Response('Offline', { status: 503 });
+      });
+    })
+  );
 });
