@@ -1763,6 +1763,8 @@
 
             // 当前视图状态
             let currentView = 'usage'; // 'usage' 或 'config'
+            // 避免重复并发发送导致循环请求
+            let isSendingAIRequest = false;
 
             // 初始化平台选择下拉框
             function initPlatformSelect() {
@@ -2371,7 +2373,13 @@
 
             // 发送AI请求
             async function sendAIRequest() {
-                let selectedPlatform = platformSelect.value;
+                // 并发保护：如果已有请求在进行，直接返回
+                if (isSendingAIRequest) {
+                    return;
+                }
+                isSendingAIRequest = true;
+                // 优先使用使用界面的选择，其次回退到配置界面的选择
+                let selectedPlatform = (usagePlatformSelect && usagePlatformSelect.value) ? usagePlatformSelect.value : platformSelect.value;
                 let selectedModel = usageModelSelect.value;
                 let apiKey = apiKeyInput.value;
 
@@ -2483,6 +2491,16 @@
                 // saveCurrentPlatformConfig();
 
                 try {
+                    // 平台存在性校验，避免因未同步选择导致“不支持的AI平台”
+                    const platforms = aiService.getPlatforms();
+                    if (!selectedPlatform || !platforms[selectedPlatform]) {
+                        const msg = selectedPlatform ? `不支持的AI平台: ${selectedPlatform}` : '请先选择并保存AI平台';
+                        showUsageStatus(msg, 'error');
+                        usageResultContent.value = `错误：${msg}`;
+                        usageResultContent.classList.remove('hidden');
+                        return;
+                    }
+
                     // 配置AI服务
                     aiService.configure({
                         platform: selectedPlatform,
@@ -2493,7 +2511,7 @@
                     });
 
                     // 显示加载状态
-                    usageSubmitBtn.disabled = false;
+                    usageSubmitBtn.disabled = true;
                     usageSubmitBtn.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i>处理中...';
                     showUsageStatus('正在向AI发送请求...', 'info');
                     usageResultContent.classList.add('hidden');
@@ -2600,6 +2618,8 @@
                 } finally {
 
                     usageSubmitBtn.innerHTML = '<i class="fa fa-paper-plane mr-2"></i>发送请求';
+                    usageSubmitBtn.disabled = false;
+                    isSendingAIRequest = false;
                 }
             }
 

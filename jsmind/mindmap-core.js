@@ -5037,8 +5037,6 @@ document.addEventListener('focusout', (e) => {
 // 右键菜单功能
 (function () {
   let contextMenuNodeId = null;
-  let longPressTimer = null;
-  let longPressTarget = null;
 
   // 获取右键菜单元素
   const contextMenu = document.getElementById('nodeContextMenu');
@@ -5188,6 +5186,38 @@ document.addEventListener('focusout', (e) => {
     hideContextMenu();
   };
 
+  // 从右键菜单快速生成子节点（相当于极速模式的AI扩展子节点）
+  window.aiCreateChildQuickFromContextMenu = function () {
+    if (!contextMenuNodeId) {
+      hideContextMenu();
+      return;
+    }
+
+    try {
+      // 先选中节点
+      const node = jm.get_node(contextMenuNodeId);
+      if (node) {
+        jm.select_node(node);
+        // 调用快速生成函数
+        if (typeof aiCreateChildQuick === 'function') {
+          aiCreateChildQuick();
+        } else {
+          console.error('快速生成功能不可用');
+          try {
+            if (typeof showError === 'function') showError('快速生成功能不可用');
+          } catch (_) { }
+        }
+      }
+    } catch (error) {
+      console.error('快速生成子节点失败:', error);
+      try {
+        if (typeof showError === 'function') showError('快速生成子节点失败');
+      } catch (_) { }
+    }
+
+    hideContextMenu();
+  };
+
   // 处理节点上的右键点击事件（PC端）
   document.addEventListener('contextmenu', function (e) {
     // jsMind使用自定义标签jmnode，不是类名
@@ -5206,41 +5236,68 @@ document.addEventListener('focusout', (e) => {
     }
   }, true);
 
-  // 处理长按事件（移动端）
-  document.addEventListener('touchstart', function (e) {
-    // jsMind使用自定义标签jmnode，不是类名
-    const nodeElement = e.target.tagName === 'JMNODE' ? e.target : e.target.closest('jmnode');
-    if (nodeElement) {
-      longPressTarget = nodeElement;
-      const nodeId = nodeElement.getAttribute('nodeid');
+  // 检测是否为移动端
+  function isMobileDevice() {
+    return (('ontouchstart' in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) || (window.matchMedia && window.matchMedia('(max-width: 768px)').matches));
+  }
 
-      longPressTimer = setTimeout(function () {
-        if (longPressTarget && nodeId) {
+  // 处理触摸事件（移动端）：点击直接显示菜单并选中节点
+  if (isMobileDevice()) {
+    let touchStartTime = 0;
+    let touchStartTarget = null;
+    let touchMoved = false;
+
+    document.addEventListener('touchstart', function (e) {
+      // jsMind使用自定义标签jmnode，不是类名
+      const nodeElement = e.target.tagName === 'JMNODE' ? e.target : e.target.closest('jmnode');
+      if (nodeElement) {
+        touchStartTime = Date.now();
+        touchStartTarget = nodeElement;
+        touchMoved = false;
+      } else {
+        touchStartTarget = null;
+      }
+    }, { passive: true });
+
+    document.addEventListener('touchmove', function (e) {
+      // 移动时标记为已移动
+      if (touchStartTarget) {
+        touchMoved = true;
+      }
+    }, { passive: true });
+
+    document.addEventListener('touchend', function (e) {
+      // 点击节点时直接显示菜单并选中节点
+      if (touchStartTarget && !touchMoved) {
+        const nodeId = touchStartTarget.getAttribute('nodeid');
+        if (nodeId) {
           e.preventDefault();
-          const touch = e.touches[0];
-          showContextMenu(nodeId, touch.clientX, touch.clientY);
+          e.stopPropagation();
+          
+          // 选中节点
+          try {
+            const node = jm.get_node(nodeId);
+            if (node) {
+              jm.select_node(node);
+            }
+          } catch (err) {
+            console.warn('选中节点失败:', err);
+          }
+          
+          // 显示菜单
+          const touch = e.changedTouches[0];
+          if (touch) {
+            showContextMenu(nodeId, touch.clientX, touch.clientY);
+          }
         }
-      }, 500); // 500ms长按时间
-    }
-  }, { passive: false });
-
-  document.addEventListener('touchmove', function (e) {
-    // 移动时取消长按
-    if (longPressTimer) {
-      clearTimeout(longPressTimer);
-      longPressTimer = null;
-      longPressTarget = null;
-    }
-  }, { passive: true });
-
-  document.addEventListener('touchend', function (e) {
-    // 结束时取消长按
-    if (longPressTimer) {
-      clearTimeout(longPressTimer);
-      longPressTimer = null;
-      longPressTarget = null;
-    }
-  }, { passive: true });
+      }
+      
+      // 重置状态
+      touchStartTime = 0;
+      touchStartTarget = null;
+      touchMoved = false;
+    }, { passive: false });
+  }
 
   // 点击其他地方隐藏菜单
   document.addEventListener('click', function (e) {

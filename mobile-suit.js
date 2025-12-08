@@ -39,8 +39,11 @@ function reloadMindmapIframeOnce() {
   console.log('[reloadMindmapIframeOnce] found iframe, starting reload process');
   try {
     var src = iframe.getAttribute('src') || iframe.src;
+    // 移除时间戳并直接使用原始URL，不添加新的时间戳以便支持离线缓存
     src = src.replace(/([?&])_t=\d+/, '$1');
-    iframe.src = src + (src.includes('?') ? '&' : '?') + '_t=' + Date.now();
+    // 如果URL末尾有多余的&或?，则移除
+    src = src.replace(/[?&]$/, '');
+    iframe.src = src;
     console.log('[reloadMindmapIframeOnce] set new src with timestamp, waiting for load event');
 
     function onLoadHandler() {
