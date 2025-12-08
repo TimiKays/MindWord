@@ -3,7 +3,7 @@
  * 只缓存核心文件，避免路径重复问题
  */
 
-const CACHE_NAME = 'mindword-v12';
+const CACHE_NAME = 'mindword-v13';
 
 // 只缓存最关键的核心文件
 const CORE_FILES = [
@@ -59,7 +59,7 @@ const CORE_FILES = [
 
   // editor目录
   'editor/editor.html',
-  'editor/editor',
+
 
   // fonts目录
   'fonts/fontawesome-webfont.ttf',
@@ -76,7 +76,7 @@ const CORE_FILES = [
   'jsmind/mindmap-core.js',
   'jsmind/mindmap.css',
   'jsmind/mindmap.html',
-  'jsmind/mindmap',
+
   'jsmind/node-data-structure.js',
   'jsmind/node-operator.js',
   'jsmind/plugins/undo_manager.js',
@@ -111,7 +111,6 @@ const CORE_FILES = [
   // md2word目录
   'md2word/default-template.docx',
   'md2word/md2word.html',
-  'md2word/md2word',
 
   // res目录
   'res/add.svg',
