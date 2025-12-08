@@ -7,6 +7,8 @@ const CACHE_NAME = 'mindword-v10';
 
 // 只缓存最关键的核心文件
 const CORE_FILES = [
+  '/',
+
   // 根目录文件（除了.md和.txt文件，按文件名升序排列）
   'ai-modal.js',
   'app.html',
