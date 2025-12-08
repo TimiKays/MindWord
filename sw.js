@@ -3,7 +3,7 @@
  * 只缓存核心文件，避免路径重复问题
  */
 
-const CACHE_NAME = 'mindword-v11';
+const CACHE_NAME = 'mindword-v12';
 
 // 只缓存最关键的核心文件
 const CORE_FILES = [
@@ -161,7 +161,7 @@ const CORE_FILES = [
 
 ];
 
-// 安装 SW 并缓存全部核心资源
+// --- 安装 ---
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -170,7 +170,7 @@ self.addEventListener('install', event => {
   );
 });
 
-// 激活 SW，清除旧缓存
+// --- 激活 ---
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
@@ -181,43 +181,21 @@ self.addEventListener('activate', event => {
   );
 });
 
-// 统一路径为真实文件路径，例如 /app → /app.html
-function normalize(urlPath) {
-  let clean = urlPath.startsWith('/') ? urlPath.slice(1) : urlPath;
-
-  // 让 / 映射到 index.html
-  if (clean === '') return 'index.html';
-
-  // 无后缀但存在对应的 .html 文件
-  if (!clean.includes('.') && CORE_FILES.includes(clean + '.html')) {
-    return clean + '.html';
-  }
-
-  return clean;
-}
-
-// fetch 拦截
+// --- 纯缓存模式 ---
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
 
-  const url = new URL(event.request.url);
-  const key = normalize(url.pathname);
-
-  // 不在核心列表的不拦截
-  if (!CORE_FILES.includes(key)) return;
-
-  const cacheKey = new Request('/' + key);
-
   event.respondWith(
-    caches.match(cacheKey).then(cached => {
+    caches.match(event.request).then(cached => {
       if (cached) return cached;
 
-      return fetch(event.request).then(networkResponse => {
-        if (networkResponse && networkResponse.status === 200) {
-          const clone = networkResponse.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(cacheKey, clone));
+      return fetch(event.request).then(netRes => {
+        if (netRes.ok) {
+          caches.open(CACHE_NAME).then(c =>
+            c.put(event.request, netRes.clone())
+          );
         }
-        return networkResponse;
+        return netRes;
       });
     })
   );
