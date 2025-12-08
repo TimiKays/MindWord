@@ -196,11 +196,19 @@ self.addEventListener('fetch', event => {
 
         // 处理根路径
         if (pathname === '/') {
-          return caches.match('/index.html');
+          // 尝试直接匹配index.html缓存
+          return caches.match('/index.html').then(match => {
+            return match || caches.match('/offline.html');
+          });
         }
 
-        // 处理其他HTML页面
-        return caches.match(pathname) || caches.match('/offline.html');
+        // 处理带.html扩展名的路径
+        if (pathname.endsWith('.html')) {
+          return caches.match(pathname) || caches.match('/offline.html');
+        }
+
+        // 处理不带扩展名的路径（尝试添加.html）
+        return caches.match(pathname + '.html') || caches.match(pathname) || caches.match('/offline.html');
       })
     );
     return;
