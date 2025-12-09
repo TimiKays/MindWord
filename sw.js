@@ -34,7 +34,7 @@ const CORE_FILES = [
   '/sw.js',
   '/three-iframes.js',
   '/user.js',
-  '/offline.html' // 离线页面
+  '/offline.html', // 离线页面
 
   // ai目录
   '/ai/newai/AIServiceModal.html',
