@@ -383,7 +383,7 @@ function initMindmap() {
 
   };
 
-  jm = new jsMind(options);
+  jm = new window.jsMind(options);
 
   // 将jsMind实例赋值给window，供其他模块访问
   window.jm = jm;
@@ -618,7 +618,7 @@ function initMindmap() {
 
   // 绑定事件 - 删除旧的批量移动逻辑，现在使用拖拽批量拖拽保护并延迟在 mouseup 时展示详情
   jm.add_event_listener(function (type, data) {
-    if (type === jsMind.event_type.select) {
+    if (type === window.jsMind.event_type.select) {
       try {
         // do NOT show details here to avoid showing on mousedown; record last selected id for mouseup handler
         const sel = jm.get_selected_node && jm.get_selected_node();
@@ -652,14 +652,14 @@ function initMindmap() {
           // 放宽早退：仅在开关关闭或拖拽中早退；允许 select_clear 在面板不可见时也能切到空状态
           if (!window.__nodeDetailsEnabled || dragging) return;
 
-          if (type === jsMind.event_type.select) {
+          if (type === window.jsMind.event_type.select) {
             if (inputCapturing) return; // 编辑输入期间不刷新
             var sel = jm.get_selected_node && jm.get_selected_node();
             if (sel && typeof showNodeDetails === 'function') {
               try { console.log('[MW][details] select -> showNodeDetails', sel && sel.id); } catch (e) { }
               showNodeDetails(sel);
             }
-          } else if (type === jsMind.event_type.select_clear) {
+          } else if (type === window.jsMind.event_type.select_clear) {
             try { console.log('[MW][details] select_clear -> try empty, exists=', typeof window.showEmptyDetailsPrompt); } catch (e) { }
             if (typeof window.showEmptyDetailsPrompt === 'function') {
               window.showEmptyDetailsPrompt();
@@ -706,15 +706,15 @@ function initMindmap() {
     jm.add_event_listener(function (type, data) {
       if (!type) return;
       const interesting = [
-        jsMind.event_type.select,
-        jsMind.event_type.show,
-        jsMind.event_type.resize,
-        jsMind.event_type.refresh,
-        jsMind.event_type.expand,
-        jsMind.event_type.collapse,
-        jsMind.event_type.edit,
-        jsMind.event_type.add,
-        jsMind.event_type.move
+        window.jsMind.event_type.select,
+        window.jsMind.event_type.show,
+        window.jsMind.event_type.resize,
+        window.jsMind.event_type.refresh,
+        window.jsMind.event_type.expand,
+        window.jsMind.event_type.collapse,
+        window.jsMind.event_type.edit,
+        window.jsMind.event_type.add,
+        window.jsMind.event_type.move
       ];
       if (interesting.indexOf(type) !== -1) {
         console.log('[MW] 捕获 jsMind 事件:', type);
@@ -766,10 +766,10 @@ function setupMindmapScrolling() {
 
   // 为主容器添加滚动事件监听，滚动时显示滚动条
   let containerScrollTimeout;
-  container.addEventListener('scroll', function() {
+  container.addEventListener('scroll', function () {
     container.classList.add('scrolling');
     clearTimeout(containerScrollTimeout);
-    containerScrollTimeout = setTimeout(function() {
+    containerScrollTimeout = setTimeout(function () {
       container.classList.remove('scrolling');
     }, 500); // 滚动停止500ms后隐藏滚动条
   }, { passive: true });
@@ -794,10 +794,10 @@ function setupMindmapScrolling() {
 
       // 滚动时显示滚动条
       let scrollTimeout;
-      jsmindInner.addEventListener('scroll', function() {
+      jsmindInner.addEventListener('scroll', function () {
         jsmindInner.classList.add('scrolling');
         clearTimeout(scrollTimeout);
-        scrollTimeout = setTimeout(function() {
+        scrollTimeout = setTimeout(function () {
           jsmindInner.classList.remove('scrolling');
         }, 500); // 滚动停止500ms后隐藏滚动条
       }, { passive: true });
@@ -2565,7 +2565,7 @@ function setupBoxSelection() {
     // 监听所有jsMind事件
     jm.add_event_listener(function (type, data) {
       // 拖拽开始事件 - 但避免干扰批量拖拽模式
-      if (type === jsMind.event_type.move_node) {
+      if (type === window.jsMind.event_type.move_node) {
         if (data && data.data && Array.isArray(data.data) && data.data.length >= 3) {
           // 只有在非批量拖拽模式下才设置isDraggingNode
           if (!window.__batchDragData || !window.__batchDragData.isBatchDragging) {
@@ -2578,7 +2578,7 @@ function setupBoxSelection() {
       }
 
       // 监听拖拽开始事件，在多选模式下阻止jsMind的内置拖拽
-      if (type === 'drag_start' || type === jsMind.event_type.drag_start) {
+      if (type === 'drag_start' || type === window.jsMind.event_type.drag_start) {
         if (multiSelected && multiSelected.size > 0) {
           // 只有在批量拖拽锁定未激活时才阻止拖拽
           if (!window.__batchDragLocked) {
@@ -2588,7 +2588,7 @@ function setupBoxSelection() {
       }
 
       // 监听节点选择变化（可能表示拖拽结束）
-      if (type === jsMind.event_type.select_node || type === jsMind.event_type.select_clear) {
+      if (type === window.jsMind.event_type.select_node || type === window.jsMind.event_type.select_clear) {
         if (isDraggingNode) {
           setTimeout(() => {
             isDraggingNode = false;
@@ -3846,10 +3846,10 @@ function applySiblingOrParentType(nodeOrId, parentNode) {
 
   // 如果节点已经有显式的类型信息（从原始数据中保存的），且与参考类型不同，优先保留原始类型
   // 这确保 AI 生成的列表节点不会被错误地转换为标题节点
-  const hasExplicitType = (node.data && node.data.type !== undefined) || 
-                          (node.data && node.data.data && node.data.data.type !== undefined) ||
-                          (node.type !== undefined);
-  
+  const hasExplicitType = (node.data && node.data.type !== undefined) ||
+    (node.data && node.data.data && node.data.data.type !== undefined) ||
+    (node.type !== undefined);
+
   if (hasExplicitType && curType !== undefined && curType !== refType) {
     // 节点已有显式类型且与参考类型不同，保留原始类型，不覆盖
     return;
@@ -3887,17 +3887,17 @@ function setupMindmapChangeWatcher() {
   jm.add_event_listener(function (type, data) {
     // 只在特定事件类型时触发保存
     const saveEvents = [
-      jsMind.event_type.edit,
-      jsMind.event_type.add_node,
-      jsMind.event_type.remove_node,
-      jsMind.event_type.move_node,
-      jsMind.event_type.move
+      window.jsMind.event_type.edit,
+      window.jsMind.event_type.add_node,
+      window.jsMind.event_type.remove_node,
+      window.jsMind.event_type.move_node,
+      window.jsMind.event_type.move
     ];
 
     if (saveEvents.includes(type)) {
       // 专门处理 move_node：用事件返回的 [nodeId, beforeId, parentId, direction] 先强制重挂载，再归一/保存
       try {
-        if (type === jsMind.event_type.move_node && data && Array.isArray(data.data) && data.data.length >= 3) {
+        if (type === window.jsMind.event_type.move_node && data && Array.isArray(data.data) && data.data.length >= 3) {
           const movedId = data.data[0];
           const beforeId = data.data.length > 1 ? data.data[1] : null;
           const newParentId = data.data[2];
@@ -4656,7 +4656,7 @@ window.addEventListener('load', async function () {
     if (typeof jm !== 'undefined' && jm && typeof jm.add_event_listener === 'function') {
       jm.add_event_listener(function (type, data) {
         try {
-          if (type === jsMind.event_type.select || type === jsMind.event_type.select_node) {
+          if (type === window.jsMind.event_type.select || type === window.jsMind.event_type.select_node) {
             var sel = jm.get_selected_node();
             if (!sel) return;
             var nodeObj = (typeof sel === 'string') ? jm.get_node(sel) : sel;
@@ -5005,7 +5005,7 @@ window.addEventListener('load', async function () {
 
   // 监听 jsmind 的事件
   jm.add_event_listener(function (type, data) {
-    if (type === jsMind.event_type.select) {
+    if (type === window.jsMind.event_type.select) {
       updateSingleSelectionButtons();
     }
   });

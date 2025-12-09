@@ -3,7 +3,7 @@
  * 只缓存核心文件，避免路径重复问题
  */
 
-const CACHE_NAME = 'mindword-v17';
+const CACHE_NAME = 'mindword-v18';
 
 // 只缓存最关键的核心文件
 const CORE_FILES = [
@@ -184,6 +184,18 @@ self.addEventListener('install', event => {
                 batch.map(file =>
                   cache.add(file).catch(fileErr => {
                     console.error(`文件缓存失败: ${file}`, fileErr);
+                    // 对于SVG文件，尝试使用fetch手动缓存
+                    if (file.endsWith('.svg')) {
+                      return fetch(file).then(res => {
+                        if (res.ok) {
+                          return cache.put(file, res);
+                        }
+                        throw new Error(`SVG文件加载失败: ${file}`);
+                      }).catch(svgErr => {
+                        console.error(`SVG文件手动缓存失败: ${file}`, svgErr);
+                        throw fileErr;
+                      });
+                    }
                     throw fileErr;
                   })
                 )
@@ -267,37 +279,54 @@ self.addEventListener('fetch', event => {
   if (pathname.endsWith('.svg') || pathname.endsWith('.png') || pathname.endsWith('.jpg') || pathname.endsWith('.gif') || pathname.endsWith('.ico')) {
     event.respondWith(
       caches.match(event.request).then(cached => {
-        if (cached) return cached;
+        console.log('Service Worker检查缓存:', event.request.url, '找到缓存:', !!cached);
+        if (cached) {
+          console.log('Service Worker返回缓存:', event.request.url);
+          return cached;
+        }
 
-        return fetch(event.request).then(netRes => {
-          if (netRes.ok) {
-            const resClone = netRes.clone();
-            caches.open(CACHE_NAME).then(c => {
-              c.put(event.request, resClone).catch(err => {
-                console.error('静态资源缓存失败:', pathname, err);
+        // 尝试匹配不带查询参数的URL
+        const cleanUrl = event.request.url.split('?')[0];
+        return caches.match(cleanUrl).then(cleanCached => {
+          if (cleanCached) {
+            console.log('Service Worker通过clean URL找到缓存:', cleanUrl);
+            return cleanCached;
+          }
+
+          return fetch(event.request).then(netRes => {
+            console.log('Service Worker网络请求:', event.request.url, '状态:', netRes.status);
+            if (netRes.ok) {
+              const resClone = netRes.clone();
+              caches.open(CACHE_NAME).then(c => {
+                c.put(event.request, resClone).then(() => {
+                  console.log('Service Worker缓存成功:', event.request.url);
+                }).catch(err => {
+                  console.error('Service Worker缓存失败:', pathname, err);
+                });
               });
-            });
-          }
-          return netRes;
-        }).catch(() => {
-          // 对于静态资源，返回透明1x1像素图片，避免页面出错
-          if (pathname.endsWith('.svg')) {
-            return new Response(
-              '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>',
-              {
-                headers: { 'Content-Type': 'image/svg+xml' },
-                status: 200
-              }
-            );
-          }
-          return new Response('', { status: 404 });
+            }
+            return netRes;
+          }).catch(() => {
+            console.log('Service Worker网络失败，返回兜底:', event.request.url);
+            // 对于静态资源，返回透明1x1像素图片，避免页面出错
+            if (pathname.endsWith('.svg')) {
+              return new Response(
+                '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>',
+                {
+                  headers: { 'Content-Type': 'image/svg+xml' },
+                  status: 200
+                }
+              );
+            }
+            return new Response('', { status: 404 });
+          });
         });
       })
     );
     return;
   }
 
-  // 修复：处理其他资源请求
+  // 修复：处理其他资源请求（包括fetch API请求）
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
@@ -316,11 +345,36 @@ self.addEventListener('fetch', event => {
         }
         return netRes;
       }).catch(() => {
-        // 网络失败时返回离线页面或错误
-        if (event.request.destination === 'document') {
-          return caches.match('/offline.html');
+        // 网络失败时的统一处理
+        console.log('离线模式 - 尝试从缓存获取:', pathname);
+
+        // 对于HTML文件，优先返回缓存的对应文件
+        if (pathname.endsWith('.html') || pathname === '/') {
+          return caches.match(pathname) || caches.match('/offline.html');
         }
-        return new Response('Offline', { status: 503 });
+
+        // 对于JS文件，尝试返回缓存的版本
+        if (pathname.endsWith('.js')) {
+          return caches.match(event.request).catch(() => {
+            return new Response('// 离线模式 - JS文件不可用', {
+              status: 200,
+              headers: { 'Content-Type': 'application/javascript' }
+            });
+          });
+        }
+
+        // 对于JSON文件，返回空对象
+        if (pathname.endsWith('.json')) {
+          return new Response('{}', {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        // 其他情况返回通用的离线响应
+        return caches.match(event.request).catch(() => {
+          return new Response('离线模式 - 内容不可用', { status: 503 });
+        });
       });
     })
   );
