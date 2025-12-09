@@ -273,6 +273,12 @@ const onMessage = function (event) {
                 insertNodeTreeChildren(currentSelectedNode.id, processedNodeTree, requestId || null);
                 try { _show('success', '已通过 converter.mdToNodeTree 解析并插入子树'); } catch (_) { }
                 try { if (typeof debouncedSave === 'function') debouncedSave(); } catch (_) { }
+                // 隐藏右上角加载提示（如果是快速生成）
+                try {
+                  if (typeof hideTopRightLoadingTip === 'function') {
+                    hideTopRightLoadingTip();
+                  }
+                } catch (_) { }
                 return;
               }
             }
@@ -294,12 +300,25 @@ const onMessage = function (event) {
       }
     } else {
       // error or cancel
+      // 标记已处理，防止重复处理
+      try {
+        window.__mw_handled_requests[requestId] = true;
+        window.__mw_lastHandledId = requestId;
+      } catch (_) { }
+      
       // 停止加载动画并恢复按钮状态
       try {
         if (window.__mw_ai_loading_button) {
           window.__mw_ai_loading_button.classList.remove('loading');
           window.__mw_ai_loading_button.style.pointerEvents = '';
           delete window.__mw_ai_loading_button;
+        }
+      } catch (_) { }
+
+      // 隐藏右上角加载提示（如果是快速生成）
+      try {
+        if (typeof hideTopRightLoadingTip === 'function') {
+          hideTopRightLoadingTip();
         }
       } catch (_) { }
 
@@ -906,7 +925,8 @@ function expandWithAI() {
     // 设置操作类型
     try { payload.actionType = (window.__mw_next_actionType || 'create_child'); } catch (_) { }
 
-    // 添加监听器，监听弹窗返回的消息  
+    // 添加监听器，监听弹窗返回的消息（避免重复添加）
+    // 注意：addEventListener 对于同一个函数引用，即使多次添加也只会注册一次，所以这里是安全的
     window.addEventListener('message', onMessage);
 
     // timeout handling (30s)
@@ -984,6 +1004,76 @@ function aiCreateChild() {
   window.__mw_next_actionType = 'create_child';
   window.__mw_next_templateKey = '扩展子节点';
   expandWithAI();
+}
+
+// 显示右上角持续提示（用于快速生成）
+function showTopRightLoadingTip(message) {
+  try {
+    // 移除已存在的提示
+    hideTopRightLoadingTip();
+    
+    // 创建提示元素
+    const tipId = 'ai-quick-generate-tip';
+    const tipHtml = `
+      <div id="${tipId}" style="position: fixed; top: 20px; right: 20px; z-index: 10001; 
+           background: rgba(255, 255, 255, 0.95); padding: 12px 20px; border-radius: 8px; 
+           box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 12px;
+           font-size: 14px; color: #333; min-width: 200px;">
+        <div style="display: inline-block; width: 20px; height: 20px; border: 2px solid #f3f3f3; 
+             border-top: 2px solid #4c9aff; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        <span>${message || 'AI正在快速生成中...'}</span>
+        <style>
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        </style>
+      </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', tipHtml);
+  } catch (e) {
+    console.warn('[AI] 显示右上角提示失败:', e);
+  }
+}
+
+// 隐藏右上角持续提示
+function hideTopRightLoadingTip() {
+  try {
+    const tip = document.getElementById('ai-quick-generate-tip');
+    if (tip) {
+      tip.remove();
+    }
+  } catch (e) {
+    console.warn('[AI] 隐藏右上角提示失败:', e);
+  }
+}
+
+function aiCreateChildQuick() {
+  // AI操作前保存状态（用于撤销管理）
+  if (window.undoManager && typeof window.undoManager.recordIfChanged === 'function') {
+    try {
+      window.undoManager.recordIfChanged();
+    } catch (e) {
+      console.warn('[AI] 无法记录创建子节点前的状态:', e);
+    }
+  }
+
+  // 显示右上角持续提示
+  showTopRightLoadingTip('AI正在快速生成中...');
+
+  // 临时启用快速AI模式
+  const originalQuickAI = window.__quickAIEnabled;
+  window.__quickAIEnabled = true;
+  
+  window.__mw_next_actionType = 'create_child';
+  window.__mw_next_templateKey = '扩展子节点';
+  expandWithAI();
+  
+  // 恢复原始快速AI模式状态（异步恢复，避免影响当前请求）
+  setTimeout(function() {
+    window.__quickAIEnabled = originalQuickAI;
+  }, 100);
 }
 
 function aiCreateSibling() {
