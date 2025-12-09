@@ -825,12 +825,25 @@ iframe .btn:not([class*="btn-"]):hover {
     /* 使用 CSS custom properties 指定图标路径（由 HTML 提供 --ico / --ico-fallback） */
     -webkit-mask: var(--ico) center / contain no-repeat;
     mask: var(--ico) center / contain no-repeat;
-
-    /* fallback：在不支持 mask 的环境下使用 background-image
-    background-image: var(--ico-fallback);
+    
+    /* 备用方案：当mask不支持或离线加载失败时使用background-image */
+    background-image: var(--ico);
     background-repeat: no-repeat;
     background-position: center;
-    background-size: contain; */
+    background-size: contain;
+    
+    /* 优先使用mask，如果支持的话 */
+    -webkit-mask-size: 0 0;
+    mask-size: 0 0;
+}
+
+/* 支持mask的浏览器使用mask方式 */
+@supports (-webkit-mask: var(--ico)) or (mask: var(--ico)) {
+    .ico-btn {
+        background-image: none;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+    }
 }
 
 /* 悬浮圆形快捷按钮里的图标：在某些浏览器 / 场景下 mask 渲染可能失败，

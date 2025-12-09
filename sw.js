@@ -3,12 +3,12 @@
  * 只缓存核心文件，避免路径重复问题
  */
 
-const CACHE_NAME = 'mindword-v13';
+const CACHE_NAME = 'mindword-v17';
 
 // 只缓存最关键的核心文件
 const CORE_FILES = [
-  // 修复：移除根路径缓存以避免重定向循环
-  // '/',
+  // 根路径 - 确保基础导航可用
+  '/',
 
   // 根目录文件（除了.md和.txt文件，按文件名升序排列）
   '/ai-modal.js',
@@ -118,7 +118,7 @@ const CORE_FILES = [
   '/res/add.svg',
   '/res/close.svg',
   '/res/code.svg',
-  '/res/delete.svg',
+
   '/res/detail.svg',
   '/res/download.svg',
   '/res/edit.svg',
@@ -165,7 +165,33 @@ const CORE_FILES = [
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(CORE_FILES))
+      .then(cache => {
+        // 分批缓存文件，避免单个文件失败导致整个缓存失败
+        const batchSize = 10;
+        const batches = [];
+
+        for (let i = 0; i < CORE_FILES.length; i += batchSize) {
+          batches.push(CORE_FILES.slice(i, i + batchSize));
+        }
+
+        // 逐个批次缓存，记录失败的文件
+        return Promise.allSettled(
+          batches.map((batch, batchIndex) =>
+            cache.addAll(batch).catch(err => {
+              console.error(`批次 ${batchIndex + 1} 缓存失败:`, err);
+              // 尝试单独缓存批次中的每个文件，找出具体失败文件
+              return Promise.allSettled(
+                batch.map(file =>
+                  cache.add(file).catch(fileErr => {
+                    console.error(`文件缓存失败: ${file}`, fileErr);
+                    throw fileErr;
+                  })
+                )
+              );
+            })
+          )
+        );
+      })
       .then(() => self.skipWaiting())
   );
 });
@@ -185,45 +211,93 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
 
+  const url = new URL(event.request.url);
+  const pathname = url.pathname;
+
   // 修复：正确处理导航请求，支持离线访问
   if (event.request.mode === 'navigate') {
     event.respondWith(
       // 先尝试从网络获取
-      fetch(event.request).catch(async () => {
+      fetch(event.request).catch(() => {
         // 网络失败时，从缓存获取对应HTML文档
-        const url = new URL(event.request.url);
-        const pathname = url.pathname;
-
         // 处理根路径
         if (pathname === '/') {
-          const indexMatch = await caches.match('/index.html');
-          if (indexMatch) return indexMatch;
-          return caches.match('/offline.html');
+          return caches.match('/index.html');
         }
 
-        // 处理带.html扩展名的路径
-        if (pathname.endsWith('.html')) {
-          const htmlMatch = await caches.match(pathname);
-          if (htmlMatch) return htmlMatch;
-          return caches.match('/offline.html');
-        }
-
-        // 处理不带扩展名的路径（尝试添加.html）
-        const withHtmlMatch = await caches.match(pathname + '.html');
-        if (withHtmlMatch) return withHtmlMatch;
-
-        const directMatch = await caches.match(pathname);
-        if (directMatch) return directMatch;
-
-        return caches.match('/offline.html');
+        // 处理其他HTML页面
+        return caches.match(pathname) || caches.match('/offline.html');
       })
     );
     return;
   }
 
-  // 修复：处理资源请求
-  const url = new URL(event.request.url);
+  // 特别处理CSS文件
+  if (pathname.endsWith('.css')) {
+    event.respondWith(
+      caches.match(event.request).then(cached => {
+        if (cached) return cached;
 
+        return fetch(event.request).then(netRes => {
+          if (netRes.ok) {
+            const resClone = netRes.clone();
+            caches.open(CACHE_NAME).then(c => {
+              c.put(event.request, resClone).catch(err => {
+                console.error('CSS文件缓存失败:', pathname, err);
+              });
+            });
+          }
+          return netRes;
+        }).catch(() => {
+          // CSS文件离线时使用备用样式
+          return new Response(
+            '/* 离线模式下的备用样式 */ body { font-family: Arial, sans-serif; }',
+            {
+              headers: { 'Content-Type': 'text/css' },
+              status: 200
+            }
+          );
+        });
+      })
+    );
+    return;
+  }
+
+  // 特别处理SVG文件和其他静态资源
+  if (pathname.endsWith('.svg') || pathname.endsWith('.png') || pathname.endsWith('.jpg') || pathname.endsWith('.gif') || pathname.endsWith('.ico')) {
+    event.respondWith(
+      caches.match(event.request).then(cached => {
+        if (cached) return cached;
+
+        return fetch(event.request).then(netRes => {
+          if (netRes.ok) {
+            const resClone = netRes.clone();
+            caches.open(CACHE_NAME).then(c => {
+              c.put(event.request, resClone).catch(err => {
+                console.error('静态资源缓存失败:', pathname, err);
+              });
+            });
+          }
+          return netRes;
+        }).catch(() => {
+          // 对于静态资源，返回透明1x1像素图片，避免页面出错
+          if (pathname.endsWith('.svg')) {
+            return new Response(
+              '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>',
+              {
+                headers: { 'Content-Type': 'image/svg+xml' },
+                status: 200
+              }
+            );
+          }
+          return new Response('', { status: 404 });
+        });
+      })
+    );
+    return;
+  }
+
+  // 修复：处理其他资源请求
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
