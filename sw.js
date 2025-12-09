@@ -189,26 +189,33 @@ self.addEventListener('fetch', event => {
   if (event.request.mode === 'navigate') {
     event.respondWith(
       // 先尝试从网络获取
-      fetch(event.request).catch(() => {
+      fetch(event.request).catch(async () => {
         // 网络失败时，从缓存获取对应HTML文档
         const url = new URL(event.request.url);
         const pathname = url.pathname;
 
         // 处理根路径
         if (pathname === '/') {
-          // 尝试直接匹配index.html缓存
-          return caches.match('/index.html').then(match => {
-            return match || caches.match('/offline.html');
-          });
+          const indexMatch = await caches.match('/index.html');
+          if (indexMatch) return indexMatch;
+          return caches.match('/offline.html');
         }
 
         // 处理带.html扩展名的路径
         if (pathname.endsWith('.html')) {
-          return caches.match(pathname) || caches.match('/offline.html');
+          const htmlMatch = await caches.match(pathname);
+          if (htmlMatch) return htmlMatch;
+          return caches.match('/offline.html');
         }
 
         // 处理不带扩展名的路径（尝试添加.html）
-        return caches.match(pathname + '.html') || caches.match(pathname) || caches.match('/offline.html');
+        const withHtmlMatch = await caches.match(pathname + '.html');
+        if (withHtmlMatch) return withHtmlMatch;
+
+        const directMatch = await caches.match(pathname);
+        if (directMatch) return directMatch;
+
+        return caches.match('/offline.html');
       })
     );
     return;
