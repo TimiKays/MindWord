@@ -5273,7 +5273,7 @@ document.addEventListener('focusout', (e) => {
         if (nodeId) {
           e.preventDefault();
           e.stopPropagation();
-          
+
           // 选中节点
           try {
             const node = jm.get_node(nodeId);
@@ -5283,7 +5283,7 @@ document.addEventListener('focusout', (e) => {
           } catch (err) {
             console.warn('选中节点失败:', err);
           }
-          
+
           // 显示菜单
           const touch = e.changedTouches[0];
           if (touch) {
@@ -5291,7 +5291,7 @@ document.addEventListener('focusout', (e) => {
           }
         }
       }
-      
+
       // 重置状态
       touchStartTime = 0;
       touchStartTarget = null;

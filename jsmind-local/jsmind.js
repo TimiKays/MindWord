@@ -2530,7 +2530,6 @@
           var noteEl = $c('span');
           noteEl.className = 'jm-node-note';
           noteEl.textContent = '📒';
-          noteEl.title = noteText;
           // click on note: select node and open detail panel (no inline edit)
           noteEl.addEventListener && noteEl.addEventListener('click', function (evt) {
             try { evt.stopPropagation(); } catch (e) { }
@@ -2548,6 +2547,71 @@
                 if (btn && typeof btn.click === 'function') { btn.click(); }
               }
             } catch (e) { /* ignore */ }
+          }, false);
+
+          // 添加鼠标悬停事件，显示图片tooltip
+          noteEl.addEventListener && noteEl.addEventListener('mouseenter', function (evt) {
+            try {
+              // 清除之前的隐藏定时器
+              if (noteEl._tooltipHideTimer) {
+                clearTimeout(noteEl._tooltipHideTimer);
+                noteEl._tooltipHideTimer = null;
+              }
+
+              if (window.NoteImageUtils && window.NoteImageUtils.createImageTooltip) {
+                window.NoteImageUtils.createImageTooltip(noteText, noteEl).then(function (tooltip) {
+                  if (tooltip) {
+                    // 定位tooltip
+                    var rect = noteEl.getBoundingClientRect();
+                    tooltip.style.left = rect.left + 'px'; // 左侧对齐jm-node-note
+                    tooltip.style.top = (rect.bottom + 5) + 'px'; // 显示在图标下方
+
+                    // 添加到页面
+                    document.body.appendChild(tooltip);
+
+                    // 存储tooltip引用，以便后续移除
+                    noteEl._imageTooltip = tooltip;
+
+                    // 为tooltip添加鼠标进入事件，防止鼠标移动到tooltip上时消失
+                    tooltip.addEventListener('mouseenter', function () {
+                      if (noteEl._tooltipHideTimer) {
+                        clearTimeout(noteEl._tooltipHideTimer);
+                        noteEl._tooltipHideTimer = null;
+                      }
+                    }, false);
+
+                    // 为tooltip添加鼠标离开事件，延迟隐藏tooltip
+                    tooltip.addEventListener('mouseleave', function () {
+                      noteEl._tooltipHideTimer = setTimeout(function () {
+                        if (noteEl._imageTooltip && noteEl._imageTooltip.parentElement) {
+                          noteEl._imageTooltip.parentElement.removeChild(noteEl._imageTooltip);
+                          noteEl._imageTooltip = null;
+                        }
+                      }, 100); // 100ms延迟，允许鼠标移动回note元素
+                    }, false);
+                  }
+                }).catch(function (error) {
+                  console.warn('[jm-node-note] Failed to create image tooltip:', error);
+                });
+              }
+            } catch (e) {
+              console.warn('[jm-node-note] Mouse enter error:', e);
+            }
+          }, false);
+
+          // 添加鼠标离开事件，延迟隐藏图片tooltip
+          noteEl.addEventListener && noteEl.addEventListener('mouseleave', function (evt) {
+            try {
+              // 延迟隐藏，允许鼠标移动到tooltip上
+              noteEl._tooltipHideTimer = setTimeout(function () {
+                if (noteEl._imageTooltip && noteEl._imageTooltip.parentElement) {
+                  noteEl._imageTooltip.parentElement.removeChild(noteEl._imageTooltip);
+                  noteEl._imageTooltip = null;
+                }
+              }, 100); // 100ms延迟
+            } catch (e) {
+              console.warn('[jm-node-note] Mouse leave error:', e);
+            }
           }, false);
           d.appendChild(noteEl);
         }
@@ -2606,7 +2670,6 @@
           var noteEl = $c('span');
           noteEl.className = 'jm-node-note';
           noteEl.textContent = '📒';
-          noteEl.title = noteText;
           // bind click same as creation: select node and open detail (no inline edit)
           noteEl.addEventListener && noteEl.addEventListener('click', function (evt) {
             try { evt.stopPropagation(); } catch (e) { }
@@ -2626,6 +2689,71 @@
                 }
               }
             } catch (e) { /* ignore */ }
+          }, false);
+
+          // 添加鼠标悬停事件，显示图片tooltip
+          noteEl.addEventListener && noteEl.addEventListener('mouseenter', function (evt) {
+            try {
+              // 清除之前的隐藏定时器
+              if (noteEl._tooltipHideTimer) {
+                clearTimeout(noteEl._tooltipHideTimer);
+                noteEl._tooltipHideTimer = null;
+              }
+
+              if (window.NoteImageUtils && window.NoteImageUtils.createImageTooltip) {
+                window.NoteImageUtils.createImageTooltip(noteText, noteEl).then(function (tooltip) {
+                  if (tooltip) {
+                    // 定位tooltip
+                    var rect = noteEl.getBoundingClientRect();
+                    tooltip.style.left = rect.left + 'px'; // 左侧对齐jm-node-note
+                    tooltip.style.top = (rect.bottom + 5) + 'px'; // 显示在图标下方
+
+                    // 添加到页面
+                    document.body.appendChild(tooltip);
+
+                    // 存储tooltip引用，以便后续移除
+                    noteEl._imageTooltip = tooltip;
+
+                    // 为tooltip添加鼠标进入事件，防止鼠标移动到tooltip上时消失
+                    tooltip.addEventListener('mouseenter', function () {
+                      if (noteEl._tooltipHideTimer) {
+                        clearTimeout(noteEl._tooltipHideTimer);
+                        noteEl._tooltipHideTimer = null;
+                      }
+                    }, false);
+
+                    // 为tooltip添加鼠标离开事件，延迟隐藏tooltip
+                    tooltip.addEventListener('mouseleave', function () {
+                      noteEl._tooltipHideTimer = setTimeout(function () {
+                        if (noteEl._imageTooltip && noteEl._imageTooltip.parentElement) {
+                          noteEl._imageTooltip.parentElement.removeChild(noteEl._imageTooltip);
+                          noteEl._imageTooltip = null;
+                        }
+                      }, 100); // 100ms延迟，允许鼠标移动回note元素
+                    }, false);
+                  }
+                }).catch(function (error) {
+                  console.warn('[jm-node-note] Failed to create image tooltip:', error);
+                });
+              }
+            } catch (e) {
+              console.warn('[jm-node-note] Mouse enter error:', e);
+            }
+          }, false);
+
+          // 添加鼠标离开事件，延迟隐藏图片tooltip
+          noteEl.addEventListener && noteEl.addEventListener('mouseleave', function (evt) {
+            try {
+              // 延迟隐藏，允许鼠标移动到tooltip上
+              noteEl._tooltipHideTimer = setTimeout(function () {
+                if (noteEl._imageTooltip && noteEl._imageTooltip.parentElement) {
+                  noteEl._imageTooltip.parentElement.removeChild(noteEl._imageTooltip);
+                  noteEl._imageTooltip = null;
+                }
+              }, 100); // 100ms延迟
+            } catch (e) {
+              console.warn('[jm-node-note] Mouse leave error:', e);
+            }
           }, false);
           element.appendChild(noteEl);
         }

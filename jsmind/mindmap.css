@@ -543,3 +543,69 @@ body {
   line-height: 1;
   padding: 0 2px;
 }
+
+/* 自定义tooltip样式 */
+.jm-node-tooltip {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 8px;
+  max-width: 320px;
+  max-height: 300px;
+  overflow: auto;
+  z-index: 10000;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #333;
+  backdrop-filter: blur(5px);
+}
+
+.jm-node-tooltip img {
+  max-width: none;
+  max-height: 180px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 4px;
+  margin: 0;
+  margin-bottom: 6px;
+  background-color: #f9f9f9;
+  /* 确保小图片不会被放大 */
+  transform-origin: top left;
+}
+
+.jm-node-tooltip .tooltip-text {
+  padding: 0;
+  word-wrap: break-word;
+  font-size: 11px;
+  line-height: 1.3;
+  color: #555;
+  margin-bottom: 4px;
+}
+
+/* Markdown格式样式 */
+.jm-node-tooltip .tooltip-text strong {
+  font-weight: bold;
+  color: #333;
+}
+
+.jm-node-tooltip .tooltip-text em {
+  font-style: italic;
+  color: #444;
+}
+
+.jm-node-tooltip .tooltip-text code {
+  background-color: #f0f0f0;
+  padding: 1px 3px;
+  border-radius: 2px;
+  font-family: monospace;
+  font-size: 10px;
+  color: #d63384;
+}
+
+.jm-node-tooltip .tooltip-text a {
+  color: #0066cc;
+  text-decoration: underline;
+}

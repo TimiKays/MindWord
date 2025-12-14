@@ -288,6 +288,8 @@
       }
     })();
   </script>
+  <!-- 引入图片预览工具脚本 -->
+  <script src="../utils/note-image-utils.js"></script>
 </head>
 
 <body>
@@ -453,6 +455,23 @@
 
         // 初始化为隐藏（确保第一次页面加载时不显示）
         if (modalRoot) { modalRoot.style.display = 'none'; modalRoot.setAttribute('aria-hidden', 'true'); }
+      });
+
+      // 为md2word中的图片添加点击事件监听器，用于预览图片
+      document.addEventListener('DOMContentLoaded', function () {
+        // 监听所有图片的点击事件
+        document.addEventListener('click', function (e) {
+          const img = e.target.closest('img');
+          if (img && img.hasAttribute('data-image-url')) {
+            e.stopPropagation();
+            const imageData = img.getAttribute('data-image-url');
+            const imageId = img.getAttribute('data-image-id');
+            const alt = img.getAttribute('alt') || '';
+            if (window.NoteImageUtils && window.NoteImageUtils.showImagePreview) {
+              window.NoteImageUtils.showImagePreview(imageData, alt, imageId);
+            }
+          }
+        });
       })();
     </script>
 
@@ -573,6 +592,9 @@
             const imageData = await getImageFromStorage(src);
             if (imageData) {
               img.setAttribute('src', imageData);
+              img.setAttribute('data-image-url', imageData);
+              img.setAttribute('data-image-id', src);
+              img.style.cursor = 'pointer';
             } else {
               // 如果找不到图片数据，显示占位符
               img.setAttribute('src', 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPuWbvueJh+acquaJvuS4jeWIsOaIluWKoOi9veWksei0pTwvdGV4dD48L3N2Zz4=');
@@ -2305,6 +2327,8 @@
   <script src="../notification-bridge.js"></script>
   <!-- 图片存储管理 -->
   <script src="../utils/image-storage.js"></script>
+  <!-- 备注图片工具 -->
+  <script src="../utils/note-image-utils.js"></script>
   <script>
     (function () {
       // 初始化图片存储管理器
@@ -2344,6 +2368,8 @@
           } catch (_) { }
         }
       }, { passive: true });
+
+
     })();
   </script>
 </body>
