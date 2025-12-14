@@ -584,6 +584,7 @@
                 this.images = new Map(); // 存储图片数据
                 this.lastSaveTime = 0;
                 this.saveTimeout = null;
+                this.lastImageInsertTime = 0; // 记录上次插入图片的时间，避免重复保存
 
                 this.init();
                 this.loadFromStorage();
@@ -712,11 +713,16 @@
             onContentChange() {
                 this.lastSaveTime = Date.now();
 
+                // 如果刚刚插入图片，延迟稍长一点时间再保存，确保内容完全更新
+                const timeSinceImageInsert = Date.now() - this.lastImageInsertTime;
+                const delay = timeSinceImageInsert < 1000 ? 3000 : 2000; // 如果刚插入图片，延迟3秒
+
                 // 防抖保存
                 clearTimeout(this.saveTimeout);
                 this.saveTimeout = setTimeout(() => {
+                    console.log(`[editor] onContentChange triggering saveToStorage (delay: ${delay}ms)`);
                     this.saveToStorage(false);
-                }, 2000);
+                }, delay);
 
                 // 通知其他窗口内容变化
                 this.broadcastChange();
@@ -731,9 +737,10 @@
             /**
              * 从markdown内容中提取所有图片引用，补充缺失的图片对象
              */
-            extractAndSupplementImages(content) {
+            async extractAndSupplementImages(content) {
                 const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
                 let match;
+                let foundImageIds = [];
 
                 while ((match = imageRegex.exec(content)) !== null) {
                     const imageName = match[1]; // 图片名称
@@ -741,23 +748,58 @@
 
                     // 只处理本地图片ID（排除http://, https://等外部链接）
                     if (imageId && !imageId.match(/^(https?:\/\/|data:)/)) {
-                        // 如果图片不存在于images Map中，创建一个空的图片对象
-                        if (!this.images.has(imageId)) {
-                            this.images.set(imageId, {
-                                name: imageName || imageId,
-                                data: '', // 数据为空，因为无法从markdown中恢复图片数据
-                                type: 'image/png' // 默认类型
-                            });
-                            console.log(`补充图片引用: ${imageId} (${imageName})`);
+                        foundImageIds.push(imageId);
+                        // 如果图片已存在于images Map中，跳过处理，避免修改现有数据
+                        if (this.images.has(imageId)) {
+                            console.log(`[editor] 图片 ${imageId} 已存在于内存中，跳过处理`);
+                            continue;
+                        }
+
+                        console.log(`[editor] 图片 ${imageId} 不存在于内存中，尝试从IndexedDB加载`);
+
+                        // 尝试从IndexedDB加载图片
+                        try {
+                            const imageData = await window.imageStorage.getImage(imageId);
+                            if (imageData && imageData.blob) {
+                                // 验证并修正图片类型：杜绝text/html等非图片类型
+                                let imageType = imageData.type;
+                                if (!imageType || !imageType.startsWith('image/')) {
+                                    console.warn(`[editor] 从IndexedDB加载的图片 ${imageId} 类型无效: ${imageType}，强制设为image/png`);
+                                    imageType = 'image/png';
+                                }
+
+                                // 从blob转换回dataUrl
+                                try {
+                                    const dataUrl = await window.imageStorage.blobToDataUrl(imageData.blob);
+                                    if (dataUrl && dataUrl.startsWith('data:')) {
+                                        this.images.set(imageId, {
+                                            name: imageData.name || imageName || imageId,
+                                            data: dataUrl,
+                                            type: imageType
+                                        });
+                                        console.log(`[editor] 从IndexedDB成功加载图片: ${imageId}, type: ${imageType}`);
+                                    } else {
+                                        console.error(`[editor] blobToDataUrl 返回无效数据: ${dataUrl ? dataUrl.substring(0, 50) + '...' : 'null/empty'}`);
+                                    }
+                                } catch (convertError) {
+                                    console.error(`[editor] blob转dataUrl失败 ${imageId}:`, convertError);
+                                }
+                            } else {
+                                console.warn(`[editor] 图片 ${imageId} 在IndexedDB中也不存在，跳过`);
+                            }
+                        } catch (e) {
+                            console.warn(`[editor] 从IndexedDB加载图片 ${imageId} 失败:`, e);
                         }
                     }
                 }
+
+                console.log(`[editor] extractAndSupplementImages found ${foundImageIds.length} image references:`, foundImageIds);
             }
 
             /**
              * 清理未在Markdown内容中引用的图片
              */
-            cleanupUnusedImages() {
+            async cleanupUnusedImages() {
                 const content = this.getContent();
                 let removedCount = 0;
 
@@ -774,7 +816,7 @@
                     }
                 }
 
-                // 清理未引用的图片
+                // 清理本地images Map中的未引用图片
                 for (const [id, data] of this.images.entries()) {
                     if (!referencedIds.has(id)) {
                         this.images.delete(id);
@@ -783,7 +825,16 @@
                 }
 
                 if (removedCount > 0) {
-                    console.log(`清理了 ${removedCount} 张未使用的图片`);
+                    console.log(`清理了 ${removedCount} 张未使用的本地图片`);
+                }
+
+                // 清理数据库中的未引用图片
+                if (window.imageStorage) {
+                    const activeDocId = window.__mw_activeDocId || null;
+                    const dbRemovedCount = await window.imageStorage.cleanupUnusedImages(referencedIds, activeDocId);
+                    if (dbRemovedCount > 0) {
+                        console.log(`从数据库中清理了 ${dbRemovedCount} 张未使用的图片`);
+                    }
                 }
 
                 return removedCount;
@@ -791,19 +842,53 @@
 
 
 
-            saveToStorage(manual = false) {
+            async saveToStorage(manual = false) {
+                console.log(`[editor] saveToStorage called, manual=${manual}, activeDocId=${window.__mw_activeDocId}`);
+
                 const content = this.getContent();
-
-                // 从markdown内容中提取所有图片引用，补充缺失的图片对象
-                this.extractAndSupplementImages(content);
-
-                // 清理未使用的图片
-                this.cleanupUnusedImages();
-
-                const images = Array.from(this.images.entries());
+                console.log(`[editor] 当前内容长度: ${content.length}, 图片数量: ${this.images.size}`);
+                await this.extractAndSupplementImages(content);
+                console.log(`[editor] extractAndSupplementImages 完成后图片数量: ${this.images.size}`);
+                await this.cleanupUnusedImages();
+                console.log(`[editor] cleanupUnusedImages 完成后图片数量: ${this.images.size}`);
 
                 localStorage.setItem('mindword_markdown_data', content);
-                localStorage.setItem('markdown-images', JSON.stringify(images));
+
+                // 如果没有有效的文档ID，尝试从localStorage恢复
+                if (!window.__mw_activeDocId) {
+                    const savedDocId = localStorage.getItem('mindword_active_doc_id');
+                    if (savedDocId) {
+                        window.__mw_activeDocId = savedDocId;
+                        console.log(`[editor] Recovered activeDocId from localStorage for save: ${savedDocId}`);
+                    } else {
+                        console.warn('[editor] No active document ID, skipping image save to IndexedDB');
+                        return;
+                    }
+                }
+
+                // 保存图片到 IndexedDB，为每个图片添加当前文档ID
+                const imagesWithDocId = new Map();
+                const activeDocId = window.__mw_activeDocId;
+
+                console.log(`[editor] 准备保存 ${this.images.size} 张图片，文档ID: ${activeDocId}`);
+                for (const [id, imageData] of this.images.entries()) {
+                    console.log(`[editor] 处理图片 ${id}:`, {
+                        name: imageData.name,
+                        hasData: !!imageData.data,
+                        dataLength: imageData.data ? imageData.data.length : 0,
+                        type: imageData.type
+                    });
+
+                    imagesWithDocId.set(id, {
+                        ...imageData,
+                        documentId: imageData.documentId || activeDocId  // 只在图片没有documentId时才使用当前文档ID
+                    });
+                }
+
+                console.log(`[editor] 调用 saveImages 保存 ${imagesWithDocId.size} 张图片`);
+                await window.imageStorage.saveImages(imagesWithDocId);
+                console.log(`[editor] saveImages 完成`);
+
                 localStorage.setItem('mindword-save-time', Date.now().toString());
 
                 // 使用 converter 的同步能力，联动更新 AST 与 NodeTree 并写入缓存
@@ -846,9 +931,13 @@
                 }
             }
 
-            loadFromStorage() {
+            async loadFromStorage() {
                 const savedContent = localStorage.getItem('mindword_markdown_data');
-                const savedImages = localStorage.getItem('markdown-images');
+
+                // 从 IndexedDB 加载当前文档的图片
+                const activeDocId = window.__mw_activeDocId || null;
+                this.images = await window.imageStorage.getImagesMap(activeDocId);
+                console.log(`[editor] Loaded ${this.images.size} images from IndexedDB for document ${activeDocId}`);
 
                 if (savedContent) {
                     this.setContent(savedContent);
@@ -874,49 +963,6 @@
                         // 忽略错误，保持原有空状态
                     }
                 }
-
-                if (savedImages) {
-                    try {
-                        const imageArray = JSON.parse(savedImages);
-                        // 检查图片数据格式，确保正确加载
-                        if (Array.isArray(imageArray)) {
-                            // 如果是数组格式，检查是否是 [[key, value], [key, value], ...] 或 [{name, dataUrl, mime}, ...]
-                            if (imageArray.length > 0) {
-                                const firstItem = imageArray[0];
-                                if (Array.isArray(firstItem)) {
-                                    // [[key, value], [key, value], ...] 格式
-                                    this.images = new Map(imageArray);
-                                } else if (typeof firstItem === 'object' && firstItem !== null) {
-                                    // [{id, name, dataUrl, mime}, ...] 或 [{name, dataUrl, mime}, ...] 格式
-                                    const imagesMap = new Map();
-                                    imageArray.forEach(img => {
-                                        // 优先使用已有的ID，如果没有则尝试从Markdown中提取，最后才生成新ID
-                                        const imageId = img.id ||
-                                            this.extractImageIdFromMarkdown(img.name) ||
-                                            'img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-                                        imagesMap.set(imageId, {
-                                            name: img.name || '',
-                                            data: img.dataUrl || '',  // dataUrl -> data
-                                            type: img.mime || 'image/png'  // mime -> type
-                                        });
-                                    });
-                                    this.images = imagesMap;
-                                } else {
-                                    // 其他格式，使用默认空Map
-                                    this.images = new Map();
-                                }
-                            } else {
-                                this.images = new Map();
-                            }
-                        } else {
-                            this.images = new Map();
-                        }
-                    } catch (e) {
-                        console.warn('Failed to load images from storage:', e);
-                        this.images = new Map();  // 出错时使用空Map
-                    }
-                }
-
             }
 
             // ===================================
@@ -980,22 +1026,50 @@
             }
 
             async handleImageFile(file) {
+                // 检查是否有有效的文档ID，如果没有尝试从localStorage恢复
+                if (!window.__mw_activeDocId) {
+                    const savedDocId = localStorage.getItem('mindword_active_doc_id');
+                    if (savedDocId) {
+                        window.__mw_activeDocId = savedDocId;
+                        console.log(`[editor] Recovered activeDocId from localStorage: ${savedDocId}`);
+                    } else {
+                        console.error('[editor] Cannot add image: no active document ID');
+                        this.showMessage('❌ 无法添加图片：没有活动的文档', 'error');
+                        return;
+                    }
+                }
+
                 const id = this.generateImageId();
                 const reader = new FileReader();
 
                 reader.onload = (e) => {
                     const dataUrl = e.target.result;
+
+                    // 验证并修正图片类型：杜绝text/html等非图片类型
+                    let imageType = file.type;
+                    if (!imageType || !imageType.startsWith('image/')) {
+                        console.warn(`[editor] 粘贴的图片类型无效: ${imageType}，强制设为image/png`);
+                        imageType = 'image/png';
+                    }
+
+                    console.log(`[editor] 添加图片到内存: id=${id}, name=${file.name}, type=${imageType}`);
                     this.images.set(id, {
                         name: file.name,
                         data: dataUrl,
-                        type: file.type
+                        type: imageType,
+                        documentId: window.__mw_activeDocId
                     });
 
                     // 插入Markdown图片语法
                     const imageMarkdown = `![${file.name}](${id})`;
+                    console.log(`[editor] 插入Markdown: ${imageMarkdown}`);
                     this.insertAtCursor(imageMarkdown);
 
-                    this.saveToStorage(false);
+                    // 记录图片插入时间，用于onContentChange判断
+                    this.lastImageInsertTime = Date.now();
+
+                    // 注意：insertAtCursor会触发onContentChange，进而自动保存，这里不需要手动保存
+                    // this.saveToStorage(false);
                     this.showMessage('🖼️ 图片已添加', 'success');
                 };
 
@@ -1460,7 +1534,7 @@
             console.log('📝 Markdown Editor 已初始化');
 
             // 接收来自思维导图/父页面的选中跳转请求
-            window.addEventListener('message', function (e) {
+            window.addEventListener('message', async function (e) {
                 try {
                     // 调试日志：打印 editor 收到的原始 message
                     try { console.log('[EDITOR RAW MESSAGE]', e && e.data); } catch (err) { }
@@ -1700,7 +1774,7 @@
             window.__mw_pending_editor_set = window.__mw_pending_editor_set || null;
 
             // 监听来自父页/思维导图的消息
-            window.addEventListener('message', function (e) {
+            window.addEventListener('message', async function (e) {
                 try {
                     var msg = e && e.data;
                     if (!msg || typeof msg !== 'object' || !msg.type) return;
@@ -1766,12 +1840,23 @@
     <script src="/local-deps/bootstrap.bundle.min.js"></script>
     <!-- 通知桥接器 -->
     <script src="../notification-bridge.js"></script>
+    <!-- 图片存储管理 -->
+    <script src="../utils/image-storage.js"></script>
     <script>
         (function () {
-            // 记录当前活动文档ID
-            window.__mw_activeDocId = window.__mw_activeDocId || null;
+            // 初始化图片存储管理器
+            if (window.ImageStorageManager) {
+                window.imageStorage = new ImageStorageManager();
+                console.log('[editor] ImageStorageManager initialized');
+            } else {
+                console.error('[editor] ImageStorageManager not found');
+            }
 
-            function applyEditorContent(payload) {
+            // 记录当前活动文档ID，尝试从localStorage恢复
+            window.__mw_activeDocId = window.__mw_activeDocId || localStorage.getItem('mindword_active_doc_id') || null;
+            console.log(`[editor] Initialized activeDocId: ${window.__mw_activeDocId}`);
+
+            async function applyEditorContent(payload) {
                 try {
                     const md = (payload && payload.md) ? String(payload.md) : '';
                     const images = payload && payload.images ? payload.images : null;
@@ -1789,10 +1874,32 @@
                                 images.forEach(img => {
                                     // 优先使用图片的ID，如果没有则使用名称，最后才生成新ID
                                     const imageId = img.id || img.name || 'img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+
+                                    // 严格验证图片数据：必须有有效的dataUrl
+                                    if (!img.dataUrl || !img.dataUrl.startsWith('data:image/')) {
+                                        console.error(`[editor] 接收到的图片数据无效: missing dataUrl or invalid format`, img);
+                                        return; // 跳过无效的图片
+                                    }
+
+                                    // 验证并修正图片类型：杜绝text/html等非图片类型
+                                    let imageType = img.mime || 'image/png';
+                                    if (!imageType.startsWith('image/')) {
+                                        console.warn(`[editor] 接收到的图片类型无效: ${imageType}，从dataUrl检测真实类型`);
+                                        // 从dataUrl提取真实类型
+                                        const dataUrlMatch = img.dataUrl.match(/^data:(image\/[^;]+);/);
+                                        if (dataUrlMatch) {
+                                            imageType = dataUrlMatch[1];
+                                            console.log(`[editor] 从dataUrl检测到真实类型: ${imageType}`);
+                                        } else {
+                                            imageType = 'image/png';
+                                            console.warn(`[editor] 无法检测类型，设为默认值: ${imageType}`);
+                                        }
+                                    }
+
                                     imagesMap.set(imageId, {
                                         name: img.name || '',
-                                        data: img.dataUrl || '',  // dataUrl -> data
-                                        type: img.mime || 'image/png'  // mime -> type
+                                        data: img.dataUrl,  // dataUrl -> data
+                                        type: imageType  // 已验证的图片类型
                                     });
                                 });
                                 window.markdownEditor.images = imagesMap;
@@ -1803,12 +1910,19 @@
                             }
                         } catch (e) { console.warn('[editor] set images map failed', e); }
 
-                        // 同步到 localStorage（让预览/导图也能立即切换）
+                        // 同步到存储（让预览/导图也能立即切换）
                         try {
                             localStorage.setItem('mindword_markdown_data', md);
-                            const imgArr = Array.from((window.markdownEditor.images || new Map()).entries());
-                            localStorage.setItem('markdown-images', JSON.stringify(imgArr));
-                        } catch (e) { console.warn('[editor] write localStorage failed', e); }
+                            // 使用 IndexedDB 保存图片
+                            console.log(`[editor] 准备保存图片到IndexedDB，图片数量: ${window.markdownEditor.images ? window.markdownEditor.images.size : 0}`);
+                            if (window.markdownEditor.images && window.markdownEditor.images.size > 0) {
+                                for (const [id, imgData] of window.markdownEditor.images.entries()) {
+                                    console.log(`[editor] 待保存图片: id=${id}, name=${imgData.name}, type=${imgData.type}, data长度=${imgData.data ? imgData.data.length : 0}`);
+                                }
+                            }
+                            await window.imageStorage.saveImages(window.markdownEditor.images || new Map());
+                            console.log('[editor] 图片保存完成');
+                        } catch (e) { console.warn('[editor] write storage failed', e); }
 
                         // 保存并联动
                         try { window.markdownEditor.saveToStorage(false); } catch (e) { /* ignore */ }
@@ -1828,13 +1942,19 @@
                 } catch (e) { console.warn('[editor] applyEditorContent error', e); }
             }
 
-            window.addEventListener('message', function (e) {
+            window.addEventListener('message', async function (e) {
                 const msg = e.data;
                 if (!msg || typeof msg !== 'object') return;
 
                 if (msg.type === 'mw_load_document' && msg.payload) {
                     const { id, name, md, images, rev } = msg.payload;
                     window.__mw_activeDocId = id || null;
+                    // 存储当前文档ID到localStorage，供其他页面使用
+                    if (id) {
+                        localStorage.setItem('mindword_active_doc_id', id);
+                    } else {
+                        localStorage.removeItem('mindword_active_doc_id');
+                    }
                     window.__mw_activeDoc = { id, name, md, images, rev };
                     // 进入接收阶段：抑制回声保存
                     window.__mw_receiving = true;
@@ -1850,10 +1970,17 @@
                                     images.forEach(img => {
                                         // 优先使用图片的ID，如果没有则使用名称，最后才生成新ID
                                         const imageId = img.id || img.name || 'img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                                        // 验证并修正图片类型：杜绝text/html等非图片类型
+                                        let imageType = img.mime || 'image/png';
+                                        if (!imageType.startsWith('image/')) {
+                                            console.warn(`[editor] 接收到的图片类型无效: ${imageType}，强制设为image/png`);
+                                            imageType = 'image/png';
+                                        }
+
                                         imagesMap.set(imageId, {
                                             name: img.name || '',
                                             data: img.dataUrl || '',  // dataUrl -> data
-                                            type: img.mime || 'image/png'  // mime -> type
+                                            type: imageType  // 已验证的图片类型
                                         });
                                     });
                                     window.markdownEditor.images = imagesMap;
@@ -1863,18 +1990,17 @@
                                     window.markdownEditor.images = new Map();
                                 }
                             } catch (e) { console.warn('[editor] set images map failed', e); }
-                            // 写入 localStorage 让其它面板即时收到
+                            // 写入存储让其它面板即时收到
                             try {
                                 localStorage.setItem('mindword_markdown_data', String(md || ''));
-                                const imgArr = Array.from((window.markdownEditor.images || new Map()).entries());
-                                localStorage.setItem('markdown-images', JSON.stringify(imgArr));
-                            } catch (e) { console.warn('[editor] localStorage write failed', e); }
-                            try { window.markdownEditor.saveToStorage(false); } catch (e) { }
+                                // 注意：saveToStorage 会保存图片，这里不需要重复保存
+                            } catch (e) { console.warn('[editor] write storage failed', e); }
+                            // 不需要调用 saveToStorage，因为文档已经保存过，直接同步即可
                             try { if (typeof window.syncAll === 'function') window.syncAll('markdown', true, true); } catch (e) { }
                         } else {
-                            applyEditorContent(msg.payload);
+                            await applyEditorContent(msg.payload);
                         }
-                    } catch (e) { applyEditorContent(msg.payload); }
+                    } catch (e) { await applyEditorContent(msg.payload); }
                     // 退出接收阶段（微延迟，确保本轮保存结束）
                     setTimeout(() => { window.__mw_receiving = false; }, 200);
                     // 广播事件以兼容其他监听

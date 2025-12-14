@@ -3,7 +3,7 @@
  * 只缓存核心文件，避免路径重复问题
  */
 
-const CACHE_NAME = 'mindword-v18';
+const CACHE_NAME = 'mindword-v25';
 
 // 只缓存最关键的核心文件
 const CORE_FILES = [
@@ -21,7 +21,6 @@ const CORE_FILES = [
   '/init.js',
   '/language-switch.js',
   '/lazy-loader.js',
-  '/leancloud-sync.js',
   '/LICENSE.txt',
   '/LOGO.ico',
   '/manifest.json',
@@ -226,6 +225,20 @@ self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   const pathname = url.pathname;
 
+  // 完全忽略LeanCloud API请求，让浏览器直接处理，避免重复请求和缓存问题
+  // 检查URL中是否包含LeanCloud相关标识
+  if (url.hostname.includes('lc-cn-n1-shared.com') ||
+    url.hostname.includes('lcapp.cn') ||
+    url.hostname.includes('leancloud.cn') ||
+    url.pathname.includes('/1.1/classes/') ||
+    url.pathname.includes('/1.1/users/') ||
+    url.pathname.includes('/1.1/files/') ||
+    (url.hostname.includes('lc-') && url.pathname.includes('/1.1/'))) {
+    // 对于LeanCloud API请求，完全忽略，让浏览器直接处理
+    console.log('[SW] LeanCloud API请求，完全忽略:', event.request.url);
+    return;
+  }
+
   // 修复：正确处理导航请求，支持离线访问
   if (event.request.mode === 'navigate') {
     event.respondWith(
@@ -335,13 +348,23 @@ self.addEventListener('fetch', event => {
         // 修复：先克隆响应，避免body被使用后无法克隆
         const resClone = netRes.clone();
 
-        // 缓存所有成功的GET请求响应
-        if (netRes.ok) {
-          caches.open(CACHE_NAME).then(c => {
-            return c.put(event.request, resClone);
-          }).catch(err => {
-            console.error('缓存存储失败:', err);
-          });
+        // 不缓存LeanCloud API请求
+        const requestUrl = new URL(event.request.url);
+        if (!(requestUrl.hostname.includes('lc-cn-n1-shared.com') ||
+          requestUrl.hostname.includes('lcapp.cn') ||
+          requestUrl.hostname.includes('leancloud.cn') ||
+          requestUrl.pathname.includes('/1.1/classes/') ||
+          requestUrl.pathname.includes('/1.1/users/') ||
+          requestUrl.pathname.includes('/1.1/files/') ||
+          (requestUrl.hostname.includes('lc-') && requestUrl.pathname.includes('/1.1/')))) {
+          // 只缓存非LeanCloud API请求
+          if (netRes.ok) {
+            caches.open(CACHE_NAME).then(c => {
+              return c.put(event.request, resClone);
+            }).catch(err => {
+              console.error('缓存存储失败:', err);
+            });
+          }
         }
         return netRes;
       }).catch(() => {

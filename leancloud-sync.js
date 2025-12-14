@@ -30,7 +30,7 @@
   let cachedCloudRaw = null;   // 缓存第一次 downloadCloud() 的原生对象
 
   // 文件大小限制
-  const MAX_IMAGE_SIZE = 200 * 1024; // 200KB
+  const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
   const MAX_TOTAL_SIZE = 10 * 1024 * 1024; // 10M
 
   function getLang() {
@@ -62,6 +62,120 @@
 
     return true;
   }
+
+  /**
+   * 比较两个图片数组是否相等
+   * 只比较图片的基本信息（ID、名称、MIME类型），忽略dataUrl等可能变化的内容
+   * @param {Array} localImages - 本地图片数组
+   * @param {Array} cloudImages - 云端图片数组
+   * @returns {boolean} 是否相等
+   */
+  function areImagesEqual(localImages, cloudImages) {
+    // 如果数组长度不同，肯定不相等
+    if (localImages.length !== cloudImages.length) {
+      return false;
+    }
+
+    // 创建本地图片ID映射
+    const localImageMap = new Map();
+    for (const img of localImages) {
+      if (img && img.id) {
+        localImageMap.set(img.id, {
+          id: img.id,
+          name: img.name || '',
+          mime: img.mime || ''
+        });
+      }
+    }
+
+    // 检查每个云端图片是否在本地存在且基本信息一致
+    for (const cloudImg of cloudImages) {
+      if (!cloudImg || !cloudImg.id) {
+        return false; // 云端图片缺少ID，认为不相等
+      }
+
+      const localImg = localImageMap.get(cloudImg.id);
+      if (!localImg) {
+        return false; // 本地没有对应图片
+      }
+
+      // 比较基本信息（忽略dataUrl等可能变化的内容）
+      if (localImg.name !== (cloudImg.name || '') ||
+        localImg.mime !== (cloudImg.mime || '')) {
+        return false; // 基本信息不一致
+      }
+    }
+
+    return true; // 所有图片都匹配
+  }
+
+  /**
+   * 比较两个文档是否相等
+   * @param {Object} localDoc - 本地文档
+   * @param {Object} cloudDoc - 云端文档
+   * @returns {boolean} 是否相等
+   */
+  function areDocsEqual(localDoc, cloudDoc) {
+    if (!localDoc || !cloudDoc) {
+      return false; // 任一文档不存在，认为不相等
+    }
+
+    // 检查删除状态是否一致
+    if (!!localDoc.deleted !== !!cloudDoc.deleted) {
+      return false;
+    }
+
+    // 检查MD内容是否一致
+    if (localDoc.md !== cloudDoc.md) {
+      return false;
+    }
+
+    // 检查图片是否一致
+    const localImages = localDoc.images || [];
+    const cloudImages = cloudDoc.images || [];
+    return areImagesEqual(localImages, cloudImages);
+  }
+
+  /**
+   * 比较完整数据集是否相等
+   * @param {Object} localData - 本地数据
+   * @param {Object} cloudData - 云端数据
+   * @returns {boolean} 是否相等
+   */
+  function areDataSetsEqual(localData, cloudData) {
+    if (!localData || !cloudData) {
+      return false;
+    }
+
+    // 检查配置哈希是否一致
+    if (localData.aiConfigHash !== cloudData.aiConfigHash ||
+      localData.promptTemplatesHash !== cloudData.promptTemplatesHash ||
+      localData.myPromptTemplatesHash !== cloudData.myPromptTemplatesHash) {
+      return false;
+    }
+
+    // 检查文档数量是否一致
+    const localDocs = localData.docs || [];
+    const cloudDocs = cloudData.docs || [];
+    if (localDocs.length !== cloudDocs.length) {
+      return false;
+    }
+
+    // 创建文档ID映射
+    const localDocMap = new Map(localDocs.map(d => [d.id, d]));
+    const cloudDocMap = new Map(cloudDocs.map(d => [d.id, d]));
+
+    // 检查每个文档是否匹配
+    for (const [docId, localDoc] of localDocMap) {
+      const cloudDoc = cloudDocMap.get(docId);
+      if (!areDocsEqual(localDoc, cloudDoc)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   function saveLocalDocs(docs) { try { return (typeof mw_saveDocs === 'function') ? mw_saveDocs(docs) : null; } catch (_) { return null; } }
 
   // 获取AI配置和提示词模板
@@ -215,9 +329,10 @@
 
   // 拉取并组装成与 localFullData 完全同构的对象
   async function fetchCloudFullData() {
-    // 优先用缓存，没有再拉
+    // 每次都重新拉取最新数据，避免缓存导致的数据不一致
     const cloudRaw = cachedCloudRaw || await downloadCloud();
-    if (!cachedCloudRaw) cachedCloudRaw = cloudRaw;
+    // 更新缓存，确保后续可以使用
+    cachedCloudRaw = cloudRaw;
     return {
       docs: (cloudRaw.docs || []).map(normalizeCloudDoc),
       aiConfig: cloudRaw.aiConfig || {},
@@ -360,6 +475,7 @@
 
   // 落地：云端
   async function applyTargetToCloud(target, cloudFullData, cloudObj) {
+    console.log('[SYNC] 开始云端同步，用户状态:', AV.User.current() ? '已登录' : '未登录');
     const user = AV.User.current();
     if (!user) throw new Error('未登录');
 
@@ -374,19 +490,22 @@
 
 
     // 1. 用补回后的完整目标与云端对比，若完全一致直接跳过
-    if (cloudFullData &&
-      target.aiConfigHash === cloudFullData.aiConfigHash &&
-      target.promptTemplatesHash === cloudFullData.promptTemplatesHash &&
-      target.myPromptTemplatesHash === cloudFullData.myPromptTemplatesHash &&
-      JSON.stringify(mergedDocs.map(d => ({ id: d.id, updatedAt: d.updatedAt, deleted: d.deleted, images: d.images || [] }))) ===
-      JSON.stringify(cloudFullData.docs.map(d => ({ id: d.id, updatedAt: d.updatedAt, deleted: d.deleted, images: d.images || [] })))) {
+    // 注意：这里使用target.docs而不是mergedDocs，因为mergedDocs可能包含云端已删除的记录
+    if (areDataSetsEqual(target, cloudFullData)) {
+      console.log('[SYNC] 云端与本地一致，无需同步');
       showSuccess('云端与本地一致，无需同步');
       return;   // 无需真正落库
     }
 
+    console.log('[SYNC] 检测到数据差异，开始同步到云端');
+
 
     // 使用传入的云端对象，避免重复下载
     const obj = cloudObj || await fetchOrCreateRecord();
+    if (!obj) {
+      throw new Error('无法获取云端对象');
+    }
+
     obj.set('docs', mergedDocs);
     obj.set('aiConfig', target.aiConfig);
     obj.set('aiConfigHash', target.aiConfigHash);
@@ -396,11 +515,18 @@
     obj.set('templateUpdatedAt', target.promptTemplatesLastModified);
     obj.set('myPromptTemplates', target.myPromptTemplates);
     obj.set('myPromptTemplatesHash', target.myPromptTemplatesHash);
-    obj.set('myPromptTemplateUpdatedAt', target.myPromptTemplatesLastModified);
+    obj.set('myPromptTemplateUpdatedAt', target.myPromptTemplateLastModified);
     obj.set('docUpdatedAt', Math.max(...mergedDocs.map(d => Number(d.updatedAt)), 0));
     obj.set('updatedAtMs', Date.now());   // 补上统一时间戳
 
+    // 同步图片数据到云端
+    // 注意：图片同步将在 bidirectionalSync 函数的末尾通过 syncAllImages 统一处理
+    // 这里不再单独调用 syncImagesToCloud，避免重复同步导致的问题
+    console.log('[SYNC] 图片数据将在后续统一同步');
+
+    console.log('[SYNC] 开始保存数据到云端...');
     await obj.save();
+    console.log('[SYNC] 云端同步完成');
   }
 
 
@@ -470,7 +596,7 @@
     // 新增：补齐上行时会写入的哈希与统一时间戳
     const aiConfigHash = obj.get('aiConfigHash') || undefined;
     const promptTemplatesHash = obj.get('promptTemplatesHash') || undefined;
-    const myPromptTemplatesHash = obj.get('myPromptTemplatesHash') || undefined;
+    const myPromptTemplatesHash = obj.get('myPromptTemplateHash') || undefined;
 
     const updatedAtMs = obj.get('updatedAtMs') || 0;
 
@@ -510,6 +636,26 @@
     localStorage.setItem('myPromptTemplates_last_modified', String(target.myPromptTemplatesLastModified));
     // 同步时间戳
     localStorage.setItem('mindword_last_sync_at', String(Date.now()));
+
+    // 触发图片数据同步
+    syncImagesAfterDataSync(aliveDocs);
+  }
+
+  // 数据同步后同步图片
+  async function syncImagesAfterDataSync(docs) {
+    if (!isLoggedIn() || !window.imageStorage) {
+      console.log('[SYNC] 跳过图片同步：未登录或图片存储未初始化');
+      return;
+    }
+
+    try {
+      console.log('[SYNC] 开始同步图片数据...');
+      const result = await syncAllImages(docs);
+      console.log('[SYNC] 图片同步结果:', result);
+    } catch (error) {
+      console.error('[SYNC] 图片同步失败:', error);
+      // 不抛出错误，避免影响主要数据同步
+    }
   }
 
   // async function uploadCloud(obj, docs) {
@@ -742,24 +888,25 @@
 
       if (localDoc && cloudDoc) {
         // 两边都有 - 检查内容是否一致（包含图片数据）
-        const isContentSame = localDoc.md === cloudDoc.md && JSON.stringify(localDoc.images || []) === JSON.stringify(cloudDoc.images || []);
+        const isContentSame = areDocsEqual(localDoc, cloudDoc);
+
+        // 为了生成详细的描述信息，单独检查MD和图片
+        const localImages = localDoc.images || [];
+        const cloudImages = cloudDoc.images || [];
+        const imagesEqual = areImagesEqual(localImages, cloudImages);
+        const mdEqual = localDoc.md === cloudDoc.md;
+
         let description = '';
 
         if (isContentSame) {
           description = '<span style="color: #28a745;">内容一致 ✓</span>';
         } else {
-          // 检查是否有图片变化
-          const localImages = localDoc.images || [];
-          const cloudImages = cloudDoc.images || [];
-          const imagesChanged = JSON.stringify(localImages) !== JSON.stringify(cloudImages);
-          const mdChanged = localDoc.md !== cloudDoc.md;
-
-          if (mdChanged && imagesChanged) {
-            description = '<span style="color: #dc3545;">内容和图片都已变更</span>';
-          } else if (imagesChanged) {
+          if (mdEqual && !imagesEqual) {
             description = '<span style="color: #ffc107;">图片已变更</span>';
-          } else {
+          } else if (!mdEqual && imagesEqual) {
             description = '<span style="color: #dc3545;">内容不一致</span>';
+          } else {
+            description = '<span style="color: #dc3545;">内容和图片都已变更</span>';
           }
         }
         const localTime = new Date(Number(localDoc.updatedAt)).toLocaleString();
@@ -1037,7 +1184,17 @@
   // 新的同步逻辑：按照用户方案实现
   async function bidirectionalSync() {
     try {
-      if (!isLoggedIn()) { throw new Error('未登录'); }
+      // 添加详细的登录状态检查
+      if (!isLoggedIn()) {
+        console.error('[SYNC] 同步失败：用户未登录');
+        throw new Error('未登录');
+      }
+
+      // 输出当前用户信息，便于调试
+      const currentUser = AV.User.current();
+      console.log('[SYNC] 开始同步，当前用户:', currentUser ? currentUser.id : 'null');
+      console.log('[SYNC] LeanCloud应用ID:', AV.applicationId || '未初始化');
+
       showInfo('正在智能同步...');
 
       // 1. 组装本地完整快照
@@ -1065,8 +1222,8 @@
         throw new Error('文件大小检查失败：' + sizeCheck.errors.join('；'));
       }
 
-      // 2. 拉取云端同结构快照（首次拉取时缓存原生对象）
-      cachedCloudRaw = await downloadCloud();
+      // 2. 拉取云端同结构快照（每次都重新获取最新数据，避免缓存问题）
+      cachedCloudRaw = null;  // 清除缓存，强制重新获取
       const cloudFullData = await fetchCloudFullData();
 
       // 3. 三向合并 → 目标结构
@@ -1085,8 +1242,19 @@
       const finalTargetFullData = buildTargetFromChoices(localFullData, cloudFullData, userChoices);
 
       // 6. 落地：先写本地，再写云端（确保本地优先）
+      console.log('[SYNC] 开始应用同步数据...');
       applyTargetToLocal(finalTargetFullData);
+
+      // 确保 cachedCloudRaw 不为 null
+      if (!cachedCloudRaw) {
+        cachedCloudRaw = await downloadCloud();
+      }
       await applyTargetToCloud(finalTargetFullData, cloudFullData, cachedCloudRaw.obj);
+      console.log('[SYNC] 同步数据已成功应用到云端');
+
+      // 6.5 同步图片数据 - 同步所有文档的图片
+      // 传递云端对象缓存，避免重复下载和数据不一致
+      await syncAllImages(finalTargetFullData.docs, cachedCloudRaw);
 
       // 5. 刷新 UI
       if (typeof mw_renderList === 'function') mw_renderList();
@@ -1195,29 +1363,30 @@
   }
 
   function initUIBindings() {
-    const zhCtrls = document.getElementById('lc-sync-controls');
-
+    // 获取菜单中的同步控制区域
+    const zhCtrls = document.getElementById('lc-sync-controls-menu');
 
     // 个人菜单中的按钮
     const menuSyncBtn = document.getElementById('lc-sync-btn-menu');
     const menuClearBtn = document.getElementById('lc-clear-btn-menu');
 
-    // 添加状态显示元素
-    if (zhCtrls && !document.getElementById('lc-sync-status')) {
-      const statusDiv = document.createElement('div');
-      statusDiv.id = 'lc-sync-status';
-      statusDiv.style.cssText = 'margin-left: 8px; padding: 4px 8px; background: #f8f9fa; border-radius: 4px;';
-      zhCtrls.appendChild(statusDiv);
-    }
-
-
-
     // 绑定个人菜单按钮 - 使用addEventListener确保函数可访问
     if (menuSyncBtn) {
-      menuSyncBtn.addEventListener('click', bidirectionalSync);
+      console.log('找到同步按钮，绑定点击事件');
+      menuSyncBtn.addEventListener('click', function (e) {
+        e.stopPropagation(); // 阻止事件冒泡到父元素
+        console.log('同步按钮被点击');
+        bidirectionalSync();
+      });
+    } else {
+      console.error('未找到同步按钮 lc-sync-btn-menu');
     }
+
     if (menuClearBtn) {
-      menuClearBtn.addEventListener('click', clearCloud);
+      menuClearBtn.addEventListener('click', function (e) {
+        e.stopPropagation(); // 阻止事件冒泡到父元素
+        clearCloud();
+      });
     }
 
     // 登录状态或语言变化时切换显示
@@ -1229,7 +1398,7 @@
         return;
       }
       // 始终显示中文同步控制区域，不受语言设置影响
-      if (zhCtrls) zhCtrls.style.display = 'inline-flex';
+      if (zhCtrls) zhCtrls.style.display = 'flex';
     }
 
     document.addEventListener('DOMContentLoaded', refreshVisible);
@@ -1269,6 +1438,21 @@
       updateSyncStatus();
     }, 100);
   });
+
+  // 额外的初始化尝试，确保按钮事件绑定成功
+  setTimeout(function () {
+    console.log('额外尝试绑定同步按钮事件');
+    const menuSyncBtn = document.getElementById('lc-sync-btn-menu');
+    if (menuSyncBtn && !menuSyncBtn.hasAttribute('data-sync-bound')) {
+      console.log('找到未绑定的同步按钮，进行绑定');
+      menuSyncBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        console.log('同步按钮被点击（额外绑定）');
+        bidirectionalSync();
+      });
+      menuSyncBtn.setAttribute('data-sync-bound', 'true');
+    }
+  }, 2000);
 
   // 显示文件大小和同步状态
   function updateSyncStatus() {
@@ -1394,12 +1578,13 @@
         }
 
         // 更新按钮状态
-        const syncBtn = document.getElementById('lc-sync-btn');
-        if (syncBtn) {
-          syncBtn.disabled = false;
-          syncBtn.title = getText('cloud.oneClickSync', '一键同步');
-          syncBtn.style.opacity = '1';
-        }
+        // 注意：主界面的同步按钮不存在，所以这部分代码被注释掉
+        // const syncBtn = document.getElementById('lc-sync-btn');
+        // if (syncBtn) {
+        //   syncBtn.disabled = false;
+        //   syncBtn.title = getText('cloud.oneClickSync', '一键同步');
+        //   syncBtn.style.opacity = '1';
+        // }
 
         // 更新个人菜单中的同步按钮状态
         const menuSyncBtn = document.getElementById('lc-sync-btn-menu');
@@ -1419,36 +1604,37 @@
       const sizeCheck = checkFileSize(validDocs);
 
       // 更新状态显示（主界面）
-      const statusElement = document.getElementById('lc-sync-status');
-      if (statusElement) {
-        const totalSizeMB = (sizeCheck.totalSize / 1024).toFixed(1);
-        const fileCount = validDocs.length;
+      // 注意：主界面的状态显示元素不存在，所以这部分代码被注释掉
+      // const statusElement = document.getElementById('lc-sync-status');
+      // if (statusElement) {
+      //   const totalSizeMB = (sizeCheck.totalSize / 1024).toFixed(1);
+      //   const fileCount = validDocs.length;
 
-        if (currentLang === 'en') {
-          // 英文环境下使用更简洁的格式
-          statusElement.innerHTML = `
-            <small style="color: #666; font-size: 11px;">
-              ${fileCount} files<br>${totalSizeMB}KB / 10MB
-            </small>
-          `;
-        } else {
-          // 中文环境下使用中文格式
-          const filesText = getText('cloud.files', '文件');
-          const fileCountText = `${fileCount}${getText('cloud.fileCount', '个')}`;
-          statusElement.innerHTML = `
-            <small style="color: #666; font-size: 11px;">
-              ${filesText}: ${fileCountText}<br>${totalSizeMB}KB / 10MB
-            </small>
-          `;
-        }
+      //   if (currentLang === 'en') {
+      //     // 英文环境下使用更简洁的格式
+      //     statusElement.innerHTML = `
+      //       <small style="color: #666; font-size: 11px;">
+      //         ${fileCount} files<br>${totalSizeMB}KB / 10MB
+      //       </small>
+      //     `;
+      //   } else {
+      //     // 中文环境下使用中文格式
+      //     const filesText = getText('cloud.files', '文件');
+      //     const fileCountText = `${fileCount}${getText('cloud.fileCount', '个')}`;
+      //     statusElement.innerHTML = `
+      //       <small style="color: #666; font-size: 11px;">
+      //         ${filesText}: ${fileCountText}<br>${totalSizeMB}KB / 10MB
+      //       </small>
+      //     `;
+      //   }
 
-        // 根据使用情况改变颜色
-        if (sizeCheck.totalSize > 8 * 1024 * 1024) { // 超过8MB
-          statusElement.querySelector('small').style.color = '#e74c3c';
-        } else if (sizeCheck.totalSize > 5 * 1024 * 1024) { // 超过5MB
-          statusElement.querySelector('small').style.color = '#f39c12';
-        }
-      }
+      //   // 根据使用情况改变颜色
+      //   if (sizeCheck.totalSize > 8 * 1024 * 1024) { // 超过8MB
+      //     statusElement.querySelector('small').style.color = '#e74c3c';
+      //   } else if (sizeCheck.totalSize > 5 * 1024 * 1024) { // 超过5MB
+      //     statusElement.querySelector('small').style.color = '#f39c12';
+      //   }
+      // }
 
       // 更新个人菜单中的状态显示
       const menuStatusElement = document.getElementById('lc-sync-status-menu');
@@ -1477,18 +1663,19 @@
       }
 
       // 更新按钮状态
-      const syncBtn = document.getElementById('lc-sync-btn');
-      if (syncBtn) {
-        if (!sizeCheck.valid) {
-          syncBtn.disabled = true;
-          syncBtn.title = getText('cloud.fileSizeCheckFailed', '文件大小检查失败') + '：' + sizeCheck.errors.join('；');
-          syncBtn.style.opacity = '0.6';
-        } else {
-          syncBtn.disabled = false;
-          syncBtn.title = getText('cloud.oneClickSync', '一键同步');
-          syncBtn.style.opacity = '1';
-        }
-      }
+      // 注意：主界面的同步按钮不存在，所以这部分代码被注释掉
+      // const syncBtn = document.getElementById('lc-sync-btn');
+      // if (syncBtn) {
+      //   if (!sizeCheck.valid) {
+      //     syncBtn.disabled = true;
+      //     syncBtn.title = getText('cloud.fileSizeCheckFailed', '文件大小检查失败') + '：' + sizeCheck.errors.join('；');
+      //     syncBtn.style.opacity = '0.6';
+      //   } else {
+      //     syncBtn.disabled = false;
+      //     syncBtn.title = getText('cloud.oneClickSync', '一键同步');
+      //     syncBtn.style.opacity = '1';
+      //   }
+      // }
 
       // 更新个人菜单中的同步按钮状态
       const menuSyncBtn = document.getElementById('lc-sync-btn-menu');
@@ -1509,8 +1696,552 @@
     }
   }
 
+  // ======== 图片同步相关函数 ========
+
+  /**
+   * 同步指定文档的图片
+   * @param {string} docId - 文档ID
+   * @returns {Promise<Object>} 同步结果
+   */
+  async function syncImagesForDoc(docId) {
+    if (!isLoggedIn()) {
+      throw new Error('未登录，无法同步图片');
+    }
+
+    if (!window.imageStorage) {
+      throw new Error('图片存储管理器未初始化');
+    }
+
+    try {
+      showInfo('正在同步文档图片...');
+
+      // 获取本地文档
+      const docs = getLocalDocs();
+      const doc = docs.find(d => d.id === docId);
+      if (!doc) {
+        throw new Error('文档不存在');
+      }
+
+      // 从文档内容中提取图片ID
+      const imageIds = extractImageIdsFromDoc(doc);
+      if (imageIds.length === 0) {
+        return { uploaded: 0, downloaded: 0, message: '文档中没有图片需要同步' };
+      }
+
+      // 获取本地图片
+      const localImagesMap = await window.imageStorage.getImagesMap();
+      const localImageIds = Array.from(localImagesMap.keys());
+
+      // 获取云端数据
+      const cloudData = await downloadCloud();
+      const cloudDocs = cloudData.docs || [];
+
+      // 找到对应的云端文档
+      const cloudDoc = cloudDocs.find(d => d.id === docId);
+      if (!cloudDoc) {
+        throw new Error('云端未找到对应文档');
+      }
+
+      // 获取云端文档中的图片
+      const cloudDocImages = cloudDoc.images || [];
+      const cloudImageIds = cloudDocImages.map(img => img && img.id).filter(Boolean);
+
+      // 计算需要上传和下载的图片
+      const imagesToUpload = imageIds.filter(id => !cloudImageIds.includes(id) && localImageIds.includes(id));
+      const imagesToDownload = imageIds.filter(id => cloudImageIds.includes(id) && !localImageIds.includes(id));
+
+      let uploaded = 0;
+      let downloaded = 0;
+
+      // 上传本地图片到云端
+      if (imagesToUpload.length > 0) {
+        const uploadResult = await uploadLocalImages(imagesToUpload);
+        uploaded = uploadResult.uploaded;
+      }
+
+      // 从云端下载图片到本地
+      if (imagesToDownload.length > 0) {
+        const downloadResult = await downloadCloudImages(imagesToDownload);
+        downloaded = downloadResult.downloaded;
+      }
+
+      showSuccess(`图片同步完成：上传${uploaded}张，下载${downloaded}张`);
+      return { uploaded, downloaded, message: '图片同步完成' };
+    } catch (error) {
+      showError(`图片同步失败：${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * 从文档内容中提取图片ID
+   * @param {Object} doc - 文档对象
+   * @returns {string[]} 图片ID数组
+   */
+  function extractImageIdsFromDoc(doc) {
+    const imageIds = [];
+    const content = (doc.md || '') + (doc.note || '');
+
+    // 匹配图片语法 ![alt](imageId)
+    const imageRegex = /!\[[^\]]*\]\(([^)]+)\)/g;
+    let match;
+
+    while ((match = imageRegex.exec(content)) !== null) {
+      const imageId = match[1];
+      // 过滤掉base64图片和外部链接
+      if (!imageId.startsWith('data:') && !imageId.startsWith('http')) {
+        imageIds.push(imageId);
+      }
+    }
+
+    // 也检查文档的images数组字段
+    if (doc.images && Array.isArray(doc.images)) {
+      doc.images.forEach(img => {
+        if (img && img.id && !imageIds.includes(img.id)) {
+          imageIds.push(img.id);
+        }
+      });
+    }
+
+    return [...new Set(imageIds)]; // 去重
+  }
+
+  /**
+   * 批量上传本地图片到云端
+   * @param {string[]} imageIds - 要上传的图片ID数组
+   * @returns {Promise<Object>} 上传结果
+   */
+  async function uploadLocalImages(imageIds, cloudObj = null) {
+    if (!isLoggedIn()) {
+      throw new Error('未登录，无法上传图片');
+    }
+
+    if (!window.imageStorage) {
+      throw new Error('图片存储管理器未初始化');
+    }
+
+    try {
+      const imagesMap = await window.imageStorage.getImagesMap();
+      let uploaded = 0;
+
+      // 获取云端数据
+      const cloudData = cloudObj ? { obj: cloudObj, docs: cloudObj.get('docs') || [] } : await downloadCloud();
+      const cloudDocs = cloudData.docs || [];
+
+      // 创建云端文档的映射，方便查找
+      const cloudDocsMap = new Map();
+      for (const doc of cloudDocs) {
+        if (doc && doc.id) {
+          cloudDocsMap.set(doc.id, doc);
+        }
+      }
+
+      // 处理每个要上传的图片
+      for (const imageId of imageIds) {
+        const imageInfo = imagesMap.get(imageId);
+        if (!imageInfo || !imageInfo.dataUrl) {
+          console.warn(`本地未找到图片 ${imageId} 数据，跳过上传`);
+          continue;
+        }
+
+        // 从dataUrl中提取base64数据并计算大小
+        const base64Data = imageInfo.dataUrl.split(',')[1];
+        if (!base64Data) {
+          console.warn(`图片 ${imageId} 数据格式无效，跳过上传`);
+          continue;
+        }
+
+        const imgSize = Math.ceil(base64Data.length * 0.75); // base64解码后的大小
+        if (imgSize > MAX_IMAGE_SIZE) {
+          console.warn(`图片 ${imageId} 超过大小限制，跳过上传`);
+          continue;
+        }
+
+        // 查找包含此图片的云端文档
+        let foundDoc = null;
+        for (const [docId, doc] of cloudDocsMap) {
+          if (doc.images && Array.isArray(doc.images)) {
+            const imgIndex = doc.images.findIndex(img => img && img.id === imageId);
+            if (imgIndex !== -1) {
+              foundDoc = doc;
+              // 更新文档中的图片数据
+              if (!foundDoc.images[imgIndex].dataUrl) {
+                foundDoc.images[imgIndex].dataUrl = imageInfo.dataUrl;
+                uploaded++;
+                console.log(`图片 ${imageId} 已添加到文档 ${docId}`);
+              }
+              break;
+            }
+          }
+        }
+
+        if (!foundDoc) {
+          console.warn(`未找到包含图片 ${imageId} 的文档，跳过上传`);
+        }
+      }
+
+      // 如果有图片被上传，更新云端数据
+      if (uploaded > 0) {
+        const obj = cloudData.obj || await fetchOrCreateRecord();
+        obj.set('docs', cloudDocs);
+
+        // 如果没有传入云端对象，则立即保存；否则由调用方保存
+        if (!cloudObj) {
+          await obj.save();
+        }
+      }
+
+      console.log(`成功上传 ${uploaded} 张图片到云端`);
+      return { uploaded, message: '图片上传成功' };
+    } catch (error) {
+      console.error('上传图片失败:', error);
+      throw new Error(`上传图片失败：${error.message}`);
+    }
+  }
+
+  /**
+   * 批量下载云端图片到本地
+   * @param {string[]} imageIds - 要下载的图片ID数组
+   * @returns {Promise<Object>} 下载结果
+   */
+  async function downloadCloudImages(imageIds) {
+    if (!window.imageStorage) {
+      throw new Error('图片存储管理器未初始化');
+    }
+
+    try {
+      const downloaded = [];
+
+      // 获取云端数据
+      const cloudData = await downloadCloud();
+      const cloudDocs = cloudData.docs || [];
+
+      // 创建云端文档的映射，方便查找
+      const cloudDocsMap = new Map();
+      for (const doc of cloudDocs) {
+        if (doc && doc.id) {
+          cloudDocsMap.set(doc.id, doc);
+        }
+      }
+
+      // 处理每个要下载的图片
+      for (const imageId of imageIds) {
+        try {
+          let imageDataUrl = null;
+          let documentId = null;
+
+          // 在所有云端文档中查找包含此图片的文档
+          for (const [docId, doc] of cloudDocsMap) {
+            if (doc.images && Array.isArray(doc.images)) {
+              const img = doc.images.find(img => img && img.id === imageId);
+              if (img && img.dataUrl) {
+                imageDataUrl = img.dataUrl;
+                documentId = docId;
+                break;
+              }
+            }
+          }
+
+          if (!imageDataUrl) {
+            console.warn(`云端未找到图片数据: ${imageId}`);
+            continue;
+          }
+
+          // 将DataURL转换为Blob
+          const blob = await window.imageStorage.dataUrlToBlob(imageDataUrl);
+
+          // 保存到IndexedDB，提供正确的documentId元数据
+          await window.imageStorage.saveImage(imageId, blob, {
+            name: imageId,
+            documentId: documentId
+          });
+          downloaded.push(imageId);
+          console.log(`成功下载图片 ${imageId} (文档: ${documentId})`);
+        } catch (error) {
+          console.error(`下载图片 ${imageId} 失败:`, error);
+        }
+      }
+
+      console.log(`成功下载 ${downloaded.length} 张图片到本地`);
+      return { downloaded: downloaded.length, message: '图片下载成功' };
+    } catch (error) {
+      console.error('下载图片失败:', error);
+      throw new Error(`下载图片失败：${error.message}`);
+    }
+  }
+
+  /**
+   * 从URL中提取图片ID
+   * @param {string} url - 图片URL
+   * @returns {string|null} 图片ID
+   */
+  function extractImageIdFromUrl(url) {
+    // 假设URL格式为: https://example.com/images/{imageId}
+    const match = url.match(/\/images\/([^/?]+)/);
+    return match ? match[1] : null;
+  }
+
+  /**
+   * 获取图片数据
+   * @param {string} url - 图片URL
+   * @returns {Promise<string|null>} 图片base64数据
+   */
+  async function fetchImageData(url) {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error(`获取图片数据失败: ${url}`, error);
+      return null;
+    }
+  }
+
+  /**
+   * 同步所有文档的图片数据
+   * @param {Array} docs - 文档数组
+   * @param {Object} cloudDataCache - 云端数据缓存（可选）
+   * @returns {Promise<Object>} 同步结果
+   */
+  async function syncAllImages(docs, cloudDataCache = null) {
+    if (!isLoggedIn()) {
+      console.log('[SYNC] 未登录，跳过图片同步');
+      return { uploaded: 0, downloaded: 0, message: '未登录，跳过图片同步' };
+    }
+
+    if (!window.imageStorage) {
+      console.warn('[SYNC] 图片存储管理器未初始化，跳过图片同步');
+      return { uploaded: 0, downloaded: 0, message: '图片存储管理器未初始化' };
+    }
+
+    try {
+      console.log('[SYNC] 开始同步所有文档的图片...');
+
+      // 使用传入的云端数据缓存，如果没有则重新下载
+      const cloudData = cloudDataCache || await downloadCloud();
+      const cloudDocs = cloudData.docs || [];
+
+      // 创建云端文档的映射，方便查找
+      const cloudDocsMap = new Map();
+      for (const doc of cloudDocs) {
+        if (doc && doc.id) {
+          cloudDocsMap.set(doc.id, doc);
+        }
+      }
+
+      // 获取本地图片数据
+      const localImagesMap = await window.imageStorage.getImagesMap();
+
+      let totalUploaded = 0;
+      let totalDownloaded = 0;
+
+      // 处理每个文档的图片
+      for (const doc of docs) {
+        if (!doc || !doc.id) continue;
+
+        // 获取对应的云端文档
+        const cloudDoc = cloudDocsMap.get(doc.id);
+        if (!cloudDoc) {
+          console.log(`[SYNC] 云端未找到文档 ${doc.id}，跳过图片同步`);
+          continue;
+        }
+
+        // 获取本地和云端的图片数组
+        const localDocImages = doc.images || [];
+        const cloudDocImages = cloudDoc.images || [];
+
+        // 创建云端图片的映射
+        const cloudImagesMap = new Map();
+        for (const img of cloudDocImages) {
+          if (img && img.id) {
+            cloudImagesMap.set(img.id, img);
+          }
+        }
+
+        // 处理本地文档中的每个图片
+        for (const localImg of localDocImages) {
+          if (!localImg || !localImg.id) continue;
+
+          // 检查本地是否有图片数据
+          const localImageData = localImagesMap.get(localImg.id);
+          if (!localImageData || !localImageData.dataUrl) {
+            // 本地没有图片数据，检查云端是否有
+            const cloudImg = cloudImagesMap.get(localImg.id);
+            if (cloudImg && cloudImg.dataUrl) {
+              // 云端有数据，下载到本地
+              try {
+                const blob = await window.imageStorage.dataUrlToBlob(cloudImg.dataUrl);
+                await window.imageStorage.saveImage(localImg.id, blob, {
+                  name: cloudImg.name || localImg.id,
+                  documentId: doc.id
+                });
+                totalDownloaded++;
+                console.log(`[SYNC] 下载图片 ${localImg.id} (文档: ${doc.id})`);
+              } catch (error) {
+                console.error(`[SYNC] 下载图片 ${localImg.id} 失败:`, error);
+              }
+            }
+            continue;
+          }
+
+          // 本地有图片数据，检查云端是否也有
+          const cloudImg = cloudImagesMap.get(localImg.id);
+          if (!cloudImg || !cloudImg.dataUrl) {
+            // 云端没有数据或图片对象不存在，上传到云端
+            const base64Data = localImageData.dataUrl.split(',')[1];
+            if (!base64Data) {
+              console.warn(`图片 ${localImg.id} 数据格式无效，跳过上传`);
+              continue;
+            }
+
+            const imgSize = Math.ceil(base64Data.length * 0.75);
+            if (imgSize > MAX_IMAGE_SIZE) {
+              console.warn(`图片 ${localImg.id} 超过大小限制，跳过上传`);
+              continue;
+            }
+
+            // 如果云端图片对象不存在，需要创建它
+            if (!cloudImg) {
+              // 在云端文档中添加新的图片对象
+              const newImg = {
+                id: localImg.id,
+                name: localImg.name || localImg.id,
+                mime: localImg.mime || 'image/png',
+                dataUrl: localImageData.dataUrl
+              };
+              cloudDocImages.push(newImg);
+              console.log(`[SYNC] 添加新图片 ${localImg.id} 到云端文档 (文档: ${doc.id})`);
+            } else {
+              // 更新云端文档中的图片数据
+              cloudImg.dataUrl = localImageData.dataUrl;
+            }
+            totalUploaded++;
+            console.log(`[SYNC] 上传图片 ${localImg.id} (文档: ${doc.id})`);
+          }
+        }
+
+        // 检查云端有但本地没有的图片
+        for (const cloudImg of cloudDocImages) {
+          if (!cloudImg || !cloudImg.id) continue;
+
+          // 检查本地是否已有这个图片
+          if (localImagesMap.has(cloudImg.id)) {
+            continue;
+          }
+
+          // 检查本地文档中是否有这个图片的引用
+          const hasReference = localDocImages.some(localImg => localImg && localImg.id === cloudImg.id);
+          if (!hasReference) {
+            continue;
+          }
+
+          // 本地没有图片数据，但文档中有引用，从云端下载
+          if (cloudImg.dataUrl) {
+            try {
+              const blob = await window.imageStorage.dataUrlToBlob(cloudImg.dataUrl);
+              await window.imageStorage.saveImage(cloudImg.id, blob, {
+                name: cloudImg.name || cloudImg.id,
+                documentId: doc.id
+              });
+              totalDownloaded++;
+              console.log(`[SYNC] 下载图片 ${cloudImg.id} (文档: ${doc.id})`);
+            } catch (error) {
+              console.error(`[SYNC] 下载图片 ${cloudImg.id} 失败:`, error);
+            }
+          }
+        }
+      }
+
+      // 如果有图片需要上传到云端，更新云端文档数据
+      if (totalUploaded > 0) {
+        // 使用传入的云端对象缓存，如果没有则重新获取
+        const obj = cloudDataCache && cloudDataCache.obj ? cloudDataCache.obj : await fetchOrCreateRecord();
+        obj.set('docs', cloudDocs);
+        await obj.save();
+        console.log(`[SYNC] 更新云端文档数据，包含${totalUploaded}张新图片`);
+      }
+
+      console.log(`[SYNC] 图片同步完成：上传${totalUploaded}张，下载${totalDownloaded}张`);
+      return { uploaded: totalUploaded, downloaded: totalDownloaded, message: '图片同步完成' };
+    } catch (error) {
+      console.error('[SYNC] 图片同步失败:', error);
+      throw new Error(`图片同步失败：${error.message}`);
+    }
+  }
+
+  /**
+   * 将图片数据同步到云端
+   * @param {Array} docs - 文档数组
+   * @param {Object} cloudObj - 云端对象（可选）
+   * @returns {Promise<Object>} 上传结果
+   */
+  async function syncImagesToCloud(docs, cloudObj = null) {
+    if (!isLoggedIn()) {
+      console.log('[SYNC] 未登录，跳过图片上传到云端');
+      return { uploaded: 0, message: '未登录，跳过图片上传' };
+    }
+
+    if (!window.imageStorage) {
+      console.warn('[SYNC] 图片存储管理器未初始化，跳过图片上传到云端');
+      return { uploaded: 0, message: '图片存储管理器未初始化' };
+    }
+
+    try {
+      console.log('[SYNC] 开始上传图片到云端...');
+
+      // 从所有文档中提取图片ID
+      const allImageIds = new Set();
+      for (const doc of docs) {
+        if (doc && doc.md) {
+          const imageIds = extractImageIdsFromDoc(doc);
+          imageIds.forEach(id => allImageIds.add(id));
+        }
+      }
+
+      if (allImageIds.size === 0) {
+        console.log('[SYNC] 没有需要上传的图片');
+        return { uploaded: 0, message: '没有需要上传的图片' };
+      }
+
+      // 获取本地图片数据
+      const localImagesMap = await window.imageStorage.getImagesMap();
+      const imagesToUpload = Array.from(allImageIds).filter(id => localImagesMap.has(id));
+
+      if (imagesToUpload.length === 0) {
+        console.log('[SYNC] 本地没有找到需要上传的图片');
+        return { uploaded: 0, message: '本地没有找到需要上传的图片' };
+      }
+
+      // 上传图片，使用传入的云端对象
+      const uploadResult = await uploadLocalImages(imagesToUpload, cloudObj);
+      console.log(`[SYNC] 成功上传${uploadResult.uploaded}张图片到云端`);
+      return uploadResult;
+    } catch (error) {
+      console.error('[SYNC] 上传图片到云端失败:', error);
+      throw new Error(`上传图片到云端失败：${error.message}`);
+    }
+  }
+
   // 暴露手动入口（如需）
-  window.MW_LC_SYNC = { sync: bidirectionalSync, clear: clearCloud, updateStatus: updateSyncStatus };
+  window.MW_LC_SYNC = {
+    sync: bidirectionalSync,
+    clear: clearCloud,
+    updateStatus: updateSyncStatus,
+    syncImagesForDoc: syncImagesForDoc,
+    uploadLocalImages: uploadLocalImages,
+    downloadCloudImages: downloadCloudImages,
+    syncAllImages: syncAllImages,
+    syncImagesToCloud: syncImagesToCloud
+  };
 
   // 暴露同步预览对话框函数用于测试国际化 (测试完成后应注释掉)
   // window.showSyncPreviewDialog = showSyncPreviewDialog;

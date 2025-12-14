@@ -309,7 +309,7 @@ function mw_confirmNewDoc(useAIGenerate) {
   const doc = {
     id, name,
     md: '# ' + name + '\n',
-    images: [], // {id, name, mime, dataUrl}
+    images: [], // {id, name, mime}
     createdAt: Date.now(),
     updatedAt: Date.now(),
     version: 1
@@ -445,7 +445,7 @@ function mw_showBatchDeleteConfirm() {
 }
 
 // 确认批量删除
-function mw_confirmBatchDelete() {
+async function mw_confirmBatchDelete() {
   mw_hideDeleteConfirm();
 
   const checkboxes = document.querySelectorAll('.doc-checkbox:checked');
@@ -468,6 +468,23 @@ function mw_confirmBatchDelete() {
   });
 
   mw_saveDocs(docs);
+
+  // 删除关联的图片
+  if (window.imageStorage) {
+    let totalDeletedImages = 0;
+    for (const docId of selectedIds) {
+      try {
+        const deletedImagesCount = await window.imageStorage.deleteImagesByDocumentId(docId);
+        totalDeletedImages += deletedImagesCount;
+        console.log(`删除了文档 ${docId} 的 ${deletedImagesCount} 张图片`);
+      } catch (error) {
+        console.error(`删除文档 ${docId} 关联图片失败:`, error);
+      }
+    }
+    if (totalDeletedImages > 0) {
+      console.log(`批量删除文档时总共删除了 ${totalDeletedImages} 张图片`);
+    }
+  }
 
   // 如果删除的文档中包含当前活动文档
   const activeId = mw_getActive();
@@ -507,7 +524,7 @@ function mw_hideDeleteConfirm() {
 }
 
 // 确认删除单个文档
-function mw_confirmDeleteDoc() {
+async function mw_confirmDeleteDoc() {
   const dialog = document.getElementById('delete-confirm-dialog');
   const docId = dialog.dataset.docId;
 
@@ -525,6 +542,16 @@ function mw_confirmDeleteDoc() {
       updatedAt: Date.now()
     };
     mw_saveDocs(docs);
+
+    // 删除关联的图片
+    if (window.imageStorage) {
+      try {
+        const deletedImagesCount = await window.imageStorage.deleteImagesByDocumentId(docId);
+        console.log(`删除了文档 ${docId} 的 ${deletedImagesCount} 张图片`);
+      } catch (error) {
+        console.error(`删除文档 ${docId} 关联图片失败:`, error);
+      }
+    }
 
     // 如果删除的是当前活动文档
     const activeId = mw_getActive();
@@ -681,8 +708,34 @@ async function mw_exportDocZip(id) {
   // images
   if (doc.images && doc.images.length) {
     const imgFolder = root.folder('images');
+
+    // 从IndexedDB获取图片数据
+    let imagesMap;
+    if (window.imageStorage) {
+      try {
+        imagesMap = await window.imageStorage.getImagesMap();
+      } catch (error) {
+        console.warn('从IndexedDB获取图片失败:', error);
+        imagesMap = new Map();
+      }
+    } else {
+      imagesMap = new Map();
+    }
+
     for (let i = 0; i < doc.images.length; i++) {
       const img = doc.images[i];
+
+      // 优先从IndexedDB获取图片数据，如果没有则使用文档中的数据
+      let imageData = imagesMap.get(img.id);
+      if (!imageData && img.dataUrl) {
+        imageData = img;
+      }
+
+      if (!imageData || !imageData.dataUrl) {
+        console.warn(`导出图片失败: 图片 ${img.id} 数据不可用`);
+        continue;
+      }
+
       // 生成唯一的文件名，优先使用图片ID，确保与markdown引用保持一致
       let fname;
       if (img.id) {
@@ -709,7 +762,7 @@ async function mw_exportDocZip(id) {
       }
 
       // 将 dataURL 转为二进制
-      const blob = await mw_dataUrlToBlob(img.dataUrl || '', img.mime || 'image/png');
+      const blob = await window.imageStorage.dataUrlToBlob(imageData.dataUrl);
       const ab = await blob.arrayBuffer();
       imgFolder.file(finalName, ab);
 
@@ -767,6 +820,33 @@ async function mw_exportAllZip() {
     const root = zip.folder(safeName);
     root.file('index.md', doc.md || '');
 
+    // 获取该文档的完整图片数据
+    let imagesMap = {};
+    if (window.imageStorage && window.imageStorage.getImagesMap) {
+      try {
+        const mapResult = await window.imageStorage.getImagesMap(doc.id);
+        console.log('mw_exportAllZip: 获取到的imagesMap', {
+          docId: doc.id,
+          isMap: mapResult instanceof Map,
+          size: mapResult.size || Object.keys(mapResult).length,
+          firstKey: mapResult.keys ? mapResult.keys().next().value : Object.keys(mapResult)[0],
+          firstImage: mapResult.get ? mapResult.get(mapResult.keys().next().value) : mapResult[Object.keys(mapResult)[0]]
+        });
+
+        // 如果是Map对象，转换为普通对象
+        if (mapResult instanceof Map) {
+          imagesMap = {};
+          for (const [key, value] of mapResult.entries()) {
+            imagesMap[key] = value;
+          }
+        } else {
+          imagesMap = mapResult;
+        }
+      } catch (err) {
+        console.error('获取图片数据失败:', err);
+      }
+    }
+
     // 处理图片导出
     if (doc.images && Array.isArray(doc.images) && doc.images.length > 0) {
       const imgFolder = root.folder('images');
@@ -798,9 +878,27 @@ async function mw_exportAllZip() {
         }
 
         try {
+          // 从imagesMap获取完整的图片数据
+          const imageData = imagesMap[img.id] || img;
+          console.log('mw_exportAllZip: 图片数据', {
+            id: img.id,
+            hasDataUrl: !!imageData.dataUrl,
+            dataUrlLength: imageData.dataUrl ? imageData.dataUrl.length : 0,
+            dataUrlPrefix: imageData.dataUrl ? imageData.dataUrl.substring(0, 50) + '...' : 'null'
+          });
+
           // dataUrl 转 Blob 再转 ArrayBuffer
-          const blob = await mw_dataUrlToBlob(img.dataUrl || '', img.mime || 'image/png');
+          const blob = await window.imageStorage.dataUrlToBlob(imageData.dataUrl || '');
+          console.log('mw_exportAllZip: 转换后的Blob', {
+            size: blob.size,
+            type: blob.type
+          });
+
           const ab = await blob.arrayBuffer();
+          console.log('mw_exportAllZip: 转换后的ArrayBuffer', {
+            byteLength: ab.byteLength
+          });
+
           imgFolder.file(finalName, ab);
           console.log('mw_exportAllZip: 导出图片', finalName, '文档:', safeName, '原ID:', img.id, '原name:', img.name);
         } catch (err) {
@@ -950,7 +1048,8 @@ async function mw_importZip(file) {
 
           // entry 本身就是 JSZip 的 file 对象 —— 直接调用其 async 方法更稳健
           const ab = await entry.async('arraybuffer');
-          const dataUrl = await mw_arrayBufferToDataUrl(ab, mime);
+          // 将arrayBuffer转换为DataURL
+          const dataUrl = await window.imageStorage.blobToDataUrl(new Blob([ab], { type: mime }));
           // 只保留文件名，不带路径
           const fname = fullName.split('/').pop() || fullName;
 
@@ -964,7 +1063,28 @@ async function mw_importZip(file) {
             console.log('mw_importZip: 使用现有图片ID', fname, '->', imageId);
           }
 
-          images.push({ id: imageId, name: fname, mime, dataUrl });
+          // 将图片保存到IndexedDB，只在文档中保存基本信息
+          if (window.imageStorage) {
+            try {
+              // 将dataUrl转换为Blob
+              const blob = await window.imageStorage.dataUrlToBlob(dataUrl);
+
+              // 获取当前文档ID
+              const docId = originalId || ('doc_' + Date.now() + '_' + Math.floor(Math.random() * 1000));
+
+              await window.imageStorage.saveImage(imageId, blob, {
+                name: fname,
+                type: mime,
+                documentId: docId
+              });
+              console.log('mw_importZip: 图片已保存到IndexedDB', imageId);
+            } catch (error) {
+              console.warn('mw_importZip: 保存图片到IndexedDB失败', imageId, error);
+            }
+          }
+
+          // 只在文档中保存图片基本信息，不保存dataUrl
+          images.push({ id: imageId, name: fname, mime });
         } catch (err) {
           console.warn('mw_importZip: 读取图片条目失败，已跳过', entry && entry.name, err);
         }
@@ -1133,30 +1253,6 @@ function mw_guessMime(name) {
   if (lower.endsWith('.webp')) return 'image/webp';
   return 'application/octet-stream';
 }
-async function mw_arrayBufferToDataUrl(ab, mime) {
-  const blob = new Blob([ab], { type: mime || 'application/octet-stream' });
-  return await new Promise(resolve => {
-    const r = new FileReader();
-    r.onload = () => resolve(r.result);
-    r.readAsDataURL(blob);
-  });
-}
-
-// 辅助函数：DataURL 转 Blob (保持原有逻辑，确保健壮性)
-async function mw_dataUrlToBlob(dataUrl, mime) {
-  if (!dataUrl || !dataUrl.includes(',')) {
-    return new Blob([], { type: mime || 'application/octet-stream' });
-  }
-  const arr = dataUrl.split(',');
-  const bstr = atob(arr[1]);
-  let n = bstr.length;
-  const u8 = new Uint8Array(n);
-  while (n--) {
-    u8[n] = bstr.charCodeAt(n);
-  }
-  return new Blob([u8], { type: mime || 'application/octet-stream' });
-}
-
 function mw_fetchAIPlatformConfigsSnapshot() {
   try {
     const frame = document.getElementById('aiModalFrame');
@@ -1338,11 +1434,16 @@ function resolveDocIdConflict(existingDoc, importDoc, resolution) {
 }
 
 // ===== 清空所有本地数据 =====
-function mw_clearAllData() {
-  if (confirm('⚠️ 警告：此操作将永久删除所有本地数据！\n\n确认要清空以下数据吗？\n• 所有文档数据\n• AI平台配置\n• 提示词模板\n• 编辑器设置\n\n此操作不可恢复，建议先导出备份。')) {
+async function mw_clearAllData() {
+  if (confirm('⚠️ 警告：此操作将永久删除所有本地数据！\n\n确认要清空以下数据吗？\n• 所有文档数据\n• AI平台配置\n• 提示词模板\n• 编辑器设置\n• 所有图片数据\n\n此操作不可恢复，建议先导出备份。')) {
     try {
       // 清空所有localStorage数据
       localStorage.clear();
+
+      // 清空IndexedDB中的所有图片
+      if (window.imageStorage) {
+        await window.imageStorage.clearAllImages();
+      }
 
       // 重新初始化必要的数据结构
       localStorage.setItem('mindword_docs', '[]');
@@ -1498,8 +1599,47 @@ window.addEventListener('message', function (e) {
       if (idx >= 0) {
         // 更新主数据库中的文档数据
         docs[idx].md = payload.md;
-        // 关键：同步图片数据。payload.images 是 [{id, name, mime, dataUrl}, ...] 数组
-        docs[idx].images = Array.isArray(payload.images) ? payload.images.map(img => ({ id: img.id, name: img.name, mime: img.mime, dataUrl: img.dataUrl })) : [];
+
+        // 关键：同步图片数据到IndexedDB
+        if (window.imageStorage && Array.isArray(payload.images)) {
+          // 将图片数据保存到IndexedDB
+          const imagesMap = new Map();
+          payload.images.forEach(img => {
+            if (img.id && img.dataUrl) {
+              imagesMap.set(img.id, {
+                id: img.id,
+                name: img.name,
+                mime: img.mime,
+                dataUrl: img.dataUrl
+              });
+            }
+          });
+
+          if (imagesMap.size > 0) {
+            // 为每个图片添加文档ID并转换数据格式
+            const imagesWithDocId = new Map();
+            for (const [id, imageData] of imagesMap.entries()) {
+              imagesWithDocId.set(id, {
+                id: imageData.id,
+                name: imageData.name,
+                type: imageData.mime,  // 将 mime 转换为 type
+                data: imageData.dataUrl, // 将 dataUrl 转换为 data
+                documentId: targetId
+              });
+            }
+            window.imageStorage.saveImages(imagesWithDocId).catch(error => {
+              console.warn('保存图片到IndexedDB失败:', error);
+            });
+          }
+        }
+
+        // 更新文档中的图片引用（只保留基本信息，不存储dataUrl）
+        docs[idx].images = Array.isArray(payload.images) ? payload.images.map(img => ({
+          id: img.id,
+          name: img.name,
+          mime: img.mime
+        })) : [];
+
         docs[idx].updatedAt = Date.now();
 
         // 如果版本号存在则更新
@@ -1552,7 +1692,46 @@ window.addEventListener('message', function (e) {
         if (idx >= 0) {
           // 覆盖当前活动文档
           docs[idx].md = md;
-          docs[idx].images = images.map(img => ({ id: img.id, name: img.name, mime: img.mime, dataUrl: img.dataUrl }));
+
+          // 同步图片数据到IndexedDB
+          if (window.imageStorage && Array.isArray(images)) {
+            const imagesMap = new Map();
+            images.forEach(img => {
+              if (img.id && img.dataUrl) {
+                imagesMap.set(img.id, {
+                  id: img.id,
+                  name: img.name,
+                  mime: img.mime,
+                  dataUrl: img.dataUrl
+                });
+              }
+            });
+
+            if (imagesMap.size > 0) {
+              // 为每个图片添加文档ID
+              const imagesWithDocId = new Map();
+              for (const [id, imageData] of imagesMap.entries()) {
+                imagesWithDocId.set(id, {
+                  id: imageData.id,
+                  name: imageData.name,
+                  type: imageData.mime,  // 将 mime 转换为 type
+                  data: imageData.dataUrl, // 将 dataUrl 转换为 data
+                  documentId: docs[idx].id
+                });
+              }
+              window.imageStorage.saveImages(imagesWithDocId).catch(error => {
+                console.warn('保存图片到IndexedDB失败:', error);
+              });
+            }
+          }
+
+          // 更新文档中的图片引用（只保留基本信息）
+          docs[idx].images = Array.isArray(images) ? images.map(img => ({
+            id: img.id,
+            name: img.name,
+            mime: img.mime
+          })) : [];
+
           docs[idx].updatedAt = Date.now();
           docs[idx].version = (Number(docs[idx].version || 1) + 1);
 
@@ -1575,11 +1754,48 @@ window.addEventListener('message', function (e) {
       // 无活动文档：创建新文档
       const newId = 'doc_' + Date.now();
       const name = mw_extractTitleFromMd(md || '');
+
+      // 同步图片数据到IndexedDB
+      if (window.imageStorage && Array.isArray(images)) {
+        const imagesMap = new Map();
+        images.forEach(img => {
+          if (img.id && img.dataUrl) {
+            imagesMap.set(img.id, {
+              id: img.id,
+              name: img.name,
+              mime: img.mime,
+              dataUrl: img.dataUrl
+            });
+          }
+        });
+
+        if (imagesMap.size > 0) {
+          // 为每个图片添加新文档ID
+          const imagesWithDocId = new Map();
+          for (const [id, imageData] of imagesMap.entries()) {
+            imagesWithDocId.set(id, {
+              id: imageData.id,
+              name: imageData.name,
+              type: imageData.mime,  // 将 mime 转换为 type
+              data: imageData.dataUrl, // 将 dataUrl 转换为 data
+              documentId: newId
+            });
+          }
+          window.imageStorage.saveImages(imagesWithDocId).catch(error => {
+            console.warn('保存图片到IndexedDB失败:', error);
+          });
+        }
+      }
+
       const doc = {
         id: newId,
         name,
         md: md || ('# ' + name + '\n'),
-        images: images.map(img => ({ id: img.id, name: img.name, mime: img.mime, dataUrl: img.dataUrl })),
+        images: Array.isArray(images) ? images.map(img => ({
+          id: img.id,
+          name: img.name,
+          mime: img.mime
+        })) : [],
         createdAt: Date.now(),
         updatedAt: Date.now(),
         version: 1
@@ -1682,6 +1898,154 @@ window.addEventListener('storage', function (e) {
     checkMarkdownDataChange();
   }
 });
+
+/**
+ * 清理指定文档的未使用图片
+ * @param {string} docId - 文档ID
+ * @returns {Promise<Object>} 清理结果 {removed: number, message: string}
+ */
+async function mw_cleanupDocImages(docId) {
+  if (!window.imageStorage) {
+    throw new Error('图片存储管理器未初始化');
+  }
+
+  try {
+    const docs = mw_loadDocs();
+    const doc = docs.find(d => d.id === docId);
+    if (!doc) {
+      throw new Error('文档不存在');
+    }
+
+    // 从文档内容中提取所有图片ID
+    const usedImageIds = new Set();
+    const imageRegex = /!\[[^\]]*\]\(([^)]+)\)/g;
+    let match;
+    while ((match = imageRegex.exec(doc.md || '')) !== null) {
+      const imageId = match[1];
+      if (imageId && !imageId.match(/^(https?:\/\/|data:)/)) {
+        usedImageIds.add(imageId);
+      }
+    }
+
+    // 获取文档中存储的图片ID列表
+    const docImageIds = new Set((doc.images || []).map(img => img.id));
+
+    // 只获取当前文档的图片ID（通过documentId过滤）
+    const allImagesMap = await window.imageStorage.getImagesMap(docId);
+    const allImageIds = new Set(allImagesMap.keys());
+
+    // 找出当前文档未使用的图片ID（在当前文档的IndexedDB中但不在文档内容中）
+    const unusedImageIds = [];
+    for (const imageId of allImageIds) {
+      if (!usedImageIds.has(imageId)) {
+        unusedImageIds.push(imageId);
+      }
+    }
+
+    if (unusedImageIds.length === 0) {
+      return { removed: 0, message: '没有需要清理的图片' };
+    }
+
+    // 删除未使用的图片
+    let removedCount = 0;
+    for (const imageId of unusedImageIds) {
+      try {
+        await window.imageStorage.deleteImage(imageId);
+        removedCount++;
+      } catch (error) {
+        console.warn(`删除图片 ${imageId} 失败:`, error);
+      }
+    }
+
+    // 更新文档中的图片列表，移除已删除的图片
+    if (doc.images && doc.images.length > 0) {
+      doc.images = doc.images.filter(img => !unusedImageIds.includes(img.id));
+      doc.updatedAt = Date.now();
+      doc.version = (Number(doc.version || 1) + 1);
+
+      // 保存更新后的文档
+      const docIndex = docs.findIndex(d => d.id === docId);
+      if (docIndex >= 0) {
+        docs[docIndex] = doc;
+        mw_saveDocs(docs);
+      }
+    }
+
+    const message = `已清理 ${removedCount} 张未使用图片`;
+    try { showSuccess && showSuccess(message); } catch (_) { }
+
+    return { removed: removedCount, message };
+  } catch (error) {
+    const errorMessage = `图片清理失败：${error.message}`;
+    try { showError && showError(errorMessage); } catch (_) { }
+    throw new Error(errorMessage);
+  }
+}
+
+/**
+ * 清理所有文档的未使用图片（跨文档清理）
+ * @returns {Promise<Object>} 清理结果 {removed: number, message: string}
+ */
+async function mw_cleanupAllUnusedImages() {
+  if (!window.imageStorage) {
+    throw new Error('图片存储管理器未初始化');
+  }
+
+  try {
+    const docs = mw_loadDocs();
+
+    // 收集所有文档中使用的图片ID
+    const allUsedImageIds = new Set();
+    docs.forEach(doc => {
+      if (doc.md) {
+        const imageRegex = /!\[[^\]]*\]\(([^)]+)\)/g;
+        let match;
+        while ((match = imageRegex.exec(doc.md)) !== null) {
+          const imageId = match[1];
+          if (imageId && !imageId.match(/^(https?:\/\/|data:)/)) {
+            allUsedImageIds.add(imageId);
+          }
+        }
+      }
+    });
+
+    // 获取IndexedDB中的所有图片ID
+    const allImagesMap = await window.imageStorage.getImagesMap();
+    const allImageIds = new Set(allImagesMap.keys());
+
+    // 找出完全未使用的图片ID（在所有文档中都不使用）
+    const unusedImageIds = [];
+    for (const imageId of allImageIds) {
+      if (!allUsedImageIds.has(imageId)) {
+        unusedImageIds.push(imageId);
+      }
+    }
+
+    if (unusedImageIds.length === 0) {
+      return { removed: 0, message: '没有需要清理的图片' };
+    }
+
+    // 删除未使用的图片
+    let removedCount = 0;
+    for (const imageId of unusedImageIds) {
+      try {
+        await window.imageStorage.deleteImage(imageId);
+        removedCount++;
+      } catch (error) {
+        console.warn(`删除图片 ${imageId} 失败:`, error);
+      }
+    }
+
+    const message = `已清理 ${removedCount} 张跨文档未使用图片`;
+    try { showSuccess && showSuccess(message); } catch (_) { }
+
+    return { removed: removedCount, message };
+  } catch (error) {
+    const errorMessage = `跨文档图片清理失败：${error.message}`;
+    try { showError && showError(errorMessage); } catch (_) { }
+    throw new Error(errorMessage);
+  }
+}
 
 // 定期检查localStorage变化（用于同一页面内的变化）
 setInterval(checkMarkdownDataChange, 1000);

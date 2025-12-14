@@ -1061,6 +1061,22 @@
 
     <!-- 懒加载器 -->
     <script src="lazy-loader.js"></script>
+    <!-- 图片存储管理 -->
+    <script src="utils/image-storage.js"></script>
+
+    <!-- 初始化图片存储迁移 -->
+    <script>
+        window.addEventListener('load', async () => {
+            if (window.ImageStorageManager) {
+                window.imageStorage = new ImageStorageManager();
+                // 执行一次性迁移
+                const result = await window.imageStorage.migrateFromLocalStorage();
+                if (result.migratedCount > 0) {
+                    console.log(`[app] 成功迁移 ${result.migratedCount} 张图片到 IndexedDB`);
+                }
+            }
+        });
+    </script>
 
     <!-- Bootstrap JS for notifications - 延迟加载 -->
     <script>
@@ -1178,6 +1194,18 @@
         // 页面加载完成后隐藏加载动画
         window.addEventListener('load', () => {
             setTimeout(hidePWALoading, 1500); // 比index.html稍长，因为功能更复杂
+        });
+
+        // 初始化图片存储迁移
+        window.addEventListener('load', async () => {
+            if (window.ImageStorageManager) {
+                window.imageStorage = new ImageStorageManager();
+                // 执行一次性迁移
+                const result = await window.imageStorage.migrateFromLocalStorage();
+                if (result.migratedCount > 0) {
+                    console.log(`[app] 成功迁移 ${result.migratedCount} 张图片到 IndexedDB`);
+                }
+            }
         });
 
         // 如果页面已经加载完成，立即隐藏

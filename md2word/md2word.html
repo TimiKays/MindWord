@@ -524,41 +524,53 @@
         }
       }
 
-      // 从 localStorage 读取图片数据
-      function getImageFromStorage(imageName) {
+      // 从存储读取图片数据（IndexedDB）
+      async function getImageFromStorage(imageName) {
         try {
-          const imagesData = localStorage.getItem('markdown-images');
-          if (imagesData) {
-            const images = JSON.parse(imagesData);
-            // images 是一个数组，格式: [["img_id", {name: "...", data: "...", type: "..."}], ...]
-            for (const [imageId, imageInfo] of images) {
-              // 检查图片ID是否匹配
-              if (imageId === imageName) {
-                return imageInfo.data;
-              }
-              // 也检查文件名是否匹配（去掉路径前缀）
-              if (imageInfo.name && (imageInfo.name === imageName || imageInfo.name.endsWith('/' + imageName))) {
-                return imageInfo.data;
-              }
+          // console.log(`[md2word] Looking for image: ${imageName}`);
+
+          // 从 IndexedDB 获取图片 - 获取当前文档的图片
+          const currentDocId = window.__mw_activeDocId || localStorage.getItem('mindword_active_doc_id') || null;
+          // console.log(`[md2word] Current document ID: ${currentDocId}`);
+
+          const imagesMap = await window.imageStorage.getImagesMap(currentDocId);
+          // console.log(`[md2word] Found ${imagesMap.size} images for document ${currentDocId || 'all'}`);
+
+          for (const [imageId, imageInfo] of imagesMap.entries()) {
+            // console.log(`[md2word] Checking image: id=${imageId}, name=${imageInfo.name}, type=${imageInfo.type}`);
+
+            // 检查图片ID是否匹配
+            if (imageId === imageName) {
+              // console.log(`[md2word] Found image by ID: ${imageId}`);
+              return imageInfo.dataUrl;
+            }
+            // 也检查文件名是否匹配（去掉路径前缀）
+            if (imageInfo.name && (imageInfo.name === imageName || imageInfo.name.endsWith('/' + imageName))) {
+              // console.log(`[md2word] Found image by name: ${imageInfo.name}`);
+              return imageInfo.dataUrl;
             }
           }
-        } catch (e) {
-          console.error('读取图片数据失败:', e);
+
+          // console.log(`[md2word] Image not found: ${imageName}`);
+          return null;
+        } catch (error) {
+          console.error(`[md2word] Error getting image ${imageName}:`, error);
+          return null;
         }
-        return null;
       }
 
       // 替换HTML中的图片路径为base64数据
-      function replaceImagesInHtml(html) {
+      async function replaceImagesInHtml(html) {
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
         const images = doc.querySelectorAll('img');
 
-        images.forEach(img => {
+        // 使用 Promise.all 并行处理所有图片
+        await Promise.all(Array.from(images).map(async (img) => {
           const src = img.getAttribute('src');
           if (src && !src.startsWith('data:') && !src.startsWith('http')) {
-            // 这是一个相对路径，尝试从localStorage获取
-            const imageData = getImageFromStorage(src);
+            // 这是一个相对路径，尝试从存储获取
+            const imageData = await getImageFromStorage(src);
             if (imageData) {
               img.setAttribute('src', imageData);
             } else {
@@ -568,7 +580,7 @@
               img.setAttribute('title', `图片路径: ${src}`);
             }
           }
-        });
+        }));
 
         return doc.body.innerHTML;
       }
@@ -645,11 +657,22 @@
       let lastMarkdownData = null;
       let lastImagesData = null;
 
-      // 从 localStorage 读取 Markdown 数据并渲染预览
-      function loadAndRenderMarkdown() {
+      // 从存储读取 Markdown 数据并渲染预览
+      async function loadAndRenderMarkdown() {
         try {
           const markdownData = localStorage.getItem('mindword_markdown_data');
-          const imagesData = localStorage.getItem('markdown-images');
+          let imagesData = null;
+
+          // 检查ImageStorageManager是否已初始化
+          if (!window.imageStorage || !window.imageStorage.getImagesMap) {
+            console.warn('[md2word] ImageStorageManager not ready, skipping render');
+            return;
+          }
+
+          // 从 IndexedDB 获取图片数据 - 获取当前文档的图片
+          const currentDocId = window.__mw_activeDocId || localStorage.getItem('mindword_active_doc_id') || null;
+          const imagesMap = await window.imageStorage.getImagesMap(currentDocId);
+          imagesData = Array.from(imagesMap.entries());
 
           // 检查数据是否真的发生了变化
           if (markdownData === lastMarkdownData && imagesData === lastImagesData) {
@@ -665,8 +688,8 @@
 
           if (markdownData) {
             let htmlContent = md.render(markdownData);
-            // 替换图片路径为localStorage中的base64数据
-            htmlContent = replaceImagesInHtml(htmlContent);
+            // 替换图片路径为存储中的base64数据
+            htmlContent = await replaceImagesInHtml(htmlContent);
             previewEl.innerHTML = htmlContent;
             try { addHeadingIds(previewEl); } catch (e) { }
             try { handleTocClicks(previewEl); } catch (e) { }
@@ -676,7 +699,7 @@
             }
           } else {
             previewEl.innerHTML = '<div class="empty-preview">未找到 mindword_markdown_data 数据</div>';
-            status('未找到 localStorage 中的 mindword_markdown_data');
+            status('未找到存储中的 mindword_markdown_data');
           }
         } catch (e) {
           console.error('加载 Markdown 数据失败:', e);
@@ -687,16 +710,34 @@
 
       // 监听 localStorage 变化（跨窗口/标签页）
       window.addEventListener('storage', function (e) {
-        if (e.key === 'mindword_markdown_data' || e.key === 'markdown-images') {
+        if (e.key === 'mindword_markdown_data') {
           loadAndRenderMarkdown();
         }
       });
 
-      // 页面加载时渲染
-      loadAndRenderMarkdown();
+      // 等待ImageStorageManager初始化完成后渲染（增加重试次数限制）
+      function waitForImageStorageAndRender(retryCount = 0) {
+        const maxRetries = 10; // 最大重试10次（约10秒）
 
-      // 定期检查 localStorage 变化（用于同一页面内的变化，但只在数据真正变化时才重新渲染）
-      setInterval(loadAndRenderMarkdown, 2000); // 降低检查频率到2秒
+        if (window.imageStorage && window.imageStorage.getImagesMap) {
+          // console.log('[md2word] ImageStorageManager ready, starting render');
+          loadAndRenderMarkdown();
+          // 定期检查 localStorage 变化（用于同一页面内的变化，但只在数据真正变化时才重新渲染）
+          setInterval(loadAndRenderMarkdown, 2000); // 降低检查频率到2秒
+        } else if (retryCount < maxRetries) {
+          // 如果还未初始化且未达到最大重试次数，等待后重试
+          setTimeout(() => waitForImageStorageAndRender(retryCount + 1), 1000);
+        } else {
+          // 达到最大重试次数，给出错误提示
+          console.error('[md2word] ImageStorageManager initialization failed after ' + maxRetries + ' attempts');
+        }
+      }
+
+      // 页面加载时开始等待并渲染
+      waitForImageStorageAndRender();
+
+
+      // console.log('[md2word] Debug function available: window.debugImages()');
 
       // 接收来自 index 的滚动请求（preview-scroll-to），根据 raw 在预览中查找并滚动到对应位置
       window.addEventListener('message', function (e) {
@@ -855,7 +896,7 @@
             try { window.__mw_previewHighlightTimers.set(highlightEl, t); } catch (e) { }
           } catch (err) { }
 
-          console.log('[MD2WORD] preview scrolled to match', { nodeid: nodeid, index: last, total: matches.length });
+          // console.log('[md2word] preview scrolled to match', { nodeid: nodeid, index: last, total: matches.length });
         } catch (err) {
           // ignore
         }
@@ -1404,7 +1445,7 @@
                 let imageDataUrl = null;
 
                 if (!src.startsWith('data:') && !src.startsWith('http')) {
-                  imageDataUrl = getImageFromStorage(src);
+                  imageDataUrl = await getImageFromStorage(src);
                 } else {
                   imageDataUrl = src;
                 }
@@ -1511,7 +1552,7 @@
 
                   // 首先尝试从localStorage获取图片数据
                   if (!src.startsWith('data:') && !src.startsWith('http')) {
-                    imageDataUrl = getImageFromStorage(src);
+                    imageDataUrl = await getImageFromStorage(src);
                   } else {
                     imageDataUrl = src;
                   }
@@ -2179,8 +2220,11 @@
             const tokens = md.parse(markdownData, {});
             const blocks = mdTokensToBlocks(tokens);
             // 默认嵌入图片（如果有图片数据的话）
-            const hasImages = localStorage.getItem('markdown-images');
-            const embedImages = !!hasImages;
+            let hasImages = false;
+            const currentDocId = window.__mw_activeDocId || localStorage.getItem('mindword_active_doc_id') || null;
+            const imagesMap = await window.imageStorage.getImagesMap(currentDocId);
+            hasImages = imagesMap.size > 0;
+            const embedImages = hasImages;
             bodyFrag = await blocksToDocumentXmlFragment(blocks, zip, parStyleMap, charStyleMap, numberingInfo, relsObj, embedImages);
           }
 
@@ -2259,8 +2303,18 @@
   <script src="/local-deps/bootstrap.bundle.min.js"></script>
   <!-- 通知桥接器 -->
   <script src="../notification-bridge.js"></script>
+  <!-- 图片存储管理 -->
+  <script src="../utils/image-storage.js"></script>
   <script>
     (function () {
+      // 初始化图片存储管理器
+      if (window.ImageStorageManager) {
+        window.imageStorage = new ImageStorageManager();
+        // console.log('[md2word] ImageStorageManager initialized');
+      } else {
+        console.error('[md2word] ImageStorageManager not found');
+      }
+
       function renderIncomingMarkdown(payload) {
         const md = payload?.md || '';
         const images = payload?.images || [];

@@ -229,7 +229,7 @@ MindWord应用的用户认证系统核心模块，主要功能包括：
   // 首次渲染
   refreshAuthUI();
   // 刷新云同步UI（统一使用LeanCloud方案）
-  try { 
+  try {
     if (typeof window.MW_LC_SYNC !== 'undefined' && typeof window.MW_LC_SYNC.updateStatus === 'function') {
       window.MW_LC_SYNC.updateStatus();
     }
@@ -248,49 +248,102 @@ MindWord应用的用户认证系统核心模块，主要功能包括：
       refreshAuthUI();
     }, 2000);
 
-    // 登录后执行LeanCloud同步（带时间间隔限制）
-        setTimeout(function () {
-          console.log('[AUTH] 登录后自动同步检测');
-          
-          // 检查是否需要显示同步对话框
-          const lastSyncTime = Number(localStorage.getItem('mw_last_auto_sync_time') || 0);
-          const lastDailyReminderTime = Number(localStorage.getItem('mw_last_daily_reminder_time') || 0);
-          const now = Date.now();
-          const oneDay = 24 * 60 * 60 * 1000;
-          
-          // 距离上次自动同步超过24小时，或者今天还没提醒过
-          const shouldShowSync = (now - lastSyncTime > oneDay) || (now - lastDailyReminderTime > oneDay);
-          
-          if (shouldShowSync) {
-            try {
-              // 使用LeanCloud同步
-              if (window.MW_LC_SYNC && typeof window.MW_LC_SYNC.sync === 'function') {
-                console.log('[AUTH] 执行LeanCloud自动同步');
-                localStorage.setItem('mw_last_auto_sync_time', now);
-                localStorage.setItem('mw_last_daily_reminder_time', now);
-                window.MW_LC_SYNC.sync();
-              } else {
-                console.log('[AUTH] LeanCloud同步未准备好，等待初始化');
-                // 如果同步功能还没准备好，稍后再试
-                setTimeout(function () {
-                  if (window.MW_LC_SYNC && typeof window.MW_LC_SYNC.sync === 'function') {
-                    console.log('[AUTH] 重试LeanCloud自动同步');
-                    localStorage.setItem('mw_last_auto_sync_time', now);
-                    localStorage.setItem('mw_last_daily_reminder_time', now);
-                    window.MW_LC_SYNC.sync();
-                  }
-                }, 3000);
-              }
-            } catch (error) {
-              console.error('[AUTH] 自动同步失败:', error);
-              // 即使同步失败，也更新提醒时间，避免频繁弹出
-              localStorage.setItem('mw_last_daily_reminder_time', now);
-            }
-          } else {
-            console.log('[AUTH] 距离上次同步不足24小时，跳过自动同步');
+    // 登录后执行LeanCloud同步（每次登录都触发）
+    setTimeout(function () {
+      console.log('[AUTH] 登录后自动同步检测');
+
+      // 设置登录标记，表示这是刚刚登录
+      localStorage.setItem('mw_just_logged_in', 'true');
+
+      // 检查LeanCloud认证状态是否准备好
+      function checkAndSync() {
+        try {
+          // 检查LeanCloud是否初始化且用户已登录
+          if (typeof AV === 'undefined' || !AV.applicationId) {
+            console.log('[AUTH] LeanCloud未初始化，等待...');
+            return false;
           }
-        }, 4000); // 比认证状态刷新稍晚一些，确保所有组件都初始化完成
+
+          const user = AV.User.current();
+          if (!user || !user.id) {
+            console.log('[AUTH] LeanCloud用户未登录，等待...');
+            return false;
+          }
+
+          // 检查同步功能是否准备好
+          if (!window.MW_LC_SYNC || typeof window.MW_LC_SYNC.sync !== 'function') {
+            console.log('[AUTH] LeanCloud同步功能未准备好，等待...');
+            return false;
+          }
+
+          console.log('[AUTH] 所有条件已满足，执行LeanCloud自动同步');
+          console.log('[AUTH] 当前用户ID:', user.id);
+          window.MW_LC_SYNC.sync();
+          return true;
+        } catch (error) {
+          console.error('[AUTH] 检查同步条件时出错:', error);
+          return false;
+        }
+      }
+
+      // 立即尝试一次
+      if (!checkAndSync()) {
+        // 如果失败，延迟重试
+        let retryCount = 0;
+        const maxRetries = 5;
+        const retryInterval = setInterval(function () {
+          retryCount++;
+          console.log(`[AUTH] 重试同步 (${retryCount}/${maxRetries})`);
+
+          if (checkAndSync() || retryCount >= maxRetries) {
+            clearInterval(retryInterval);
+            if (retryCount >= maxRetries) {
+              console.error('[AUTH] 登录后同步重试次数已达上限，放弃自动同步');
+            }
+          }
+        }, 2000); // 每2秒重试一次
+      }
+    }, 5000); // 增加延迟，确保所有组件和认证状态完全初始化
   }
+
+  // 页面加载时检查是否需要自动同步（非登录情况，带时间间隔限制）
+  setTimeout(function () {
+    // 如果是刚刚登录，则跳过这次检查
+    if (localStorage.getItem('mw_just_logged_in') === 'true') {
+      localStorage.removeItem('mw_just_logged_in'); // 清除标记
+      return;
+    }
+
+    console.log('[AUTH] 页面加载自动同步检测');
+
+    // 检查是否需要显示同步对话框
+    const lastSyncTime = Number(localStorage.getItem('mw_last_auto_sync_time') || 0);
+    const lastDailyReminderTime = Number(localStorage.getItem('mw_last_daily_reminder_time') || 0);
+    const now = Date.now();
+    const oneDay = 24 * 60 * 60 * 1000;
+
+    // 距离上次自动同步超过24小时，或者今天还没提醒过
+    const shouldShowSync = (now - lastSyncTime > oneDay) || (now - lastDailyReminderTime > oneDay);
+
+    if (shouldShowSync) {
+      try {
+        // 使用LeanCloud同步
+        if (window.MW_LC_SYNC && typeof window.MW_LC_SYNC.sync === 'function') {
+          console.log('[AUTH] 执行LeanCloud自动同步');
+          localStorage.setItem('mw_last_auto_sync_time', now);
+          localStorage.setItem('mw_last_daily_reminder_time', now);
+          window.MW_LC_SYNC.sync();
+        }
+      } catch (error) {
+        console.error('[AUTH] 自动同步失败:', error);
+        // 即使同步失败，也更新提醒时间，避免频繁弹出
+        localStorage.setItem('mw_last_daily_reminder_time', now);
+      }
+    } else {
+      console.log('[AUTH] 距离上次同步不足24小时，跳过自动同步');
+    }
+  }, 5000); // 稍晚一些，确保登录后的同步已经处理完毕
+
 
   // 个人菜单下拉功能（增强版，支持点击外部区域自动关闭，包括iframe）
   try {

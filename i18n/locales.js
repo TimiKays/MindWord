@@ -144,7 +144,8 @@ const i18nLocales = {
       feedback: '反馈建议',
       tryNow: '立即体验',
       freeTrial: '免费体验',
-      featureIntro: '功能介绍'
+      featureIntro: '功能介绍',
+      changelog: '更新日志'
     },
 
     // 英雄区域
@@ -357,7 +358,10 @@ const i18nLocales = {
         noData: '暂无数据',
         address: '地址',
         notConfigured: '未配置'
-      }
+      },
+
+      address: '地址',
+      notConfigured: '未配置'
     },
 
 
@@ -372,7 +376,9 @@ const i18nLocales = {
       pageLoadFailed: '页面加载失败',
       retry: '重试',
       reloading: '正在重新加载',
-      keepOnePanel: '至少需要保留一个视图面板！'
+      keepOnePanel: '至少需要保留一个视图面板！',
+      address: '地址',
+      notConfigured: '未配置'
     },
 
     // 认证相关
@@ -684,6 +690,18 @@ const i18nLocales = {
         aiGeneration: {
           title: 'AI Generate Sub-nodes',
           desc: 'During brainstorming or topic refinement, let AI generate child nodes based on a node with one click, manually adopt or edit.'
+        },
+        nodeDefinition: {
+          title: 'Tree Node Definition',
+          desc: 'All Markdown 1-6 level headings and ordered/unordered list lines are used as node titles, other text as node notes.'
+        },
+        syncEdit: {
+          title: 'Bidirectional Sync Editing',
+          desc: 'Edit on either side of the Markdown text or visual mind map, the other side updates instantly, solving synchronization problems.'
+        },
+        aiSubnodes: {
+          title: 'AI Generate Subnodes',
+          desc: 'During brainstorming or topic refinement, you can let AI generate subnodes based on a node with one click, and manually adopt or edit.'
         }
       },
       word: {
@@ -811,7 +829,10 @@ const i18nLocales = {
         noData: 'No data',
         address: 'Address',
         notConfigured: 'Not configured'
-      }
+      },
+
+      address: 'Address',
+      notConfigured: 'Not configured'
     },
 
     // 错误信息
@@ -825,7 +846,9 @@ const i18nLocales = {
       pageLoadFailed: 'Page load failed',
       retry: 'Retry',
       reloading: 'Reloading',
-      keepOnePanel: 'At least one view panel must be kept!'
+      keepOnePanel: 'At least one view panel must be kept!',
+      address: 'Address',
+      notConfigured: 'Not configured'
     },
 
     // 认证相关
@@ -880,7 +903,9 @@ const i18nLocales = {
       sendFailedRetry: 'Send failed, please try again later',
       activationEmailResent: 'Activation email has been resent, please check your email',
       emailNotFound: 'This email is not registered, please check the email address or register first',
-      logout: 'Logout'
+      logout: 'Logout',
+      invalidEmail: 'Invalid email format, please enter a correct email address',
+      sendingResetEmail: 'Sending reset email...'
     },
 
     // 云备份
@@ -1063,7 +1088,8 @@ const i18nLocales = {
       feedback: 'Comentarios',
       tryNow: 'Experimentar Ahora',
       freeTrial: 'Prueba Gratuita',
-      featureIntro: 'Introducción de Funciones'
+      featureIntro: 'Introducción de Funciones',
+      changelog: 'Registro de Cambios'
     },
 
     // 英雄区域
@@ -1273,11 +1299,12 @@ const i18nLocales = {
         loadingPreview: 'Cargando vista previa...',
         loadingMindmap: 'Cargando mapa mental...',
         noData: 'Sin datos',
+        address: 'Dirección',
         notConfigured: 'No configurado'
       },
 
-      // 地址
-      address: 'Dirección'
+      address: 'Dirección',
+      notConfigured: 'No configurado'
     },
 
     // 错误信息
@@ -1291,7 +1318,9 @@ const i18nLocales = {
       pageLoadFailed: 'Falló al cargar la página',
       retry: 'Reintentar',
       reloading: 'Recargando',
-      keepOnePanel: '¡Se debe mantener al menos un panel de vista!'
+      keepOnePanel: '¡Se debe mantener al menos un panel de vista!',
+      address: 'Dirección',
+      notConfigured: 'No configurado'
     },
 
     // 节点操作
@@ -1364,7 +1393,9 @@ const i18nLocales = {
       pageLoadFailed: 'Falló al cargar la página',
       retry: 'Reintentar',
       reloading: 'Recargando',
-      keepOnePanel: '¡Se debe mantener al menos un panel de vista!'
+      keepOnePanel: '¡Se debe mantener al menos un panel de vista!',
+      address: 'Dirección',
+      notConfigured: 'No configurado'
     },
 
     // 认证相关
@@ -1419,7 +1450,9 @@ const i18nLocales = {
       sendFailedRetry: 'Falló al enviar, por favor intente nuevamente más tarde',
       activationEmailResent: 'Se ha reenviado el correo de activación, por favor revise su bandeja de entrada',
       emailNotFound: 'Este correo electrónico no está registrado, por favor verifique la dirección o regístrese primero',
-      logout: 'Cerrar Sesión'
+      logout: 'Cerrar Sesión',
+      invalidEmail: 'Formato de correo electrónico inválido, por favor ingrese una dirección de correo electrónico correcta',
+      sendingResetEmail: 'Enviando correo electrónico de restablecimiento...'
     },
 
     // 云备份
