@@ -526,121 +526,49 @@ class ImageStorageManager {
     // ==================== LeanCloud 云同步功能 ====================
 
     /**
-     * 上传图片到 LeanCloud
+     * 上传图片到云端（已废弃 - 使用文档同步代替）
+     * @deprecated 请使用 leancloud-sync.js 中的同步机制
      * @param {string} imageId - 图片ID
      * @returns {Promise<string>} 云端 URL
      */
     async uploadToCloud(imageId) {
-        if (!window.AV) {
-            throw new Error('LeanCloud SDK not loaded');
-        }
-
-        const imageData = await this.getImage(imageId);
-        if (!imageData) {
-            throw new Error(`Image not found: ${imageId}`);
-        }
-
-        try {
-            // 创建 LeanCloud File
-            const avFile = new AV.File(imageData.name || imageId, imageData.blob);
-            await avFile.save();
-
-            const cloudUrl = avFile.url();
-
-            // 更新本地记录
-            imageData.cloudUrl = cloudUrl;
-            imageData.syncStatus = 'synced';
-            imageData.updatedAt = Date.now();
-
-            await this.saveImage(imageId, imageData.blob, imageData);
-
-            // console.log('[ImageStorage] Image uploaded to cloud:', imageId, cloudUrl);
-            return cloudUrl;
-        } catch (e) {
-            console.error('[ImageStorage] Failed to upload image to cloud:', e);
-            throw e;
-        }
+        console.warn('[ImageStorage] uploadToCloud is deprecated. Use document sync instead.');
+        throw new Error('Direct cloud upload is deprecated. Use document sync mechanism.');
     }
 
     /**
-     * 从 LeanCloud 下载图片
+     * 从云端下载图片（已废弃 - 使用文档同步代替）
+     * @deprecated 请使用 leancloud-sync.js 中的同步机制
      * @param {string} imageId - 图片ID
      * @param {string} cloudUrl - 云端 URL
      * @param {Object} metadata - 元数据
      * @returns {Promise<void>}
      */
     async downloadFromCloud(imageId, cloudUrl, metadata = {}) {
-        try {
-            const response = await fetch(cloudUrl);
-            const blob = await response.blob();
-
-            await this.saveImage(imageId, blob, {
-                ...metadata,
-                cloudUrl: cloudUrl,
-                syncStatus: 'synced'
-            });
-
-            // console.log('[ImageStorage] Image downloaded from cloud:', imageId);
-        } catch (e) {
-            console.error('[ImageStorage] Failed to download image from cloud:', e);
-            throw e;
-        }
+        console.warn('[ImageStorage] downloadFromCloud is deprecated. Use document sync instead.');
+        throw new Error('Direct cloud download is deprecated. Use document sync mechanism.');
     }
 
     /**
-     * 同步文档的所有图片到云端
+     * 同步文档的所有图片到云端（已废弃 - 使用文档同步代替）
+     * @deprecated 请使用 leancloud-sync.js 中的同步机制
      * @param {string} documentId - 文档ID
      * @returns {Promise<Array>} 上传结果数组
      */
     async syncAllToCloud(documentId) {
-        const images = await this.getAllImages(documentId);
-        const pendingImages = images.filter(img => img.syncStatus === 'pending');
-
-        const results = [];
-        for (const image of pendingImages) {
-            try {
-                const cloudUrl = await this.uploadToCloud(image.id);
-                results.push({ id: image.id, success: true, cloudUrl });
-            } catch (e) {
-                results.push({ id: image.id, success: false, error: e.message });
-            }
-        }
-
-        // console.log(`[ImageStorage] Synced ${results.filter(r => r.success).length}/${pendingImages.length} images to cloud`);
-        return results;
+        console.warn('[ImageStorage] syncAllToCloud is deprecated. Use document sync instead.');
+        return [];
     }
 
     /**
-     * 从云端同步图片到本地
+     * 从云端同步图片到本地（已废弃 - 使用文档同步代替）
+     * @deprecated 请使用 leancloud-sync.js 中的同步机制
      * @param {Array} cloudImages - 云端图片信息数组 [{id, cloudUrl, name, type, documentId}]
      * @returns {Promise<Array>} 下载结果数组
      */
     async syncFromCloud(cloudImages) {
-        const results = [];
-
-        for (const cloudImage of cloudImages) {
-            try {
-                // 检查本地是否已存在
-                const localImage = await this.getImage(cloudImage.id);
-
-                // 如果本地不存在或云端更新，则下载
-                if (!localImage || localImage.cloudUrl !== cloudImage.cloudUrl) {
-                    await this.downloadFromCloud(cloudImage.id, cloudImage.cloudUrl, {
-                        documentId: cloudImage.documentId,
-                        name: cloudImage.name,
-                        type: cloudImage.type
-                    });
-                    results.push({ id: cloudImage.id, success: true });
-                } else {
-                    results.push({ id: cloudImage.id, success: true, skipped: true });
-                }
-            } catch (e) {
-                results.push({ id: cloudImage.id, success: false, error: e.message });
-            }
-        }
-
-        // console.log(`[ImageStorage] Synced ${results.filter(r => r.success).length}/${cloudImages.length} images from cloud`);
-        return results;
+        console.warn('[ImageStorage] syncFromCloud is deprecated. Use document sync instead.');
+        return [];
     }
 
     // ==================== 数据迁移功能 ====================
@@ -675,6 +603,9 @@ class ImageStorageManager {
             let migratedCount = 0;
             const errors = [];
 
+            // 尝试从文档中获取图片ID与文档ID的映射关系
+            const imageToDocMap = this._buildImageToDocMap();
+
             // 迁移每张图片
             for (const [id, imageData] of oldImages) {
                 try {
@@ -687,16 +618,23 @@ class ImageStorageManager {
                     // 将 base64 转换为 Blob
                     const blob = await this.dataUrlToBlob(imageData.data);
 
-                    // 由于 localStorage 中的图片没有 documentId 信息，
-                    // 我们将其设置为 null，后续可以根据实际使用场景重新关联
+                    // 尝试从文档中找到对应的文档ID
+                    const documentId = imageToDocMap.get(id) || null;
+
+                    // 保存图片，设置找到的文档ID
                     await this.saveImage(id, blob, {
                         name: imageData.name,
                         type: imageData.type,
-                        documentId: null, // localStorage 迁移的图片没有 documentId
+                        documentId: documentId, // 尝试从文档中找到的文档ID
                         syncStatus: 'pending' // 迁移后的图片需要同步到云端
                     });
 
                     migratedCount++;
+                    if (documentId) {
+                        console.log(`[ImageStorage] Migrated image ${id} with documentId ${documentId}`);
+                    } else {
+                        console.log(`[ImageStorage] Migrated image ${id} without documentId (not found in any document)`);
+                    }
                 } catch (e) {
                     console.error(`[ImageStorage] Failed to migrate image ${id}:`, e);
                     errors.push({ id, error: e.message });
@@ -717,6 +655,51 @@ class ImageStorageManager {
             console.error('[ImageStorage] Migration failed:', e);
             return { success: false, error: e.message };
         }
+    }
+
+    /**
+     * 构建图片ID到文档ID的映射关系
+     * @returns {Map<string, string>} 图片ID到文档ID的映射
+     */
+    _buildImageToDocMap() {
+        const imageToDocMap = new Map();
+
+        try {
+            // 获取所有文档
+            const docs = JSON.parse(localStorage.getItem('mw_documents') || '[]');
+
+            // 遍历每个文档
+            for (const doc of docs) {
+                if (!doc.md || doc.deletedAt) continue;
+
+                // 从文档内容中提取图片引用
+                const imageRegex = /!\[[^\]]*\]\(([^)]+)\)/g;
+                let match;
+
+                while ((match = imageRegex.exec(doc.md)) !== null) {
+                    const imageId = match[1];
+                    if (imageId && !imageId.match(/^(https?:\/\/|data:)/)) {
+                        // 找到图片引用，记录图片ID与文档ID的映射
+                        imageToDocMap.set(imageId, doc.id);
+                    }
+                }
+
+                // 同时检查文档中存储的图片列表
+                if (doc.images && Array.isArray(doc.images)) {
+                    for (const img of doc.images) {
+                        if (img.id) {
+                            imageToDocMap.set(img.id, doc.id);
+                        }
+                    }
+                }
+            }
+
+            console.log(`[ImageStorage] Built image-to-document map for ${imageToDocMap.size} images`);
+        } catch (e) {
+            console.error('[ImageStorage] Failed to build image-to-document map:', e);
+        }
+
+        return imageToDocMap;
     }
 
     // ==================== localStorage 降级方案 ====================

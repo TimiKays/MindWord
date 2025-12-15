@@ -455,24 +455,26 @@
 
         // 初始化为隐藏（确保第一次页面加载时不显示）
         if (modalRoot) { modalRoot.style.display = 'none'; modalRoot.setAttribute('aria-hidden', 'true'); }
-      });
+      })();
 
       // 为md2word中的图片添加点击事件监听器，用于预览图片
-      document.addEventListener('DOMContentLoaded', function () {
-        // 监听所有图片的点击事件
-        document.addEventListener('click', function (e) {
-          const img = e.target.closest('img');
-          if (img && img.hasAttribute('data-image-url')) {
-            e.stopPropagation();
-            const imageData = img.getAttribute('data-image-url');
-            const imageId = img.getAttribute('data-image-id');
-            const alt = img.getAttribute('alt') || '';
-            if (window.NoteImageUtils && window.NoteImageUtils.showImagePreview) {
-              window.NoteImageUtils.showImagePreview(imageData, alt, imageId);
+      if (document && document.addEventListener) {
+        document.addEventListener('DOMContentLoaded', function () {
+          // 监听所有图片的点击事件
+          document.addEventListener('click', function (e) {
+            const img = e.target.closest('img');
+            if (img && img.hasAttribute('data-image-url')) {
+              e.stopPropagation();
+              const imageData = img.getAttribute('data-image-url');
+              const imageId = img.getAttribute('data-image-id');
+              const alt = img.getAttribute('alt') || '';
+              if (window.NoteImageUtils && window.NoteImageUtils.showImagePreview) {
+                window.NoteImageUtils.showImagePreview(imageData, alt, imageId);
+              }
             }
-          }
+          });
         });
-      })();
+      }
     </script>
 
     <!-- 移动端/窄屏显示的“更多”按钮，用于展开次要控件

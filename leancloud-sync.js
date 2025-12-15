@@ -349,7 +349,7 @@
   }
 
   // 三向合并：本地 + 云端 → 目标结构
-  function mergeToTarget(local, cloud) {
+  async function mergeToTarget(local, cloud) {
     const target = {
       docs: [],
       aiConfig: {},
@@ -386,16 +386,16 @@
       const cd = cloudDocMap.get(id);
 
       if (!ld && cd) {           // 仅云端有
-        target.docs.push(cd);
+        target.docs.push(await cleanDocImagesArray(cd));
       } else if (ld && !cd) {    // 仅本地有
-        target.docs.push(ld);
+        target.docs.push(await cleanDocImagesArray(ld));
       } else {                   // 两边都有
         const hashL = hashDoc(ld);
         const hashC = hashDoc(cd);
         if (hashL === hashC) {   // 内容相同，用云端
-          target.docs.push(cd);
+          target.docs.push(await cleanDocImagesArray(cd));
         } else {                 // 内容不同，按时间戳决胜
-          target.docs.push(Number(ld.updatedAt) >= Number(cd.updatedAt) ? ld : cd);
+          target.docs.push(await cleanDocImagesArray(Number(ld.updatedAt) >= Number(cd.updatedAt) ? ld : cd));
         }
       }
     }
@@ -474,24 +474,87 @@
   }
 
   // 落地：云端
-  async function applyTargetToCloud(target, cloudFullData, cloudObj) {
+  async function applyTargetToCloud(target, cloudFullData, cloudObj, localFullData) {
     console.log('[SYNC] 开始云端同步，用户状态:', AV.User.current() ? '已登录' : '未登录');
     const user = AV.User.current();
     if (!user) throw new Error('未登录');
 
-    // 0. 先补回云端已删除记录（本地可能已彻底剔除），得到完整目标
-    const targetIds = new Set((target.docs || []).map(d => d.id));
-    const mergedDocs = [...(target.docs || [])];
-    for (const cd of (cloudFullData ? cloudFullData.docs : [])) {
-      if (!targetIds.has(cd.id) && cd.deletedAt) {
-        mergedDocs.push(cd);   // 云端独有且已标记删除
+    // 添加版本检查和防并发机制
+    if (!cloudObj) {
+      throw new Error('云端对象为空，无法同步');
+    }
+
+    // 获取当前云端对象的版本信息
+    const currentVersion = cloudObj.get('updatedAtMs') || 0;
+    console.log('[SYNC] 当前云端对象版本:', currentVersion);
+
+    // 关键验证：确保target数据是用户选择的结果，而不是云端数据
+    console.log('[SYNC] === 关键数据验证 ===');
+    console.log('[SYNC] target数据来源检查:');
+    console.log('[SYNC] - target.docs数量:', target.docs ? target.docs.length : 0);
+    console.log('[SYNC] - target.aiConfig键数量:', target.aiConfig ? Object.keys(target.aiConfig).length : 0);
+    console.log('[SYNC] - target.promptTemplates数量:', target.promptTemplates ? target.promptTemplates.length : 0);
+    console.log('[SYNC] - target.myPromptTemplates数量:', target.myPromptTemplates ? target.myPromptTemplates.length : 0);
+
+    console.log('[SYNC] cloudFullData数据来源检查:');
+    console.log('[SYNC] - cloudFullData.docs数量:', cloudFullData.docs ? cloudFullData.docs.length : 0);
+    console.log('[SYNC] - cloudFullData.aiConfig键数量:', cloudFullData.aiConfig ? Object.keys(cloudFullData.aiConfig).length : 0);
+    console.log('[SYNC] - cloudFullData.promptTemplates数量:', cloudFullData.promptTemplates ? cloudFullData.promptTemplates.length : 0);
+    console.log('[SYNC] - cloudFullData.myPromptTemplates数量:', cloudFullData.myPromptTemplates ? cloudFullData.myPromptTemplates.length : 0);
+
+    // 验证target数据是否与云端数据完全相同（检查用户选择是否生效）
+    if (target.docs && cloudFullData.docs) {
+      const targetDocIds = new Set(target.docs.map(d => d.id));
+      const cloudDocIds = new Set(cloudFullData.docs.map(d => d.id));
+      const sameDocs = target.docs.length === cloudFullData.docs.length &&
+        [...targetDocIds].every(id => cloudDocIds.has(id));
+
+      if (sameDocs && target.docs.length > 0) {
+        const firstTargetDoc = target.docs[0];
+        const firstCloudDoc = cloudFullData.docs.find(d => d.id === firstTargetDoc.id);
+        if (firstCloudDoc && firstTargetDoc.updatedAt === firstCloudDoc.updatedAt) {
+          // 只有当用户明确做了选择，但数据仍然完全一致时才警告
+          const hasUserChoices = target.modifiedDocIds && target.modifiedDocIds.length > 0;
+          if (hasUserChoices) {
+            console.warn('[SYNC] ⚠️ 注意：用户选择了修改文档，但目标数据与云端数据完全一致');
+            console.warn('[SYNC] 这可能是正常的，用户可能选择了保留云端版本');
+          } else {
+            console.log('[SYNC] 目标数据与云端数据一致，使用系统推荐方案');
+          }
+        }
       }
     }
 
+    // 0. 先补回云端已删除记录（本地可能已彻底剔除），得到完整目标
+    const targetIds = new Set((target.docs || []).map(d => d.id));
+
+    console.log('[SYNC] buildTargetFromChoices后的目标数据检查:');
+    console.log('[SYNC] target.docs数量:', target.docs ? target.docs.length : 0);
+    console.log('[SYNC] targetIds集合:', Array.from(targetIds));
+    console.log('[SYNC] cloudFullData.docs数量:', cloudFullData && cloudFullData.docs ? cloudFullData.docs.length : 0);
+
+    const mergedDocs = [...(target.docs || [])];
+    console.log('[SYNC] 初始mergedDocs数量:', mergedDocs.length);
+
+    for (const cd of (cloudFullData ? cloudFullData.docs : [])) {
+      if (!targetIds.has(cd.id) && cd.deletedAt) {
+        mergedDocs.push(cd);   // 云端独有且已标记删除
+        console.log('[SYNC] 添加云端已删除文档:', cd.id, cd.title);
+      }
+    }
+
+    console.log('[SYNC] 最终mergedDocs数量:', mergedDocs.length);
 
     // 1. 用补回后的完整目标与云端对比，若完全一致直接跳过
     // 注意：这里使用target.docs而不是mergedDocs，因为mergedDocs可能包含云端已删除的记录
-    if (areDataSetsEqual(target, cloudFullData)) {
+    console.log('[SYNC] 数据比较前检查:');
+    console.log('[SYNC] 本地文档数量:', target.docs ? target.docs.length : 0);
+    console.log('[SYNC] 云端文档数量:', cloudFullData && cloudFullData.docs ? cloudFullData.docs.length : 0);
+
+    const isEqual = areDataSetsEqual(target, cloudFullData);
+    console.log('[SYNC] 数据比较结果:', isEqual);
+
+    if (isEqual) {
       console.log('[SYNC] 云端与本地一致，无需同步');
       showSuccess('云端与本地一致，无需同步');
       return;   // 无需真正落库
@@ -506,7 +569,47 @@
       throw new Error('无法获取云端对象');
     }
 
-    obj.set('docs', mergedDocs);
+    // 确保所有文档的images数组都已清理，只包含MD内容中实际引用的图片
+    const cleanedDocs = await Promise.all(mergedDocs.map(doc => cleanDocImagesArray(doc)));
+
+    console.log('[SYNC] 清理后的文档数据检查:');
+    console.log('[SYNC] cleanedDocs数量:', cleanedDocs.length);
+
+    // 验证关键文档数据是否正确
+    if (cleanedDocs.length > 0) {
+      const firstDoc = cleanedDocs[0];
+      const originalFirstDoc = mergedDocs[0];
+      console.log('[SYNC] 第一个文档验证:');
+      console.log('[SYNC] - ID:', firstDoc.id);
+      console.log('[SYNC] - 标题:', firstDoc.title);
+      console.log('[SYNC] - 内容长度:', firstDoc.md ? firstDoc.md.length : 0);
+      console.log('[SYNC] - 更新时间:', firstDoc.updatedAt);
+      console.log('[SYNC] - 与原始数据一致:', firstDoc.id === originalFirstDoc.id);
+
+      // 检查是否有用户明确选择的文档
+      const userSelectedDocs = cleanedDocs.filter(doc => {
+        // 这里应该检查用户的选择，但暂时通过更新时间判断
+        const localDoc = localFullData.docs.find(d => d.id === doc.id);
+        const cloudDoc = cloudFullData.docs.find(d => d.id === doc.id);
+        if (localDoc && cloudDoc) {
+          return localDoc.updatedAt >= cloudDoc.updatedAt; // 选择了较新的本地版本
+        }
+        return !!localDoc; // 只有本地有，说明是本地新增
+      });
+      console.log('[SYNC] 用户选择本地文档数量:', userSelectedDocs.length);
+    }
+
+    console.log('[SYNC] 准备保存到云端的文档数量:', cleanedDocs.length);
+    if (cleanedDocs.length > 0) {
+      console.log('[SYNC] 第一个要保存的文档示例:', {
+        id: cleanedDocs[0].id,
+        title: cleanedDocs[0].title,
+        mdLength: cleanedDocs[0].md ? cleanedDocs[0].md.length : 0,
+        updatedAt: cleanedDocs[0].updatedAt
+      });
+    }
+
+    obj.set('docs', cleanedDocs);
     obj.set('aiConfig', target.aiConfig);
     obj.set('aiConfigHash', target.aiConfigHash);
     obj.set('configUpdatedAt', target.aiConfigLastModified);
@@ -525,7 +628,59 @@
     console.log('[SYNC] 图片数据将在后续统一同步');
 
     console.log('[SYNC] 开始保存数据到云端...');
-    await obj.save();
+    console.log('[SYNC] 准备保存的文档数量:', cleanedDocs.length);
+    if (cleanedDocs.length > 0) {
+      console.log('[SYNC] 第一个准备保存的文档:', {
+        id: cleanedDocs[0].id,
+        title: cleanedDocs[0].title,
+        mdLength: cleanedDocs[0].md ? cleanedDocs[0].md.length : 0,
+        updatedAt: cleanedDocs[0].updatedAt
+      });
+    }
+
+    // 添加保存重试机制，避免网络问题导致同步失败
+    let retryCount = 0;
+    const maxRetries = 3;
+
+    while (retryCount < maxRetries) {
+      try {
+        await obj.save();
+        console.log('[SYNC] 第', retryCount + 1, '次保存成功');
+        break;
+      } catch (saveError) {
+        retryCount++;
+        console.error('[SYNC] 第', retryCount, '次保存失败:', saveError.message);
+
+        if (retryCount >= maxRetries) {
+          throw new Error(`云端保存失败，已重试${maxRetries}次: ${saveError.message}`);
+        }
+
+        // 等待一段时间后重试
+        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+
+        // 重新获取云端对象，避免版本冲突
+        try {
+          const freshCloudData = await downloadCloud();
+          obj = freshCloudData.obj;
+          console.log('[SYNC] 重新获取云端对象成功');
+        } catch (refreshError) {
+          console.error('[SYNC] 重新获取云端对象失败:', refreshError.message);
+        }
+      }
+    }
+
+    // 验证保存是否成功
+    const savedDocs = obj.get('docs');
+    console.log('[SYNC] 保存后验证云端文档数量:', savedDocs ? savedDocs.length : 0);
+    if (savedDocs && savedDocs.length > 0) {
+      console.log('[SYNC] 保存后验证第一个文档:', {
+        id: savedDocs[0].id,
+        title: savedDocs[0].title,
+        mdLength: savedDocs[0].md ? savedDocs[0].md.length : 0,
+        updatedAt: savedDocs[0].updatedAt
+      });
+    }
+
     console.log('[SYNC] 云端同步完成');
   }
 
@@ -550,9 +705,45 @@
     return confirm(message);
   }
 
-  function showInfo(msg) { try { window.showInfo && window.showInfo(msg); } catch (_) { } }
-  function showSuccess(msg) { try { window.showSuccess && window.showSuccess(msg); } catch (_) { } }
-  function showError(msg) { try { window.showError && window.showError(msg); } catch (_) { alert(msg); } }
+  function showInfo(msg) {
+    try {
+      if (window.showInfo) {
+        window.showInfo(msg);
+      } else {
+        console.info('[SYNC]', msg);
+      }
+    } catch (e) {
+      console.error('[SYNC] showInfo error:', e);
+      alert(msg);
+    }
+  }
+
+  function showSuccess(msg) {
+    try {
+      if (window.showSuccess) {
+        window.showSuccess(msg);
+      } else {
+        console.info('[SYNC]', msg);
+      }
+    } catch (e) {
+      console.error('[SYNC] showSuccess error:', e);
+      alert(msg);
+    }
+  }
+
+  function showError(msg) {
+    try {
+      if (window.showError) {
+        window.showError(msg);
+      } else {
+        console.error('[SYNC]', msg);
+        alert(msg); // 确保即使通知系统未加载也能显示错误
+      }
+    } catch (e) {
+      console.error('[SYNC] showError error:', e);
+      alert(msg); // 确保即使通知系统出错也能显示错误
+    }
+  }
   function applyLangUIOnce() { try { if (typeof window.__mw_applyLangToUI === 'function') window.__mw_applyLangToUI(); } catch (_) { } }
 
   async function fetchOrCreateRecord() {
@@ -596,7 +787,7 @@
     // 新增：补齐上行时会写入的哈希与统一时间戳
     const aiConfigHash = obj.get('aiConfigHash') || undefined;
     const promptTemplatesHash = obj.get('promptTemplatesHash') || undefined;
-    const myPromptTemplatesHash = obj.get('myPromptTemplateHash') || undefined;
+    const myPromptTemplatesHash = obj.get('myPromptTemplatesHash') || undefined;
 
     const updatedAtMs = obj.get('updatedAtMs') || 0;
 
@@ -637,12 +828,13 @@
     // 同步时间戳
     localStorage.setItem('mindword_last_sync_at', String(Date.now()));
 
-    // 触发图片数据同步
-    syncImagesAfterDataSync(aliveDocs);
+    // 触发图片数据同步，只同步有修改的文档中的图片
+    // 注意：数据将在后续统一同步到云端，这里跳过云端保存避免重复
+    syncImagesAfterDataSync(aliveDocs, target.modifiedDocIds, true);
   }
 
   // 数据同步后同步图片
-  async function syncImagesAfterDataSync(docs) {
+  async function syncImagesAfterDataSync(docs, modifiedDocIds = null, skipCloudSave = false) {
     if (!isLoggedIn() || !window.imageStorage) {
       console.log('[SYNC] 跳过图片同步：未登录或图片存储未初始化');
       return;
@@ -650,7 +842,25 @@
 
     try {
       console.log('[SYNC] 开始同步图片数据...');
-      const result = await syncAllImages(docs);
+
+      // 检查文档是否已经包含base64图片数据
+      const hasBase64Images = docs.some(doc => {
+        if (!doc || !doc.images || !Array.isArray(doc.images)) return false;
+        return doc.images.some(img => img && img.dataUrl);
+      });
+
+      if (hasBase64Images) {
+        console.log('[SYNC] 文档已包含base64图片数据，跳过单独图片同步');
+        console.log('[SYNC] base64图片详情:', docs.map(doc => ({
+          id: doc.id,
+          name: doc.name,
+          hasImages: !!(doc.images && doc.images.length),
+          base64Images: doc.images ? doc.images.filter(img => img && img.dataUrl).length : 0
+        })).filter(doc => doc.base64Images > 0));
+        return { uploaded: 0, downloaded: 0, message: '文档已包含base64图片数据' };
+      }
+
+      const result = await syncAllImages(docs, null, modifiedDocIds, skipCloudSave);
       console.log('[SYNC] 图片同步结果:', result);
     } catch (error) {
       console.error('[SYNC] 图片同步失败:', error);
@@ -1089,7 +1299,7 @@
   }
 
   // 根据用户选择重新构建目标数据
-  function buildTargetFromChoices(localFullData, cloudFullData, choices) {
+  async function buildTargetFromChoices(localFullData, cloudFullData, choices) {
     const target = {
       docs: [],
       aiConfig: {},
@@ -1101,7 +1311,8 @@
       promptTemplatesLastModified: 0,
       myPromptTemplatesHash: undefined,
       myPromptTemplatesLastModified: 0,
-      lastSyncAt: Date.now()
+      lastSyncAt: Date.now(),
+      modifiedDocIds: [] // 记录有修改的文档ID
     };
 
     // 处理文档选择
@@ -1111,20 +1322,24 @@
     const cloudDocMap = new Map(cloudDocs.map(d => [d.id, d]));
     const allDocIds = new Set([...localDocs.map(d => d.id), ...cloudDocs.map(d => d.id)]);
 
-    allDocIds.forEach(docId => {
+    for (const docId of allDocIds) {
       const choice = choices[`doc_${docId}`];
+      let docToAdd = null;
+      let isModified = false;
 
       // 用户明确选择了本地版本
       if (choice === 'local') {
         if (localDocMap.has(docId)) {
-          target.docs.push(localDocMap.get(docId));
+          docToAdd = localDocMap.get(docId);
+          isModified = true; // 用户明确选择，视为有修改
         }
         // 如果用户选择本地但本地不存在该文档，则不添加（即删除）
       }
       // 用户明确选择了云端版本
       else if (choice === 'cloud') {
         if (cloudDocMap.has(docId)) {
-          target.docs.push(cloudDocMap.get(docId));
+          docToAdd = cloudDocMap.get(docId);
+          isModified = true; // 用户明确选择，视为有修改
         }
         // 如果用户选择云端但云端不存在该文档，则不添加（即删除）
       }
@@ -1134,16 +1349,33 @@
           // 两边都有，选择更新时间较新的
           const localDoc = localDocMap.get(docId);
           const cloudDoc = cloudDocMap.get(docId);
-          target.docs.push(localDoc.updatedAt >= cloudDoc.updatedAt ? localDoc : cloudDoc);
+          const useLocal = localDoc.updatedAt >= cloudDoc.updatedAt;
+          docToAdd = useLocal ? localDoc : cloudDoc;
+
+          // 如果选择了与云端不同的版本，则视为有修改
+          if ((useLocal && localDoc.updatedAt !== cloudDoc.updatedAt) ||
+            (!useLocal && localDoc.updatedAt !== cloudDoc.updatedAt)) {
+            isModified = true;
+          }
         } else if (localDocMap.has(docId)) {
           // 只有本地有，保留本地版本
-          target.docs.push(localDocMap.get(docId));
+          docToAdd = localDocMap.get(docId);
+          isModified = true; // 新增文档，视为有修改
         } else if (cloudDocMap.has(docId)) {
           // 只有云端有，保留云端版本
-          target.docs.push(cloudDocMap.get(docId));
+          docToAdd = cloudDocMap.get(docId);
+          isModified = true; // 新增文档，视为有修改
         }
       }
-    });
+
+      // 添加文档并记录修改状态
+      if (docToAdd) {
+        target.docs.push(await cleanDocImagesArray(docToAdd));
+        if (isModified) {
+          target.modifiedDocIds.push(docId);
+        }
+      }
+    }
 
     // 处理AI配置选择
     if (choices.ai_config === 'local') {
@@ -1186,8 +1418,8 @@
     try {
       // 添加详细的登录状态检查
       if (!isLoggedIn()) {
-        console.error('[SYNC] 同步失败：用户未登录');
-        throw new Error('未登录');
+        console.log('[SYNC] 用户未登录，跳过同步');
+        return; // 未登录时不执行同步，直接返回
       }
 
       // 输出当前用户信息，便于调试
@@ -1199,6 +1431,16 @@
 
       // 1. 组装本地完整快照
       const localDocs = getLocalDocs();
+      console.log('[SYNC] 获取到本地文档数量:', localDocs.length);
+      if (localDocs.length > 0) {
+        console.log('[SYNC] 第一个本地文档示例:', {
+          id: localDocs[0].id,
+          title: localDocs[0].title,
+          mdLength: localDocs[0].md ? localDocs[0].md.length : 0,
+          updatedAt: localDocs[0].updatedAt
+        });
+      }
+
       const localAIConfig = getLocalAIConfig();
       const localPromptTemplates = getLocalPromptTemplates();
       const localMyPromptTemplates = getLocalMyPromptTemplates();
@@ -1216,6 +1458,14 @@
         lastSyncAt: Number(localStorage.getItem('mindword_last_sync_at') || 0)
       };
 
+      console.log('[SYNC] 合并后的目标结构:', {
+        docsCount: localFullData.docs.length,
+        aiConfigKeys: Object.keys(localFullData.aiConfig || {}),
+        promptTemplatesCount: localFullData.promptTemplates.length,
+        myPromptTemplatesCount: localFullData.myPromptTemplates.length,
+        aiConfigHash: localFullData.aiConfigHash
+      });
+
       // 文件大小检查
       const sizeCheck = checkFileSize(localDocs);
       if (!sizeCheck.valid) {
@@ -1226,8 +1476,11 @@
       cachedCloudRaw = null;  // 清除缓存，强制重新获取
       const cloudFullData = await fetchCloudFullData();
 
+      // 保存云端对象引用，避免后续重复下载导致数据不一致
+      const cloudObjRef = cachedCloudRaw;
+
       // 3. 三向合并 → 目标结构
-      const targetFullData = mergeToTarget(localFullData, cloudFullData);
+      const targetFullData = await mergeToTarget(localFullData, cloudFullData);
 
       // 4. 显示同步预览对话框，让用户选择保留哪一侧的数据
       const userChoices = await showSyncPreviewDialog(localFullData, cloudFullData, targetFullData);
@@ -1239,22 +1492,23 @@
       }
 
       // 5. 根据用户选择重新构建目标数据
-      const finalTargetFullData = buildTargetFromChoices(localFullData, cloudFullData, userChoices);
+      const finalTargetFullData = await buildTargetFromChoices(localFullData, cloudFullData, userChoices);
 
       // 6. 落地：先写本地，再写云端（确保本地优先）
       console.log('[SYNC] 开始应用同步数据...');
       applyTargetToLocal(finalTargetFullData);
 
-      // 确保 cachedCloudRaw 不为 null
-      if (!cachedCloudRaw) {
-        cachedCloudRaw = await downloadCloud();
+      // 使用之前保存的云端对象引用，避免重新下载导致数据不一致
+      if (!cloudObjRef) {
+        throw new Error('云端对象引用丢失，同步失败');
       }
-      await applyTargetToCloud(finalTargetFullData, cloudFullData, cachedCloudRaw.obj);
+      await applyTargetToCloud(finalTargetFullData, cloudFullData, cloudObjRef.obj, localFullData);
       console.log('[SYNC] 同步数据已成功应用到云端');
 
-      // 6.5 同步图片数据 - 同步所有文档的图片
-      // 传递云端对象缓存，避免重复下载和数据不一致
-      await syncAllImages(finalTargetFullData.docs, cachedCloudRaw);
+      // 6.5 同步图片数据 - 只同步有修改的文档中的图片
+      // 使用之前保存的云端对象引用，避免数据不一致
+      // 注意：数据已经在 applyTargetToCloud 中保存，这里跳过云端保存避免重复
+      await syncAllImages(finalTargetFullData.docs, cloudObjRef, finalTargetFullData.modifiedDocIds, true);
 
       // 5. 刷新 UI
       if (typeof mw_renderList === 'function') mw_renderList();
@@ -1335,7 +1589,28 @@
       showSuccess('同步完成');
       setTimeout(updateSyncStatus, 300);
     } catch (e) {
-      showError(e.message || '同步失败');
+      // 增强错误处理，确保登录后第一次同步失败能够正确显示
+      const errorMsg = e.message || '同步失败';
+      console.error('[SYNC] 同步失败:', errorMsg, e);
+
+      // 检查是否是登录后的第一次同步
+      const isJustLoggedIn = localStorage.getItem('mw_just_logged_in') === 'true';
+      if (isJustLoggedIn) {
+        // 如果是登录后第一次同步失败，清除标记并显示更详细的错误信息
+        localStorage.removeItem('mw_just_logged_in');
+        const detailedErrorMsg = `登录后首次同步失败: ${errorMsg}`;
+        showError(detailedErrorMsg);
+      } else {
+        showError(errorMsg);
+      }
+
+      // 确保错误信息能够被用户看到
+      setTimeout(() => {
+        // 如果通知系统仍未加载，使用原生alert确保用户看到错误
+        if (!window.showError) {
+          alert(`同步失败: ${errorMsg}`);
+        }
+      }, 1000);
     }
   }
 
@@ -1788,22 +2063,149 @@
 
     while ((match = imageRegex.exec(content)) !== null) {
       const imageId = match[1];
-      // 过滤掉base64图片和外部链接
-      if (!imageId.startsWith('data:') && !imageId.startsWith('http')) {
+      // 现在包括base64图片ID，过滤掉外部链接
+      if (!imageId.startsWith('http')) {
         imageIds.push(imageId);
       }
     }
 
-    // 也检查文档的images数组字段
-    if (doc.images && Array.isArray(doc.images)) {
-      doc.images.forEach(img => {
-        if (img && img.id && !imageIds.includes(img.id)) {
-          imageIds.push(img.id);
-        }
+    // 只从MD内容中提取图片ID，不再检查images数组字段
+    // 这确保了images数组与MD内容中引用的图片保持一致
+
+    return [...new Set(imageIds)]; // 去重
+  }
+
+  /**
+   * 从文档内容中提取base64图片数据
+   * @param {Object} doc - 文档对象
+   * @returns {Array} base64图片对象数组
+   */
+  function extractBase64ImagesFromDoc(doc) {
+    const base64Images = [];
+    const content = (doc.md || '') + (doc.note || '');
+
+    // 匹配图片语法 ![alt](data:image/...;base64,...)
+    const imageRegex = /!\[[^\]]*\]\((data:image\/[^;]+;base64,[^)]+)\)/g;
+    const altRegex = /!\[([^\]]*)\]\(/g;
+    let match;
+    let altMatch;
+
+    while ((match = imageRegex.exec(content)) !== null) {
+      const dataUrl = match[1];
+
+      // 提取对应的alt文本
+      altRegex.lastIndex = match.index;
+      altMatch = altRegex.exec(content);
+      const altText = altMatch ? altMatch[1] : '图片';
+
+      // 生成图片ID（使用dataUrl的哈希值）
+      const imageId = 'img_' + Math.abs(dataUrl.split(',')[1].split('').reduce((a, b) => {
+        a = ((a << 5) - a) + b.charCodeAt(0);
+        return a & a;
+      }, 0)).toString(36);
+
+      base64Images.push({
+        id: imageId,
+        dataUrl: dataUrl,
+        alt: altText,
+        name: altText || '图片'
       });
     }
 
-    return [...new Set(imageIds)]; // 去重
+    return base64Images;
+  }
+
+  /**
+   * 清理文档的images数组，确保只包含MD内容中实际引用的图片
+   * 现在主动从本地存储获取图片数据并嵌入base64，简化图片上传逻辑
+   * @param {Object} doc - 文档对象
+   * @returns {Object} 清理后的文档对象
+   */
+  async function cleanDocImagesArray(doc) {
+    if (!doc) return doc;
+
+    // 提取MD内容中实际引用的图片ID（包括base64图片）
+    const referencedImageIds = extractImageIdsFromDoc(doc);
+
+    // 同时提取文档内容中的base64图片数据
+    const base64Images = extractBase64ImagesFromDoc(doc);
+
+    // 如果文档没有images数组，先初始化为空数组
+    let currentImages = [];
+    if (doc.images && Array.isArray(doc.images)) {
+      currentImages = [...doc.images];
+    }
+
+    // 尝试从本地存储获取图片数据并嵌入base64
+    if (window.imageStorage && referencedImageIds.length > 0) {
+      try {
+        const localImagesMap = await window.imageStorage.getImagesMap();
+
+        for (const imageId of referencedImageIds) {
+          const localImageInfo = localImagesMap.get(imageId);
+          if (localImageInfo) {
+            // 查找当前images数组中是否已存在该图片
+            let existingImage = currentImages.find(img => img && img.id === imageId);
+
+            if (!existingImage) {
+              // 如果images数组中没有该图片，创建新的图片对象
+              existingImage = {
+                id: imageId,
+                name: localImageInfo.name || 'image.png',
+                mime: localImageInfo.type || 'image/png'
+              };
+              currentImages.push(existingImage);
+            }
+
+            // 如果本地存储有dataUrl，直接嵌入
+            if (localImageInfo.dataUrl) {
+              existingImage.dataUrl = localImageInfo.dataUrl;
+              console.log(`[SYNC] 为文档 ${doc.id} 的图片 ${imageId} 嵌入base64数据`);
+            } else if (localImageInfo.blob) {
+              // 如果有blob数据，转换为dataUrl
+              try {
+                existingImage.dataUrl = await window.imageStorage.blobToDataUrl(localImageInfo.blob);
+                console.log(`[SYNC] 为文档 ${doc.id} 的图片 ${imageId} 转换blob为base64数据`);
+              } catch (error) {
+                console.warn(`[SYNC] 转换图片 ${imageId} blob失败:`, error);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('[SYNC] 从本地存储获取图片数据失败:', error);
+      }
+    }
+
+    // 添加文档内容中的base64图片
+    for (const base64Img of base64Images) {
+      const existingIndex = currentImages.findIndex(img => img && img.id === base64Img.id);
+      if (existingIndex >= 0) {
+        // 更新已有的图片
+        currentImages[existingIndex] = { ...currentImages[existingIndex], ...base64Img };
+      } else {
+        // 添加新图片
+        currentImages.push(base64Img);
+      }
+    }
+
+    // 过滤掉文档内容中没有引用的图片（保留有dataUrl的图片）
+    const finalImages = currentImages.filter(img => {
+      if (!img || !img.id) return false;
+      // 保留被引用的图片或有base64数据的图片
+      return referencedImageIds.includes(img.id) || img.dataUrl;
+    });
+
+    if (finalImages.length > 0) {
+      const base64Count = finalImages.filter(img => img.dataUrl).length;
+      console.log(`[SYNC] 文档 ${doc.id} 最终保留 ${finalImages.length} 张图片，其中 ${base64Count} 张包含base64数据`);
+    }
+
+    // 返回清理后的文档对象，包含嵌入的base64数据
+    return {
+      ...doc,
+      images: finalImages
+    };
   }
 
   /**
@@ -1822,6 +2224,21 @@
 
     try {
       const imagesMap = await window.imageStorage.getImagesMap();
+      console.log(`[SYNC] 获取到 ${imagesMap.size} 张本地图片`);
+
+      // 调试：检查前几个图片的数据结构
+      let debugCount = 0;
+      for (const [id, info] of imagesMap) {
+        console.log(`[SYNC] 图片 ${id} 数据结构:`, {
+          hasDataUrl: !!info.dataUrl,
+          hasBlob: !!info.blob,
+          type: info.type,
+          name: info.name
+        });
+        debugCount++;
+        if (debugCount >= 3) break; // 只显示前3个避免日志过多
+      }
+
       let uploaded = 0;
 
       // 获取云端数据
@@ -1839,21 +2256,40 @@
       // 处理每个要上传的图片
       for (const imageId of imageIds) {
         const imageInfo = imagesMap.get(imageId);
-        if (!imageInfo || !imageInfo.dataUrl) {
+        if (!imageInfo) {
           console.warn(`本地未找到图片 ${imageId} 数据，跳过上传`);
           continue;
         }
 
-        // 从dataUrl中提取base64数据并计算大小
-        const base64Data = imageInfo.dataUrl.split(',')[1];
-        if (!base64Data) {
-          console.warn(`图片 ${imageId} 数据格式无效，跳过上传`);
+        // 检查是否有有效的图片数据（支持 dataUrl 或 blob 格式）
+        let imageData = null;
+        let imgSize = 0;
+
+        if (imageInfo.dataUrl) {
+          // 使用现有的 dataUrl
+          const base64Data = imageInfo.dataUrl.split(',')[1];
+          if (!base64Data) {
+            console.warn(`图片 ${imageId} 数据格式无效，跳过上传`);
+            continue;
+          }
+          imgSize = Math.ceil(base64Data.length * 0.75); // base64解码后的大小
+          imageData = imageInfo.dataUrl;
+        } else if (imageInfo.blob) {
+          // 如果有 blob 数据，转换为 dataUrl
+          try {
+            imageData = await window.imageStorage.blobToDataUrl(imageInfo.blob);
+            imgSize = imageInfo.blob.size;
+          } catch (error) {
+            console.warn(`图片 ${imageId} blob转换失败，跳过上传:`, error);
+            continue;
+          }
+        } else {
+          console.warn(`图片 ${imageId} 没有有效的数据（缺少dataUrl或blob），跳过上传`);
           continue;
         }
 
-        const imgSize = Math.ceil(base64Data.length * 0.75); // base64解码后的大小
         if (imgSize > MAX_IMAGE_SIZE) {
-          console.warn(`图片 ${imageId} 超过大小限制，跳过上传`);
+          console.warn(`图片 ${imageId} 超过大小限制(${imgSize} > ${MAX_IMAGE_SIZE})，跳过上传`);
           continue;
         }
 
@@ -1866,7 +2302,7 @@
               foundDoc = doc;
               // 更新文档中的图片数据
               if (!foundDoc.images[imgIndex].dataUrl) {
-                foundDoc.images[imgIndex].dataUrl = imageInfo.dataUrl;
+                foundDoc.images[imgIndex].dataUrl = imageData;
                 uploaded++;
                 console.log(`图片 ${imageId} 已添加到文档 ${docId}`);
               }
@@ -1883,7 +2319,9 @@
       // 如果有图片被上传，更新云端数据
       if (uploaded > 0) {
         const obj = cloudData.obj || await fetchOrCreateRecord();
-        obj.set('docs', cloudDocs);
+        // 确保所有文档的images数组都已清理
+        const cleanedDocs = await Promise.all(cloudDocs.map(doc => cleanDocImagesArray(doc)));
+        obj.set('docs', cleanedDocs);
 
         // 如果没有传入云端对象，则立即保存；否则由调用方保存
         if (!cloudObj) {
@@ -2010,9 +2448,11 @@
    * 同步所有文档的图片数据
    * @param {Array} docs - 文档数组
    * @param {Object} cloudDataCache - 云端数据缓存（可选）
+   * @param {Array} modifiedDocIds - 有修改的文档ID列表，如果提供则只同步这些文档的图片
+   * @param {boolean} skipCloudSave - 是否跳过云端保存（当数据已经在其他地方保存时）
    * @returns {Promise<Object>} 同步结果
    */
-  async function syncAllImages(docs, cloudDataCache = null) {
+  async function syncAllImages(docs, cloudDataCache = null, modifiedDocIds = null, skipCloudSave = false) {
     if (!isLoggedIn()) {
       console.log('[SYNC] 未登录，跳过图片同步');
       return { uploaded: 0, downloaded: 0, message: '未登录，跳过图片同步' };
@@ -2024,7 +2464,7 @@
     }
 
     try {
-      console.log('[SYNC] 开始同步所有文档的图片...');
+      console.log('[SYNC] 开始同步图片...');
 
       // 使用传入的云端数据缓存，如果没有则重新下载
       const cloudData = cloudDataCache || await downloadCloud();
@@ -2044,130 +2484,200 @@
       let totalUploaded = 0;
       let totalDownloaded = 0;
 
-      // 处理每个文档的图片
-      for (const doc of docs) {
+      // 收集所有需要同步的图片ID，包括文档中引用的和存储中的图片
+      const allImageIds = new Set();
+
+      // 确定要处理的文档列表
+      let docsToProcess = docs;
+      if (modifiedDocIds && modifiedDocIds.length > 0) {
+        // 如果有指定修改的文档，只处理这些文档
+        docsToProcess = docs.filter(doc => doc && modifiedDocIds.includes(doc.id));
+        console.log(`[SYNC] 只处理有修改的文档，共${docsToProcess.length}个`);
+      } else {
+        console.log(`[SYNC] 处理所有文档，共${docsToProcess.length}个`);
+      }
+
+      // 1. 从文档内容中提取图片引用
+      for (const doc of docsToProcess) {
         if (!doc || !doc.id) continue;
 
-        // 获取对应的云端文档
-        const cloudDoc = cloudDocsMap.get(doc.id);
-        if (!cloudDoc) {
-          console.log(`[SYNC] 云端未找到文档 ${doc.id}，跳过图片同步`);
-          continue;
-        }
+        // 从文档内容中提取图片ID
+        const imageIds = extractImageIdsFromDoc(doc);
+        imageIds.forEach(id => allImageIds.add(id));
 
-        // 获取本地和云端的图片数组
-        const localDocImages = doc.images || [];
-        const cloudDocImages = cloudDoc.images || [];
-
-        // 创建云端图片的映射
-        const cloudImagesMap = new Map();
-        for (const img of cloudDocImages) {
-          if (img && img.id) {
-            cloudImagesMap.set(img.id, img);
-          }
-        }
-
-        // 处理本地文档中的每个图片
-        for (const localImg of localDocImages) {
-          if (!localImg || !localImg.id) continue;
-
-          // 检查本地是否有图片数据
-          const localImageData = localImagesMap.get(localImg.id);
-          if (!localImageData || !localImageData.dataUrl) {
-            // 本地没有图片数据，检查云端是否有
-            const cloudImg = cloudImagesMap.get(localImg.id);
-            if (cloudImg && cloudImg.dataUrl) {
-              // 云端有数据，下载到本地
-              try {
-                const blob = await window.imageStorage.dataUrlToBlob(cloudImg.dataUrl);
-                await window.imageStorage.saveImage(localImg.id, blob, {
-                  name: cloudImg.name || localImg.id,
-                  documentId: doc.id
-                });
-                totalDownloaded++;
-                console.log(`[SYNC] 下载图片 ${localImg.id} (文档: ${doc.id})`);
-              } catch (error) {
-                console.error(`[SYNC] 下载图片 ${localImg.id} 失败:`, error);
-              }
+        // 同时检查文档的images数组
+        if (doc.images && Array.isArray(doc.images)) {
+          doc.images.forEach(img => {
+            if (img && img.id) {
+              allImageIds.add(img.id);
             }
-            continue;
-          }
+          });
+        }
+      }
 
-          // 本地有图片数据，检查云端是否也有
-          const cloudImg = cloudImagesMap.get(localImg.id);
-          if (!cloudImg || !cloudImg.dataUrl) {
-            // 云端没有数据或图片对象不存在，上传到云端
+      // 2. 添加本地存储中的所有图片ID，确保不遗漏任何图片
+      for (const [imageId, imageData] of localImagesMap) {
+        allImageIds.add(imageId);
+      }
+
+      // 3. 添加云端存储中的所有图片ID，确保不遗漏云端图片
+      for (const [docId, doc] of cloudDocsMap) {
+        if (doc.images && Array.isArray(doc.images)) {
+          doc.images.forEach(img => {
+            if (img && img.id) {
+              allImageIds.add(img.id);
+            }
+          });
+        }
+      }
+
+      console.log(`[SYNC] 收集到${allImageIds.size}个图片ID需要同步检查`);
+
+      // 处理每个图片
+      for (const imageId of allImageIds) {
+        if (!imageId) continue;
+
+        // 检查本地是否有图片数据
+        const localImageData = localImagesMap.get(imageId);
+        const hasLocalData = localImageData && localImageData.dataUrl;
+
+        // 查找包含此图片的文档（本地和云端）
+        const localDocContainingImage = docs.find(doc => {
+          if (!doc || !doc.id) return false;
+          const docImageIds = extractImageIdsFromDoc(doc);
+          if (docImageIds.includes(imageId)) return true;
+
+          // 检查images数组
+          if (doc.images && Array.isArray(doc.images)) {
+            return doc.images.some(img => img && img.id === imageId);
+          }
+          return false;
+        });
+
+        const cloudDocContainingImage = Array.from(cloudDocsMap.values()).find(doc => {
+          if (!doc || !doc.id) return false;
+
+          // 检查images数组
+          if (doc.images && Array.isArray(doc.images)) {
+            return doc.images.some(img => img && img.id === imageId);
+          }
+          return false;
+        });
+
+        // 获取云端图片数据
+        let cloudImageData = null;
+        if (cloudDocContainingImage && cloudDocContainingImage.images) {
+          const cloudImg = cloudDocContainingImage.images.find(img => img && img.id === imageId);
+          if (cloudImg && cloudImg.dataUrl) {
+            cloudImageData = cloudImg;
+          }
+        }
+
+        const hasCloudData = cloudImageData && cloudImageData.dataUrl;
+
+        // 决定同步方向
+        if (hasLocalData && !hasCloudData) {
+          // 本地有，云端没有 - 上传
+          try {
             const base64Data = localImageData.dataUrl.split(',')[1];
             if (!base64Data) {
-              console.warn(`图片 ${localImg.id} 数据格式无效，跳过上传`);
+              console.warn(`图片 ${imageId} 数据格式无效，跳过上传`);
               continue;
             }
 
             const imgSize = Math.ceil(base64Data.length * 0.75);
             if (imgSize > MAX_IMAGE_SIZE) {
-              console.warn(`图片 ${localImg.id} 超过大小限制，跳过上传`);
+              console.warn(`图片 ${imageId} 超过大小限制，跳过上传`);
               continue;
             }
 
-            // 如果云端图片对象不存在，需要创建它
-            if (!cloudImg) {
-              // 在云端文档中添加新的图片对象
-              const newImg = {
-                id: localImg.id,
-                name: localImg.name || localImg.id,
-                mime: localImg.mime || 'image/png',
-                dataUrl: localImageData.dataUrl
+            // 确定图片所属的文档
+            const targetDoc = localDocContainingImage || docs[0]; // 如果找不到所属文档，使用第一个文档
+            if (!targetDoc || !targetDoc.id) {
+              console.warn(`图片 ${imageId} 找不到所属文档，跳过上传`);
+              continue;
+            }
+
+            // 获取或创建云端文档
+            let cloudDoc = cloudDocsMap.get(targetDoc.id);
+            if (!cloudDoc) {
+              // 创建云端文档
+              cloudDoc = {
+                id: targetDoc.id,
+                name: targetDoc.name || '',
+                md: targetDoc.md || '',
+                images: [],
+                updatedAt: Number(targetDoc.updatedAt || 0)
               };
-              cloudDocImages.push(newImg);
-              console.log(`[SYNC] 添加新图片 ${localImg.id} 到云端文档 (文档: ${doc.id})`);
+              cloudDocsMap.set(targetDoc.id, cloudDoc);
+              cloudDocs.push(cloudDoc);
+            }
+
+            // 确保images数组存在
+            if (!cloudDoc.images) {
+              cloudDoc.images = [];
+            }
+
+            // 检查是否已存在
+            const existingImg = cloudDoc.images.find(img => img && img.id === imageId);
+            if (existingImg) {
+              existingImg.dataUrl = localImageData.dataUrl;
             } else {
-              // 更新云端文档中的图片数据
-              cloudImg.dataUrl = localImageData.dataUrl;
-            }
-            totalUploaded++;
-            console.log(`[SYNC] 上传图片 ${localImg.id} (文档: ${doc.id})`);
-          }
-        }
-
-        // 检查云端有但本地没有的图片
-        for (const cloudImg of cloudDocImages) {
-          if (!cloudImg || !cloudImg.id) continue;
-
-          // 检查本地是否已有这个图片
-          if (localImagesMap.has(cloudImg.id)) {
-            continue;
-          }
-
-          // 检查本地文档中是否有这个图片的引用
-          const hasReference = localDocImages.some(localImg => localImg && localImg.id === cloudImg.id);
-          if (!hasReference) {
-            continue;
-          }
-
-          // 本地没有图片数据，但文档中有引用，从云端下载
-          if (cloudImg.dataUrl) {
-            try {
-              const blob = await window.imageStorage.dataUrlToBlob(cloudImg.dataUrl);
-              await window.imageStorage.saveImage(cloudImg.id, blob, {
-                name: cloudImg.name || cloudImg.id,
-                documentId: doc.id
+              // 添加新图片
+              cloudDoc.images.push({
+                id: imageId,
+                name: localImageData.name || imageId,
+                mime: localImageData.mime || 'image/png',
+                dataUrl: localImageData.dataUrl
               });
-              totalDownloaded++;
-              console.log(`[SYNC] 下载图片 ${cloudImg.id} (文档: ${doc.id})`);
-            } catch (error) {
-              console.error(`[SYNC] 下载图片 ${cloudImg.id} 失败:`, error);
             }
+
+            totalUploaded++;
+            console.log(`[SYNC] 上传图片 ${imageId} (文档: ${targetDoc.id})`);
+          } catch (error) {
+            console.error(`[SYNC] 上传图片 ${imageId} 失败:`, error);
           }
+        } else if (!hasLocalData && hasCloudData) {
+          // 本地没有，云端有 - 下载
+          try {
+            // 确定图片所属的文档
+            const targetDoc = localDocContainingImage || Array.from(cloudDocsMap.values()).find(doc => {
+              return doc.images && doc.images.some(img => img && img.id === imageId);
+            });
+
+            if (!targetDoc || !targetDoc.id) {
+              console.warn(`图片 ${imageId} 找不到所属文档，跳过下载`);
+              continue;
+            }
+
+            const blob = await window.imageStorage.dataUrlToBlob(cloudImageData.dataUrl);
+            await window.imageStorage.saveImage(imageId, blob, {
+              name: cloudImageData.name || imageId,
+              documentId: targetDoc.id
+            });
+            totalDownloaded++;
+            console.log(`[SYNC] 下载图片 ${imageId} (文档: ${targetDoc.id})`);
+          } catch (error) {
+            console.error(`[SYNC] 下载图片 ${imageId} 失败:`, error);
+          }
+        } else if (!hasLocalData && !hasCloudData) {
+          // 两边都没有 - 记录警告
+          console.warn(`[SYNC] 图片 ${imageId} 在本地和云端都找不到数据`);
         }
+        // 如果两边都有数据，则不需要同步
       }
 
       // 如果有图片需要上传到云端，更新云端文档数据
-      if (totalUploaded > 0) {
+      if (totalUploaded > 0 && !skipCloudSave) {
         // 使用传入的云端对象缓存，如果没有则重新获取
         const obj = cloudDataCache && cloudDataCache.obj ? cloudDataCache.obj : await fetchOrCreateRecord();
-        obj.set('docs', cloudDocs);
+        // 确保所有文档的images数组都已清理
+        const cleanedDocs = await Promise.all(cloudDocs.map(doc => cleanDocImagesArray(doc)));
+        obj.set('docs', cleanedDocs);
         await obj.save();
         console.log(`[SYNC] 更新云端文档数据，包含${totalUploaded}张新图片`);
+      } else if (totalUploaded > 0 && skipCloudSave) {
+        console.log(`[SYNC] 跳过上傳图片的云端保存，已在其他地方保存`);
       }
 
       console.log(`[SYNC] 图片同步完成：上传${totalUploaded}张，下载${totalDownloaded}张`);
@@ -2233,7 +2743,21 @@
 
   // 暴露手动入口（如需）
   window.MW_LC_SYNC = {
-    sync: bidirectionalSync,
+    sync: async function () {
+      try {
+        await bidirectionalSync();
+      } catch (error) {
+        console.error('[SYNC] 同步入口捕获错误:', error);
+        // 确保错误能够显示给用户
+        const errorMsg = error.message || '同步失败';
+        if (window.showError) {
+          window.showError(errorMsg);
+        } else {
+          alert(errorMsg);
+        }
+        throw error; // 重新抛出错误，让调用者也能处理
+      }
+    },
     clear: clearCloud,
     updateStatus: updateSyncStatus,
     syncImagesForDoc: syncImagesForDoc,

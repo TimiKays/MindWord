@@ -1258,20 +1258,20 @@
                     throw new Error('ZIP文件中未找到.md文件');
                 }
 
-                // 建立图片ID映射（用于从文件名查找图片ID）
-                const imageIdMap = new Map();
-
-                // 从markdown内容中提取图片引用，建立文件名到图片ID的映射
+                // 从markdown内容中提取所有图片引用，用于后续验证
+                const referencedImageIds = new Set();
                 const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
                 let match;
+                console.log(`[loadZipFile] 原始markdown内容: ${markdownContent.substring(0, 200)}...`);
                 while ((match = imageRegex.exec(markdownContent)) !== null) {
                     const imageId = match[2]; // 图片ID
                     const imageName = match[1]; // 图片名称
 
-                    // 从图片ID中提取文件名（移除扩展名）
-                    const fileNameWithoutExt = imageId.replace(/\.[^.]+$/, '');
-                    imageIdMap.set(fileNameWithoutExt, imageId);
+                    console.log(`[loadZipFile] 找到图片引用: 名称="${imageName}", ID="${imageId}"`);
+                    referencedImageIds.add(imageId);
                 }
+                console.log(`[loadZipFile] 总共找到 ${referencedImageIds.size} 个图片引用`);
+                console.log(`[loadZipFile] 引用的图片ID:`, Array.from(referencedImageIds));
 
                 // 处理图片文件
                 for (let [filename, zipEntry] of Object.entries(zipContent.files)) {
@@ -1282,7 +1282,11 @@
 
                         // 从文件名（不含扩展名）查找对应的图片ID
                         const fileNameWithoutExt = filename.replace(/^images\//, '').replace(/\.[^.]+$/, '');
-                        const imageId = imageIdMap.get(fileNameWithoutExt) || this.generateImageId();
+                        console.log(`[loadZipFile] 处理图片文件: "${filename}" -> 文件名: "${fileNameWithoutExt}"`);
+
+                        // 直接使用文件名作为图片ID（保持与markdown中的引用一致）
+                        const imageId = fileNameWithoutExt;
+                        console.log(`[loadZipFile] 使用图片ID: "${imageId}"`);
 
                         newImages.set(imageId, {
                             name: filename,
@@ -1292,9 +1296,21 @@
                     }
                 }
 
-                this.setContent(markdownContent);
+                // 先设置图片数据，再设置内容，确保saveToStorage能正确识别图片
                 this.images = newImages;
-                this.saveToStorage(false);
+                console.log(`[loadZipFile] 设置图片数据完成，图片数量: ${this.images.size}`);
+                console.log(`[loadZipFile] newImages中的图片ID:`, Array.from(newImages.keys()));
+
+                // 不需要替换markdown内容，因为图片ID已经正确
+                console.log(`[loadZipFile] 最终markdown内容预览: ${markdownContent.substring(0, 200)}...`);
+                this.setContent(markdownContent);
+                console.log(`[loadZipFile] 设置内容完成，内容长度: ${markdownContent.length}`);
+
+                // 延迟保存，确保所有数据都已正确设置
+                setTimeout(() => {
+                    console.log(`[loadZipFile] 延迟保存，当前图片数量: ${this.images.size}`);
+                    this.saveToStorage(false);
+                }, 100);
             }
 
             isImageFile(filename) {

@@ -190,6 +190,15 @@ MindWord应用的用户认证系统核心模块，主要功能包括：
                     localStorage.removeItem(key);
                   });
 
+                  // 清除IndexedDB中的图片数据
+                  if (window.imageStorage && typeof window.imageStorage.clearAllImages === 'function') {
+                    window.imageStorage.clearAllImages().then(function () {
+                      console.log('[AUTH] 已清除IndexedDB中的图片数据');
+                    }).catch(function (error) {
+                      console.error('[AUTH] 清除IndexedDB图片数据失败:', error);
+                    });
+                  }
+
                   console.log('[AUTH] 已清除所有本地数据（包括文档数据）');
                   try { showSuccess && showSuccess('已清除所有本地数据'); } catch (_) { }
                 } else if (choice === 'save') {
@@ -278,8 +287,21 @@ MindWord应用的用户认证系统核心模块，主要功能包括：
 
           console.log('[AUTH] 所有条件已满足，执行LeanCloud自动同步');
           console.log('[AUTH] 当前用户ID:', user.id);
-          window.MW_LC_SYNC.sync();
-          return true;
+          try {
+            window.MW_LC_SYNC.sync();
+            return true;
+          } catch (syncError) {
+            console.error('[AUTH] 同步执行失败:', syncError);
+            // 确保错误能够显示给用户
+            setTimeout(() => {
+              if (window.showError) {
+                window.showError(`登录后自动同步失败: ${syncError.message || '未知错误'}`);
+              } else {
+                alert(`登录后自动同步失败: ${syncError.message || '未知错误'}`);
+              }
+            }, 100);
+            return false;
+          }
         } catch (error) {
           console.error('[AUTH] 检查同步条件时出错:', error);
           return false;
@@ -299,6 +321,14 @@ MindWord应用的用户认证系统核心模块，主要功能包括：
             clearInterval(retryInterval);
             if (retryCount >= maxRetries) {
               console.error('[AUTH] 登录后同步重试次数已达上限，放弃自动同步');
+              // 显示错误提示给用户
+              setTimeout(() => {
+                if (window.showError) {
+                  window.showError('登录后自动同步失败，请检查网络连接后手动同步');
+                } else {
+                  alert('登录后自动同步失败，请检查网络连接后手动同步');
+                }
+              }, 100);
             }
           }
         }, 2000); // 每2秒重试一次

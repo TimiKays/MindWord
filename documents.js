@@ -481,6 +481,30 @@ async function mw_confirmBatchDelete() {
         console.error(`删除文档 ${docId} 关联图片失败:`, error);
       }
     }
+
+    // 同时删除所有未关联到文档的图片（documentId为null的图片）
+    try {
+      const unlinkedImages = await window.imageStorage.getAllImages(null);
+      const unlinkedImageIds = unlinkedImages
+        .filter(img => img.documentId === null)
+        .map(img => img.id);
+
+      for (const imageId of unlinkedImageIds) {
+        try {
+          await window.imageStorage.deleteImage(imageId);
+          totalDeletedImages++;
+        } catch (error) {
+          console.error(`删除未关联图片 ${imageId} 失败:`, error);
+        }
+      }
+
+      if (unlinkedImageIds.length > 0) {
+        console.log(`删除了 ${unlinkedImageIds.length} 张未关联到文档的图片`);
+      }
+    } catch (error) {
+      console.error(`删除未关联图片失败:`, error);
+    }
+
     if (totalDeletedImages > 0) {
       console.log(`批量删除文档时总共删除了 ${totalDeletedImages} 张图片`);
     }
@@ -548,6 +572,26 @@ async function mw_confirmDeleteDoc() {
       try {
         const deletedImagesCount = await window.imageStorage.deleteImagesByDocumentId(docId);
         console.log(`删除了文档 ${docId} 的 ${deletedImagesCount} 张图片`);
+
+        // 同时检查并删除未关联到文档的图片（documentId为null的图片）
+        const unlinkedImages = await window.imageStorage.getAllImages(null);
+        const unlinkedImageIds = unlinkedImages
+          .filter(img => img.documentId === null)
+          .map(img => img.id);
+
+        let unlinkedDeletedCount = 0;
+        for (const imageId of unlinkedImageIds) {
+          try {
+            await window.imageStorage.deleteImage(imageId);
+            unlinkedDeletedCount++;
+          } catch (error) {
+            console.error(`删除未关联图片 ${imageId} 失败:`, error);
+          }
+        }
+
+        if (unlinkedDeletedCount > 0) {
+          console.log(`删除了 ${unlinkedDeletedCount} 张未关联到文档的图片`);
+        }
       } catch (error) {
         console.error(`删除文档 ${docId} 关联图片失败:`, error);
       }
