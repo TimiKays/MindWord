@@ -1,9 +1,9 @@
 /* TEAM */
 Developer: Timi Kays
-Contact: TimiKays (WeChat ID)
+Contact: timikays@qq.com
 Languages: Chinese, English
 开发团队：Timi Kays
-联系方式：TimiKays(微信号)
+联系方式：timikays@qq.com
 来自：中国
 语言：中文，英文
 

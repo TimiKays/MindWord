@@ -4,7 +4,7 @@
 
 ## 发现问题怎么办？
 
-- 直接微信我：TimiKays（备注安全问题）
+- 直接联系我：timikays@qq.com（备注安全问题）
 - 或者在 GitHub Issues 创建私密 Issue
 - 看到后会尽快处理，但个人项目响应可能慢点
 
@@ -36,7 +36,7 @@ Hey, here's what you need to know about MindWord security.
 
 ## Found a Security Issue?
 
-- Message me directly on WeChat: TimiKays (mention security issue)
+- Message me directly: timikays@qq.com (mention security issue)
 - Or create a private GitHub Issue
 - I'll handle it ASAP, but as a personal project, response might be slower
 

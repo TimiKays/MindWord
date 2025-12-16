@@ -1606,9 +1606,11 @@
                                 <i class="fa fa-database text-secondary"></i>
                             </div>
                             <div>
-                                <h3 class="font-bold text-lg mb-2" data-i18n="privacy.localStorage.title">本地存储</h3>
-                                <p class="text-dark/70" data-i18n="privacy.localStorage.desc">
-                                    所有文档与图片存储在本地浏览器缓存或本地文件（取决于导入方式），不上传任何服务器，确保你的数据安全。
+                                <h3 class="font-bold text-lg mb-2">数据存储</h3>
+                                <p class="text-dark/70">
+                                    <strong>未登录用户：</strong>所有数据完全本地存储，不上传到任何服务器。<br>
+                                    <strong>登录用户：</strong>可选择本地存储或使用云同步功能。
+
                                 </p>
                             </div>
                         </div>
@@ -1632,9 +1634,24 @@
                                 <i class="fa fa-exclamation-triangle text-amber-500"></i>
                             </div>
                             <div>
-                                <h3 class="font-bold text-lg mb-2" data-i18n="privacy.aiFunction.title">AI功能说明</h3>
-                                <p class="text-dark/70" data-i18n="privacy.aiFunction.desc">
-                                    使用外部 AI 服务时，相关文本会发送到配置的 AI 平台处理，请知晓。
+                                <h3 class="font-bold text-lg mb-2">AI功能说明</h3>
+                                <p class="text-dark/70">
+                                    使用AI生成功能时，必要的上下文信息（如当前节点文本）会传输给对应的AI平台处理，但不作存储。
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-start">
+                            <div
+                                class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mr-4 flex-shrink-0">
+                                <i class="fa fa-lock text-blue-500"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-lg mb-2">隐私承诺</h3>
+                                <p class="text-dark/70">
+                                    除云同步功能外，其他所有功能均可免登录使用和完全本地存储。实现最小化数据收集，最大化用户隐私保护。
+                                    <a href="privacy.html"
+                                        class="text-primary hover:text-primary/80 underline ml-1">隐私政策>></a>
                                 </p>
                             </div>
                         </div>
@@ -1707,13 +1724,13 @@
                     </p>
                     <div class="flex justify-center space-x-6 mb-6">
                         <div class="relative group">
-                            <div
-                                class="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center cursor-pointer transition-all hover:bg-green-600 hover:scale-110">
-                                <i class="fa fa-weixin text-white text-xl"></i>
-                            </div>
+                            <a href="mailto:timikays@qq.com"
+                                class="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center cursor-pointer transition-all hover:bg-blue-600 hover:scale-110">
+                                <i class="fa fa-envelope text-white text-xl"></i>
+                            </a>
                             <div
                                 class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-                                微信号：TimiKays
+                                email：timikays@qq.com
                                 <div
                                     class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800">
 
@@ -1771,6 +1788,9 @@
 
                 <!-- 页脚导航链接 -->
                 <div class="flex items-center space-x-6 mb-4 md:mb-0">
+                    <a href="privacy.html" class="text-white/60 hover:text-white text-sm transition-colors">
+                        <i class="fa fa-shield-alt mr-1"></i>隐私政策
+                    </a>
                     <a href="changelog/changelog.html" class="text-white/60 hover:text-white text-sm transition-colors"
                         data-i18n="footer.changelog">
                         <i class="fa fa-history mr-1"></i>更新日志

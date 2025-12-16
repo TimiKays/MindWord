@@ -44,11 +44,13 @@
 - Let me know if you find anything weird
 
 ## 联系方式 / Contact
-- 微信：TimiKays（加我请注明 MindWord）
+
+- 邮箱：timikays@qq.com
 - GitHub Issues：我都能看到
 
-- WeChat: TimiKays (mention MindWord when adding)
+- email: timikays@qq.com
 - GitHub Issues: I check them all
+
 
 **注意 / Note**: 这是个人项目，响应可能没那么及时，但每条反馈我都会看，感谢理解！
 *This is a personal project, response might not be immediate, but I read every feedback. Thanks for understanding!*

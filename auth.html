@@ -360,6 +360,38 @@
             transform: none;
         }
 
+        /* 隐私协议勾选框样式 */
+        .privacy-checkbox-container {
+            margin: 15px 0;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .privacy-checkbox-container label {
+            display: flex;
+            align-items: flex-start;
+            cursor: pointer;
+            color: #4a5568;
+        }
+
+        .privacy-checkbox-container input[type="checkbox"] {
+            margin-right: 8px;
+            margin-top: 3px;
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        .privacy-checkbox-container a {
+            color: #53a8cf;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .privacy-checkbox-container a:hover {
+            text-decoration: underline;
+        }
+
         /* 响应式设计 */
         @media (max-width: 480px) {
             .container {
@@ -417,6 +449,17 @@
             <label data-i18n="auth.confirmPassword">确认密码</label>
             <input id="signup-pass-confirm" type="password" data-i18n-placeholder="auth.confirmPasswordPlaceholder"
                 placeholder="请再次输入密码" required autocomplete="new-password" />
+
+            <div class="privacy-checkbox-container">
+                <label>
+                    <input type="checkbox" id="privacy-agreement" required />
+                    <span>
+                        我已阅读并同意
+                        <a href="privacy.html" target="_blank">隐私政策</a>
+                    </span>
+                </label>
+            </div>
+
             <div class="row">
                 <button id="btn-signup" type="button" data-i18n="auth.signup">注册</button>
 
@@ -613,9 +656,12 @@
                 var email = document.getElementById('signup-email').value.trim();
                 var pass = document.getElementById('signup-pass').value;
                 var passConfirm = document.getElementById('signup-pass-confirm').value;
+                var privacyAgreement = document.getElementById('privacy-agreement');
+
                 if (!email || !pass) return setMsg('signup-msg', i18n.t('auth.pleaseEnterEmailAndPassword'), 'err');
                 if (pass.length < 6) return setMsg('signup-msg', i18n.t('auth.passwordTooShort'), 'err');
                 if (pass !== passConfirm) return setMsg('signup-msg', i18n.t('auth.passwordsDoNotMatch'), 'err');
+                if (!privacyAgreement || !privacyAgreement.checked) return setMsg('signup-msg', '请阅读并同意隐私政策', 'err');
                 setMsg('signup-msg', i18n.t('auth.registering'), 'info');
                 try {
                     var user = new AV.User();
