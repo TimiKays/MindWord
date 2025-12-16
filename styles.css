@@ -958,27 +958,23 @@ iframe .btn:not([class*="btn-"]):hover {
         box-shadow: none !important;
     }
 
-    /* 移动端彻底移除所有阴影效果，避免截图出现阴影 */
-    .btn,
-    .btn-primary,
-    .btn-small,
-    .btn-icon,
-    button,
-    input[type="button"],
-    input[type="submit"] {
-        box-shadow: none !important;
-    }
-
-    /* 移动端移除所有元素的阴影 */
-    * {
-        box-shadow: none !important;
-        text-shadow: none !important;
-    }
 
 
     #doc-sidebar {
         top: 56px !important;
         height: calc(100vh - 56px);
+        /* 移动端隐藏时移除阴影，防止阴影溢出 */
+        box-shadow: none !important;
+        /* 确保隐藏时完全不可见 */
+        visibility: hidden !important;
+        transition: transform 0.22s ease, box-shadow 0.22s ease, visibility 0.22s ease !important;
+    }
+
+    /* 移动端侧边栏打开时才显示阴影 */
+    #doc-sidebar.open {
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
+        /* 打开时恢复可见性 */
+        visibility: visible !important;
     }
 
 
@@ -995,12 +991,6 @@ iframe .btn:not([class*="btn-"]):hover {
         margin-right: 8px !important;
     }
 
-    #auth-link,
-    #auth-user {
-        height: 32px !important;
-        font-size: 11px !important;
-
-    }
 
     #auth-username {
         font-size: 11px !important;

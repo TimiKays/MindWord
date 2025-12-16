@@ -1191,13 +1191,24 @@ function setupAutoUpdate() {
 
   if (!nodeTopic || !nodeNotes) return;
 
+  // 检测是否为移动端
+  const isMobile = (('ontouchstart' in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) || (window.matchMedia && window.matchMedia('(max-width: 768px)').matches));
+
   // 移除之前的事件监听避免重复
   nodeTopic.removeEventListener('input', handleAutoUpdate);
   nodeNotes.removeEventListener('input', handleAutoUpdate);
+  nodeTopic.removeEventListener('change', handleAutoUpdate);
+  nodeNotes.removeEventListener('change', handleAutoUpdate);
 
   // 添加新的事件监听
   nodeTopic.addEventListener('input', handleAutoUpdate);
   nodeNotes.addEventListener('input', handleAutoUpdate);
+
+  // 移动端额外添加change事件确保数据保存
+  if (isMobile) {
+    nodeTopic.addEventListener('change', handleAutoUpdate);
+    nodeNotes.addEventListener('change', handleAutoUpdate);
+  }
 
 
   // 在输入时进入编辑模式（抑制全局 toast），失焦恢复

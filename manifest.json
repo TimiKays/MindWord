@@ -76,9 +76,9 @@
       "form_factor": "wide"
     },
     {
-      "src": "res/screenShot-mobile.png",
-      "sizes": "720x1280",
-      "type": "image/png",
+      "src": "res/screenShot-mobile.jpg",
+      "sizes": "1080x1951",
+      "type": "image/jpeg",
       "form_factor": "narrow"
     }
   ],

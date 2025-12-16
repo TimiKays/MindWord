@@ -215,8 +215,8 @@
             #auth-user {
                 height: 32px !important;
                 font-size: 11px !important;
-                min-width: 42px !important;
-
+                min-width: 70px !important;
+                justify-content: center !important;
             }
 
             #auth-username {
@@ -473,16 +473,19 @@
             height: calc(100vh - 68px);
             background: #ffffff;
             border-right: 1px solid #e5e7eb;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            /* 默认无阴影，避免隐藏时阴影溢出 */
+            box-shadow: none;
             z-index: 10000;
             transform: translateX(-100%);
-            transition: transform 0.22s ease;
+            transition: transform 0.22s ease, box-shadow 0.22s ease;
             display: flex;
             flex-direction: column;
         }
 
         #doc-sidebar.open {
             transform: translateX(0);
+            /* 打开时才显示阴影 */
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
         }
 
         #doc-sidebar .side-header {
