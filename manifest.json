@@ -1,7 +1,7 @@
 {
   "name": "MindWord - 树心",
   "short_name": "MindWord",
-  "description": "像画图一样写文档的思维导图写作工具",
+  "description": "像画图一样写文档的思维导图写作工具，打造人与AI的思维共创平台。MindWord 提供 Markdown编辑器、思维导图和 Word 文档生成三大功能，支持多种数据源导入、离线存储与 AI 辅助，让创作更高效、更专业。",
   "start_url": "app",
   "display": "standalone",
   "theme_color": "#A3C6DA",
@@ -11,8 +11,10 @@
   "id": "./",
   "display_override": [
     "standalone",
+    "browser",
     "fullscreen",
-    "minimal-ui"
+    "minimal-ui",
+    "window-controls-overlay"
   ],
   "icons": [
     {
