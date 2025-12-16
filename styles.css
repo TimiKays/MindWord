@@ -825,13 +825,13 @@ iframe .btn:not([class*="btn-"]):hover {
     /* 使用 CSS custom properties 指定图标路径（由 HTML 提供 --ico / --ico-fallback） */
     -webkit-mask: var(--ico) center / contain no-repeat;
     mask: var(--ico) center / contain no-repeat;
-    
+
     /* 备用方案：当mask不支持或离线加载失败时使用background-image */
     background-image: var(--ico);
     background-repeat: no-repeat;
     background-position: center;
     background-size: contain;
-    
+
     /* 优先使用mask，如果支持的话 */
     -webkit-mask-size: 0 0;
     mask-size: 0 0;
@@ -913,6 +913,11 @@ iframe .btn:not([class*="btn-"]):hover {
         flex: 1 1 auto;
     }
 
+    /*小屏幕品牌名称字体缩小*/
+    .brand-text {
+
+        font-size: 14px;
+    }
 
 
     /* 顶部 header 的高度压缩，content 底部预留菜单栏高度 */
@@ -950,6 +955,24 @@ iframe .btn:not([class*="btn-"]):hover {
         margin: 0 !important;
         padding: 0 !important;
         border-radius: 0 !important;
+        box-shadow: none !important;
+    }
+
+    /* 移动端彻底移除所有阴影效果，避免截图出现阴影 */
+    .btn,
+    .btn-primary,
+    .btn-small,
+    .btn-icon,
+    button,
+    input[type="button"],
+    input[type="submit"] {
+        box-shadow: none !important;
+    }
+
+    /* 移动端移除所有元素的阴影 */
+    * {
+        box-shadow: none !important;
+        text-shadow: none !important;
     }
 
 

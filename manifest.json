@@ -4,6 +4,7 @@
   "description": "像画图一样写文档的思维导图写作工具",
   "start_url": "app",
   "display": "standalone",
+  "theme_color": "#A3C6DA",
   "background_color": "#ffffff",
   "orientation": "any",
   "scope": "./",
@@ -68,9 +69,15 @@
   "screenshots": [
     {
       "src": "res/screenShot-all.png",
-      "sizes": "1280x720",
+      "sizes": "1873x1088",
       "type": "image/png",
       "form_factor": "wide"
+    },
+    {
+      "src": "res/screenShot-mobile.png",
+      "sizes": "720x1280",
+      "type": "image/png",
+      "form_factor": "narrow"
     }
   ],
   "shortcuts": [
@@ -88,5 +95,6 @@
     }
   ],
   "lang": "zh-CN",
-  "dir": "ltr"
+  "dir": "ltr",
+  "iarc_rating_id": "pending"
 }
