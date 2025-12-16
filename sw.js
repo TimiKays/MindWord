@@ -3,7 +3,7 @@
  * 只缓存核心文件，避免路径重复问题
  */
 
-const CACHE_NAME = 'mindword-v26';
+const CACHE_NAME = 'mindword-v27';
 
 // 只缓存最关键的核心文件
 const CORE_FILES = [
