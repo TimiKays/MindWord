@@ -863,7 +863,7 @@
     <!-- 导航栏 -->
     <header id="navbar" class="fixed w-full top-0 z-50 transition-all duration-300 bg-white/80 bg-blur shadow-sm">
         <div class="container mx-auto px-4 sm:px-6 lg:px-8">
-            <!-- 第一行：Logo和语言切换（左侧），立即试用按钮（右侧） -->
+            <!-- 第一行：Logo和语言切换（左侧），开始使用按钮（右侧） -->
             <div class="flex items-center justify-between py-3">
                 <!-- 左侧：Logo + 语言切换 -->
                 <div class="flex items-center space-x-4">
@@ -895,7 +895,7 @@
                         data-i18n="nav.feedback">反馈建议</a>
                 </nav>
 
-                <!-- 右侧：语言切换和立即试用按钮 -->
+                <!-- 右侧：语言切换和开始使用按钮 -->
                 <div class="flex items-center space-x-2">
                     <!-- 语言切换下拉框 - 桌面端 -->
                     <select id="lang-switch" title="Language" onchange="window.i18nManager.setLanguage(this.value)"
@@ -906,11 +906,11 @@
                         <option value="es" data-i18n="language.es">ES</option>
                     </select>
 
-                    <!-- 立即试用按钮 - 桌面端 -->
+                    <!-- 开始使用按钮 - 桌面端 -->
                     <a href="/app.html"
                         class="hidden lg:block bg-primary hover:bg-primary/90 text-white px-4 py-1.5 rounded-lg font-medium transition-all shadow-md hover:shadow-lg text-sm"
                         data-i18n="nav.tryNow">
-                        立即试用
+                        开始使用
                     </a>
 
                     <!-- 移动端按钮组：立即体验 + 语言切换 + 菜单按钮 -->
@@ -983,7 +983,7 @@
                         <a href="/app.html"
                             class="bg-primary hover:bg-primary/90 text-white px-8 py-3 rounded-lg font-medium text-center transition-all shadow-lg hover:shadow-xl"
                             data-i18n="nav.freeTrial">
-                            免费体验 <i class="fa fa-arrow-right ml-2"></i>
+                            开始使用 <i class="fa fa-arrow-right ml-2"></i>
                         </a>
                         <a href="#features"
                             class="bg-white border border-dark/10 hover:border-primary text-dark px-8 py-3 rounded-lg font-medium text-center transition-all shadow-md hover:shadow-lg"
@@ -1606,10 +1606,12 @@
                                 <i class="fa fa-database text-secondary"></i>
                             </div>
                             <div>
-                                <h3 class="font-bold text-lg mb-2">数据存储</h3>
+                                <h3 class="font-bold text-lg mb-2" data-i18n="privacy.dataStorage.title">数据存储</h3>
                                 <p class="text-dark/70">
-                                    <strong>未登录用户：</strong>所有数据完全本地存储，不上传到任何服务器。<br>
-                                    <strong>登录用户：</strong>可选择本地存储或使用云同步功能。
+                                    <strong data-i18n="privacy.dataStorage.nonLoggedIn">未登录用户：</strong><span
+                                        data-i18n="privacy.dataStorage.nonLoggedInDesc">所有数据完全本地存储，不上传到任何服务器。</span><br>
+                                    <strong data-i18n="privacy.dataStorage.loggedIn">登录用户：</strong><span
+                                        data-i18n="privacy.dataStorage.loggedInDesc">可选择本地存储或使用云同步功能。</span>
 
                                 </p>
                             </div>
@@ -1634,8 +1636,8 @@
                                 <i class="fa fa-exclamation-triangle text-amber-500"></i>
                             </div>
                             <div>
-                                <h3 class="font-bold text-lg mb-2">AI功能说明</h3>
-                                <p class="text-dark/70">
+                                <h3 class="font-bold text-lg mb-2" data-i18n="privacy.aiFunction.title">AI功能说明</h3>
+                                <p class="text-dark/70" data-i18n="privacy.aiFunction.desc">
                                     使用AI生成功能时，必要的上下文信息（如当前节点文本）会传输给对应的AI平台处理，但不作存储。
                                 </p>
                             </div>
@@ -1647,11 +1649,12 @@
                                 <i class="fa fa-lock text-blue-500"></i>
                             </div>
                             <div>
-                                <h3 class="font-bold text-lg mb-2">隐私承诺</h3>
+                                <h3 class="font-bold text-lg mb-2" data-i18n="privacy.privacyCommitment.title">隐私承诺</h3>
                                 <p class="text-dark/70">
-                                    除云同步功能外，其他所有功能均可免登录使用和完全本地存储。实现最小化数据收集，最大化用户隐私保护。
-                                    <a href="privacy.html"
-                                        class="text-primary hover:text-primary/80 underline ml-1">隐私政策>></a>
+                                    <span
+                                        data-i18n="privacy.privacyCommitment.desc">除云同步功能外，其他所有功能均可免登录使用和完全本地存储。实现最小化数据收集，最大化用户隐私保护。</span>
+                                    <a href="privacy.html" class="text-primary hover:text-primary/80 underline ml-1"
+                                        data-i18n="privacy.privacyPolicy">隐私政策</a><span>>></span>
                                 </p>
                             </div>
                         </div>
@@ -1677,14 +1680,9 @@
                         </a>
                         <button id="pwa-install-btn-index" onclick="installPWAIndex()" style="display:none;"
                             class="bg-white text-primary hover:bg-gray-100 px-8 py-4 rounded-lg font-medium transition-all shadow-lg hover:shadow-xl flex items-center justify-center">
-                            📥 <span data-i18n="getStarted.installPWA">安装网页应用</span>
+                            📥 <span data-i18n="getStarted.installPWA">安装Web应用</span>
                         </button>
-                        <a href="https://download.mindword.dpdns.org/release/MindWordOnline-win32-x64-v0.56.zip"
-                            download="https://download.mindword.dpdns.org/release/MindWordOnline-win32-x64-v0.56.zip"
-                            class="bg-white text-primary hover:bg-gray-100 px-8 py-4 rounded-lg font-medium transition-all shadow-lg hover:shadow-xl flex items-center justify-center">
-                            <i class="fa fa-download mr-2"></i> <span
-                                data-i18n="getStarted.downloadWindows">下载Windows客户端</span>
-                        </a>
+
                         <!-- <a href="#"
                             class="bg-transparent border-2 border-white text-white hover:bg-white/10 px-8 py-4 rounded-lg font-medium transition-all flex items-center justify-center">
                             <i class="fa fa-globe mr-2"></i> 访问网页版
@@ -1788,7 +1786,8 @@
 
                 <!-- 页脚导航链接 -->
                 <div class="flex items-center space-x-6 mb-4 md:mb-0">
-                    <a href="privacy.html" class="text-white/60 hover:text-white text-sm transition-colors">
+                    <a href="privacy.html" class="text-white/60 hover:text-white text-sm transition-colors"
+                        data-i18n="privacy.privacyPolicy">
                         <i class="fa fa-shield-alt mr-1"></i>隐私政策
                     </a>
                     <a href="changelog/changelog.html" class="text-white/60 hover:text-white text-sm transition-colors"
@@ -1821,7 +1820,7 @@
 
 
                     <!-- <div class="flex flex-wrap justify-center gap-6">
-                        <a href="#" class="text-white/60 hover:text-white text-sm transition-colors">隐私政策</a>
+                        <a href="#" class="text-white/60 hover:text-white text-sm transition-colors" data-i18n="privacy.privacyPolicy">隐私政策</a>
                         <a href="#" class="text-white/60 hover:text-white text-sm transition-colors">使用条款</a>
                         <a href="#" class="text-white/60 hover:text-white text-sm transition-colors">开源许可</a>
                         <a href="#" class="text-white/60 hover:text-white text-sm transition-colors">帮助中心</a>

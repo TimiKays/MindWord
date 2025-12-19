@@ -322,13 +322,13 @@ MindWord应用的用户认证系统核心模块，主要功能包括：
             if (retryCount >= maxRetries) {
               console.error('[AUTH] 登录后同步重试次数已达上限，放弃自动同步');
               // 显示错误提示给用户
-              setTimeout(() => {
-                if (window.showError) {
-                  window.showError('登录后自动同步失败，请检查网络连接后手动同步');
-                } else {
-                  alert('登录后自动同步失败，请检查网络连接后手动同步');
-                }
-              }, 100);
+              // setTimeout(() => {
+              //   if (window.showError) {
+              //     window.showError('登录后自动同步失败，请检查网络连接后手动同步');
+              //   } else {
+              //     alert('登录后自动同步失败，请检查网络连接后手动同步');
+              //   }
+              // }, 100);
             }
           }
         }, 2000); // 每2秒重试一次

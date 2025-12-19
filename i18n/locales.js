@@ -99,11 +99,27 @@ const i18nLocales = {
     privacy: {
       title: '隐私保障',
       subtitle: '我们重视您的数据安全和隐私保护，让您放心使用',
+      dataStorage: {
+        title: '数据存储',
+        nonLoggedIn: '未登录用户：',
+        nonLoggedInDesc: '所有数据完全本地存储，不上传到任何服务器。',
+        loggedIn: '登录用户：',
+        loggedInDesc: '可选择本地存储或使用云同步功能。'
+      },
+      aiFunction: {
+        title: 'AI功能说明',
+        desc: '使用AI生成功能时，必要的上下文信息（如当前节点文本）会传输给对应的AI平台处理，但不作存储。'
+      },
+      privacyCommitment: {
+        title: '隐私承诺',
+        desc: '除云同步功能外，其他所有功能均可免登录使用和完全本地存储。实现最小化数据收集，最大化用户隐私保护。'
+      },
+      privacyPolicy: '隐私政策',
       localStorage: {
         title: '本地存储',
         desc: '所有文档和图片都存储在本地浏览器缓存或本地文件中（取决于导入方式），不会上传到任何服务器，确保您的数据安全。'
       },
-      aiFunction: {
+      aiFunctionLegacy: {
         title: 'AI功能说明',
         desc: '使用外部AI服务时，会将相关文本发送到您配置的AI平台进行处理，请注意。'
       }
@@ -142,8 +158,8 @@ const i18nLocales = {
       guide: '快速上手',
       privacy: '隐私保障',
       feedback: '反馈建议',
-      tryNow: '立即体验',
-      freeTrial: '免费体验',
+      tryNow: '开始使用',
+      freeTrial: '开始使用',
       featureIntro: '功能介绍',
       changelog: '更新日志'
     },
@@ -431,6 +447,8 @@ const i18nLocales = {
       passwordsDoNotMatch: '两次输入的密码不一致',
       passwordRequirements: '密码长度至少为6位',
       resetEmailSent: '重置邮件已发送，请检查邮箱',
+      privacyAgreement: '我已阅读并同意',
+      privacyPolicy: '隐私政策',
       sendingResetEmail: '正在发送重置邮件...',
       emailNotFound: '该邮箱未注册，请检查邮箱地址或先注册账号',
       logout: '退出登录'
@@ -495,8 +513,8 @@ const i18nLocales = {
       guide: 'Guide',
       privacy: 'Privacy',
       feedback: 'Feedback',
-      tryNow: 'Try Now',
-      freeTrial: 'Free Trial',
+      tryNow: 'Get Started',
+      freeTrial: 'Get Started',
       featureIntro: 'Features',
       changelog: 'Changelog'
     },
@@ -598,11 +616,27 @@ const i18nLocales = {
     privacy: {
       title: 'Privacy Protection',
       subtitle: 'We value your data security and privacy protection, allowing you to use with confidence',
+      dataStorage: {
+        title: 'Data Storage',
+        nonLoggedIn: 'Non-logged-in users:',
+        nonLoggedInDesc: 'All data is stored locally, not uploaded to any server.',
+        loggedIn: 'Logged-in users:',
+        loggedInDesc: 'Can choose local storage or use cloud sync functionality.'
+      },
+      aiFunction: {
+        title: 'AI Function Description',
+        desc: 'When using AI generation features, necessary context information (such as current node text) will be transmitted to the corresponding AI platform for processing, but will not be stored.'
+      },
+      privacyCommitment: {
+        title: 'Privacy Commitment',
+        desc: 'Except for cloud sync functionality, all other features can be used without login and stored completely locally. Achieve minimal data collection and maximum user privacy protection.'
+      },
+      privacyPolicy: 'Privacy Policy',
       localStorage: {
         title: 'Local Storage',
         desc: 'All documents and images are stored in local browser cache or local files (depending on import method), no uploads to any server, ensuring your data security.'
       },
-      aiFunction: {
+      aiFunctionLegacy: {
         title: 'AI Function Description',
         desc: 'When using external AI services, relevant text will be sent to the configured AI platform for processing, please be aware.'
       }
@@ -911,7 +945,9 @@ const i18nLocales = {
       emailNotFound: 'This email is not registered, please check the email address or register first',
       logout: 'Logout',
       invalidEmail: 'Invalid email format, please enter a correct email address',
-      sendingResetEmail: 'Sending reset email...'
+      sendingResetEmail: 'Sending reset email...',
+      privacyAgreement: 'I have read and agree to',
+      privacyPolicy: 'Privacy Policy'
     },
 
     // 云备份
@@ -1049,11 +1085,27 @@ const i18nLocales = {
     privacy: {
       title: 'Privacidad y Seguridad',
       subtitle: 'Valoramos su seguridad de datos y protección de privacidad, permitiéndole usar con confianza',
+      dataStorage: {
+        title: 'Almacenamiento de Datos',
+        nonLoggedIn: 'Usuarios no conectados:',
+        nonLoggedInDesc: 'Todos los datos se almacenan localmente, no se cargan a ningún servidor.',
+        loggedIn: 'Usuarios conectados:',
+        loggedInDesc: 'Pueden elegir almacenamiento local o usar funcionalidad de sincronización en la nube.'
+      },
+      aiFunction: {
+        title: 'Descripción de Función AI',
+        desc: 'Al usar funciones de generación AI, la información de contexto necesaria (como el texto del nodo actual) se transmitirá a la plataforma AI correspondiente para procesamiento, pero no se almacenará.'
+      },
+      privacyCommitment: {
+        title: 'Compromiso de Privacidad',
+        desc: 'Excepto la funcionalidad de sincronización en la nube, todas las demás características se pueden usar sin iniciar sesión y almacenarse completamente localmente. Lograr recolección mínima de datos y máxima protección de privacidad del usuario.'
+      },
+      privacyPolicy: 'Política de Privacidad',
       localStorage: {
         title: 'Almacenamiento Local',
         desc: 'Todos los documentos e imágenes se almacenan en el caché del navegador local o archivos locales (dependiendo del método de importación), no se suben a ningún servidor, asegurando la seguridad de sus datos.'
       },
-      aiFunction: {
+      aiFunctionLegacy: {
         title: 'Instrucciones de Función AI',
         desc: 'Al usar servicios AI externos, el texto relevante se enviará a la plataforma AI que configure para procesamiento, por favor tenga en cuenta.'
       }
@@ -1092,8 +1144,8 @@ const i18nLocales = {
       guide: 'Guía Rápida',
       privacy: 'Privacidad y Seguridad',
       feedback: 'Comentarios',
-      tryNow: 'Experimentar Ahora',
-      freeTrial: 'Prueba Gratuita',
+      tryNow: 'Comenzar',
+      freeTrial: 'Comenzar',
       featureIntro: 'Introducción de Funciones',
       changelog: 'Registro de Cambios'
     },
@@ -1458,7 +1510,9 @@ const i18nLocales = {
       emailNotFound: 'Este correo electrónico no está registrado, por favor verifique la dirección o regístrese primero',
       logout: 'Cerrar Sesión',
       invalidEmail: 'Formato de correo electrónico inválido, por favor ingrese una dirección de correo electrónico correcta',
-      sendingResetEmail: 'Enviando correo electrónico de restablecimiento...'
+      sendingResetEmail: 'Enviando correo electrónico de restablecimiento...',
+      privacyAgreement: 'He leído y acepto',
+      privacyPolicy: 'Política de Privacidad'
     },
 
     // 云备份
