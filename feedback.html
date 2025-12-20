@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>建议与反馈 - MindWord</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        :root {
+            --primary-color: #82caf1;
+            --primary-hover: #6ea5c4;
+            --text-main: #1e293b;
+            --text-secondary: #64748b;
+            --bg-color: #c9c9c9;
+            --glass-bg: rgba(255, 255, 255, 0.85);
+            --glass-border: 1px solid rgba(255, 255, 255, 0.6);
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --radius-md: 12px;
+            --radius-lg: 16px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.7;
+            color: var(--text-main);
+            background-color: #f3f4f6;
+            background-image:
+                radial-gradient(at 0% 0%, rgba(99, 184, 241, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(130, 235, 208, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(72, 148, 236, 0.1) 0px, transparent 50%);
+            background-attachment: fixed;
+            min-height: 100vh;
+        }
+
+        /* 顶部导航栏 - 从 app.html 复制 */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            z-index: 1000;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .brand {
+            font-family: 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            margin-left: 0;
+            font-weight: 700;
+            font-size: 26px;
+            display: flex;
+            align-items: center;
+        }
+
+        .brand-clickable {
+            background: linear-gradient(0deg, #0b82e4 0%, #11c49d 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+        }
+
+        .brand-clickable:hover {
+            opacity: 0.8;
+        }
+
+        .brand-clickable img {
+            width: 32px;
+            height: 32px;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+
+        /* 为固定导航栏添加主体内容偏移 */
+        .main-wrapper {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding-top: 60px;
+            /* 为头部留出空间 */
+            z-index: 1;
+        }
+
+        .feedback-container {
+            background-color: white;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            width: 100%;
+            max-width: 600px;
+            max-height: calc(100vh - 120px);
+            padding: 30px;
+            margin: 0 20px;
+            overflow-y: auto;
+        }
+
+        .feedback-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .feedback-header h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 24px;
+        }
+
+        .feedback-header p {
+            color: #666;
+            margin: 0;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #4a90e2;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .radio-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            transition: all 0.2s ease;
+            background-color: #f9f9f9;
+        }
+
+        .radio-option:hover {
+            border-color: #4a90e2;
+            background-color: #f0f8ff;
+        }
+
+        .radio-option input[type="radio"] {
+            width: auto;
+            margin-right: 8px;
+            display: none;
+        }
+
+        .radio-option label {
+            margin: 0;
+            cursor: pointer;
+            font-size: 14px;
+            color: #555;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .radio-option input[type="radio"]:checked+label {
+            color: #4a90e2;
+            font-weight: 500;
+        }
+
+        .radio-option input[type="radio"]:checked~.radio-option {
+            border-color: #4a90e2;
+            background-color: #e6f3ff;
+        }
+
+        .radio-option.selected {
+            border-color: #4a90e2;
+            background-color: #e6f3ff;
+        }
+
+        .radio-option.selected label {
+            color: #4a90e2;
+            font-weight: 500;
+        }
+
+        .form-group .optional {
+            color: #999;
+            font-size: 12px;
+            margin-left: 4px;
+        }
+
+        .submit-btn {
+            background-color: #4a90e2;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            transition: background-color 0.3s;
+        }
+
+        .submit-btn:hover {
+            background-color: #3a7bc8;
+        }
+
+        .submit-btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .success-message {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            background-color: #f0f9ff;
+            border: 1px solid #d4edda;
+            border-radius: 4px;
+            color: #155724;
+        }
+
+        .success-message h2 {
+            margin-top: 0;
+            font-size: 20px;
+        }
+
+        .error-message {
+            display: none;
+            padding: 10px;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+            color: #721c24;
+            margin-bottom: 20px;
+        }
+
+        .input-error {
+            border-color: #dc3545 !important;
+        }
+
+        .small-error {
+            font-size: 12px;
+            color: #dc3545;
+            margin-top: 5px;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 顶部导航栏 -->
+    <header class="header">
+        <div class="brand">
+            <a href="index.html" class="brand-clickable" title="返回首页">
+                <img src="res/LOGO32.ico" alt="favicon">
+                MindWord
+            </a>
+        </div>
+        <nav>
+            <!-- 可以在这里添加导航链接 -->
+        </nav>
+    </header>
+
+    <!-- 主体内容 -->
+    <div class="main-wrapper">
+        <div class="feedback-container">
+            <div class="feedback-header">
+                <h1 data-i18n="feedback.page.title">建议与反馈</h1>
+                <p data-i18n="feedback.page.subtitle">您的意见对我们非常重要，请告诉我们您的想法</p>
+            </div>
+
+            <div class="error-message" id="errorMessage"></div>
+
+            <form id="feedbackForm">
+                <div class="form-group">
+                    <label for="title" data-i18n="feedback.page.formTitle">标题</label>
+                    <input type="text" id="title" name="title" required
+                        data-i18n-placeholder="feedback.page.formTitlePlaceholder" placeholder="请输入反馈标题">
+                </div>
+
+                <div class="form-group">
+                    <label data-i18n="feedback.page.formType">类型</label>
+                    <div class="radio-group">
+                        <div class="radio-option">
+                            <input type="radio" id="type-bug" name="type" value="bug" required>
+                            <label for="type-bug" data-i18n="feedback.page.formTypeBug">🐛 错误报告</label>
+                        </div>
+                        <div class="radio-option selected">
+                            <input type="radio" id="type-suggestion" name="type" value="suggestion" checked>
+                            <label for="type-suggestion" data-i18n="feedback.page.formTypeSuggestion">💡 功能建议</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="type-question" name="type" value="question">
+                            <label for="type-question" data-i18n="feedback.page.formTypeQuestion">❓ 问题答疑</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="type-other" name="type" value="other">
+                            <label for="type-other" data-i18n="feedback.page.formTypeOther">📝 其他反馈</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="content" data-i18n="feedback.page.formContent">问题描述</label>
+                    <textarea id="content" name="content" required
+                        data-i18n-placeholder="feedback.page.formContentPlaceholder"
+                        placeholder="请详细描述您遇到的问题或建议"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="email" data-i18n="feedback.page.formEmail">邮箱<span class="optional"
+                            data-i18n="feedback.page.formEmailOptional">（选填）</span></label>
+                    <input type="text" id="email" name="email"
+                        data-i18n-placeholder="feedback.page.formEmailPlaceholder" placeholder="如需回复请留下邮箱">
+                    <div id="emailError" class="small-error" data-i18n="feedback.page.errorEmail">请输入有效的邮箱地址</div>
+                </div>
+
+                <button type="submit" class="submit-btn" id="submitBtn"
+                    data-i18n="feedback.page.submitButton">提交反馈</button>
+            </form>
+
+            <div class="success-message" id="successMessage">
+                <h2 data-i18n="feedback.page.successTitle">感谢您的反馈！</h2>
+                <p data-i18n="feedback.page.successMessage">我们已收到您的意见，将尽快处理并改进。</p>
+                <p data-i18n="feedback.page.successCloseMessage">此窗口将在3秒后自动关闭...</p>
+            </div>
+        </div>
+
+        <!-- 引入国际化配置 -->
+        <script src="./i18n/locales.js"></script>
+        <script src="./i18n/i18n-manager.js"></script>
+        <!-- 引入LeanCloud SDK -->
+        <script src="./local-deps/av-min.js"></script>
+
+        <script>
+            /**
+             * MindWord - 用户反馈管理模块
+             * 实现用户反馈表的创建和数据写入功能
+             */
+            (function () {
+                'use strict';
+
+                // 反馈表结构定义
+                const FeedbackTable = {
+                    // 表名
+                    tableName: 'UserFeedback',
+
+                    // 字段定义
+                    fields: {
+                        id: 'string',          // LeanCloud自动生成的objectId
+                        email: 'string',       // 用户邮箱
+                        type: 'string',        // 反馈类型：bug/建议/其他
+                        title: 'string',       // 反馈标题
+                        content: 'string',     // 反馈内容
+                        status: 'string',      // 处理状态：待处理/处理中/已解决
+                        createdAt: 'date',     // 创建时间
+                        processedAt: 'date'    // 处理时间
+                    },
+
+                    // 反馈类型枚举
+                    types: {
+                        BUG: 'bug',
+                        SUGGESTION: 'suggestion',
+                        QUESTION: 'question',
+                        OTHER: 'other'
+                    },
+
+                    // 处理状态枚举
+                    statuses: {
+                        PENDING: '待处理',
+                        PROCESSING: '处理中',
+                        RESOLVED: '已解决'
+                    }
+                };
+
+                /**
+                 * 创建反馈表
+                 * 在LeanCloud中创建数据表（如果不存在）
+                 */
+                async function createFeedbackTable() {
+                    try {
+                        // 检查LeanCloud是否已初始化
+                        if (!window.AV) {
+                            throw new Error('LeanCloud SDK未加载');
+                        }
+
+                        // 在LeanCloud中，表会在第一次使用时自动创建
+                        // 这里我们通过创建一个测试对象来确保表结构正确
+                        const TestObject = AV.Object.extend(FeedbackTable.tableName);
+                        const testObj = new TestObject();
+
+                        // 设置各字段类型（LeanCloud会自动处理类型转换）
+                        testObj.set('email', '');
+                        testObj.set('type', FeedbackTable.types.OTHER);
+                        testObj.set('title', '');
+                        testObj.set('content', '');
+                        testObj.set('status', FeedbackTable.statuses.PENDING);
+
+                        console.log('反馈表结构验证成功');
+                        return true;
+                    } catch (error) {
+                        console.error('创建反馈表失败:', error);
+                        throw error;
+                    }
+                }
+
+                /**
+                 * 提交用户反馈
+                 * @param {Object} feedbackData - 反馈数据
+                 * @param {string} feedbackData.email - 用户邮箱（选填）
+                 * @param {string} feedbackData.type - 反馈类型
+                 * @param {string} feedbackData.title - 反馈标题
+                 * @param {string} feedbackData.content - 反馈内容
+                 * @returns {Promise<Object>} - 返回创建的反馈对象
+                 */
+                async function submitFeedback(feedbackData) {
+                    try {
+                        // 验证必填字段
+                        if (!feedbackData.title || !feedbackData.content) {
+                            throw new Error('标题和内容为必填项');
+                        }
+
+                        // 验证反馈类型
+                        const validTypes = Object.values(FeedbackTable.types);
+                        if (!validTypes.includes(feedbackData.type)) {
+                            feedbackData.type = FeedbackTable.types.OTHER;
+                        }
+
+                        // 创建反馈对象
+                        const FeedbackObject = AV.Object.extend(FeedbackTable.tableName);
+                        const feedback = new FeedbackObject();
+
+                        // 设置字段值，邮箱为空时使用默认值
+                        feedback.set('email', feedbackData.email || '匿名用户');
+                        feedback.set('type', feedbackData.type);
+                        feedback.set('title', feedbackData.title);
+                        feedback.set('content', feedbackData.content);
+                        feedback.set('status', FeedbackTable.statuses.PENDING);
+
+                        // 保存到LeanCloud
+                        const savedFeedback = await feedback.save();
+
+                        console.log('反馈提交成功，ID:', savedFeedback.id);
+                        return {
+                            success: true,
+                            id: savedFeedback.id,
+                            message: '反馈提交成功'
+                        };
+                    } catch (error) {
+                        console.error('提交反馈失败:', error);
+                        return {
+                            success: false,
+                            error: error.message || '提交反馈失败'
+                        };
+                    }
+                }
+
+                /**
+                 * 更新反馈状态
+                 * @param {string} feedbackId - 反馈ID
+                 * @param {string} newStatus - 新状态
+                 * @returns {Promise<Object>} - 返回更新结果
+                 */
+                async function updateFeedbackStatus(feedbackId, newStatus) {
+                    try {
+                        // 验证状态值
+                        const validStatuses = Object.values(FeedbackTable.statuses);
+                        if (!validStatuses.includes(newStatus)) {
+                            throw new Error('无效的状态值');
+                        }
+
+                        // 查询反馈对象
+                        const query = new AV.Query(FeedbackTable.tableName);
+                        const feedback = await query.get(feedbackId);
+
+                        // 更新状态
+                        feedback.set('status', newStatus);
+
+                        // 如果状态变更为"已解决"，设置处理时间
+                        if (newStatus === FeedbackTable.statuses.RESOLVED) {
+                            feedback.set('processedAt', new Date());
+                        }
+
+                        // 保存更新
+                        await feedback.save();
+
+                        console.log('反馈状态更新成功');
+                        return {
+                            success: true,
+                            message: '状态更新成功'
+                        };
+                    } catch (error) {
+                        console.error('更新反馈状态失败:', error);
+                        return {
+                            success: false,
+                            error: error.message || '更新状态失败'
+                        };
+                    }
+                }
+
+                /**
+                 * 获取反馈列表
+                 * @param {Object} options - 查询选项
+                 * @param {number} options.limit - 返回数量限制
+                 * @param {number} options.skip - 跳过数量
+                 * @param {string} options.status - 按状态筛选
+                 * @param {string} options.type - 按类型筛选
+                 * @returns {Promise<Array>} - 返回反馈列表
+                 */
+                async function getFeedbackList(options = {}) {
+                    try {
+                        const query = new AV.Query(FeedbackTable.tableName);
+
+                        // 按状态筛选
+                        if (options.status) {
+                            query.equalTo('status', options.status);
+                        }
+
+                        // 按类型筛选
+                        if (options.type) {
+                            query.equalTo('type', options.type);
+                        }
+
+                        // 按创建时间降序排列
+                        query.descending('createdAt');
+
+                        // 设置分页
+                        if (options.limit) {
+                            query.limit(options.limit);
+                        }
+
+                        if (options.skip) {
+                            query.skip(options.skip);
+                        }
+
+                        // 执行查询
+                        const results = await query.find();
+
+                        // 转换为普通对象数组
+                        const feedbackList = results.map(item => {
+                            return {
+                                id: item.id,
+                                email: item.get('email'),
+                                type: item.get('type'),
+                                title: item.get('title'),
+                                content: item.get('content'),
+                                status: item.get('status'),
+                                createdAt: item.get('createdAt'),
+                                processedAt: item.get('processedAt')
+                            };
+                        });
+
+                        return feedbackList;
+                    } catch (error) {
+                        console.error('获取反馈列表失败:', error);
+                        throw error;
+                    }
+                }
+
+                // 将函数暴露到全局作用域
+                window.MindWordFeedback = {
+                    createTable: createFeedbackTable,
+                    submit: submitFeedback,
+                    updateStatus: updateFeedbackStatus,
+                    getList: getFeedbackList,
+                    types: FeedbackTable.types,
+                    statuses: FeedbackTable.statuses
+                };
+
+                // 自动初始化表结构
+                if (window.AV) {
+                    createFeedbackTable().catch(error => {
+                        console.warn('反馈表初始化失败:', error);
+                    });
+                } else {
+                    console.warn('LeanCloud SDK未加载，反馈功能暂不可用');
+                }
+            })();
+
+            /**
+             * 国际化初始化
+             */
+            let isSubmitting = false;
+            let currentErrorMessage = '';
+
+            // 初始化国际化
+            function initInternationalization() {
+                // 等待i18nManager初始化完成
+                const checkI18nReady = setInterval(() => {
+                    if (window.i18nManager && window.i18nManager.isInitialized) {
+                        clearInterval(checkI18nReady);
+
+                        // 应用当前语言
+                        updatePageContent();
+
+                        // 添加语言变化监听器
+                        window.i18nManager.addLanguageChangeListener(updatePageContent);
+                    }
+                }, 100);
+            }
+
+            // 更新页面内容为当前语言
+            function updatePageContent() {
+                // 更新静态内容（通过i18nManager自动处理data-i18n属性）
+                if (window.i18nManager) {
+                    window.i18nManager.updatePageTranslations();
+                }
+
+                // 更新动态内容
+                updateDynamicContent();
+            }
+
+            // 更新动态内容
+            function updateDynamicContent() {
+                // 更新提交按钮文本（如果正在提交中）
+                if (isSubmitting) {
+                    submitBtn.textContent = i18nManager.t('feedback.page.submitButtonSubmitting');
+                }
+
+                // 更新动态placeholder
+                const selectedType = document.querySelector('input[name="type"]:checked')?.value;
+                if (selectedType) {
+                    updatePlaceholder(selectedType);
+                }
+
+                // 更新错误消息
+                if (currentErrorMessage) {
+                    showError(currentErrorMessage);
+                }
+            }
+
+            // 初始化LeanCloud
+            AV.init({
+                appId: 'MQ3fZEqOgskJBWGoxOwqG1nT-gzGzoHsz',
+                appKey: 'bhU0peMhrAVKEJ2OQbiFKXwC',
+                serverURL: 'https://mq3fzeqo.lc-cn-n1-shared.com'
+            });
+
+            // 获取表单元素
+            const feedbackForm = document.getElementById('feedbackForm');
+            const submitBtn = document.getElementById('submitBtn');
+            const errorMessage = document.getElementById('errorMessage');
+            const successMessage = document.getElementById('successMessage');
+            const contentTextarea = document.getElementById('content');
+            const emailInput = document.getElementById('email');
+            const emailError = document.getElementById('emailError');
+
+            // 邮箱格式校验函数
+            // 这个正则表达式确保：
+            // 1. 邮箱地址包含@符号
+            // 2. @符号前后都有内容
+            // 3. 域名部分包含点号
+            // 4. 不包含空白字符
+            // 5. 不包含多余的@符号
+            // 例如，以下格式会通过验证：
+
+            // - user@example.com
+            // - test.email@domain.org
+            // - name@sub.domain.co.uk
+            // 以下格式不会通过验证：
+
+            // - user@（缺少域名）
+            // - @domain.com（缺少用户名）
+            // - user domain.com（缺少@符号）
+            // - user@domain（缺少顶级域名）
+            function validateEmail(email) {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                return emailRegex.test(email);
+            }
+
+            // 邮箱输入框失焦事件
+            emailInput.addEventListener('blur', function () {
+                const email = emailInput.value.trim();
+                if (email && !validateEmail(email)) {
+                    emailInput.classList.add('input-error');
+                    emailError.style.display = 'block';
+                } else {
+                    emailInput.classList.remove('input-error');
+                    emailError.style.display = 'none';
+                }
+            });
+
+            // 邮箱输入框输入事件（用户重新输入时清除错误状态）
+            emailInput.addEventListener('input', function () {
+                if (emailInput.classList.contains('input-error')) {
+                    emailInput.classList.remove('input-error');
+                    emailError.style.display = 'none';
+                }
+            });
+
+            // 初始化显示默认类型的placeholder
+            updatePlaceholder('suggestion');
+
+            // 处理类型选择的样式
+            const radioOptions = document.querySelectorAll('.radio-option');
+            radioOptions.forEach(option => {
+                const radio = option.querySelector('input[type="radio"]');
+
+                // 初始状态
+                if (radio.checked) {
+                    option.classList.add('selected');
+                }
+
+                // 点击事件
+                option.addEventListener('click', () => {
+                    // 移除所有选中状态
+                    radioOptions.forEach(opt => opt.classList.remove('selected'));
+                    // 添加当前选中状态
+                    option.classList.add('selected');
+                    // 选中对应的radio
+                    radio.checked = true;
+                    // 更新placeholder
+                    updatePlaceholder(radio.value);
+                });
+            });
+
+            // 更新placeholder的函数
+            function updatePlaceholder(type) {
+                const placeholderKeys = {
+                    'bug': 'feedback.page.formContentBugPlaceholder',
+                    'suggestion': 'feedback.page.formContentSuggestionPlaceholder',
+                    'question': 'feedback.page.formContentQuestionPlaceholder',
+                    'other': 'feedback.page.formContentOtherPlaceholder'
+                };
+
+                const placeholderKey = placeholderKeys[type];
+                if (window.i18nManager) {
+                    contentTextarea.placeholder = i18nManager.t(placeholderKey);
+                } else {
+                    // 如果i18nManager未初始化，使用默认中文文本
+                    const defaultPlaceholders = {
+                        'bug': '请描述程序崩溃、功能异常、显示错误、性能问题等软件缺陷',
+                        'suggestion': '请描述新功能需求、界面改进、操作优化、交互调整等功能建议',
+                        'question': '请描述操作疑问、功能不会用、流程不清晰、找不到功能等使用问题',
+                        'other': '请描述综合评价、使用体验、意见建议、其他不分类的反馈'
+                    };
+                    contentTextarea.placeholder = defaultPlaceholders[type] || '请详细描述您遇到的问题或建议';
+                }
+            }
+
+            // 表单提交处理
+            feedbackForm.addEventListener('submit', async function (event) {
+                event.preventDefault();
+
+                // 获取表单数据
+                const title = document.getElementById('title').value.trim();
+                const type = document.querySelector('input[name="type"]:checked')?.value;
+                const content = document.getElementById('content').value.trim();
+                const email = document.getElementById('email').value.trim();
+
+                // 简单验证
+                if (!title || !type || !content) {
+                    const errorMsg = window.i18nManager ?
+                        i18nManager.t('feedback.page.errorRequired') :
+                        '请填写所有必填字段';
+                    showError(errorMsg);
+                    return;
+                }
+
+                // 验证邮箱格式（如果填写了邮箱）
+                if (email && !validateEmail(email)) {
+                    emailInput.classList.add('input-error');
+                    emailError.style.display = 'block';
+                    return;
+                }
+
+                // 禁用提交按钮
+                submitBtn.disabled = true;
+                isSubmitting = true;
+
+                if (window.i18nManager) {
+                    submitBtn.textContent = i18nManager.t('feedback.page.submitButtonSubmitting');
+                } else {
+                    submitBtn.textContent = '提交中...';
+                }
+
+                try {
+                    // 调用反馈接口
+                    const result = await MindWordFeedback.submit({
+                        title: title,
+                        type: type,
+                        content: content,
+                        email: email || '匿名用户'
+                    });
+
+                    if (result.success) {
+                        // 显示成功消息
+                        feedbackForm.style.display = 'none';
+                        successMessage.style.display = 'block';
+                        errorMessage.style.display = 'none';
+
+                        // 3秒后尝试关闭窗口（如果是由脚本打开的）
+                        setTimeout(() => {
+                            // 尝试关闭窗口（如果是由脚本打开的）
+                            try {
+                                window.close();
+                            } catch (e) {
+                                // 如果无法关闭窗口，显示手动关闭提示
+                                const closeMessage = document.createElement('p');
+                                closeMessage.textContent = window.i18nManager ?
+                                    i18nManager.t('feedback.page.successManualClose') :
+                                    '您可以手动关闭此窗口';
+                                closeMessage.style.marginTop = '15px';
+                                closeMessage.style.fontStyle = 'italic';
+                                successMessage.appendChild(closeMessage);
+                            }
+
+                            // 如果是在弹窗中打开的，尝试关闭弹窗
+                            if (window.parent && window.parent !== window) {
+                                window.parent.postMessage('close-feedback-modal', '*');
+                            }
+                        }, 3000);
+                    } else {
+                        const errorMsg = window.i18nManager ?
+                            i18nManager.t('feedback.page.errorSubmit') :
+                            (result.error || '提交失败，请稍后重试');
+                        showError(errorMsg);
+                    }
+                } catch (error) {
+                    console.error('提交反馈出错:', error);
+                    const errorMsg = window.i18nManager ?
+                        i18nManager.t('feedback.page.errorSubmit') :
+                        '提交失败，请稍后重试';
+                    showError(errorMsg);
+                } finally {
+                    // 恢复提交按钮状态
+                    submitBtn.disabled = false;
+                    isSubmitting = false;
+
+                    if (window.i18nManager) {
+                        submitBtn.textContent = i18nManager.t('feedback.page.submitButton');
+                    } else {
+                        submitBtn.textContent = '提交反馈';
+                    }
+                }
+            });
+
+            // 显示错误消息
+            function showError(message) {
+                currentErrorMessage = message;
+                errorMessage.textContent = message;
+                errorMessage.style.display = 'block';
+                successMessage.style.display = 'none';
+            }
+
+            // 页面加载完成后初始化国际化
+            document.addEventListener('DOMContentLoaded', function () {
+                initInternationalization();
+            });
+        </script>
+</body>
+
+</html>

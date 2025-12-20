@@ -925,14 +925,14 @@
                         <!-- 语言切换下拉框 - 移动端 -->
                         <select id="lang-switch-mobile" onchange="window.i18nManager.setLanguage(this.value)"
                             class="h-9 border border-gray-300 rounded-md bg-white text-gray-700 text-xs px-2 hover:border-primary transition-colors"
-                            style="min-width: 60px;">
+                            style="min-width: 60px;" aria-label="Language selection">
                             <option value="zh" data-i18n="language.zh">中文</option>
                             <option value="en" data-i18n="language.en">EN</option>
                             <option value="es" data-i18n="language.es">ES</option>
                         </select>
 
                         <!-- 移动端菜单按钮 -->
-                        <button id="menu-toggle" class="text-dark p-2 rounded-md">
+                        <button id="menu-toggle" class="text-dark p-2 rounded-md" aria-label="Toggle menu">
                             <i class="fa fa-bars text-xl"></i>
                         </button>
                     </div>
@@ -1722,8 +1722,24 @@
                     </p>
                     <div class="flex justify-center space-x-6 mb-6">
                         <div class="relative group">
+                            <a href="feedback.html" target="_blank"
+                                class="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center cursor-pointer transition-all hover:bg-green-600 hover:scale-110"
+                                aria-label="Feedback Form">
+                                <i class="fa fa-comment text-white text-xl"></i>
+                            </a>
+                            <div
+                                class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                                <span data-i18n="feedback.onlineForm">在线提交建议&反馈</span>
+                                <div
+                                    class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="relative group">
                             <a href="mailto:timikays@qq.com"
-                                class="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center cursor-pointer transition-all hover:bg-blue-600 hover:scale-110">
+                                class="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center cursor-pointer transition-all hover:bg-blue-600 hover:scale-110"
+                                aria-label="Email us">
                                 <i class="fa fa-envelope text-white text-xl"></i>
                             </a>
                             <div
@@ -1737,8 +1753,9 @@
                         </div>
 
                         <div class="relative group">
-                            <a href="https://github.com/TimiKays/MindWord" target="_blank"
-                                class="w-12 h-12 bg-gray-800 rounded-full flex items-center justify-center cursor-pointer transition-all hover:bg-gray-900 hover:scale-110">
+                            <a href="https://github.com/TimiKays/MindWord" target="_blank" rel="noopener"
+                                class="w-12 h-12 bg-gray-800 rounded-full flex items-center justify-center cursor-pointer transition-all hover:bg-gray-900 hover:scale-110"
+                                aria-label="View on GitHub">
                                 <i class="fa fa-github text-white text-xl"></i>
                             </a>
                             <div
@@ -1761,7 +1778,7 @@
             <!-- Product Hunt Badge -->
             <div class="mt-8 flex justify-center">
                 <a href="https://www.producthunt.com/products/mindword?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-mindword&#0045;ai&#0045;powered&#0045;mind&#0045;mapping"
-                    target="_blank"><img
+                    target="_blank" rel="noopener"><img
                         src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1034451&theme=neutral&t=1763369182704"
                         alt="MindWord&#0032;–&#0032;AI&#0045;Powered&#0032;Mind&#0032;Mapping - Turn&#0032;AI&#0032;replies&#0032;&#0038;&#0032;your&#0032;thoughts&#0032;&#0032;into&#0032;structured&#0032;mind&#0032;maps&#0046; | Product Hunt"
                         style="width: 250px; height: 54px;" width="250" height="54" /></a>

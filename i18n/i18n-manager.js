@@ -236,6 +236,7 @@ class I18nManager {
   updatePageTranslations() {
     // 更新所有带有 data-i18n 属性的元素
     const elements = document.querySelectorAll('[data-i18n]');
+
     elements.forEach(element => {
       const key = element.getAttribute('data-i18n');
       const translation = this.t(key);

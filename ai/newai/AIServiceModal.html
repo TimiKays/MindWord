@@ -26,6 +26,11 @@
     <title>AI服务调用工具</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="/local-deps/font-awesome.min.css" rel="stylesheet">
+    <!-- 引入自定义样式 -->
+    <link rel="stylesheet" href="./AIServiceModal.css">
+    <!-- 国际化支持 -->
+    <script src="../../i18n/locales.js"></script>
+    <script src="../../i18n/i18n-manager.js"></script>
 
     <!-- Tailwind 配置 -->
     <script>
@@ -462,7 +467,7 @@
     </style>
 </head>
 
-<body class="p-8" style="background: transparent;">
+<body class="p-8 modal-body-transparent">
     <!-- 触发弹窗的按钮 -->
     <button id="openAIModalBtn" class="btn btn-primary">
         <i class="fa fa-robot mr-2"></i>打开AI工具
@@ -481,7 +486,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
                         </svg>
                     </button>
-                    <button id="closeModalBtn" class="text-gray-500 hover:text-gray-700">
+                    <button id="closeModalBtn" class="text-gray-500 hover:text-gray-700" title="关闭窗口">
                         <i class="fa fa-times text-xl"></i>
                     </button>
                 </div>
@@ -499,7 +504,7 @@
                             </path>
                         </svg>
                     </button>
-                    <button id="closeMiniModalBtn" class="text-gray-500 hover:text-gray-700">
+                    <button id="closeMiniModalBtn" class="text-gray-500 hover:text-gray-700" title="关闭迷你窗口">
                         <i class="fa fa-times text-lg"></i>
                     </button>
                 </div>
@@ -518,8 +523,8 @@
                         <div id="usageStatusIndicator" class="mb-4 p-3 rounded-md text-sm hidden"></div>
 
                         <!-- 平台/模型/配置：模型占剩余宽度，配置按钮仅占自身宽度 -->
-                        <div class="grid gap-4 items-end grid-cols-1 md:grid-cols-3 lg:grid-cols-3"
-                            style="grid-template-columns: auto 1fr auto;">
+                        <div
+                            class="grid gap-4 items-end grid-cols-1 md:grid-cols-3 lg:grid-cols-3 grid-template-auto-1fr-auto">
                             <div>
                                 <label class="form-label" for="usagePlatformSelect">平台</label>
                                 <select id="usagePlatformSelect" class="form-control" required>
@@ -648,7 +653,10 @@
                                 <textarea id="usageResultContent"
                                     class="whitespace-pre-wrap break-words w-full h-28 sm:h-52 md:h-20 bg-neutral-light p-3 rounded-md overflow-y-auto outline-none resize-none leading-relaxed"
                                     placeholder="AI输出结果将显示在这里..." rows="1"></textarea>
-                                <div class="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 mt-3">
+                                <div class="flex flex-col sm:flex-row justify-between items-start gap-2 sm:gap-3 mt-3">
+                                    <a href="../../feedback.html" target="_blank"
+                                        class="text-xs text-gray-500 hover:text-blue-500"
+                                        data-i18n="feedback.reportAI">举报AI不良反馈</a>
                                     <button id="saveApplyOutputBtn" type="button"
                                         class="btn btn-primary w-full sm:w-auto touch-manipulation">
                                         保存并应用
@@ -682,7 +690,7 @@
                                             <button id="importConfigsBtn" type="button"
                                                 class="btn btn-outline text-[12px] px-1 py-0.5 whitespace-nowrap">导入</button>
                                             <input id="importFileInput" type="file" accept="application/json"
-                                                class="hidden" />
+                                                class="hidden" title="导入配置文件" />
                                         </div>
                                     </div>
                                 </div>
@@ -837,7 +845,7 @@
                                         <button id="importTemplatesBtn" type="button"
                                             class="btn btn-outline text-[12px] px-1 py-0.5 whitespace-nowrap">导入</button>
                                         <input id="importTemplatesFileInput" type="file" accept="application/json"
-                                            class="hidden" />
+                                            class="hidden" title="导入模板文件" />
                                     </div>
                                 </div>
                                 <div id="templateList"
@@ -927,8 +935,11 @@
                         </div>
 
                         <!-- 状态栏 -->
-                        <div class="px-2 pb-2">
+                        <div class="px-2 pb-2 flex justify-between items-center">
                             <span id="miniStatus" class="text-xs text-gray-500">就绪</span>
+                            <a href="../../feedback.html" target="_blank"
+                                class="text-xs text-gray-500 hover:text-blue-500"
+                                data-i18n="feedback.reportAI">举报AI不良反馈</a>
                         </div>
                     </div>
 
@@ -2658,6 +2669,26 @@
 
             // 打开弹窗
             function openModal() {
+                // 每次打开弹窗时从localStorage重新读取语言设置并更新国际化文本
+                try {
+                    if (typeof I18nManager !== 'undefined' && window.i18nManager) {
+                        // 重新读取当前语言设置
+                        const currentLang = localStorage.getItem('mw_lang') || 'zh';
+                        console.log('[AIServiceModal] Current language from localStorage:', currentLang);
+
+                        // 如果语言发生变化，更新当前语言并重新应用翻译
+                        if (window.i18nManager.currentLanguage !== currentLang) {
+                            console.log('[AIServiceModal] Language changed, updating from', window.i18nManager.currentLanguage, 'to', currentLang);
+                            window.i18nManager.currentLanguage = currentLang;
+                        }
+
+                        // 更新页面翻译
+                        window.i18nManager.updatePageTranslations();
+                    }
+                } catch (e) {
+                    console.warn('[AIServiceModal] Failed to update translations on modal open', e);
+                }
+
                 // 每次打开前从 localStorage 重新加载最新的配置，避免需要手动刷新页面才能看到变更
                 try {
                     loadAllConfigsFromStorage();
@@ -5090,6 +5121,26 @@
 
                 console.log('[toggleMiniMode] 切换模式，当前isMiniMode:', isMiniMode);
 
+                // 每次切换模式时从localStorage重新读取语言设置并更新国际化文本
+                try {
+                    if (typeof I18nManager !== 'undefined' && window.i18nManager) {
+                        // 重新读取当前语言设置
+                        const currentLang = localStorage.getItem('mw_lang') || 'zh';
+                        console.log('[AIServiceModal] Current language from localStorage (mode toggle):', currentLang);
+
+                        // 如果语言发生变化，更新当前语言并重新应用翻译
+                        if (window.i18nManager.currentLanguage !== currentLang) {
+                            console.log('[AIServiceModal] Language changed (mode toggle), updating from', window.i18nManager.currentLanguage, 'to', currentLang);
+                            window.i18nManager.currentLanguage = currentLang;
+                        }
+
+                        // 更新页面翻译
+                        window.i18nManager.updatePageTranslations();
+                    }
+                } catch (e) {
+                    console.warn('[AIServiceModal] Failed to update translations on mode toggle', e);
+                }
+
                 if (isMiniMode) {
                     // 切换到迷你模式
                     modal.classList.add('mini-mode');
@@ -5253,6 +5304,28 @@
 
             // 绑定迷你模式事件
             document.addEventListener('DOMContentLoaded', function () {
+                // 确保国际化已正确初始化
+                console.log('[AIServiceModal] DOMContentLoaded, checking i18n...');
+                console.log('[AIServiceModal] I18nManager defined:', typeof I18nManager !== 'undefined');
+                console.log('[AIServiceModal] window.i18nManager exists:', !!window.i18nManager);
+
+                if (typeof I18nManager !== 'undefined' && window.i18nManager) {
+                    if (!window.i18nManager.isInitialized) {
+                        console.log('[AIServiceModal] i18nManager exists but not initialized, initializing now');
+                        window.i18nManager.init();
+                    } else {
+                        console.log('[AIServiceModal] i18nManager already initialized, updating translations');
+                        // 更新页面翻译
+                        window.i18nManager.updatePageTranslations();
+                    }
+
+                    // 添加一个延迟，确保所有元素都已加载
+                    setTimeout(() => {
+                        console.log('[AIServiceModal] Delayed translation update');
+                        window.i18nManager.updatePageTranslations();
+                    }, 100);
+                }
+
                 const minimizeButton = document.getElementById('minimizeButton');
                 const miniExpandBtn = document.getElementById('miniExpandBtn');
                 const miniUserPromptInput = document.getElementById('miniUserPromptInput');

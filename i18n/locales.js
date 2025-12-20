@@ -138,11 +138,44 @@ const i18nLocales = {
     // 反馈建议
     feedback: {
       title: '反馈建议',
+      onlineForm: '在线提交建议&反馈',
+      reportAI: '举报AI不良反馈',
       subtitle: '本产品由1名产品经理+ChatGPT+KIMI独立开发，如有问题或建议，欢迎随时联系我~',
       contactInfo: '产品 | UI | 开发 | 测试 | 运营 | 客服',
       email: '邮箱：timikays@qq.com',
       github: 'GitHub项目',
-      openSource: 'MindWord 项目已开源，欢迎访问我们的 GitHub 仓库参与贡献！'
+      openSource: 'MindWord 项目已开源，欢迎访问我们的 GitHub 仓库参与贡献！',
+
+      // 反馈页面
+      page: {
+        title: '建议与反馈',
+        subtitle: '您的意见对我们非常重要，请告诉我们您的想法',
+        formTitle: '标题',
+        formTitlePlaceholder: '请输入反馈标题',
+        formType: '类型',
+        formTypeBug: '错误报告',
+        formTypeSuggestion: '功能建议',
+        formTypeQuestion: '问题答疑',
+        formTypeOther: '其他反馈',
+        formContent: '问题描述',
+        formContentPlaceholder: '请详细描述您遇到的问题或建议',
+        formContentBugPlaceholder: '请描述程序崩溃、功能异常、显示错误、性能问题等软件缺陷',
+        formContentSuggestionPlaceholder: '请描述新功能需求、界面改进、操作优化、交互调整等功能建议',
+        formContentQuestionPlaceholder: '请描述操作疑问、功能不会用、流程不清晰、找不到功能等使用问题',
+        formContentOtherPlaceholder: '请描述综合评价、使用体验、意见建议、其他不分类的反馈',
+        formEmail: '邮箱',
+        formEmailOptional: '（选填）',
+        formEmailPlaceholder: '如需回复请留下邮箱',
+        submitButton: '提交反馈',
+        submitButtonSubmitting: '提交中...',
+        successTitle: '感谢您的反馈！',
+        successMessage: '我们已收到您的意见，将尽快处理并改进。',
+        successCloseMessage: '此窗口将在3秒后尝试关闭...',
+        successManualClose: '您可以手动关闭此窗口',
+        errorRequired: '请填写所有必填字段',
+        errorEmail: '请输入有效的邮箱地址',
+        errorSubmit: '提交失败，请稍后重试'
+      }
     },
 
     // 页脚
@@ -655,11 +688,43 @@ const i18nLocales = {
     // 反馈建议
     feedback: {
       title: 'Feedback & Suggestions',
+      onlineForm: 'Submit Suggestions & Feedback Online',
+      reportAI: 'Report Poor AI Response',
       subtitle: 'This product was independently developed by 1 product manager + ChatGPT + KIMI. For any questions or suggestions, feel free to contact me~',
       contactInfo: 'Product | UI | Development | Testing | Operations | Support',
       email: 'Email: timikays@qq.com',
       github: 'GitHub Project',
-      openSource: 'MindWord project is open source, welcome to visit our GitHub repository to contribute!'
+      openSource: 'MindWord project is open source, welcome to visit our GitHub repository to contribute!',
+
+      // 反馈页面
+      page: {
+        title: 'Feedback & Suggestions',
+        subtitle: 'Your opinion is very important to us, please tell us your thoughts',
+        formTitle: 'Title',
+        formTitlePlaceholder: 'Please enter feedback title',
+        formType: 'Type',
+        formTypeBug: 'Bug Report',
+        formTypeSuggestion: 'Feature Suggestion',
+        formTypeQuestion: 'Q&A',
+        formTypeOther: 'Other Feedback',
+        formContent: 'Problem Description',
+        formContentPlaceholder: 'Please describe the problem or suggestion in detail',
+        formContentBugPlaceholder: 'Please describe software defects such as program crashes, functional abnormalities, display errors, performance issues, etc.',
+        formContentSuggestionPlaceholder: 'Please describe feature suggestions such as new feature requirements, interface improvements, operation optimization, interaction adjustments, etc.',
+        formContentQuestionPlaceholder: 'Please describe usage issues such as operation questions, unclear functions, unclear processes, unable to find functions, etc.',
+        formContentOtherPlaceholder: 'Please describe overall evaluation, user experience, opinions and suggestions, other unclassified feedback',
+        formEmail: 'Email',
+        formEmailOptional: '(Optional)',
+        formEmailPlaceholder: 'Leave email if reply needed',
+        submitButton: 'Submit Feedback',
+        submitButtonSubmitting: 'Submitting...',
+        successTitle: 'Thank you for your feedback!',
+        successMessage: 'We have received your opinion and will process and improve as soon as possible.',
+        successCloseMessage: 'This window will automatically close in 3 seconds...',
+        errorRequired: 'Please fill in all required fields',
+        errorEmail: 'Please enter a valid email address',
+        errorSubmit: 'Submission failed, please try again later'
+      }
     },
 
     // 页脚
@@ -1124,11 +1189,43 @@ const i18nLocales = {
     // 反馈建议
     feedback: {
       title: 'Comentarios y Sugerencias',
+      onlineForm: 'Enviar Sugerencias y Comentarios en Línea',
+      reportAI: 'Reportar Respuesta Inadecuada de IA',
       subtitle: 'Este producto es desarrollado independientemente por 1 gerente de producto + ChatGPT + KIMI, si tiene problemas o sugerencias, no dude en contactarme~',
       contactInfo: 'Producto | UI | Desarrollo | Prueba | Operación | Servicio al Cliente',
       email: 'Email: timikays@qq.com',
       github: 'Proyecto GitHub',
-      openSource: '¡El proyecto MindWord es de código abierto, bienvenido a visitar nuestro repositorio de GitHub para contribuir!'
+      openSource: '¡El proyecto MindWord es de código abierto, bienvenido a visitar nuestro repositorio de GitHub para contribuir!',
+
+      // 反馈页面
+      page: {
+        title: 'Comentarios y Sugerencias',
+        subtitle: 'Su opinión es muy importante para nosotros, por favor díganos sus pensamientos',
+        formTitle: 'Título',
+        formTitlePlaceholder: 'Por favor ingrese el título del comentario',
+        formType: 'Tipo',
+        formTypeBug: 'Reporte de Error',
+        formTypeSuggestion: 'Sugerencia de Función',
+        formTypeQuestion: 'Preguntas y Respuestas',
+        formTypeOther: 'Otros Comentarios',
+        formContent: 'Descripción del Problema',
+        formContentPlaceholder: 'Por favor describa el problema o sugerencia en detalle',
+        formContentBugPlaceholder: 'Por favor describa defectos de software como bloqueos del programa, anomalías funcionales, errores de visualización, problemas de rendimiento, etc.',
+        formContentSuggestionPlaceholder: 'Por favor describa sugerencias de funciones como nuevos requisitos funcionales, mejoras de interfaz, optimización de operaciones, ajustes de interacción, etc.',
+        formContentQuestionPlaceholder: 'Por favor describa problemas de uso como preguntas de operación, funciones poco claras, procesos poco claros, incapacidad para encontrar funciones, etc.',
+        formContentOtherPlaceholder: 'Por favor describa evaluación general, experiencia del usuario, opiniones y sugerencias, otros comentarios no clasificados',
+        formEmail: 'Email',
+        formEmailOptional: '(Opcional)',
+        formEmailPlaceholder: 'Deje email si necesita respuesta',
+        submitButton: 'Enviar Comentario',
+        submitButtonSubmitting: 'Enviando...',
+        successTitle: '¡Gracias por sus comentarios!',
+        successMessage: 'Hemos recibido su opinión y la procesaremos y mejoraremos lo antes posible.',
+        successCloseMessage: 'Esta ventana se cerrará automáticamente en 3 segundos...',
+        errorRequired: 'Por favor complete todos los campos obligatorios',
+        errorEmail: 'Por favor ingrese una dirección de email válida',
+        errorSubmit: 'Envío fallido, por favor intente más tarde'
+      }
     },
 
     // 页脚

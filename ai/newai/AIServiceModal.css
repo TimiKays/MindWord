@@ -1,0 +1,8 @@
+/* AIServiceModal 自定义样式 */
+.modal-body-transparent {
+    background: transparent;
+}
+
+.grid-template-auto-1fr-auto {
+    grid-template-columns: auto 1fr auto;
+}
