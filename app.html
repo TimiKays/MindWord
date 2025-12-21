@@ -1468,6 +1468,14 @@
             }
         });
     </script>
+
+    <!-- 初始化国际化管理器 -->
+    <script>
+        if (typeof I18nManager !== 'undefined') {
+            window.i18nManager = new I18nManager();
+            window.i18nManager.init();
+        }
+    </script>
 </body>
 
 </html>
