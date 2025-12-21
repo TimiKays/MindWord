@@ -302,6 +302,10 @@
                 background-color: #f8fafc;
             }
 
+            .menu-item span {
+                font-size: 13px;
+            }
+
             .menu-item:last-child {
                 border-bottom: none;
                 border-radius: 0 0 8px 8px;
@@ -883,28 +887,41 @@
             <!-- 账号区：未登录显示"注册/登录"，已登录显示"用户名/退出登录" -->
             <div id="auth-area" style="display:inline-flex; align-items:center; gap:6px; ">
 
-                <!-- PWA安装按钮 -->
-                <button id="pwa-install-btn" data-i18n-title="app.toolbar.installPWA" title="安装Web应用"
-                    onclick="installPWA()"
-                    style="height:30px; width:30px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; color:#334155; cursor:pointer; display:none; align-items:center; justify-content:center; font-size:14px; transition: all 0.2s ease;"
-                    onmouseover="this.style.borderColor='#3b82f6'; this.style.color='#3b82f6'"
-                    onmouseout="this.style.borderColor='#e2e8f0'; this.style.color='#334155'">
-                    📥
-                </button>
+                <!-- 更多选项菜单 -->
+                <div class="more-options-dropdown" style="position: relative; display: inline-flex;">
+                    <button id="more-options-btn" title="更多选项"
+                        style="height:30px; width:30px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; color:#334155; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px;">
+                        ⋯
+                    </button>
+                    <div class="more-options-menu" id="more-options-menu"
+                        style="display: none; position: absolute; top: 100%; right: 0; margin-top: 8px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); min-width: 180px; z-index: 1000;">
+                        <!-- PWA安装按钮 -->
+                        <div class="menu-item" id="pwa-install-menu-item"
+                            style="display: none; align-items: center; gap: 8px; padding: 8px 16px; cursor: pointer; transition: background-color 0.15s ease;"
+                            onclick="installPWA()">
+                            <span style="font-size: 14px;">📥</span>
+                            <span data-i18n="app.toolbar.installPWA" style="font-size: 13px;">安装web应用</span>
+                        </div>
+                        <!-- 更新日志 -->
+                        <div class="menu-item"
+                            style="display: flex; align-items: center; gap: 8px; padding: 8px 16px; cursor: pointer; transition: background-color 0.15s ease;"
+                            onclick="window.open('changelog/changelog.html', '_blank')">
+                            <span style="font-size: 14px;">📒</span>
+                            <span data-i18n="app.toolbar.changelog" style="font-size: 13px;">更新日志</span>
+                        </div>
+                        <!-- 反馈建议 -->
+                        <div class="menu-item"
+                            style="display: flex; align-items: center; gap: 8px; padding: 8px 16px; cursor: pointer; transition: background-color 0.15s ease;"
+                            onclick="window.open('feedback.html', '_blank')">
+                            <span style="font-size: 14px;">💬</span>
+                            <span data-i18n="feedback.onlineForm" style="font-size: 13px;">建议&反馈</span>
+                        </div>
+                    </div>
+                </div>
 
-                <!-- 更新日志 -->
-                <button id="changelog-btn" title="更新日志" onclick="window.open('changelog/changelog.html', '_blank')"
-                    style="height:30px; width:30px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; color:#334155; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px;">
-                    📒
-                </button>
-                <!-- 反馈建议 -->
-                <button id="feedback-btn" data-i18n-title="feedback.onlineForm" title="在线提交建议&反馈" onclick="window.open('feedback.html', '_blank')"
-                    style="height:30px; width:30px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; color:#334155; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px;">
-                    💬
-                </button>
                 <!-- 语言切换 -->
-                <select id="lang-switch" title="Language" onchange="window.i18nManager.setLanguage(this.value)"
-                    style="height:30px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; color:#334155; font-size:12px; padding:0px;">
+                <select id="lang-switch-compact" title="Language" onchange="window.i18nManager.setLanguage(this.value)"
+                    style="height:30px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; color:#334155; font-size:12px; padding:0 8px; cursor:pointer;">
                     <option value="zh">中文</option>
                     <option value="en">EN</option>
                     <option value="es">ES</option>
@@ -1237,9 +1254,12 @@
             deferredPrompt = e;
             // 显示安装按钮
             const installButton = document.getElementById('pwa-install-btn');
+            const installMenuItem = document.getElementById('pwa-install-menu-item');
             if (installButton) {
                 installButton.style.display = 'flex';
-                console.log('MindWord PWA: 安装按钮已显示');
+            }
+            if (installMenuItem) {
+                installMenuItem.style.display = 'flex';
             }
         });
 
@@ -1260,7 +1280,14 @@
                     console.log('MindWord PWA: 用户接受了安装');
                     showInstallMessage('应用安装成功！请检查桌面或应用列表', 'success');
                     // 隐藏安装按钮
-                    document.getElementById('pwa-install-btn').style.display = 'none';
+                    const installButton = document.getElementById('pwa-install-btn');
+                    const installMenuItem = document.getElementById('pwa-install-menu-item');
+                    if (installButton) {
+                        installButton.style.display = 'none';
+                    }
+                    if (installMenuItem) {
+                        installMenuItem.style.display = 'none';
+                    }
                 } else {
                     console.log('MindWord PWA: 用户拒绝了安装');
                     showInstallMessage('您取消了安装，可随时点击安装按钮重试', 'info');
@@ -1324,8 +1351,12 @@
                 window.navigator.standalone === true) {
                 // 当前已经是独立应用模式，隐藏安装按钮
                 const installButton = document.getElementById('pwa-install-btn');
+                const installMenuItem = document.getElementById('pwa-install-menu-item');
                 if (installButton) {
                     installButton.style.display = 'none';
+                }
+                if (installMenuItem) {
+                    installMenuItem.style.display = 'none';
                 }
                 console.log('MindWord PWA: 当前已是独立应用模式');
             }
@@ -1366,6 +1397,75 @@
         window.addEventListener('appinstalled', () => {
             console.log('MindWord PWA: 应用安装成功');
             deferredPrompt = null;
+        });
+
+        // 更多选项下拉菜单功能
+        document.addEventListener('DOMContentLoaded', () => {
+            const moreOptionsBtn = document.getElementById('more-options-btn');
+            const moreOptionsMenu = document.getElementById('more-options-menu');
+            let isMenuOpen = false;
+
+            // 点击更多选项按钮切换菜单显示状态
+            if (moreOptionsBtn && moreOptionsMenu) {
+                moreOptionsBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    isMenuOpen = !isMenuOpen;
+                    moreOptionsMenu.style.display = isMenuOpen ? 'block' : 'none';
+
+                    // 如果菜单打开，设置点击外部关闭处理
+                    if (isMenuOpen) {
+                        setupClickOutsideHandler();
+                        // 添加ESC键支持
+                        document.addEventListener('keydown', handleEscKey);
+                    } else {
+                        removeClickOutsideHandler();
+                        document.removeEventListener('keydown', handleEscKey);
+                    }
+                });
+
+                // 菜单项悬停效果
+                const menuItems = moreOptionsMenu.querySelectorAll('.menu-item');
+                menuItems.forEach(item => {
+                    item.addEventListener('mouseenter', () => {
+                        item.style.backgroundColor = '#f8fafc';
+                    });
+                    item.addEventListener('mouseleave', () => {
+                        item.style.backgroundColor = 'transparent';
+                    });
+                });
+            }
+
+            // 设置点击外部区域关闭菜单的处理函数
+            function setupClickOutsideHandler() {
+                document.addEventListener('click', handleClickOutside);
+            }
+
+            // 移除点击外部区域关闭菜单的处理函数
+            function removeClickOutsideHandler() {
+                document.removeEventListener('click', handleClickOutside);
+            }
+
+            // 处理点击外部区域的逻辑
+            function handleClickOutside(e) {
+                if (moreOptionsMenu && moreOptionsMenu.style.display === 'block') {
+                    if (!moreOptionsMenu.contains(e.target) && e.target !== moreOptionsBtn) {
+                        moreOptionsMenu.style.display = 'none';
+                        isMenuOpen = false;
+                        removeClickOutsideHandler();
+                        document.removeEventListener('keydown', handleEscKey);
+                    }
+                }
+            }
+
+            // 处理ESC键关闭菜单
+            function handleEscKey(e) {
+                if (e.key === 'Escape' && moreOptionsMenu && moreOptionsMenu.style.display === 'block') {
+                    moreOptionsMenu.style.display = 'none';
+                    isMenuOpen = false;
+                    removeClickOutsideHandler();
+                    document.removeEventListener('keydown', handleEscKey);
+                }
+            }
         });
     </script>
 </body>

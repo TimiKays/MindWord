@@ -130,7 +130,7 @@ const i18nLocales = {
       title: '开始使用 MindWord',
       subtitle: '立即体验思维导图与Markdown结合的高效写作方式，让您的创意和思路更加井井有条',
       webVersion: '访问网页版',
-      installPWA: '安装网页应用',
+      installPWA: '安装Web应用',
       downloadWindows: '下载Windows客户端',
       compatibility: '兼容PC和移动端，全平台一致体验'
     },
@@ -138,8 +138,8 @@ const i18nLocales = {
     // 反馈建议
     feedback: {
       title: '反馈建议',
-      onlineForm: '在线提交建议&反馈',
-      reportAI: '举报AI不良反馈',
+      onlineForm: '建议&反馈',
+      reportAI: 'AI的回答不合适？点这里',
       subtitle: '本产品由1名产品经理+ChatGPT+KIMI独立开发，如有问题或建议，欢迎随时联系我~',
       contactInfo: '产品 | UI | 开发 | 测试 | 运营 | 客服',
       email: '邮箱：timikays@qq.com',
@@ -347,7 +347,8 @@ const i18nLocales = {
         quickAIGenerate: '快速AI生成：开启时将关闭AI弹窗，直接生成内容',
         detailPanelPermanent: '详情面板常驻',
         help: '帮助',
-        installPWA: '安装网页应用到设备'
+        installPWA: '安装web应用',
+        changelog: '更新日志'
       },
 
       // 节点操作
@@ -688,8 +689,8 @@ const i18nLocales = {
     // 反馈建议
     feedback: {
       title: 'Feedback & Suggestions',
-      onlineForm: 'Submit Suggestions & Feedback Online',
-      reportAI: 'Report Poor AI Response',
+      onlineForm: 'Suggestions & Feedback',
+      reportAI: 'AI response inappropriate? Click here',
       subtitle: 'This product was independently developed by 1 product manager + ChatGPT + KIMI. For any questions or suggestions, feel free to contact me~',
       contactInfo: 'Product | UI | Development | Testing | Operations | Support',
       email: 'Email: timikays@qq.com',
@@ -874,7 +875,8 @@ const i18nLocales = {
         quickAIGenerate: 'Quick AI Generate: When enabled, AI popup will be disabled and content will be generated directly',
         detailPanelPermanent: 'Detail Panel Permanent',
         help: 'Help',
-        installPWA: 'Install Web App to Device'
+        installPWA: 'Install Web App',
+        changelog: 'Update Log'
       },
 
       // 节点操作
@@ -1189,8 +1191,8 @@ const i18nLocales = {
     // 反馈建议
     feedback: {
       title: 'Comentarios y Sugerencias',
-      onlineForm: 'Enviar Sugerencias y Comentarios en Línea',
-      reportAI: 'Reportar Respuesta Inadecuada de IA',
+      onlineForm: 'Sugerencias y Comentarios',
+      reportAI: '¿Respuesta de la IA inadecuada? Haz clic aquí',
       subtitle: 'Este producto es desarrollado independientemente por 1 gerente de producto + ChatGPT + KIMI, si tiene problemas o sugerencias, no dude en contactarme~',
       contactInfo: 'Producto | UI | Desarrollo | Prueba | Operación | Servicio al Cliente',
       email: 'Email: timikays@qq.com',
@@ -1396,7 +1398,8 @@ const i18nLocales = {
         quickAIGenerate: 'Generación Rápida de IA: Cuando está habilitado, la ventana emergente de IA se desactivará y el contenido se generará directamente',
         detailPanelPermanent: 'Panel de Detalles Permanente',
         help: 'Ayuda',
-        installPWA: 'Instalar Aplicación Web en el Dispositivo'
+        installPWA: 'Instalar Aplicación Web',
+        changelog: 'Registro de Cambios'
       },
 
       // 节点操作
