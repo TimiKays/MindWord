@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>支持一下 · MindWord</title>
+
+  <!-- Google AdSense -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8545877256902738"
+    crossorigin="anonymous"></script>
+
+  <style>
+    :root {
+      --bg-gradient: linear-gradient(135deg, #eaf7f5, #eef3ff);
+      --primary: #5bbcb3;
+      --text-main: #2f3a3a;
+      --text-sub: #6b7c7c;
+      --card-bg: rgba(255, 255, 255, 0.75);
+      --border-soft: rgba(0, 0, 0, 0.05);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg-gradient);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+        "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card {
+      width: 92%;
+      max-width: 420px;
+      padding: 28px 26px 30px;
+      background: var(--card-bg);
+      border-radius: 20px;
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 20px;
+      margin: 0 0 10px;
+      font-weight: 600;
+    }
+
+    p.desc {
+      font-size: 14px;
+      color: var(--text-sub);
+      line-height: 1.6;
+      margin-bottom: 22px;
+    }
+
+    /* 👍 点赞按钮 */
+    .like-area {
+      margin: 22px 0 12px;
+      position: relative;
+    }
+
+    .like-btn {
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      border: none;
+      background: white;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+      font-size: 36px;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+
+    .like-btn:active {
+      transform: scale(0.9);
+    }
+
+    .like-count {
+      margin-top: 20px;
+      font-size: 13px;
+      color: var(--text-sub);
+    }
+
+    /* 💬 随机感谢语 */
+    .thanks {
+      min-height: 20px;
+      margin-top: 14px;
+      font-size: 14px;
+      color: var(--primary);
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+
+    .thanks.show {
+      opacity: 1;
+    }
+
+    /* ✨ 点赞动画粒子 */
+    .bubble {
+      position: fixed;
+      font-size: 18px;
+      pointer-events: none;
+      animation: floatUp 1.2s ease-out forwards;
+      z-index: 1000;
+    }
+
+    @keyframes floatUp {
+      0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.6);
+      }
+
+      20% {
+        opacity: 1;
+      }
+
+      100% {
+        opacity: 0;
+        transform: translate(-50%, -110px) scale(1.2);
+      }
+    }
+
+    /* 🔗 其他支持方式 */
+    .actions {
+      margin-top: 26px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .action {
+      font-size: 13px;
+      color: var(--text-sub);
+      text-decoration: none;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: white;
+      border: 1px solid var(--border-soft);
+      transition: background 0.2s;
+    }
+
+    .action:hover {
+      background: #f6fbfb;
+    }
+
+    .footer {
+      margin-top: 18px;
+      font-size: 12px;
+      color: #9aa;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="card">
+    <h1>🌱 支持 MindWord</h1>
+    <p class="desc">
+      MindWord 是一个完全免费的小工具。<br />
+      如果它刚好帮到你一点点，那我们会很开心。
+    </p>
+
+    <div class="like-area">
+      <button class="like-btn" id="likeBtn">👍</button>
+      <div class="like-count" id="likeCount">已收到 0 个点赞</div>
+      <div class="thanks" id="thanksText"></div>
+    </div>
+
+    <div class="actions">
+
+      <a class="action" href="feedback.html" target="_blank">
+        💬 留下一点想法或建议
+      </a>
+      <a class="action" href="#" id="shareBtn">
+        🔗 分享给可能用得上的朋友
+      </a>
+      <a class="action" href="#" id="watchAdBtn">
+        📺 看个广告（敬请期待...）
+      </a>
+    </div>
+
+    <div class="footer">
+      是否支持完全自愿 · 对产品使用无任何影响哦 😺
+    </div>
+  </div>
+
+  <script>
+    // 国际化配置
+    const i18n = {
+      zh: {
+        title: '支持一下 · MindWord',
+        header: '🌱 支持 MindWord',
+        description: 'MindWord 是一个完全免费的小工具。<br />如果它刚好帮到你一点点，那我们会很开心。',
+        likeCount: '已收到 {count} 个点赞',
+        likeCountLoaded: '已获得 {count} 次支持',
+        loading: '加载中...',
+        feedback: '💬 留下一点想法或建议',
+        share: '🔗 分享给可能用得上的朋友',
+        watchAd: '📺 看个广告（敬请期待...）',
+        footer: '是否支持完全自愿 · 对产品使用无任何影响哦 😺',
+        defaultThanks: '点一点上面的👍按钮，给我们一点鼓励吧 ✨',
+        thanksMessages: [
+          "收到了一点点温暖 🌿",
+          "这个点赞被我们珍藏了",
+          "你刚刚让这个项目更开心了一点",
+          "谢谢你，真的",
+          "我们会继续把它照顾好的",
+          "这一秒，很值得",
+          "今天的好心情 +1",
+          "你的这份支持很重要",
+          "这一份喜欢，我们记下了",
+          "像阳光照进来一样 🌞",
+          "被温柔以待了",
+          "这个瞬间很美好",
+          "谢谢你看到我们",
+          "心里开了一朵小花 🌸",
+          "被善意包围了",
+          "这份鼓励很珍贵",
+          "你的支持让我们更有力量了",
+          "这份支持很暖很暖",
+          "我们会带着这份喜欢继续前行",
+          "这个点赞有温度",
+          "被理解的感觉真好",
+          "谢谢你愿意停留",
+          "这份认可很沉甸甸",
+          "像夜晚的一盏灯 💡",
+          "让努力变得值得",
+          "这份善意我们收到了",
+          "你让今天变得特别",
+          "像雨后的一道彩虹 🌈",
+          "这份喜欢我们会好好保存",
+          "谢谢你与我们同在",
+          "这份支持有魔法 ✨",
+          "让心变得柔软了",
+          "这份鼓励我们会传递下去",
+          "像冬日的一杯热茶 🍵",
+          "被看见的感觉真好",
+          "这份喜欢很纯粹",
+          "这份温暖在流动",
+          "是你让我们坚持有了意义",
+          "这份善意很珍贵",
+          "你让这个世界更温柔了"
+        ],
+        shareSuccess: '✅ 链接已复制到剪贴板',
+        shareFailed: '❌ 复制失败，请手动复制',
+        shareRestore: '🔗 分享给可能用得上的朋友',
+        adLoading: '📺 正在加载广告...',
+        adSuccess: '✅ 感谢您的支持！',
+        adFailed: '❌ 广告加载失败',
+        adThanks: '您的支持让我们能持续提供免费服务 🙏',
+        cloudLoadFailed: '加载云端点赞数失败，使用本地数据:',
+        cloudSyncSuccess: '云端同步成功:',
+        cloudSyncFailed: '云端同步失败，状态码:',
+        cloudSyncError: '云端同步失败:',
+        dailyLimitReached: '今日点赞次数已达上限（100次），明天再来吧！',
+        dailyLimitCount: '今日已点赞 {count}/100 次'
+      },
+      en: {
+        title: 'Support · MindWord',
+        header: '🌱 Support MindWord',
+        description: 'MindWord is a completely free little tool.<br />If it helps you even a little bit, we will be very happy.',
+        likeCount: 'Received {count} likes',
+        likeCountLoaded: 'Received {count} supports',
+        loading: 'Loading...',
+        feedback: '💬 Leave some thoughts or suggestions',
+        share: '🔗 Share with friends who might need it',
+        watchAd: '📺 Watch an ad (coming soon...)',
+        footer: 'Support is completely voluntary · No impact on product usage 😺',
+        defaultThanks: 'Click the 👍 button above to give us some encouragement ✨',
+        thanksMessages: [
+          "Received a little warmth 🌿",
+          "This like has been treasured by us",
+          "You just made this project a little happier",
+          "Thank you, really",
+          "We will continue to take good care of it",
+          "This second is very worthwhile",
+          "Today's good mood +1",
+          "Your support is very important",
+          "This love has been remembered by us",
+          "Like sunshine coming in 🌞",
+          "Being treated gently",
+          "This moment is beautiful",
+          "Thank you for seeing us",
+          "A small flower bloomed in the heart 🌸",
+          "Surrounded by kindness",
+          "This encouragement is precious",
+          "Your support makes us stronger",
+          "This support is very warm",
+          "We will continue with this love",
+          "This like has temperature",
+          "The feeling of being understood is great",
+          "Thank you for staying",
+          "This recognition is heavy",
+          "Like a lamp at night 💡",
+          "Makes effort worthwhile",
+          "This kindness has been received by us",
+          "You made today special",
+          "Like a rainbow after rain 🌈",
+          "This love will be well preserved by us",
+          "Thank you for being with us",
+          "This support has magic ✨",
+          "Makes the heart soft",
+          "This encouragement will be passed on",
+          "Like a cup of hot tea in winter 🍵",
+          "The feeling of being seen is great",
+          "This love is pure",
+          "This warmth is flowing",
+          "You give meaning to our persistence",
+          "This kindness is precious",
+          "You make this world gentler"
+        ],
+        shareSuccess: '✅ Link copied to clipboard',
+        shareFailed: '❌ Copy failed, please copy manually',
+        shareRestore: '🔗 Share with friends who might need it',
+        adLoading: '📺 Loading ad...',
+        adSuccess: '✅ Thank you for your support!',
+        adFailed: '❌ Ad loading failed',
+        adThanks: 'Your support allows us to continue providing free services 🙏',
+        cloudLoadFailed: 'Failed to load likes from cloud, using local data:',
+        cloudSyncSuccess: 'Cloud sync successful:',
+        cloudSyncFailed: 'Cloud sync failed, status code:',
+        cloudSyncError: 'Cloud sync failed:',
+        dailyLimitReached: 'Daily like limit reached (100 times), come back tomorrow!',
+        dailyLimitCount: 'Liked {count}/100 times today'
+      },
+      es: {
+        title: 'Apoyar · MindWord',
+        header: '🌱 Apoyar MindWord',
+        description: 'MindWord es una herramienta completamente gratuita.<br />Si te ayuda aunque sea un poco, estaremos muy felices.',
+        likeCount: 'Recibido {count} me gusta',
+        likeCountLoaded: 'Recibido {count} apoyos',
+        loading: 'Cargando...',
+        feedback: '💬 Deja algunos pensamientos o sugerencias',
+        share: '🔗 Compartir con amigos que puedan necesitarlo',
+        watchAd: '📺 Ver un anuncio (próximamente...)',
+        footer: 'El apoyo es completamente voluntario · Sin impacto en el uso del producto 😺',
+        defaultThanks: 'Haz clic en el botón 👍 de arriba para darnos algo de ánimo ✨',
+        thanksMessages: [
+          "Recibido un poco de calidez 🌿",
+          "Este me gusta ha sido atesorado por nosotros",
+          "Acabas de hacer este proyecto un poco más feliz",
+          "Gracias, de verdad",
+          "Continuaremos cuidándolo bien",
+          "Este segundo vale mucho la pena",
+          "El buen humor de hoy +1",
+          "Tu apoyo es muy importante",
+          "Este amor ha sido recordado por nosotros",
+          "Como la luz del sol entrando 🌞",
+          "Siendo tratado con gentileza",
+          "Este momento es hermoso",
+          "Gracias por vernos",
+          "Una pequeña flor floreció en el corazón 🌸",
+          "Rodeado de bondad",
+          "Este estímulo es precioso",
+          "Tu apoyo nos hace más fuertes",
+          "Este apoyo es muy cálido",
+          "Continuaremos con este amor",
+          "Este me gusta tiene temperatura",
+          "La sensación de ser comprendido es genial",
+          "Gracias por quedarte",
+          "Este reconocimiento es pesado",
+          "Como una lámpara en la noche 💡",
+          "Hace que el esfuerzo valga la pena",
+          "Esta bondad ha sido recibida por nosotros",
+          "Hiciste que hoy fuera especial",
+          "Como un arcoíris después de la lluvia 🌈",
+          "Este amor será bien preservado por nosotros",
+          "Gracias por estar con nosotros",
+          "Este apoyo tiene magia ✨",
+          "Hace que el corazón se vuelva suave",
+          "Este estímulo será transmitido",
+          "Como una taza de té caliente en invierno 🍵",
+          "La sensación de ser visto es genial",
+          "Este amor es puro",
+          "Esta calidez está fluyendo",
+          "Tú das sentido a nuestra persistencia",
+          "Esta bondad es preciosa",
+          "Haces que este mundo sea más gentil"
+        ],
+        shareSuccess: '✅ Enlace copiado al portapapeles',
+        shareFailed: '❌ Copia fallida, por favor copia manualmente',
+        shareRestore: '🔗 Compartir con amigos que puedan necesitarlo',
+        adLoading: '📺 Cargando anuncio...',
+        adSuccess: '✅ ¡Gracias por tu apoyo!',
+        adFailed: '❌ Falló la carga del anuncio',
+        adThanks: 'Tu apoyo nos permite continuar proporcionando servicios gratuitos 🙏',
+        cloudLoadFailed: 'Error al cargar me gusta desde la nube, usando datos locales:',
+        cloudSyncSuccess: 'Sincronización en la nube exitosa:',
+        cloudSyncFailed: 'Sincronización en la nube fallida, código de estado:',
+        cloudSyncError: 'Sincronización en la nube fallida:',
+        dailyLimitReached: '¡Límite diario de me gusta alcanzado (100 veces), vuelve mañana!',
+        dailyLimitCount: 'Te gustó {count}/100 veces hoy'
+      }
+    };
+
+    // 获取当前语言
+    function getCurrentLang() {
+      return localStorage.getItem('mw_lang') || 'zh';
+    }
+
+    // 获取当前日期（YYYY-MM-DD格式）
+    function getCurrentDate() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    // 检查每日点赞限制
+    function checkDailyLikeLimit() {
+      const today = getCurrentDate();
+      const storedDate = localStorage.getItem('mw_like_date');
+      let dailyCount = parseInt(localStorage.getItem('mw_like_daily_count') || '0');
+
+      // 如果是新的一天，重置计数
+      if (storedDate !== today) {
+        localStorage.setItem('mw_like_date', today);
+        localStorage.setItem('mw_like_daily_count', '0');
+        dailyCount = 0;
+      }
+
+      return {
+        canLike: dailyCount < 100,
+        currentCount: dailyCount,
+        remaining: 100 - dailyCount
+      };
+    }
+
+    // 增加每日点赞计数
+    function incrementDailyLikeCount() {
+      const today = getCurrentDate();
+      const storedDate = localStorage.getItem('mw_like_date');
+      let dailyCount = parseInt(localStorage.getItem('mw_like_daily_count') || '0');
+
+      // 如果是新的一天，重置计数
+      if (storedDate !== today) {
+        localStorage.setItem('mw_like_date', today);
+        localStorage.setItem('mw_like_daily_count', '0');
+        dailyCount = 0;
+      }
+
+      // 增加计数
+      dailyCount++;
+      localStorage.setItem('mw_like_daily_count', dailyCount.toString());
+
+      return dailyCount;
+    }
+
+    // 获取翻译文本
+    function t(key, params = {}) {
+      const lang = getCurrentLang();
+      let text = i18n[lang][key] || i18n.zh[key] || key;
+
+      // 替换参数
+      Object.keys(params).forEach(key => {
+        text = text.replace(new RegExp(`{${key}}`, 'g'), params[key]);
+      });
+
+      return text;
+    }
+
+    // 更新页面文案
+    function updatePageText() {
+      document.title = t('title');
+      document.querySelector('h1').innerHTML = t('header');
+      document.querySelector('.desc').innerHTML = t('description');
+      document.querySelector('.footer').textContent = t('footer');
+      document.querySelector('a[href="feedback.html"]').innerHTML = t('feedback');
+      document.getElementById('shareBtn').innerHTML = t('share');
+      document.getElementById('watchAdBtn').innerHTML = t('watchAd');
+    }
+
+    const likeBtn = document.getElementById("likeBtn");
+    const likeCountEl = document.getElementById("likeCount");
+    const thanksText = document.getElementById("thanksText");
+
+    // 初始化显示为加载中
+    likeCountEl.textContent = t('loading');
+
+    // Cloudflare Worker API地址
+    const WORKER_URL = 'https://good.mindword.dpdns.org/api/likes';
+
+    // 简单防抖配置
+    let isProcessing = false;
+    let lastClickTime = 0;
+    const DEBOUNCE_DELAY = 500; // 500ms防抖，防止连点
+
+    // 初始化加载云端点赞数
+    async function loadLikes() {
+      try {
+        const response = await fetch(WORKER_URL);
+        if (!response.ok) throw new Error('Network response was not ok');
+        const data = await response.json();
+
+        // 更新本地存储
+        localStorage.setItem("mw_like_count", data.count);
+        likeCountEl.textContent = t('likeCountLoaded', { count: data.count });
+
+        return data.count;
+      } catch (error) {
+        console.log(t('cloudLoadFailed'), error);
+        // 降级到本地存储
+        const localCount = Number(localStorage.getItem("mw_like_count") || 0);
+        likeCountEl.textContent = t('likeCountLoaded', { count: localCount });
+        return localCount;
+      }
+    }
+
+    // 频率限制功能已移除，方便测试
+
+    // 初始化
+    let count = Number(localStorage.getItem("mw_like_count") || 0);
+
+    // 更新页面文案
+    updatePageText();
+
+    // 异步加载云端数据
+    loadLikes().then(cloudCount => {
+      count = cloudCount;
+      localStorage.setItem("mw_like_count", count); // 同步到本地存储
+    }).catch(error => {
+      console.log(t('cloudLoadFailed'), error);
+    });
+
+    // 设置默认引导提示语
+    thanksText.textContent = t('defaultThanks');
+    thanksText.classList.add("show"); // 确保默认提示语显示出来
+
+    const messages = [
+      "收到了一点点温暖 🌿",
+      "这个点赞被我们珍藏了",
+      "你刚刚让这个项目更开心了一点",
+      "谢谢你，真的",
+      "我们会继续把它照顾好的",
+      "这一秒，很值得",
+      "今天的好心情 +1",
+      "你的这份支持很重要",
+      "这一份喜欢，我们记下了",
+      "像阳光照进来一样 🌞",
+      "被温柔以待了",
+      "这个瞬间很美好",
+      "谢谢你看到我们",
+      "心里开了一朵小花 🌸",
+      "被善意包围了",
+      "这份鼓励很珍贵",
+      "你的支持让我们更有力量了",
+      "这份支持很暖很暖",
+      "我们会带着这份喜欢继续前行",
+      "这个点赞有温度",
+      "被理解的感觉真好",
+      "谢谢你愿意停留",
+      "这份认可很沉甸甸",
+      "像夜晚的一盏灯 💡",
+      "让努力变得值得",
+      "这份善意我们收到了",
+      "你让今天变得特别",
+      "像雨后的一道彩虹 🌈",
+      "这份喜欢我们会好好保存",
+      "谢谢你与我们同在",
+      "这份支持有魔法 ✨",
+      "让心变得柔软了",
+      "这份鼓励我们会传递下去",
+      "像冬日的一杯热茶 🍵",
+      "被看见的感觉真好",
+      "这份喜欢很纯粹",
+      "这份温暖在流动",
+      "是你让我们坚持有了意义",
+      "这份善意很珍贵",
+      "你让这个世界更温柔了"
+    ];
+
+    likeBtn.addEventListener("click", async (e) => {
+      // 检查每日点赞限制
+      const limitInfo = checkDailyLikeLimit();
+
+      if (!limitInfo.canLike) {
+        // 达到每日限制，显示提示，但保留交互效果
+        thanksText.textContent = t('dailyLimitReached');
+        thanksText.classList.remove("show");
+        void thanksText.offsetWidth;
+        thanksText.classList.add("show");
+
+        // 仍然保留视觉反馈效果
+        likeCountEl.style.transform = 'scale(1.1)';
+        setTimeout(() => {
+          likeCountEl.style.transform = 'scale(1)';
+        }, 150);
+
+        // ✨ 粒子动画（同步进行，不阻塞）
+        const x = e.clientX;
+        const y = e.clientY;
+        const bubble = document.createElement("span");
+        bubble.className = "bubble";
+        bubble.textContent = ['💙', '🌱', '✨', '🫧'][Math.floor(Math.random() * 4)];
+        bubble.style.left = x + "px";
+        bubble.style.top = y + "px";
+        document.body.appendChild(bubble);
+        setTimeout(() => bubble.remove(), 1200);
+
+        return; // 不执行后续点赞逻辑和API调用
+      }
+
+      // 🎯 立即更新本地状态和显示（让用户感觉超快）
+      count++;
+      // 增加每日计数
+      incrementDailyLikeCount();
+      localStorage.setItem("mw_like_count", count);
+      likeCountEl.textContent = t('likeCountLoaded', { count: count });
+
+      likeCountEl.style.transform = 'scale(1.1)'; // 轻微放大效果
+      setTimeout(() => {
+        likeCountEl.style.transform = 'scale(1)';
+      }, 150);
+
+      // ✨ 粒子动画（同步进行，不阻塞）
+      const x = e.clientX;
+      const y = e.clientY;
+      const bubble = document.createElement("span");
+      bubble.className = "bubble";
+      bubble.textContent = ['💙', '🌱', '✨', '🫧'][Math.floor(Math.random() * 4)];
+      bubble.style.left = x + "px";
+      bubble.style.top = y + "px";
+      document.body.appendChild(bubble);
+      setTimeout(() => bubble.remove(), 1200);
+
+      // 💬 感谢语（也立即显示）
+      const msg = t('thanksMessages')[Math.floor(Math.random() * t('thanksMessages').length)];
+      thanksText.textContent = msg;
+      thanksText.classList.remove("show");
+      void thanksText.offsetWidth;
+      thanksText.classList.add("show");
+
+      // 🚀 后台异步同步到云端（不阻塞用户体验）
+      setTimeout(async () => {
+        try {
+          const response = await fetch(WORKER_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            }
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            // 如果云端数据与本地不一致，可以选择是否更新显示
+            // 这里选择不更新，保持用户的即时反馈
+            console.log(t('cloudSyncSuccess'), data.count);
+          } else {
+            console.log(t('cloudSyncFailed'), response.status);
+          }
+        } catch (error) {
+          console.log(t('cloudSyncError'), error);
+          // 网络失败也没关系，本地数据已经更新了
+        }
+      }, 0); // 立即在后台执行
+
+      isProcessing = false;
+    });
+
+    // 分享按钮功能
+    const shareBtn = document.getElementById('shareBtn');
+    shareBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+
+      // 复制链接到剪贴板
+      const shareUrl = 'https://mindword.dpdns.org';
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(shareUrl).then(() => {
+          // 显示复制成功反馈
+          const originalText = shareBtn.innerHTML;
+          shareBtn.innerHTML = t('shareSuccess');
+          shareBtn.style.background = '#e8f5e8';
+          shareBtn.style.color = '#2d7d32';
+
+          setTimeout(() => {
+            shareBtn.innerHTML = originalText;
+            shareBtn.style.background = '';
+            shareBtn.style.color = '';
+          }, 2000);
+        }).catch(() => {
+          // 降级方案
+          fallbackCopyText(shareUrl);
+        });
+      } else {
+        // 降级方案
+        fallbackCopyText(shareUrl);
+      }
+    });
+
+    // 降级复制方案
+    function fallbackCopyText(text) {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+
+      try {
+        document.execCommand('copy');
+        const originalText = shareBtn.innerHTML;
+        shareBtn.innerHTML = t('shareSuccess');
+        shareBtn.style.background = '#e8f5e8';
+        shareBtn.style.color = '#2d7d32';
+
+        setTimeout(() => {
+          shareBtn.innerHTML = originalText;
+          shareBtn.style.background = '';
+          shareBtn.style.color = '';
+        }, 2000);
+      } catch (err) {
+        shareBtn.innerHTML = t('shareFailed');
+        setTimeout(() => {
+          shareBtn.innerHTML = t('shareRestore');
+        }, 2000);
+      }
+
+      document.body.removeChild(textArea);
+    }
+
+    // 看广告支持功能
+    const watchAdBtn = document.getElementById('watchAdBtn');
+    watchAdBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+
+      // 显示广告加载状态
+      const originalText = watchAdBtn.innerHTML;
+      watchAdBtn.innerHTML = t('adLoading');
+      watchAdBtn.style.background = '#fff3cd';
+      watchAdBtn.style.color = '#856404';
+
+      // 模拟广告加载和观看过程
+      setTimeout(() => {
+        // 这里可以集成真实的广告SDK，比如Google AdSense、腾讯广告等
+        // 现在用模拟的方式展示
+
+        const adCompleted = Math.random() > 0.2; // 80%成功率模拟
+
+        if (adCompleted) {
+          // 广告观看完成
+          watchAdBtn.innerHTML = t('adSuccess');
+          watchAdBtn.style.background = '#d4edda';
+          watchAdBtn.style.color = '#155724';
+
+          // 可以选择给一些正向反馈
+          thanksText.textContent = t('adThanks');
+          thanksText.classList.add("show");
+
+          // 3秒后恢复原状
+          setTimeout(() => {
+            watchAdBtn.innerHTML = originalText;
+            watchAdBtn.style.background = '';
+            watchAdBtn.style.color = '';
+          }, 3000);
+        } else {
+          // 广告加载失败
+          watchAdBtn.innerHTML = t('adFailed');
+          watchAdBtn.style.background = '#f8d7da';
+          watchAdBtn.style.color = '#721c24';
+
+          setTimeout(() => {
+            watchAdBtn.innerHTML = originalText;
+            watchAdBtn.style.background = '';
+            watchAdBtn.style.color = '';
+          }, 2000);
+        }
+      }, 1500); // 模拟1.5秒加载时间
+    });
+  </script>
+</body>
+
+</html>

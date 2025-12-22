@@ -330,6 +330,12 @@ class I18nManager {
       langSelectMobile.value = this.currentLanguage;
     }
 
+    // 更新app页面的紧凑语言选择器
+    const langSelectCompact = document.getElementById('lang-switch-compact');
+    if (langSelectCompact) {
+      langSelectCompact.value = this.currentLanguage;
+    }
+
     // 更新移动端语言按钮（兼容旧版按钮模式）
     const mobileZhButton = document.querySelector('.language-btn-zh');
     const mobileEnButton = document.querySelector('.language-btn-en');

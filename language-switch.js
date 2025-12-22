@@ -30,6 +30,8 @@ function applyLangToUI() {
 }
 document.addEventListener('DOMContentLoaded', function () {
   var sel = document.getElementById('lang-switch');
+  var selCompact = document.getElementById('lang-switch-compact');
+
   if (sel) {
     try { sel.value = getLang(); } catch (_) { }
     sel.addEventListener('change', function () {
@@ -41,6 +43,19 @@ document.addEventListener('DOMContentLoaded', function () {
       applyLangToUI();
     });
   }
+
+  if (selCompact) {
+    try { selCompact.value = getLang(); } catch (_) { }
+    selCompact.addEventListener('change', function () {
+      try { localStorage.setItem(LANG_KEY, selCompact.value); } catch (_) { }
+      // 使用i18n管理器切换语言，这会触发所有监听器
+      if (window.i18nManager && window.i18nManager.setLanguage) {
+        window.i18nManager.setLanguage(selCompact.value);
+      }
+      applyLangToUI();
+    });
+  }
+
   applyLangToUI();
   window.addEventListener('storage', function (e) { if (e.key && e.key.startsWith('AV/')) setTimeout(applyLangToUI, 200); });
   window.__mw_applyLangToUI = applyLangToUI;
@@ -49,5 +64,6 @@ document.addEventListener('DOMContentLoaded', function () {
   if (window.i18nManager && window.i18nManager.isInitialized) {
     const currentLang = window.i18nManager.getCurrentLanguage();
     if (sel) sel.value = currentLang;
+    if (selCompact) selCompact.value = currentLang;
   }
 });

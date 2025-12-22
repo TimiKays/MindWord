@@ -348,7 +348,8 @@ const i18nLocales = {
         detailPanelPermanent: '详情面板常驻',
         help: '帮助',
         installPWA: '安装web应用',
-        changelog: '更新日志'
+        changelog: '更新日志',
+        support: '支持一下'
       },
 
       // 节点操作
@@ -876,7 +877,8 @@ const i18nLocales = {
         detailPanelPermanent: 'Detail Panel Permanent',
         help: 'Help',
         installPWA: 'Install Web App',
-        changelog: 'Update Log'
+        changelog: 'Update Log',
+        support: 'Support Us'
       },
 
       // 节点操作
@@ -1399,7 +1401,8 @@ const i18nLocales = {
         detailPanelPermanent: 'Panel de Detalles Permanente',
         help: 'Ayuda',
         installPWA: 'Instalar Aplicación Web',
-        changelog: 'Registro de Cambios'
+        changelog: 'Registro de Cambios',
+        support: 'Apóyanos'
       },
 
       // 节点操作
