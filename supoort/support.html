@@ -156,6 +156,64 @@
       color: #9aa;
     }
 
+    /* 顶部导航栏 - 从 feedback.html 复制 */
+    .header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+      z-index: 1000;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand {
+      font-family: 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      margin-left: 0;
+      font-weight: 700;
+      font-size: 26px;
+      display: flex;
+      align-items: center;
+    }
+
+    .brand-clickable {
+      background: linear-gradient(0deg, #0b82e4 0%, #11c49d 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      text-decoration: none;
+    }
+
+    .brand-clickable:hover {
+      opacity: 0.8;
+    }
+
+    .brand-clickable img {
+      width: 32px;
+      height: 32px;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+
+    /* 为主体内容添加偏移 */
+    .main-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding-top: 60px;
+      /* 为头部留出空间 */
+    }
+
     /* 微信赞赏弹窗 */
     .wechat-modal {
       display: none;
@@ -204,38 +262,54 @@
 </head>
 
 <body>
-  <div class="card">
-    <h1>🌱 支持 MindWord</h1>
-    <p class="desc">
-      MindWord 是一个完全免费的小工具。<br />
-      如果它刚好帮到你一点点，那我们会很开心。
-    </p>
-
-    <div class="like-area">
-      <button class="like-btn" id="likeBtn">👍</button>
-      <div class="like-count" id="likeCount">已收到 0 个点赞</div>
-      <div class="thanks" id="thanksText"></div>
-    </div>
-
-    <div class="actions">
-      <a class="action" href="/feedback.html" target="_blank">
-        💬 留下一点想法或建议
-      </a>
-      <a class="action" href="#" id="shareBtn">
-        🔗 分享给可能用得上的朋友
-      </a>
-      <a class="action" href="#" id="watchAdBtn">
-        📺 看个广告（敬请期待...）
-      </a>
-      <a class="action" href="#" id="wechatBtn">
-        🧋 请作者喝杯奶茶~ (微信赞赏任意金额)
+  <!-- 顶部导航栏 -->
+  <header class="header">
+    <div class="brand">
+      <a href="../index.html" class="brand-clickable" title="返回首页">
+        <img src="../res/LOGO32.ico" alt="favicon">
+        MindWord
       </a>
     </div>
+    <nav>
+      <!-- 可以在这里添加导航链接 -->
+    </nav>
+  </header>
 
-    <div class="footer">
-      是否支持完全自愿 · 对产品使用无任何影响哦 😺
+  <!-- 主体内容 -->
+  <div class="main-wrapper">
+    <div class="card">
+      <h1>🌱 支持 MindWord</h1>
+      <p class="desc">
+        MindWord 是一个完全免费的小工具。<br />
+        如果它刚好帮到你一点点，那我们会很开心。
+      </p>
+
+      <div class="like-area">
+        <button class="like-btn" id="likeBtn">👍</button>
+        <div class="like-count" id="likeCount">已收到 0 个点赞</div>
+        <div class="thanks" id="thanksText"></div>
+      </div>
+
+      <div class="actions">
+        <a class="action" href="/feedback.html" target="_blank">
+          💬 留下一点想法或建议
+        </a>
+        <a class="action" href="#" id="shareBtn">
+          🔗 分享给可能用得上的朋友
+        </a>
+        <a class="action" href="#" id="watchAdBtn">
+          📺 看个广告（敬请期待...）
+        </a>
+        <a class="action" href="#" id="wechatBtn">
+          🧋 请作者喝杯奶茶~ (微信赞赏任意金额)
+        </a>
+      </div>
+
+      <div class="footer">
+        是否支持完全自愿 · 对产品使用无任何影响哦 😺
+      </div>
     </div>
-  </div>
+  </div> <!-- Close main-wrapper -->
 
   <!-- 微信赞赏弹窗 -->
   <div id="wechatModal" class="wechat-modal">
