@@ -181,7 +181,15 @@ const i18nLocales = {
     // 页脚
     footer: {
       copyright: '© 2025 MindWord. 保留所有权利。',
-      changelog: '更新日志'
+      changelog: '更新日志',
+      productRelated: '产品相关',
+      communityInteraction: '社区互动',
+      contactInfo: '联系方式',
+      supportUs: '支持我们',
+      survey: '调查问卷',
+      supportTitle: '喜欢 MindWord？支持我们继续前行',
+      supportDesc: 'MindWord 是一个完全免费的小工具。如果它刚好帮到你一点点，那我们会很开心。你的每一份支持，都是让我们继续改进产品的动力。',
+      supportButton: '给我们一点鼓励'
     },
 
     // 导航栏
@@ -732,7 +740,15 @@ const i18nLocales = {
     // 页脚
     footer: {
       copyright: '© 2025 MindWord. All rights reserved.',
-      changelog: 'Changelog'
+      changelog: 'Changelog',
+      productRelated: 'Product Related',
+      communityInteraction: 'Community Interaction',
+      contactInfo: 'Contact Information',
+      supportUs: 'Support Us',
+      survey: 'Survey',
+      supportTitle: 'Like MindWord? Support us to keep moving forward',
+      supportDesc: 'MindWord is a completely free tool. If it helps you even a little, we would be very happy. Every support from you is the motivation for us to continue improving the product.',
+      supportButton: 'Give us some encouragement'
     },
 
     // 项目背景
@@ -1235,7 +1251,15 @@ const i18nLocales = {
     // 页脚
     footer: {
       copyright: '© 2025 MindWord. Todos los derechos reservados.',
-      changelog: 'Registro de Cambios'
+      changelog: 'Registro de Cambios',
+      productRelated: 'Productos Relacionados',
+      communityInteraction: 'Interacción Comunitaria',
+      contactInfo: 'Información de Contacto',
+      supportUs: 'Apóyanos',
+      survey: 'Encuesta',
+      supportTitle: '¿Te gusta MindWord? Apóyanos a seguir adelante',
+      supportDesc: 'MindWord es una herramienta completamente gratuita. Si te ayuda aunque sea un poco, estaremos muy felices. Cada apoyo tuyo es la motivación para que continuemos mejorando el producto.',
+      supportButton: 'Danos algo de aliento'
     },
 
     // 导航栏

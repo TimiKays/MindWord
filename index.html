@@ -78,7 +78,8 @@
     <meta name="classification" content="productivity, writing, mind mapping">
 
     <!-- Google AdSense -->
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8545877256902738" crossorigin="anonymous"></script>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8545877256902738"
+        crossorigin="anonymous"></script>
 
     <!-- 营销页面骨架屏样式 -->
     <style>
@@ -957,7 +958,7 @@
                 <a href="#feedback" class="block py-2 text-dark/80 hover:text-primary transition-colors"
                     data-i18n="nav.feedback">反馈建议</a>
                 <a href="changelog/changelog.html" class="block py-2 text-dark/80 hover:text-primary transition-colors"
-                    data-i18n="nav.changelog">更新日志</a>
+                    target="_blank" rel="noopener" data-i18n="nav.changelog">更新日志</a>
 
                 <a href="/app.html"
                     class="block py-2 text-center bg-primary hover:bg-primary/90 text-white rounded-lg font-medium transition-colors"
@@ -1657,6 +1658,7 @@
                                     <span
                                         data-i18n="privacy.privacyCommitment.desc">除云同步功能外，其他所有功能均可免登录使用和完全本地存储。实现最小化数据收集，最大化用户隐私保护。</span>
                                     <a href="privacy.html" class="text-primary hover:text-primary/80 underline ml-1"
+                                        target="_blank" rel="noopener"
                                         data-i18n="privacy.privacyPolicy">隐私政策</a><span>>></span>
                                 </p>
                             </div>
@@ -1776,50 +1778,145 @@
 
                 </div>
 
-            </div>
+                <!-- 支持引导区域 -->
+                <div class="mt-12 pt-8 border-t border-gray-200 text-center">
+                    <div class="max-w-2xl mx-auto">
+                        <h3 class="text-lg font-semibold text-dark mb-3" data-i18n="footer.supportTitle">
+                            <i class="fa fa-heart text-red-500 mr-2"></i>
+                            喜欢 MindWord？支持我们继续前行
+                        </h3>
+                        <p class="text-dark/70 mb-4 text-sm" data-i18n="footer.supportDesc">
+                            MindWord 是一个完全免费的小工具。如果它刚好帮到你一点点，那我们会很开心。
+                            你的每一份支持，都是让我们继续改进产品的动力。
+                        </p>
+                        <a href="supoort/support.html" target="_blank" rel="noopener"
+                            class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-primary to-secondary text-white rounded-lg font-medium hover:shadow-lg transition-all duration-200 hover:scale-105"
+                            data-i18n="footer.supportButton">
+                            <i class="fa fa-thumbs-up mr-2"></i>
+                            给我们一点鼓励
+                        </a>
+                    </div>
+                </div>
 
-            <!-- Product Hunt Badge -->
-            <div class="mt-8 flex justify-center">
-                <a href="https://www.producthunt.com/products/mindword?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-mindword&#0045;ai&#0045;powered&#0045;mind&#0045;mapping"
-                    target="_blank" rel="noopener"><img
-                        src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1034451&theme=neutral&t=1763369182704"
-                        alt="MindWord&#0032;–&#0032;AI&#0045;Powered&#0032;Mind&#0032;Mapping - Turn&#0032;AI&#0032;replies&#0032;&#0038;&#0032;your&#0032;thoughts&#0032;&#0032;into&#0032;structured&#0032;mind&#0032;maps&#0046; | Product Hunt"
-                        style="width: 250px; height: 54px;" width="250" height="54" /></a>
             </div>
         </section>
     </main>
 
     <!-- 页脚 -->
-    <footer class="bg-dark text-white py-8">
+    <footer class="bg-dark text-white py-12">
 
         <div class="container mx-auto px-4 sm:px-6 lg:px-8">
 
-            <div class="flex flex-col md:flex-row justify-between items-center">
+            <!-- 四栏布局：第一栏占更多空间 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 mb-8 lg:gap-12">
 
-                <div class="flex items-center space-x-2 mb-6 md:mb-0">
-                    <!-- <div
-                        class="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-                        <i class="fa fa-sitemap text-white text-xl"></i>
-                    </div> -->
-                    <span class="text-xl font-bold">MindWord</span>
+                <!-- 第一栏：MindWord 介绍（占5份空间） -->
+                <div class="space-y-4 lg:col-span-4">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xl font-bold">MindWord</span>
+                    </div>
+                    <p class="text-white/70 text-sm leading-relaxed">
+                        像画图一样写文档的思维导图工具
+                    </p>
+                    <!-- Product Hunt Badge -->
+                    <div class="pt-2">
+                        <a href="https://www.producthunt.com/products/mindword?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-mindword&#0045;ai&#0045;powered&#0045;mind&#0045;mapping"
+                            target="_blank" rel="noopener">
+                            <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1034451&theme=neutral&t=1763369182704"
+                                alt="MindWord&#0032;–&#0032;AI&#0045;Powered&#0032;Mind&#0032;Mapping - Turn&#0032;AI&#0032;replies&#0032;&#0038;&#0032;your&#0032;thoughts&#0032;&#0032;into&#0032;structured&#0032;mind&#0032;maps&#0046; | Product Hunt"
+                                style="width: 250px; height: 54px;" width="250" height="54" /></a>
+                    </div>
                 </div>
 
-                <!-- 页脚导航链接 -->
-                <div class="flex items-center space-x-6 mb-4 md:mb-0">
-                    <a href="privacy.html" class="text-white/60 hover:text-white text-sm transition-colors"
-                        data-i18n="privacy.privacyPolicy">
-                        <i class="fa fa-shield-alt mr-1"></i>隐私政策
-                    </a>
-                    <a href="changelog/changelog.html" class="text-white/60 hover:text-white text-sm transition-colors"
-                        data-i18n="footer.changelog">
-                        <i class="fa fa-history mr-1"></i>更新日志
-                    </a>
+                <!-- 第二栏：产品相关（占剩余7份空间中的1份） -->
+                <div class="space-y-4 lg:col-span-2">
+                    <h3 class="text-white font-semibold text-sm uppercase tracking-wide"
+                        data-i18n="footer.productRelated">产品相关</h3>
+                    <ul class="space-y-2">
+                        <li>
+                            <a href="privacy.html" class="text-white/60 hover:text-white text-sm transition-colors"
+                                target="_blank" rel="noopener" data-i18n="privacy.privacyPolicy">
+                                隐私政策
+                            </a>
+                        </li>
+                        <li>
+                            <a href="changelog/changelog.html" target="_blank" rel="noopener"
+                                class="text-white/60 hover:text-white text-sm transition-colors"
+                                data-i18n="footer.changelog">
+                                更新日志
+                            </a>
+                        </li>
+                    </ul>
                 </div>
 
-                <p class="text-white/60 text-sm mb-4 md:mb-0" data-i18n="footer.copyright">
+                <!-- 第三栏：社区互动（占剩余7份空间中的1份） -->
+                <div class="space-y-4 lg:col-span-2">
+                    <h3 class="text-white font-semibold text-sm uppercase tracking-wide"
+                        data-i18n="footer.communityInteraction">社区互动</h3>
+                    <ul class="space-y-2">
+                        <li>
+                            <a href="feedback.html" class="text-white/60 hover:text-white text-sm transition-colors"
+                                target="_blank" rel="noopener" data-i18n="feedback.onlineForm">
+                                建议&反馈
+                            </a>
+                        </li>
+                        <li>
+                            <a href="supoort/support.html" target="_blank" rel="noopener"
+                                class="text-white/60 hover:text-white text-sm transition-colors"
+                                data-i18n="footer.supportUs">
+                                支持我们
+                            </a>
+                        </li>
+                        <li>
+                            <a href="https://qqrbzgpzpg.feishu.cn/share/base/form/shrcn3dLXBpL8UsHCLpwfRQ2SXf"
+                                target="_blank" rel="noopener"
+                                class="text-white/60 hover:text-white text-sm transition-colors"
+                                data-i18n="footer.survey">
+                                调查问卷
+                            </a>
+                        </li>
+
+                    </ul>
+                </div>
+
+                <!-- 第四栏：联系方式（占剩余7份空间中的1份） -->
+                <div class="space-y-4 lg:col-span-3">
+                    <h3 class="text-white font-semibold text-sm uppercase tracking-wide" data-i18n="footer.contactInfo">
+                        联系方式</h3>
+                    <ul class="space-y-2">
+                        <li>
+                            <a href="https://github.com/TimiKays/MindWord" target="_blank" rel="noopener"
+                                class="text-white/60 hover:text-white text-sm transition-colors break-all flex items-center">
+                                <i class="fa fa-github mr-2"></i>
+                                https://github.com/TimiKays/MindWord
+                            </a>
+                        </li>
+                        <li>
+                            <a href="mailto:timikays@qq.com"
+                                class="text-white/60 hover:text-white text-sm transition-colors break-all flex items-center">
+                                <i class="fa fa-envelope mr-2"></i>
+                                timikays@qq.com
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 预留广告位 -->
+            <div class="border-t border-white/20 pt-8 mb-8 hidden">
+                <div class="bg-white/5 rounded-lg p-8 text-center">
+                    <p class="text-white/50 text-sm mb-2">广告位招租</p>
+                    <p class="text-white/30 text-xs">如需投放广告，请联系我们</p>
+                </div>
+            </div>
+
+            <!-- 版权信息 -->
+            <div class="border-t border-white/20 pt-8 text-center">
+                <p class="text-white/60 text-sm" data-i18n="footer.copyright">
                     &copy; 2025 MindWord. 保留所有权利。
                 </p>
-                <!-- <div class="flex space-x-6">
+            </div>
+            <!-- <div class="flex space-x-6">
                     <a href="#" class="text-white/70 hover:text-white transition-colors">
                         <i class="fa fa-github text-xl"></i>
                     </a>
@@ -1833,9 +1930,9 @@
                         <i class="fa fa-weixin text-xl"></i>
                     </a>
                 </div> -->
-            </div>
+        </div>
 
-            <!-- <div class="border-t border-white/10 pt-8">
+        <!-- <div class="border-t border-white/10 pt-8">
                 <div class="flex flex-col md:flex-row justify-between items-center">
 
 
@@ -1845,7 +1942,7 @@
                         <a href="#" class="text-white/60 hover:text-white text-sm transition-colors">开源许可</a>
                         <a href="#" class="text-white/60 hover:text-white text-sm transition-colors">帮助中心</a>
                     </div> -->
-            <!-- </div>
+        <!-- </div>
         </div> -->
         </div>
     </footer>
