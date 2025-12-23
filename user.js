@@ -265,7 +265,7 @@ MindWord应用的用户认证系统核心模块，主要功能包括：
       localStorage.setItem('mw_just_logged_in', 'true');
 
       // 检查LeanCloud认证状态是否准备好
-      async function checkAndSync() {
+      function checkAndSync() {
         try {
           // 检查LeanCloud是否初始化且用户已登录
           if (typeof AV === 'undefined' || !AV.applicationId) {
@@ -288,13 +288,10 @@ MindWord应用的用户认证系统核心模块，主要功能包括：
           console.log('[AUTH] 所有条件已满足，执行LeanCloud自动同步');
           console.log('[AUTH] 当前用户ID:', user.id);
           try {
-            await window.MW_LC_SYNC.sync();
-            localStorage.removeItem('mw_just_logged_in');
-            console.log('[AUTH] 登录后同步完成，已清除登录标记');
+            window.MW_LC_SYNC.sync();
             return true;
           } catch (syncError) {
             console.error('[AUTH] 同步执行失败:', syncError);
-            localStorage.removeItem('mw_just_logged_in');
             // 确保错误能够显示给用户
             setTimeout(() => {
               if (window.showError) {
@@ -312,27 +309,30 @@ MindWord应用的用户认证系统核心模块，主要功能包括：
       }
 
       // 立即尝试一次
-      checkAndSync().then(success => {
-        if (!success) {
-          // 如果失败，延迟重试
-          let retryCount = 0;
-          const maxRetries = 5;
-          const retryInterval = setInterval(function () {
-            retryCount++;
-            console.log(`[AUTH] 重试同步 (${retryCount}/${maxRetries})`);
+      if (!checkAndSync()) {
+        // 如果失败，延迟重试
+        let retryCount = 0;
+        const maxRetries = 5;
+        const retryInterval = setInterval(function () {
+          retryCount++;
+          console.log(`[AUTH] 重试同步 (${retryCount}/${maxRetries})`);
 
-            checkAndSync().then(result => {
-              if (result || retryCount >= maxRetries) {
-                clearInterval(retryInterval);
-                if (retryCount >= maxRetries) {
-                  console.error('[AUTH] 登录后同步重试次数已达上限，放弃自动同步');
-                  localStorage.removeItem('mw_just_logged_in');
-                }
-              }
-            });
-          }, 2000); // 每2秒重试一次
-        }
-      });
+          if (checkAndSync() || retryCount >= maxRetries) {
+            clearInterval(retryInterval);
+            if (retryCount >= maxRetries) {
+              console.error('[AUTH] 登录后同步重试次数已达上限，放弃自动同步');
+              // 显示错误提示给用户
+              // setTimeout(() => {
+              //   if (window.showError) {
+              //     window.showError('登录后自动同步失败，请检查网络连接后手动同步');
+              //   } else {
+              //     alert('登录后自动同步失败，请检查网络连接后手动同步');
+              //   }
+              // }, 100);
+            }
+          }
+        }, 2000); // 每2秒重试一次
+      }
     }, 5000); // 增加延迟，确保所有组件和认证状态完全初始化
   }
 

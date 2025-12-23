@@ -296,8 +296,8 @@ async function renderMarkdownContent(markdownText, container) {
 
     // 渲染各部分内容
     let totalLength = 0;
-    const maxTextLength = 150; // 最大文本长度限制
-    const maxImages = 3; // 最大图片数量限制
+    const maxTextLength = 1000000; // 最大文本长度限制
+    const maxImages = 50; // 最大图片数量限制
 
     for (let i = 0; i < parts.length; i++) {
         const part = parts[i];

@@ -2558,6 +2558,12 @@
                 noteEl._tooltipHideTimer = null;
               }
 
+              // 移除已存在的 tooltip，防止快速来回移动时多个 tooltip 同时存在
+              if (noteEl._imageTooltip && noteEl._imageTooltip.parentElement) {
+                noteEl._imageTooltip.parentElement.removeChild(noteEl._imageTooltip);
+                noteEl._imageTooltip = null;
+              }
+
               if (window.NoteImageUtils && window.NoteImageUtils.createImageTooltip) {
                 window.NoteImageUtils.createImageTooltip(noteText, noteEl).then(function (tooltip) {
                   if (tooltip) {
@@ -2634,6 +2640,19 @@
       if (node._data.view) {
         var element = node._data.view.element;
         var expander = node._data.view.expander;
+        // 清理 note 元素的 tooltip
+        var noteEls = element.querySelectorAll && element.querySelectorAll('.jm-node-note');
+        if (noteEls && noteEls.length) {
+          for (var i = 0; i < noteEls.length; i++) {
+            var noteEl = noteEls[i];
+            if (noteEl._imageTooltip && noteEl._imageTooltip.parentElement) {
+              noteEl._imageTooltip.parentElement.removeChild(noteEl._imageTooltip);
+            }
+            if (noteEl._tooltipHideTimer) {
+              clearTimeout(noteEl._tooltipHideTimer);
+            }
+          }
+        }
         this.e_nodes.removeChild(element);
         this.e_nodes.removeChild(expander);
         node._data.view.element = null;
@@ -2658,7 +2677,16 @@
         if (olds && olds.length) {
           for (var i = 0; i < olds.length; i++) {
             var o = olds[i];
-            if (o && o.parentElement) { o.parentElement.removeChild(o); }
+            if (o && o.parentElement) {
+              // 清理关联的 tooltip
+              if (o._imageTooltip && o._imageTooltip.parentElement) {
+                o._imageTooltip.parentElement.removeChild(o._imageTooltip);
+              }
+              if (o._tooltipHideTimer) {
+                clearTimeout(o._tooltipHideTimer);
+              }
+              o.parentElement.removeChild(o);
+            }
           }
         }
         // add if node has note
@@ -2698,6 +2726,12 @@
               if (noteEl._tooltipHideTimer) {
                 clearTimeout(noteEl._tooltipHideTimer);
                 noteEl._tooltipHideTimer = null;
+              }
+
+              // 移除已存在的 tooltip，防止快速来回移动时多个 tooltip 同时存在
+              if (noteEl._imageTooltip && noteEl._imageTooltip.parentElement) {
+                noteEl._imageTooltip.parentElement.removeChild(noteEl._imageTooltip);
+                noteEl._imageTooltip = null;
               }
 
               if (window.NoteImageUtils && window.NoteImageUtils.createImageTooltip) {
