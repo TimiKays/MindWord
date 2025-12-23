@@ -38,7 +38,7 @@
 
     .card {
       width: 92%;
-      max-width: 420px;
+      width: 450px;
       padding: 28px 26px 30px;
       background: var(--card-bg);
       border-radius: 20px;
@@ -291,6 +291,16 @@
       </div>
 
       <div class="actions">
+        <a class="action" href="https://apps.microsoft.com/detail/9NVC3Z75RCD4" target="_blank" rel="noopener">
+          <div style="display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1px; width: 9px; height: 9px;">
+              <div style="background-color: #ff5f56; border-radius: 0.5px;"></div>
+              <div style="background-color: #2ebd59; border-radius: 0.5px;"></div>
+              <div style="background-color: #5bc0eb; border-radius: 0.5px;"></div>
+              <div style="background-color: #ffbd2e; border-radius: 0.5px;"></div>
+            </div>
+          </div> 在微软应用商店评分支持
+        </a>
         <a class="action" href="/feedback.html" target="_blank">
           💬 留下一点想法或建议
         </a>
@@ -331,6 +341,7 @@
         share: '🔗 分享给可能用得上的朋友',
         watchAd: '📺 看个广告（敬请期待...）',
         wechatSupport: '🧋 请作者喝杯奶茶~ (微信赞赏任意金额)',
+        microsoftStore: '🏪 在微软应用商店评分支持',
         footer: '是否支持完全自愿 · 对产品使用无任何影响哦 😺',
         defaultThanks: '点一点上面的👍按钮，给我们一点鼓励吧 ✨',
         thanksMessages: [
@@ -400,6 +411,7 @@
         share: '🔗 Share with friends who might need it',
         watchAd: '📺 Watch an ad (coming soon...)',
         wechatSupport: '🧋 Buy the author a milk tea~ (WeChat appreciation any amount)',
+        microsoftStore: '🏪 Rate us on Microsoft Store',
         footer: 'Support is completely voluntary · No impact on product usage 😺',
         defaultThanks: 'Click the 👍 button above to give us some encouragement ✨',
         thanksMessages: [
@@ -469,6 +481,7 @@
         share: '🔗 Compartir con amigos que puedan necesitarlo',
         watchAd: '📺 Ver un anuncio (próximamente...)',
         wechatSupport: '🧋 Comprarle un té con leche al autor~ (Apreciación de WeChat cualquier cantidad)',
+        microsoftStore: '🏪 Calificanos en Microsoft Store',
         footer: 'El apoyo es completamente voluntario · Sin impacto en el uso del producto 😺',
         defaultThanks: 'Haz clic en el botón 👍 de arriba para darnos algo de ánimo ✨',
         thanksMessages: [
@@ -606,6 +619,12 @@
       document.getElementById('shareBtn').innerHTML = t('share');
       document.getElementById('watchAdBtn').innerHTML = t('watchAd');
       document.getElementById('wechatBtn').innerHTML = t('wechatSupport');
+
+      // 更新微软应用商店链接文本
+      const microsoftStoreLink = document.querySelector('a[href*="apps.microsoft.com"]');
+      if (microsoftStoreLink) {
+        microsoftStoreLink.innerHTML = t('microsoftStore');
+      }
     }
 
     const likeBtn = document.getElementById("likeBtn");

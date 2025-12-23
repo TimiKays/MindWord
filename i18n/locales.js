@@ -131,6 +131,7 @@ const i18nLocales = {
       subtitle: '立即体验思维导图与Markdown结合的高效写作方式，让您的创意和思路更加井井有条',
       webVersion: '访问网页版',
       installPWA: '安装Web应用',
+      microsoftStore: '从微软应用商店安装',
       downloadWindows: '下载Windows客户端',
       compatibility: '兼容PC和移动端，全平台一致体验'
     },
@@ -187,6 +188,7 @@ const i18nLocales = {
       contactInfo: '联系方式',
       supportUs: '支持我们',
       survey: '调查问卷',
+      microsoftStore: '微软应用商店',
       supportTitle: '喜欢 MindWord？支持我们继续前行',
       supportDesc: 'MindWord 是一个完全免费的小工具。如果它刚好帮到你一点点，那我们会很开心。你的每一份支持，都是让我们继续改进产品的动力。',
       supportButton: '给我们一点鼓励'
@@ -356,6 +358,7 @@ const i18nLocales = {
         detailPanelPermanent: '详情面板常驻',
         help: '帮助',
         installPWA: '安装web应用',
+        microsoftStore: '从微软应用商店安装',
         changelog: '更新日志',
         support: '支持一下'
       },
@@ -691,6 +694,7 @@ const i18nLocales = {
       subtitle: 'Experience the efficient writing method combining mind maps and Markdown immediately, making your creativity and ideas more organized',
       webVersion: 'Visit Web Version',
       installPWA: 'Install Web App',
+      microsoftStore: 'Install from Microsoft Store',
       downloadWindows: 'Download Windows Client',
       compatibility: 'Compatible with PC and mobile, consistent experience across all platforms'
     },
@@ -746,6 +750,7 @@ const i18nLocales = {
       contactInfo: 'Contact Information',
       supportUs: 'Support Us',
       survey: 'Survey',
+      microsoftStore: 'Microsoft Store',
       supportTitle: 'Like MindWord? Support us to keep moving forward',
       supportDesc: 'MindWord is a completely free tool. If it helps you even a little, we would be very happy. Every support from you is the motivation for us to continue improving the product.',
       supportButton: 'Give us some encouragement'
@@ -893,6 +898,7 @@ const i18nLocales = {
         detailPanelPermanent: 'Detail Panel Permanent',
         help: 'Help',
         installPWA: 'Install Web App',
+        microsoftStore: 'Install from Microsoft Store',
         changelog: 'Update Log',
         support: 'Support Us'
       },
@@ -1202,6 +1208,7 @@ const i18nLocales = {
       subtitle: 'Experimente inmediatamente la forma eficiente de escritura que combina mapas mentales con Markdown, haciendo sus ideas y creatividad más organizadas',
       webVersion: 'Visitar Versión Web',
       installPWA: 'Instalar Aplicación Web',
+      microsoftStore: 'Instalar desde Microsoft Store',
       downloadWindows: 'Descargar Cliente Windows',
       compatibility: 'Compatible con PC y móviles, experiencia consistente en todas las plataformas'
     },
@@ -1257,6 +1264,7 @@ const i18nLocales = {
       contactInfo: 'Información de Contacto',
       supportUs: 'Apóyanos',
       survey: 'Encuesta',
+      microsoftStore: 'Microsoft Store',
       supportTitle: '¿Te gusta MindWord? Apóyanos a seguir adelante',
       supportDesc: 'MindWord es una herramienta completamente gratuita. Si te ayuda aunque sea un poco, estaremos muy felices. Cada apoyo tuyo es la motivación para que continuemos mejorando el producto.',
       supportButton: 'Danos algo de aliento'
@@ -1425,6 +1433,7 @@ const i18nLocales = {
         detailPanelPermanent: 'Panel de Detalles Permanente',
         help: 'Ayuda',
         installPWA: 'Instalar Aplicación Web',
+        microsoftStore: 'Instalar desde Microsoft Store',
         changelog: 'Registro de Cambios',
         support: 'Apóyanos'
       },
