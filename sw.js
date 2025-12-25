@@ -3,7 +3,7 @@
  * 只缓存核心文件，避免路径重复问题
  */
 
-const CACHE_NAME = 'mindword-v35';
+const CACHE_NAME = 'mindword-v36';
 
 // 只缓存最关键的核心文件
 const CORE_FILES = [
@@ -379,12 +379,16 @@ self.addEventListener('fetch', event => {
 
         // 对于HTML文件，优先返回缓存的对应文件
         if (pathname.endsWith('.html') || pathname === '/') {
-          return caches.match(pathname) || caches.match('/offline.html');
+          return caches.match(pathname).then(cached => {
+            if (cached) return cached;
+            return caches.match('/offline.html');
+          });
         }
 
         // 对于JS文件，尝试返回缓存的版本
         if (pathname.endsWith('.js')) {
-          return caches.match(event.request).catch(() => {
+          return caches.match(event.request).then(cached => {
+            if (cached) return cached;
             return new Response('// 离线模式 - JS文件不可用', {
               status: 200,
               headers: { 'Content-Type': 'application/javascript' }
@@ -401,7 +405,8 @@ self.addEventListener('fetch', event => {
         }
 
         // 其他情况返回通用的离线响应
-        return caches.match(event.request).catch(() => {
+        return caches.match(event.request).then(cached => {
+          if (cached) return cached;
           return new Response('离线模式 - 内容不可用', { status: 503 });
         });
       });
