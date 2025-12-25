@@ -3,7 +3,7 @@
  * 只缓存核心文件，避免路径重复问题
  */
 
-const CACHE_NAME = 'mindword-v34';
+const CACHE_NAME = 'mindword-v35';
 
 // 只缓存最关键的核心文件
 const CORE_FILES = [
@@ -236,6 +236,12 @@ self.addEventListener('fetch', event => {
     (url.hostname.includes('lc-') && url.pathname.includes('/1.1/'))) {
     // 对于LeanCloud API请求，完全忽略，让浏览器直接处理
     console.log('[SW] LeanCloud API请求，完全忽略:', event.request.url);
+    return;
+  }
+
+  // 完全忽略点赞API请求，让浏览器直接处理，确保获取最新数据
+  if (url.pathname === '/api/likes') {
+    console.log('[SW] 点赞API请求，完全忽略:', event.request.url);
     return;
   }
 
