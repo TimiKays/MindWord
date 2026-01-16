@@ -158,11 +158,20 @@
         try {
           console.log('[MW] applyNodeVisibilityFilter: 启用过滤视图（隐藏 list 子树）');
           // save viewport then show filtered view and restore viewport
-          try { saveViewport(); } catch (e) { }
+          let viewportState = null;
+          try { 
+            viewportState = window.MW_saveViewport ? window.MW_saveViewport() : saveViewport(); 
+          } catch (e) { }
           jm.show(filtered);
           // small delay then restore viewport and badges and re-init scrolling/layout
           setTimeout(function () {
-            try { restoreViewport(); } catch (e) { }
+            try { 
+              if (window.MW_restoreViewport && viewportState) {
+                window.MW_restoreViewport(viewportState);
+              } else {
+                restoreViewport();
+              }
+            } catch (e) { }
             try { if (typeof window.MW_updateNodeTypeBadges === 'function') window.MW_updateNodeTypeBadges(); } catch (e) { }
             // ensure inner scrollable is correctly initialized
             try {
@@ -190,10 +199,19 @@
           var snap = window.__mw_originalNodeTreeSnapshot || jm.get_data();
           if (snap) {
             console.log('[MW] applyNodeVisibilityFilter: 恢复完整视图');
-            try { saveViewport(); } catch (e) { }
+            let viewportState = null;
+            try { 
+              viewportState = window.MW_saveViewport ? window.MW_saveViewport() : saveViewport(); 
+            } catch (e) { }
             jm.show(snap);
             setTimeout(function () {
-              try { restoreViewport(); } catch (e) { }
+              try { 
+                if (window.MW_restoreViewport && viewportState) {
+                  window.MW_restoreViewport(viewportState);
+                } else {
+                  restoreViewport();
+                }
+              } catch (e) { }
               try { if (typeof window.MW_updateNodeTypeBadges === 'function') window.MW_updateNodeTypeBadges(); } catch (e) { }
               try { if (typeof window.MW_applyNodeVisibilityFilter === 'function') window.MW_applyNodeVisibilityFilter(); } catch (e) { }
               // re-init scrolling/layout
@@ -951,11 +969,22 @@ function loadNodeTree(nodeTreeData) {
     }
 
     // 在显示前保存视口（以便在重新渲染后恢复）
-    try { saveViewport(); } catch (e) { }
+    let viewportState = null;
+    try { 
+      viewportState = window.MW_saveViewport ? window.MW_saveViewport() : saveViewport(); 
+    } catch (e) { }
     jm.show(nodeTreeData);
     currentNodeTree = nodeTreeData;
     // 渲染完成后尝试恢复视口（延迟以保证DOM已就绪）
-    window.MW_scheduleOnce('restoreViewportAfterShow', function () { try { restoreViewport(); } catch (e) { } }, 120);
+    window.MW_scheduleOnce('restoreViewportAfterShow', function () { 
+      try { 
+        if (window.MW_restoreViewport && viewportState) {
+          window.MW_restoreViewport(viewportState);
+        } else {
+          restoreViewport();
+        }
+      } catch (e) { } 
+    }, 120);
 
     // 更新ViewStateManager状态
     if (window.viewStateManager) {
@@ -2675,14 +2704,25 @@ function setupBoxSelection() {
         e.preventDefault();
         e.stopPropagation();
         // 保存视口以便删除后恢复位置
-        try { saveViewport(); } catch (e) { }
+        let viewportState = null;
+        try { 
+          viewportState = window.MW_saveViewport ? window.MW_saveViewport() : saveViewport(); 
+        } catch (e) { }
         ids.filter(id => id && id !== 'root').forEach(id => {
           try { jm.remove_node(id); } catch (err) { }
         });
         if (typeof window.clearMultiSelection === 'function') window.clearMultiSelection();
         if (typeof debouncedSave === 'function') debouncedSave();
         // 延迟恢复视口，等DOM与jsMind重建完成
-        setTimeout(function () { try { restoreViewport(); } catch (e) { } }, 160);
+        setTimeout(function () { 
+          try { 
+            if (window.MW_restoreViewport && viewportState) {
+              window.MW_restoreViewport(viewportState);
+            } else {
+              restoreViewport();
+            }
+          } catch (e) { } 
+        }, 160);
       }
     }
   }, true);
@@ -2942,7 +2982,10 @@ function setupBoxSelection() {
         console.log(`[粘贴] 开始粘贴 ${window.MW.copiedNodes.length} 个节点到目标节点: ${targetNode.topic}`);
 
         // 保存视口以便粘贴后恢复位置
-        try { saveViewport(); } catch (e) { }
+        let viewportState = null;
+        try { 
+          viewportState = window.MW_saveViewport ? window.MW_saveViewport() : saveViewport(); 
+        } catch (e) { }
 
         let pastedCount = 0;
 
@@ -3018,7 +3061,11 @@ function setupBoxSelection() {
           // 延迟恢复视口，等DOM更新完成
           setTimeout(function () {
             try {
-              restoreViewport();
+              if (window.MW_restoreViewport && viewportState) {
+                window.MW_restoreViewport(viewportState);
+              } else {
+                restoreViewport();
+              }
               // 可选：选中第一个粘贴的节点
               // 由于ID已变更，这里不自动选中新节点
             } catch (e) {
@@ -4750,10 +4797,24 @@ window.addEventListener('load', async function () {
             pan = jm.view.get_translate();
           }
         } catch (e) { }
+        
+        // 保存下钻状态
+        let viewState = null;
+        try {
+          if (window.viewStateManager) {
+            viewState = {
+              mode: window.viewStateManager.currentViewMode,
+              rootId: window.viewStateManager.currentRootId,
+              drillDownHistoryStack: [...window.viewStateManager.drillDownHistoryStack]
+            };
+          }
+        } catch (e) { viewState = null; }
+        
         return {
           scrollTop: inner.scrollTop,
           scrollLeft: inner.scrollLeft,
-          zoom, pan, selectedId
+          zoom, pan, selectedId,
+          viewState
         };
       } catch (e) { return null; }
     };
@@ -4773,6 +4834,35 @@ window.addEventListener('load', async function () {
             if (window.jm && typeof jm.select_clear === 'function') jm.select_clear();
           }
         } catch (e) { }
+        
+        // 恢复下钻状态
+        if (state.viewState && window.viewStateManager) {
+          try {
+            // 如果保存的是下钻状态，恢复到该下钻状态
+            if (state.viewState.mode === 'drilldown' && state.viewState.rootId) {
+              // 保存当前的原始数据引用
+              const originalData = window.viewStateManager.originalData;
+              
+              // 恢复下钻状态
+              window.viewStateManager.currentViewMode = state.viewState.mode;
+              window.viewStateManager.currentRootId = state.viewState.rootId;
+              window.viewStateManager.drillDownHistoryStack = [...state.viewState.drillDownHistoryStack];
+              
+              // 如果有原始数据，应用下钻视图
+              if (originalData) {
+                window.viewStateManager.applyFilteredView();
+              }
+            } else if (state.viewState.mode === 'full') {
+              // 如果保存的是完整视图状态，确保回到完整视图
+              if (window.viewStateManager.currentViewMode !== 'full') {
+                window.viewStateManager.returnToFullView(false);
+              }
+            }
+          } catch (e) {
+            console.warn('[MW_restoreViewport] 恢复下钻状态失败:', e);
+          }
+        }
+        
         // 恢复缩放与平移
         try {
           if (window.jm && jm.view && typeof jm.view.set_scale === 'function' && state.zoom != null) {
@@ -4795,10 +4885,29 @@ window.addEventListener('load', async function () {
   }
   if (!window.MW_preserveViewportAround) {
     window.MW_preserveViewportAround = function (fn, restoreDelayMs, opts) {
+      // 保存当前的原始数据引用（如果在下钻模式下）
+      let originalData = null;
+      if (window.viewStateManager && window.viewStateManager.isInDrillDownMode()) {
+        originalData = window.viewStateManager.originalData;
+      }
+      
+      // 保存视口状态（包含下钻状态）
       const st = window.MW_saveViewport && window.MW_saveViewport();
+      
       try { fn && fn(); } catch (e) { }
+      
       const delay = typeof restoreDelayMs === 'number' ? restoreDelayMs : 100;
-      setTimeout(function () { try { window.MW_restoreViewport && window.MW_restoreViewport(st, opts); } catch (e) { } }, delay);
+      setTimeout(function () {
+        try {
+          // 如果在下钻模式下，恢复原始数据引用
+          if (window.viewStateManager && originalData) {
+            window.viewStateManager.originalData = originalData;
+          }
+          
+          // 恢复视口状态（包含下钻状态）
+          window.MW_restoreViewport && window.MW_restoreViewport(st, opts);
+        } catch (e) { }
+      }, delay);
     };
   }
 
