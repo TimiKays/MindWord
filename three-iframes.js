@@ -158,19 +158,17 @@ function loadPanelContentImmediate(panelName) {
   const config = PAGE_CONFIG[panelName];
   const panelContent = document.querySelector(`#${panelName}-panel .panel-content`);
   const placeholder = document.getElementById(`${panelName}-placeholder`);
-  const urlSpan = document.getElementById(`${panelName}-url`);
 
-  if (!panelContent || !placeholder || !urlSpan) {
+  if (!panelContent || !placeholder) {
     return;
   }
 
-  // 更新URL显示
-  urlSpan.textContent = config.url || '未配置';
-
   if (!config.url) {
     placeholder.innerHTML = `
-                    <div style="color: #e74c3c;">⚠️ <span data-i18n="errors.pageNotConfigured">页面地址未配置</span></div>
-                    <small><span data-i18n="errors.setPageAddress">请在 PAGE_CONFIG.${panelName}.url 中设置页面地址</span></small>
+                    <div style="color: #666;">
+                        <span class="loading-spinner" style="display: inline-block; width: 16px; height: 16px; border: 2px solid #ddd; border-top-color: #619dff; border-radius: 50%; animation: spin 1s linear infinite; vertical-align: middle; margin-right: 8px;"></span>
+                        <span data-i18n="app.loading">加载中...</span>
+                    </div>
                 `;
     return;
   }

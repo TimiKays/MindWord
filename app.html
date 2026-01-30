@@ -368,6 +368,13 @@
     <script src="/local-deps/FileSaver.min.js"></script>
     <!-- LeanCloud SDK（仅前端 AppID/AppKey，切勿使用 Master Key） -->
     <script src="/local-deps/av-min.js"></script>
+    <!-- 加载动画样式 -->
+    <style>
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 
 <body>
@@ -990,8 +997,10 @@
             </div>
             <div class="panel-content">
                 <div class="placeholder" id="editor-placeholder">
-                    <small><span data-i18n="app.address">地址</span>: <span id="editor-url"
-                            data-i18n="app.notConfigured">未配置</span></small>
+                    <div style="color: #666;">
+                        <span class="loading-spinner" style="display: inline-block; width: 16px; height: 16px; border: 2px solid #ddd; border-top-color: #619dff; border-radius: 50%; animation: spin 1s linear infinite; vertical-align: middle; margin-right: 8px;"></span>
+                        <span data-i18n="app.loading">加载中...</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1007,8 +1016,10 @@
             </div>
             <div class="panel-content">
                 <div class="placeholder" id="preview-placeholder">
-                    <small><span data-i18n="app.address">地址</span>: <span id="preview-url"
-                            data-i18n="app.notConfigured">未配置</span></small>
+                    <div style="color: #666;">
+                        <span class="loading-spinner" style="display: inline-block; width: 16px; height: 16px; border: 2px solid #ddd; border-top-color: #619dff; border-radius: 50%; animation: spin 1s linear infinite; vertical-align: middle; margin-right: 8px;"></span>
+                        <span data-i18n="app.loading">加载中...</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1024,8 +1035,10 @@
             </div>
             <div class="panel-content">
                 <div class="placeholder" id="mindmap-placeholder">
-                    <small><span data-i18n="app.address">地址</span>: <span id="mindmap-url"
-                            data-i18n="app.notConfigured">未配置</span></small>
+                    <div style="color: #666;">
+                        <span class="loading-spinner" style="display: inline-block; width: 16px; height: 16px; border: 2px solid #ddd; border-top-color: #619dff; border-radius: 50%; animation: spin 1s linear infinite; vertical-align: middle; margin-right: 8px;"></span>
+                        <span data-i18n="app.loading">加载中...</span>
+                    </div>
                 </div>
             </div>
         </div>
