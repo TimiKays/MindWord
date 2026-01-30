@@ -4168,8 +4168,8 @@ function setupLocalStorageWatcher() {
   // 保存初始数据
   lastStorageData = localStorage.getItem('mindword_nodetree_data');
 
-  // 使用setInterval定期检查变化（每500ms检查一次）
-  setInterval(checkLocalStorageChange, 500);
+  // 使用setInterval定期检查变化（每1000ms检查一次，减少性能开销）
+  setInterval(checkLocalStorageChange, 1000);
 
   // 同时监听storage事件（处理其他页面的变化）
   window.addEventListener('storage', function (e) {

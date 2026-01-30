@@ -45,6 +45,13 @@
     <meta name="theme-color" content="#619dff">
     <meta name="msapplication-navbutton-color" content="#619dff">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    
+    <!-- 预加载关键资源 -->
+    <link rel="preload" href="styles.css" as="style">
+    <link rel="preload" href="three-iframes.js" as="script">
+    <link rel="preload" href="init.js" as="script">
+    <link rel="preload" href="/editor/editor.html" as="document">
+    
     <!-- 国际化支持 -->
     <script src="i18n/locales.js"></script>
     <script src="i18n/i18n-manager.js"></script>
@@ -382,6 +389,26 @@
         .pwa-loading-overlay.hidden {
             opacity: 0;
             visibility: hidden;
+            pointer-events: none;
+        }
+
+        .pwa-loading-overlay.minimal {
+            background: rgba(245, 247, 250, 0.95);
+            backdrop-filter: blur(2px);
+        }
+
+        .pwa-loading-overlay.minimal .pwa-loading-spinner {
+            width: 32px;
+            height: 32px;
+            border-width: 2px;
+        }
+
+        .pwa-loading-overlay.minimal .pwa-loading-text {
+            font-size: 14px;
+        }
+
+        .pwa-loading-overlay.minimal .pwa-loading-subtext {
+            display: none;
         }
 
         .pwa-loading-spinner {
@@ -409,6 +436,23 @@
             margin-bottom: 20px;
         }
 
+        .pwa-loading-progress {
+            width: 200px;
+            height: 3px;
+            background: rgba(97, 157, 255, 0.2);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .pwa-loading-progress-bar {
+            height: 100%;
+            background: #619dff;
+            border-radius: 2px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
         @keyframes pwa-spin {
             0% {
                 transform: rotate(0deg);
@@ -425,12 +469,20 @@
                 background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
             }
 
+            .pwa-loading-overlay.minimal {
+                background: rgba(44, 62, 80, 0.95);
+            }
+
             .pwa-loading-text {
                 color: #fff;
             }
 
             .pwa-loading-subtext {
                 color: #ccc;
+            }
+
+            .pwa-loading-progress {
+                background: rgba(97, 157, 255, 0.2);
             }
         }
     </style>
@@ -442,6 +494,9 @@
         <div class="pwa-loading-spinner"></div>
         <div class="pwa-loading-text">MindWord 正在初始化...</div>
         <div class="pwa-loading-subtext">正在加载思维导图编辑器</div>
+        <div class="pwa-loading-progress">
+            <div class="pwa-loading-progress-bar" id="pwa-loading-progress-bar"></div>
+        </div>
     </div>
 
     <!-- 文档侧栏触发按钮与侧栏 -->
@@ -1063,7 +1118,6 @@
             </div>
             <div class="panel-content">
                 <div class="placeholder" id="editor-placeholder">
-                    <div class="loading"><span data-i18n="app.messages.loadingEditor"></span></div>
                     <small><span data-i18n="app.address">地址</span>: <span id="editor-url"
                             data-i18n="app.notConfigured">未配置</span></small>
                 </div>
@@ -1081,7 +1135,6 @@
             </div>
             <div class="panel-content">
                 <div class="placeholder" id="preview-placeholder">
-                    <div class="loading"><span data-i18n="app.messages.loadingPreview"></span></div>
                     <small><span data-i18n="app.address">地址</span>: <span id="preview-url"
                             data-i18n="app.notConfigured">未配置</span></small>
                 </div>
@@ -1099,7 +1152,6 @@
             </div>
             <div class="panel-content">
                 <div class="placeholder" id="mindmap-placeholder">
-                    <div class="loading"><span data-i18n="app.messages.loadingMindmap"></span></div>
                     <small><span data-i18n="app.address">地址</span>: <span id="mindmap-url"
                             data-i18n="app.notConfigured">未配置</span></small>
                 </div>
@@ -1107,12 +1159,16 @@
         </div>
     </main>
 
-    <!-- 懒加载器 -->
+    <!-- 关键资源预加载 -->
+    <link rel="preload" href="lazy-loader.js" as="script">
+    <link rel="preload" href="utils/image-storage.js" as="script">
+    <link rel="preload" href="three-iframes.js" as="script">
+    <link rel="preload" href="init.js" as="script">
+
+    <!-- 懒加载器 - 关键脚本，同步加载 -->
     <script src="lazy-loader.js"></script>
-    <!-- 图片存储管理 -->
+    <!-- 图片存储管理 - 关键脚本，同步加载 -->
     <script src="utils/image-storage.js"></script>
-    <!-- 备注图片工具 -->
-    <script src="utils/note-image-utils.js"></script>
 
     <!-- 初始化图片存储迁移 -->
     <script>
@@ -1143,11 +1199,6 @@
         }, 1000);
     </script>
 
-    <!-- 关键资源预加载 -->
-    <link rel="preload" href="three-iframes.js" as="script">
-    <link rel="preload" href="init.js" as="script">
-    <link rel="preload" href="documents.js" as="script">
-
     <!-- 管理三个Iframe的展示、切换、拖拽调整宽度、专注模式、移动端自动专注 -->
     <script src="three-iframes.js" defer></script>
 
@@ -1161,21 +1212,46 @@
         7. 统一监听子页面消息 （通知、AI 调用等）-->
     <script src="init.js" defer> </script>
 
-    <!-- 如果是移动端需要重新绘制 -->
-    <script src="mobile-suit.js"></script>
-
-    <!-- 监听来自eidtor的监听器 -->
-    <script src="msg-listener-show.js"></script>
-
-    <!-- 我的文档、文档列表、批量操作文档 -->
-    <script src="documents.js"></script>
-    <!-- 复制新建文件 -->
-    <script src="copynew_file.js"></script>
-
-    <!-- 登录状态初始化与切换 -->
-    <script src="user.js"></script>
-
-    <script src="language-switch.js"> </script>
+    <!-- 非关键脚本延迟加载 - 使用 requestIdleCallback 在浏览器空闲时加载 -->
+    <script>
+        // 使用 requestIdleCallback 在浏览器空闲时加载非关键脚本
+        function loadNonCriticalScripts() {
+            const scriptsToLoad = [
+                'utils/note-image-utils.js',
+                'mobile-suit.js',
+                'msg-listener-show.js',
+                'documents.js',
+                'copynew_file.js',
+                'user.js',
+                'language-switch.js'
+            ];
+            
+            // 串行加载，避免同时请求阻塞网络
+            let index = 0;
+            function loadNext() {
+                if (index >= scriptsToLoad.length) return;
+                
+                const scriptSrc = scriptsToLoad[index++];
+                const script = document.createElement('script');
+                script.src = scriptSrc;
+                script.defer = true;
+                script.onload = loadNext;
+                script.onerror = loadNext; // 错误也继续加载下一个
+                document.body.appendChild(script);
+            }
+            
+            // 同时启动2个加载队列，加快总体速度
+            loadNext();
+            loadNext();
+        }
+        
+        // 使用 requestIdleCallback 或 setTimeout 延迟加载
+        if (typeof requestIdleCallback !== 'undefined') {
+            requestIdleCallback(loadNonCriticalScripts, { timeout: 1000 });
+        } else {
+            setTimeout(loadNonCriticalScripts, 800);
+        }
+    </script>
 
     <!-- AI配置和提示词模板的修改监听 - 延迟加载 -->
     <script>
@@ -1230,37 +1306,93 @@
             setTimeout(initScrollbarOptimization, 1000);
         })();
 
-        // 隐藏PWA加载动画
-        function hidePWALoading() {
-            const loadingElement = document.getElementById('pwa-loading');
-            if (loadingElement) {
-                loadingElement.classList.add('hidden');
-                setTimeout(() => {
-                    loadingElement.remove();
-                }, 500);
-            }
-        }
-
-        // 页面加载完成后隐藏加载动画
-        window.addEventListener('load', () => {
-            setTimeout(hidePWALoading, 1500); // 比index.html稍长，因为功能更复杂
-        });
-
-        // 初始化图片存储迁移
-        window.addEventListener('load', async () => {
-            if (window.ImageStorageManager) {
-                window.imageStorage = new ImageStorageManager();
-                // 执行一次性迁移
-                const result = await window.imageStorage.migrateFromLocalStorage();
-                if (result.migratedCount > 0) {
-                    console.log(`[app] 成功迁移 ${result.migratedCount} 张图片到 IndexedDB`);
+        // PWA加载状态管理
+        const PWALoadingState = {
+            progress: 0,
+            phase: 'initial', // initial, critical, main, complete
+            criticalLoaded: false,
+            mainLoaded: false,
+            
+            updateProgress(percent, phase) {
+                this.progress = Math.min(percent, 100);
+                if (phase) this.phase = phase;
+                
+                const progressBar = document.getElementById('pwa-loading-progress-bar');
+                const loadingText = document.querySelector('.pwa-loading-text');
+                const loadingSubtext = document.querySelector('.pwa-loading-subtext');
+                const loadingOverlay = document.getElementById('pwa-loading');
+                
+                if (progressBar) {
+                    progressBar.style.width = this.progress + '%';
+                }
+                
+                // 根据阶段更新提示文字
+                if (loadingText && loadingSubtext) {
+                    switch(this.phase) {
+                        case 'critical':
+                            loadingText.textContent = 'MindWord';
+                            loadingSubtext.textContent = '正在加载核心组件...';
+                            break;
+                        case 'main':
+                            loadingText.textContent = 'MindWord';
+                            loadingSubtext.textContent = '正在初始化界面...';
+                            break;
+                        case 'complete':
+                            loadingText.textContent = 'MindWord';
+                            loadingSubtext.textContent = '准备就绪';
+                            break;
+                    }
+                }
+                
+                // 关键资源加载完成后，切换到最小化模式，显示主界面
+                if (this.phase === 'main' && loadingOverlay && !this.criticalLoaded) {
+                    this.criticalLoaded = true;
+                    loadingOverlay.classList.add('minimal');
+                    // 主界面已经可见，用户可以进行操作了
+                }
+            },
+            
+            hide() {
+                const loadingElement = document.getElementById('pwa-loading');
+                if (loadingElement) {
+                    this.updateProgress(100, 'complete');
+                    setTimeout(() => {
+                        loadingElement.classList.add('hidden');
+                        setTimeout(() => {
+                            loadingElement.remove();
+                        }, 500);
+                    }, 300);
                 }
             }
+        };
+        
+        // 简化版的隐藏函数（向后兼容）
+        function hidePWALoading() {
+            PWALoadingState.hide();
+        }
+        
+        // 更新加载进度
+        function updatePWALoadingProgress(percent, phase) {
+            PWALoadingState.updateProgress(percent, phase);
+        }
+
+        // DOM就绪时 - 关键资源已加载，立即显示主界面
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                PWALoadingState.updateProgress(80, 'main');
+            });
+        } else {
+            PWALoadingState.updateProgress(80, 'main');
+        }
+
+        // 页面完全加载后立即隐藏动画
+        window.addEventListener('load', () => {
+            PWALoadingState.hide();
         });
 
         // 如果页面已经加载完成，立即隐藏
         if (document.readyState === 'complete') {
-            setTimeout(hidePWALoading, 800);
+            PWALoadingState.hide();
         }
     </script>
 

@@ -80,12 +80,89 @@ let dragState = {
 // 页面加载功能
 // ===================================
 
-// 加载iframe内容（改进：标识 iframe，onload 后向子页请求重排）
+// 面板加载优先级配置
+const PANEL_LOAD_PRIORITY = {
+  editor: 1,    // 最高优先级，立即加载
+  preview: 2,   // 中等优先级，延迟加载
+  mindmap: 3    // 较低优先级，最后加载
+};
+
+// 延迟加载队列
+let pendingPanelLoads = [];
+let isProcessingLoadQueue = false;
+
+// 处理加载队列（串行加载，避免同时加载多个iframe阻塞主线程）
+function processLoadQueue() {
+  if (isProcessingLoadQueue || pendingPanelLoads.length === 0) {
+    return;
+  }
+  
+  isProcessingLoadQueue = true;
+  
+  // 按优先级排序
+  pendingPanelLoads.sort((a, b) => {
+    return PANEL_LOAD_PRIORITY[a] - PANEL_LOAD_PRIORITY[b];
+  });
+  
+  // 加载第一个面板
+  const panelName = pendingPanelLoads.shift();
+  loadPanelContentImmediate(panelName);
+  
+  // 延迟处理下一个，避免阻塞
+  if (pendingPanelLoads.length > 0) {
+    setTimeout(() => {
+      isProcessingLoadQueue = false;
+      processLoadQueue();
+    }, 100);
+  } else {
+    isProcessingLoadQueue = false;
+  }
+}
+
+// 加载iframe内容（改进：支持延迟加载，避免同时加载多个iframe）
 function loadPanelContent(panelName) {
+  // 检查是否已经在队列中
+  if (pendingPanelLoads.includes(panelName)) {
+    return;
+  }
+  
+  // 检查面板是否已加载
+  const panelContent = document.querySelector(`#${panelName}-panel .panel-content`);
+  if (panelContent && panelContent.querySelector('iframe')) {
+    return;
+  }
+  
+  // 根据优先级决定加载策略
+  const priority = PANEL_LOAD_PRIORITY[panelName] || 99;
+  
+  if (priority === 1) {
+    // 高优先级：立即加载
+    loadPanelContentImmediate(panelName);
+  } else {
+    // 低优先级：加入队列延迟加载
+    pendingPanelLoads.push(panelName);
+    // 使用 requestIdleCallback 在浏览器空闲时加载
+    if (typeof requestIdleCallback !== 'undefined') {
+      requestIdleCallback(() => {
+        processLoadQueue();
+      }, { timeout: 500 });
+    } else {
+      // 降级方案：使用 setTimeout
+      setTimeout(processLoadQueue, priority * 100);
+    }
+  }
+}
+
+// 立即加载面板内容（原始逻辑）
+function loadPanelContentImmediate(panelName) {
   const config = PAGE_CONFIG[panelName];
   const panelContent = document.querySelector(`#${panelName}-panel .panel-content`);
   const placeholder = document.getElementById(`${panelName}-placeholder`);
   const urlSpan = document.getElementById(`${panelName}-url`);
+
+  if (!panelContent || !placeholder || !urlSpan) {
+    return;
+  }
 
   // 更新URL显示
   urlSpan.textContent = config.url || '未配置';
