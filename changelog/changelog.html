@@ -727,7 +727,7 @@
             const contentEl = document.getElementById('changelog-content');
 
             try {
-                const response = await fetch('CHANGELOG.md');
+                const response = await fetch('CHANGELOG.md?v=' + Date.now());
 
                 if (!response.ok) {
                     throw new Error('CHANGELOG.md not found');
