@@ -130,13 +130,11 @@ function initApp() {
 document.addEventListener('DOMContentLoaded', initApp);
 
 // 预加载 AI prompt 模板到全局，供子 iframe（如 mindmap）同步读取
-// 使用 requestIdleCallback 延迟加载，避免阻塞首屏渲染
-function preloadAIPromptTemplates() {
+(function preloadAIPromptTemplates() {
   try {
     if (window.__prompt_templates) return;
     var url = 'ai/newai/prompt-templates.json';
-    // 使用默认缓存策略（通常是cache-first），提高加载速度
-    fetch(url).then(function (resp) {
+    fetch(url, { cache: 'no-cache' }).then(function (resp) {
       if (!resp.ok) throw new Error('fetch failed ' + resp.status);
       return resp.json();
     }).then(function (json) {
@@ -146,48 +144,34 @@ function preloadAIPromptTemplates() {
       try { window.__prompt_templates = window.__prompt_templates || null; } catch (e) { }
     });
   } catch (e) { console.warn('[INDEX] preloadAIPromptTemplates error', e); }
-}
-
-// 延迟执行预加载，优先保证首屏渲染
-if (typeof requestIdleCallback !== 'undefined') {
-  requestIdleCallback(preloadAIPromptTemplates, { timeout: 2000 });
-} else {
-  setTimeout(preloadAIPromptTemplates, 1000);
-}
+})();
 
 /* ==== AI 弹窗父层托管注入（来自 ai/newai/demo-caller.html 的适配实现） ====
    子 iframe 通过 postMessage({ type:'AI_MODAL_OPEN', requestId, payload }, '*')
    调用位于 ai/newai/AIServiceModal.html 的 AIServiceModal。支持 modal 与 silent
 */
-// 延迟创建AI弹窗iframe，仅在需要时创建
-function createAIModalFrame() {
-  var existing = document.getElementById('aiModalFrame');
-  if (existing) {
-    return existing;
-  }
-  
-  try {
-    var frame = document.createElement('iframe');
-    frame.id = 'aiModalFrame';
-    frame.src = 'ai/newai/AIServiceModal.html';
-    frame.style.position = 'fixed';
-    frame.style.inset = '0';
-    frame.style.width = '100%';
-    frame.style.height = '100%';
-    frame.style.border = '0';
-    frame.style.display = 'none';
-    frame.setAttribute('aria-hidden', 'true');
-    frame.style.zIndex = '9999';
-    frame.style.background = 'transparent';
-    document.body.appendChild(frame);
-    return frame;
-  } catch (e) {
-    console.warn('[INDEX][AI] create aiModalFrame failed', e);
-    return null;
-  }
-}
-
 (function injectAiModalHost() {
+  try {
+    var existing = document.getElementById('aiModalFrame');
+    if (!existing) {
+      var frame = document.createElement('iframe');
+      frame.id = 'aiModalFrame';
+      frame.src = 'ai/newai/AIServiceModal.html';
+      frame.style.position = 'fixed';
+      frame.style.inset = '0';
+      frame.style.width = '100%';
+      frame.style.height = '100%';
+      frame.style.border = '0';
+      frame.style.display = 'none';
+      frame.setAttribute('aria-hidden', 'true');
+      frame.style.zIndex = '9999';
+      frame.style.background = 'transparent';
+      document.body.appendChild(frame);
+    }
+  } catch (e) {
+    console.warn('[INDEX][AI] inject aiModalFrame failed', e);
+  }
+
   window.__ai_req_map = window.__ai_req_map || new Map();
   window._headlessTimeouts = window._headlessTimeouts || new Map();
 
@@ -199,8 +183,7 @@ function createAIModalFrame() {
       if (msg.type === 'AI_MODAL_OPEN' && msg.requestId) {
         console.log('[INDEX] AI_MODAL_OPEN', msg.requestId, msg.payload);
         window.__ai_req_map.set(msg.requestId, e.source);
-        // 延迟创建AI弹窗iframe，仅在需要时创建
-        var aiFrame = createAIModalFrame();
+        var aiFrame = document.getElementById('aiModalFrame');
 
         if (msg.payload && msg.payload.mode === 'silent') {
           // headless handling (kept for compatibility)
