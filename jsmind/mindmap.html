@@ -34,6 +34,7 @@
   <script src="/utils/html-to-markdown.js"></script>
   <script src="/i18n/locales.js"></script>
   <script src="/i18n/i18n-manager.js"></script>
+  <script src="/jsmind/skin-manager.js"></script>
 
 
   <link rel="stylesheet" href="mindmap.css">
@@ -398,9 +399,14 @@
         个节点</span>
     </div>
 
+    <!-- 皮肤选择器 -->
+    <div id="skinSelectorContainer" style="margin-left: auto; margin-right: 12px;">
+      <!-- 皮肤选择器将由 skinManager 动态生成 -->
+    </div>
+
     <!-- 右侧三个简单复选框：详情面板 / 显示节点类型 / 显示列表节点 -->
     <div id="toolbarToggles"
-      style="margin-left:auto;display:flex;gap:12px;align-items:flex-end;justify-content:flex-end;">
+      style="display:flex;gap:12px;align-items:flex-end;justify-content:flex-end;">
       <span id="toggleQuickAIBtn" class="ico-btn state-off" role="button" tabindex="0" aria-pressed="false"
         title="快速AI生成：开启时将关闭AI弹窗，直接生成内容" style="--ico: url('res/kuaisu.svg'); "></span>
       <span id="toggleNodeDetailsBtn" class="ico-btn state-on" role="button" tabindex="0" aria-pressed="true"
@@ -2309,6 +2315,48 @@
           console.warn('[mindmap.html] i18nManager not found');
         }
       }, 100);
+    });
+
+    // 初始化皮肤选择器
+    document.addEventListener('DOMContentLoaded', function () {
+      // 等待 skinManager 初始化完成
+      setTimeout(function () {
+        if (typeof skinManager !== 'undefined') {
+          initSkinSelector();
+        } else {
+          console.warn('[mindmap.html] skinManager not found');
+        }
+      }, 200);
+    });
+
+    /**
+     * 初始化皮肤选择器UI
+     */
+    function initSkinSelector() {
+      var container = document.getElementById('skinSelectorContainer');
+      if (!container) {
+        console.warn('[mindmap.html] skinSelectorContainer not found');
+        return;
+      }
+
+      // 生成皮肤选择器HTML
+      container.innerHTML = skinManager.generateSkinSelectorHTML();
+
+      // 绑定事件
+      skinManager.bindSkinSelectorEvents(container);
+
+      // 更新UI显示当前皮肤
+      var currentSkin = skinManager.getCurrentSkin();
+      if (currentSkin) {
+        skinManager.updateSkinSelectorUI(currentSkin.id);
+      }
+
+      console.log('[mindmap.html] Skin selector initialized');
+    }
+
+    // 监听皮肤变化事件，更新工具栏提示
+    window.addEventListener('skinChanged', function (e) {
+      console.log('[mindmap.html] Skin changed to:', e.detail.skinId);
     });
   </script>
 </body>

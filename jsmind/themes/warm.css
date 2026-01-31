@@ -1,0 +1,220 @@
+/**
+ * MindWord - 树心 | 像画图一样写文档的思维导图写作工具
+ * GitHub: https://github.com/TimiKays/MindWord
+ * 
+ * Copyright 2025 Timi Kays
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/* warm theme - 暖色调皮肤
+ * 特点：温暖的米色和暖灰色调，舒适阅读，适合长时间写作
+ */
+
+/* 画布背景 - 温暖的米白色 */
+body[data-mindmap-theme="warm"] #fullScreenMindmap,
+body[data-mindmap-theme="warm"] .jsmind-inner {
+  background-color: #faf8f5 !important;
+}
+
+/* 节点基础样式 */
+body[data-mindmap-theme="warm"] jmnode {
+  background-color: #fffef9 !important;
+  color: #4a4035 !important;
+  border: 1px solid #e8e0d5 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 6px rgba(139, 119, 101, 0.1) !important;
+  font-family: 'Georgia', 'Times New Roman', 'Microsoft YaHei', serif !important;
+}
+
+/* 节点悬停效果 */
+body[data-mindmap-theme="warm"] jmnode:hover {
+  background-color: #fffbf5 !important;
+  border-color: #d4c8b8 !important;
+  box-shadow: 0 4px 10px rgba(139, 119, 101, 0.15) !important;
+}
+
+/* 节点选中状态 - 温暖的陶土色 */
+body[data-mindmap-theme="warm"] jmnode.selected {
+  background-color: #f5ebe0 !important;
+  color: #3d3429 !important;
+  border-color: #c9b8a3 !important;
+  box-shadow: 0 0 0 2px rgba(201, 184, 163, 0.4), 0 4px 10px rgba(139, 119, 101, 0.15) !important;
+}
+
+/* 根节点样式 - 温暖的棕色 */
+body[data-mindmap-theme="warm"] jmnode.root {
+  background-color: #8b7355 !important;
+  color: #fffef9 !important;
+  font-size: 18px !important;
+  font-weight: 500 !important;
+  border: none !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 15px rgba(139, 115, 85, 0.3) !important;
+  padding: 14px 28px !important;
+}
+
+body[data-mindmap-theme="warm"] jmnode.root:hover {
+  background-color: #9a8265 !important;
+  box-shadow: 0 6px 20px rgba(139, 115, 85, 0.35) !important;
+}
+
+body[data-mindmap-theme="warm"] jmnode.root.selected {
+  background-color: #7a6548 !important;
+  box-shadow: 0 0 0 3px rgba(139, 115, 85, 0.4), 0 6px 20px rgba(139, 115, 85, 0.35) !important;
+}
+
+/* 第一层子节点 - 浅暖橙色 */
+body[data-mindmap-theme="warm"] jmnode[level="1"] {
+  background-color: #fdf6ed !important;
+  color: #6b5344 !important;
+  border-color: #f0dcc8 !important;
+}
+
+body[data-mindmap-theme="warm"] jmnode[level="1"]:hover {
+  background-color: #fef9f2 !important;
+  border-color: #e8d0b8 !important;
+}
+
+body[data-mindmap-theme="warm"] jmnode[level="1"].selected {
+  background-color: #f8e8d5 !important;
+  border-color: #d4b896 !important;
+}
+
+/* 第二层子节点 - 浅米色 */
+body[data-mindmap-theme="warm"] jmnode[level="2"] {
+  background-color: #faf7f2 !important;
+  color: #5a5045 !important;
+  border-color: #e5ddd0 !important;
+}
+
+body[data-mindmap-theme="warm"] jmnode[level="2"]:hover {
+  background-color: #fdfbf7 !important;
+  border-color: #d8d0c3 !important;
+}
+
+body[data-mindmap-theme="warm"] jmnode[level="2"].selected {
+  background-color: #f5efe6 !important;
+  border-color: #c9bdb0 !important;
+}
+
+/* 第三层及以上子节点 - 更浅的米色 */
+body[data-mindmap-theme="warm"] jmnode[level="3"],
+body[data-mindmap-theme="warm"] jmnode[level="4"],
+body[data-mindmap-theme="warm"] jmnode[level="5"],
+body[data-mindmap-theme="warm"] jmnode[level="6"],
+body[data-mindmap-theme="warm"] jmnode[level="7"],
+body[data-mindmap-theme="warm"] jmnode[level="8"] {
+  background-color: #ffffff !important;
+  color: #4a4035 !important;
+  border-color: #e0d8cc !important;
+}
+
+body[data-mindmap-theme="warm"] jmnode[level="3"]:hover,
+body[data-mindmap-theme="warm"] jmnode[level="4"]:hover,
+body[data-mindmap-theme="warm"] jmnode[level="5"]:hover,
+body[data-mindmap-theme="warm"] jmnode[level="6"]:hover,
+body[data-mindmap-theme="warm"] jmnode[level="7"]:hover,
+body[data-mindmap-theme="warm"] jmnode[level="8"]:hover {
+  background-color: #fffdfb !important;
+  border-color: #d4ccc0 !important;
+}
+
+body[data-mindmap-theme="warm"] jmnode[level="3"].selected,
+body[data-mindmap-theme="warm"] jmnode[level="4"].selected,
+body[data-mindmap-theme="warm"] jmnode[level="5"].selected,
+body[data-mindmap-theme="warm"] jmnode[level="6"].selected,
+body[data-mindmap-theme="warm"] jmnode[level="7"].selected,
+body[data-mindmap-theme="warm"] jmnode[level="8"].selected {
+  background-color: #f5efe8 !important;
+  border-color: #c9c0b3 !important;
+}
+
+/* 展开/折叠按钮 */
+body[data-mindmap-theme="warm"] jmexpander {
+  background-color: #fffef9 !important;
+  border: 1.5px solid #d4c8b8 !important;
+  color: #8b7355 !important;
+  border-radius: 50% !important;
+  width: 14px !important;
+  height: 14px !important;
+  line-height: 12px !important;
+  font-size: 10px !important;
+  box-shadow: 0 1px 4px rgba(139, 119, 101, 0.15) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+body[data-mindmap-theme="warm"] jmexpander:hover {
+  background-color: #f5ebe0 !important;
+  border-color: #b8a890 !important;
+  color: #6b5344 !important;
+}
+
+/* 连线样式 - 温暖的棕色 */
+body[data-mindmap-theme="warm"] svg.jsmind path {
+  stroke: #d4c8b8 !important;
+  stroke-width: 1.5px !important;
+}
+
+/* 选中节点的连线 */
+body[data-mindmap-theme="warm"] jmnode.selected ~ svg.jsmind path {
+  stroke: #c9b8a3 !important;
+  stroke-width: 2px !important;
+}
+
+/* 主题文字内容 */
+body[data-mindmap-theme="warm"] jmnode .topic {
+  color: inherit !important;
+}
+
+/* 多选状态 */
+body[data-mindmap-theme="warm"] jmnode.multi-selected {
+  background: #f0e6d8 !important;
+  border-color: #d4c4b0 !important;
+  box-shadow: 0 0 0 2px rgba(201, 184, 163, 0.3) !important;
+}
+
+/* 滚动条样式（暖色调） */
+body[data-mindmap-theme="warm"] #fullScreenMindmap::-webkit-scrollbar,
+body[data-mindmap-theme="warm"] .jsmind-inner::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+body[data-mindmap-theme="warm"] #fullScreenMindmap::-webkit-scrollbar-track,
+body[data-mindmap-theme="warm"] .jsmind-inner::-webkit-scrollbar-track {
+  background: #f5f0eb;
+  border-radius: 4px;
+}
+
+body[data-mindmap-theme="warm"] #fullScreenMindmap::-webkit-scrollbar-thumb,
+body[data-mindmap-theme="warm"] .jsmind-inner::-webkit-scrollbar-thumb {
+  background: #d4c8b8;
+  border-radius: 4px;
+}
+
+body[data-mindmap-theme="warm"] #fullScreenMindmap::-webkit-scrollbar-thumb:hover,
+body[data-mindmap-theme="warm"] .jsmind-inner::-webkit-scrollbar-thumb:hover {
+  background: #c4b8a8;
+}
+
+/* Firefox 滚动条 */
+body[data-mindmap-theme="warm"] #fullScreenMindmap,
+body[data-mindmap-theme="warm"] .jsmind-inner {
+  scrollbar-width: thin;
+  scrollbar-color: #d4c8b8 #f5f0eb;
+}
+
+/* End of warm theme */

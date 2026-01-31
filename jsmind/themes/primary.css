@@ -1,0 +1,122 @@
+/**
+ * MindWord - 树心 | 像画图一样写文档的思维导图写作工具
+ * GitHub: https://github.com/TimiKays/MindWord
+ * 
+ * Copyright 2025 Timi Kays
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/* primary theme - Classic Blue
+   经典蓝色主题，专业稳重
+*/
+
+/* 根节点 - 深蓝色背景，白色文字 */
+body[data-mindmap-theme="primary"] jmnode.root {
+  background: #1a73e8 !important;
+  color: #ffffff !important;
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  border: none !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(26, 115, 232, 0.35) !important;
+  padding: 12px 20px !important;
+}
+
+/* 一级节点 - 浅蓝色背景 */
+body[data-mindmap-theme="primary"] jmnode[data-level="1"]:not(.root) {
+  background: #e8f0fe !important;
+  color: #1967d2 !important;
+  font-size: 15px !important;
+  font-weight: 500 !important;
+  border: none !important;
+  border-radius: 6px !important;
+  box-shadow: 0 2px 6px rgba(26, 115, 232, 0.15) !important;
+  padding: 8px 14px !important;
+}
+
+/* 二级节点 - 更淡蓝色背景 */
+body[data-mindmap-theme="primary"] jmnode[data-level="2"] {
+  background: #f0f7ff !important;
+  color: #1557b0 !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  border: none !important;
+  border-radius: 5px !important;
+  box-shadow: 0 1px 4px rgba(91, 155, 213, 0.15) !important;
+  padding: 6px 12px !important;
+}
+
+/* 三级及以下节点 - 极淡蓝色背景 */
+body[data-mindmap-theme="primary"] jmnode[data-level="3"],
+body[data-mindmap-theme="primary"] jmnode[data-level="4"],
+body[data-mindmap-theme="primary"] jmnode[data-level="5"] {
+  background: #f5f9ff !important;
+  color: #4a7bb7 !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  border: none !important;
+  border-radius: 4px !important;
+  box-shadow: 0 1px 3px rgba(138, 180, 248, 0.12) !important;
+  padding: 5px 10px !important;
+}
+
+/* 选中节点 - 高亮蓝色 */
+body[data-mindmap-theme="primary"] jmnode.selected {
+  background: #4285f4 !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.3), 0 4px 12px rgba(26, 115, 232, 0.4) !important;
+}
+
+/* 连线样式 - 蓝色 */
+body[data-mindmap-theme="primary"] svg.jsmind path {
+  stroke: #aecbfa !important;
+  stroke-width: 2px !important;
+}
+
+/* 选中节点的连线 */
+body[data-mindmap-theme="primary"] jmnode.selected ~ svg.jsmind path {
+  stroke: #4285f4 !important;
+  stroke-width: 2.5px !important;
+}
+
+/* 展开/折叠按钮 */
+body[data-mindmap-theme="primary"] jmexpander {
+  background: #ffffff !important;
+  border: 2px solid #4285f4 !important;
+  color: #4285f4 !important;
+  border-radius: 50% !important;
+  width: 16px !important;
+  height: 16px !important;
+  font-size: 10px !important;
+  line-height: 12px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* 展开/折叠按钮悬停 */
+body[data-mindmap-theme="primary"] jmexpander:hover {
+  background: #4285f4 !important;
+  color: #ffffff !important;
+  transform: scale(1.1) !important;
+}
+
+/* 节点悬停效果 */
+body[data-mindmap-theme="primary"] jmnode:hover {
+  filter: brightness(1.05) !important;
+}
+
+/* 根节点悬停 */
+body[data-mindmap-theme="primary"] jmnode.root:hover {
+  filter: brightness(1.1) !important;
+}

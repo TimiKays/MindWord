@@ -999,7 +999,13 @@ function loadNodeTree(nodeTreeData) {
     // 兼容补丁：在 jm.show 后可能有其他逻辑（restoreViewport / setZoom / style 调整）覆盖初始 scroll，
     // 此处再延迟一次强制应用 view.initial_offset_x（以像素为单位，乘以 actualZoom）
     // 目的：确保用户配置的 initial_offset_x 在初始化后最终生效（例如 -600 向左偏移）。
+    // 注意：只在首次加载时应用偏移，避免刷新时重复添加导致画布偏移
     try {
+      // 标记是否已经应用过初始偏移
+      if (window._mwInitialOffsetApplied) {
+        console.log('[MW][offset-fix] 初始偏移已应用，跳过');
+      } else {
+        window._mwInitialOffsetApplied = true;
       setTimeout(function () {
         try {
           var container = document.getElementById('fullScreenMindmap');
@@ -1085,6 +1091,7 @@ function loadNodeTree(nodeTreeData) {
           console.error('[MW][offset-fix] unexpected error', e);
         }
       }, 180);
+      } // 结束 if (!window._mwInitialOffsetApplied)
     } catch (e) { console.error('[MW][offset-fix] outer error', e); }
 
     // 渲染完成后同步节点类型徽章与可见性过滤（确保开关生效）
@@ -4222,9 +4229,42 @@ function handlePNGDownload(action) {
   }
 }
 
+/**
+ * 获取当前主题的背景色
+ * @returns {string} 主题背景色值
+ */
+function getCurrentThemeBackgroundColor() {
+  // 获取当前主题
+  const currentTheme = document.body.getAttribute('data-mindmap-theme') || 'primary';
+  
+  // 主题背景色映射
+  const themeBackgrounds = {
+    'primary': '#f8f9fa',        // 经典蓝 - 浅灰背景
+    'modern-minimal': '#ffffff',  // 现代极简 - 白色背景
+    'dark': '#1e1e1e',           // 深色模式 - 深灰背景
+    'colorful': '#fafbfc',       // 彩虹多彩 - 浅蓝灰背景
+    'warm': '#faf8f5',           // 暖色调 - 暖米色背景
+    'forest': '#f5f9f5'          // 森林绿 - 浅绿背景
+  };
+  
+  // 尝试从实际 DOM 元素获取背景色
+  const mindmapInner = document.querySelector('.jsmind-inner');
+  if (mindmapInner) {
+    const computedStyle = window.getComputedStyle(mindmapInner);
+    const bgColor = computedStyle.backgroundColor;
+    // 如果获取到有效的背景色（不是透明），则使用它
+    if (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') {
+      return bgColor;
+    }
+  }
+  
+  // 返回映射的背景色，如果没有找到则返回默认白色
+  return themeBackgrounds[currentTheme] || '#ffffff';
+}
+
 function processPNGDownload(isCopyMode) {
   const bgColor = document.querySelector('input[name="bgColor"]:checked').value;
-  const isWhiteBackground = bgColor === 'white';
+  const isFilledBackground = bgColor === 'filled';
   const filenameInput = document.getElementById('pngFilename');
   const filename = filenameInput ? filenameInput.value.trim() || '思维导图' : '思维导图';
   const showWatermark = document.getElementById('showWatermark') ? document.getElementById('showWatermark').checked : true;
@@ -4233,8 +4273,18 @@ function processPNGDownload(isCopyMode) {
 
   try {
     // 设置背景色
-    if (jm.screenshot && typeof jm.screenshot.setWhiteBackground === 'function') {
-      jm.screenshot.setWhiteBackground(isWhiteBackground);
+    if (jm.screenshot && typeof jm.screenshot.setBackgroundColor === 'function') {
+      if (isFilledBackground) {
+        // 获取当前主题的背景色
+        const themeBgColor = getCurrentThemeBackgroundColor();
+        jm.screenshot.setBackgroundColor(themeBgColor);
+      } else {
+        // 透明背景
+        jm.screenshot.setBackgroundColor(false);
+      }
+    } else if (jm.screenshot && typeof jm.screenshot.setWhiteBackground === 'function') {
+      // 兼容旧版本
+      jm.screenshot.setWhiteBackground(false);
     }
 
     if (showWatermark) {
@@ -4371,6 +4421,12 @@ function downloadWatermarkedImage(dataUrl, filename) {
 // 复制图片到剪切板
 function copyImageToClipboard(dataUrl) {
   try {
+    // 确保文档有焦点（剪贴板API需要）
+    if (!document.hasFocus()) {
+      window.focus();
+      document.body.focus();
+    }
+    
     // 将dataUrl转换为blob
     fetch(dataUrl)
       .then(res => res.blob())
@@ -4382,7 +4438,12 @@ function copyImageToClipboard(dataUrl) {
           alert('图片已复制到剪切板');
         }).catch(err => {
           console.error('复制到剪切板失败:', err);
-          alert('复制失败，请检查浏览器权限或使用下载功能');
+          // 如果是权限错误，给出更友好的提示
+          if (err.name === 'NotAllowedError') {
+            alert('复制失败：请确保页面处于激活状态，或尝试点击页面后再复制');
+          } else {
+            alert('复制失败，请检查浏览器权限或使用下载功能');
+          }
         });
       })
       .catch(err => {
@@ -4444,8 +4505,8 @@ function showPNGDownloadModal() {
               <span>透明背景</span>
             </label>
             <label style="display: flex; align-items: center; cursor: pointer;">
-              <input type="radio" name="bgColor" value="white" checked style="margin-right: 6px;">
-              <span>白色背景</span>
+              <input type="radio" name="bgColor" value="filled" checked style="margin-right: 6px;">
+              <span>填充背景</span>
             </label>
           </div>
         </div>

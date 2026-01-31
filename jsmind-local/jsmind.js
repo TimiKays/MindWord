@@ -2514,6 +2514,14 @@
         }
       }
       d.setAttribute('nodeid', node.id);
+      // 计算节点层级
+      var level = 0;
+      var parent = node.parent;
+      while (parent) {
+        level++;
+        parent = parent.parent;
+      }
+      d.setAttribute('data-level', level);
       d.style.visibility = 'hidden';
       this._reset_node_custom_style(d, node.data);
 

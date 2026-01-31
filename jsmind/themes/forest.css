@@ -1,0 +1,236 @@
+/**
+ * MindWord - 树心 | 像画图一样写文档的思维导图写作工具
+ * GitHub: https://github.com/TimiKays/MindWord
+ * 
+ * Copyright 2025 Timi Kays
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/* forest theme - 森林绿皮肤
+ * 特点：清新绿色调，自然放松，适合创意和健康主题
+ */
+
+/* 画布背景 - 淡绿色 */
+body[data-mindmap-theme="forest"] #fullScreenMindmap,
+body[data-mindmap-theme="forest"] .jsmind-inner {
+  background-color: #f0f7f4 !important;
+}
+
+/* 节点基础样式 */
+body[data-mindmap-theme="forest"] jmnode {
+  background-color: #ffffff !important;
+  color: #2e4a3e !important;
+  border: 1.5px solid #c8e6c9 !important;
+  border-radius: 10px !important;
+  box-shadow: 0 2px 6px rgba(76, 175, 80, 0.1) !important;
+  font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif !important;
+}
+
+/* 节点悬停效果 */
+body[data-mindmap-theme="forest"] jmnode:hover {
+  background-color: #f8fdf8 !important;
+  border-color: #a5d6a7 !important;
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.15) !important;
+}
+
+/* 节点选中状态 - 鲜绿色 */
+body[data-mindmap-theme="forest"] jmnode.selected {
+  background-color: #e8f5e9 !important;
+  color: #1b5e20 !important;
+  border-color: #66bb6a !important;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.3), 0 4px 12px rgba(76, 175, 80, 0.15) !important;
+}
+
+/* 根节点样式 - 深森林绿 */
+body[data-mindmap-theme="forest"] jmnode.root {
+  background: linear-gradient(135deg, #2e7d32 0%, #388e3c 100%) !important;
+  color: #ffffff !important;
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  border: none !important;
+  border-radius: 14px !important;
+  box-shadow: 0 6px 20px rgba(46, 125, 50, 0.35) !important;
+  padding: 14px 28px !important;
+}
+
+body[data-mindmap-theme="forest"] jmnode.root:hover {
+  background: linear-gradient(135deg, #388e3c 0%, #43a047 100%) !important;
+  box-shadow: 0 8px 25px rgba(46, 125, 50, 0.4) !important;
+}
+
+body[data-mindmap-theme="forest"] jmnode.root.selected {
+  background: linear-gradient(135deg, #1b5e20 0%, #2e7d32 100%) !important;
+  box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.4), 0 8px 25px rgba(46, 125, 50, 0.4) !important;
+}
+
+/* 第一层子节点 - 浅绿色 */
+body[data-mindmap-theme="forest"] jmnode[level="1"] {
+  background: #e8f5e9 !important;
+  color: #2e7d32 !important;
+  border-color: #a5d6a7 !important;
+}
+
+body[data-mindmap-theme="forest"] jmnode[level="1"]:hover {
+  background-color: #f1f8f2 !important;
+  border-color: #81c784 !important;
+}
+
+body[data-mindmap-theme="forest"] jmnode[level="1"].selected {
+  background-color: #c8e6c9 !important;
+  border-color: #66bb6a !important;
+}
+
+/* 第二层子节点 - 更浅的绿色 */
+body[data-mindmap-theme="forest"] jmnode[level="2"] {
+  background-color: #f1f8f4 !important;
+  color: #388e3c !important;
+  border-color: #c8e6c9 !important;
+}
+
+body[data-mindmap-theme="forest"] jmnode[level="2"]:hover {
+  background-color: #f5faf6 !important;
+  border-color: #a5d6a7 !important;
+}
+
+body[data-mindmap-theme="forest"] jmnode[level="2"].selected {
+  background-color: #e8f5e9 !important;
+  border-color: #81c784 !important;
+}
+
+/* 第三层子节点 - 淡绿色 */
+body[data-mindmap-theme="forest"] jmnode[level="3"] {
+  background-color: #f8fdf9 !important;
+  color: #43a047 !important;
+  border-color: #dcedc8 !important;
+}
+
+body[data-mindmap-theme="forest"] jmnode[level="3"]:hover {
+  background-color: #ffffff !important;
+  border-color: #c8e6c9 !important;
+}
+
+body[data-mindmap-theme="forest"] jmnode[level="3"].selected {
+  background-color: #f1f8f4 !important;
+  border-color: #a5d6a7 !important;
+}
+
+/* 第四层及以上子节点 - 接近白色 */
+body[data-mindmap-theme="forest"] jmnode[level="4"],
+body[data-mindmap-theme="forest"] jmnode[level="5"],
+body[data-mindmap-theme="forest"] jmnode[level="6"],
+body[data-mindmap-theme="forest"] jmnode[level="7"],
+body[data-mindmap-theme="forest"] jmnode[level="8"] {
+  background-color: #ffffff !important;
+  color: #2e4a3e !important;
+  border-color: #e8f5e9 !important;
+}
+
+body[data-mindmap-theme="forest"] jmnode[level="4"]:hover,
+body[data-mindmap-theme="forest"] jmnode[level="5"]:hover,
+body[data-mindmap-theme="forest"] jmnode[level="6"]:hover,
+body[data-mindmap-theme="forest"] jmnode[level="7"]:hover,
+body[data-mindmap-theme="forest"] jmnode[level="8"]:hover {
+  background-color: #f8fdf9 !important;
+  border-color: #c8e6c9 !important;
+}
+
+body[data-mindmap-theme="forest"] jmnode[level="4"].selected,
+body[data-mindmap-theme="forest"] jmnode[level="5"].selected,
+body[data-mindmap-theme="forest"] jmnode[level="6"].selected,
+body[data-mindmap-theme="forest"] jmnode[level="7"].selected,
+body[data-mindmap-theme="forest"] jmnode[level="8"].selected {
+  background-color: #f1f8f4 !important;
+  border-color: #a5d6a7 !important;
+}
+
+/* 展开/折叠按钮 - 叶子形状 */
+body[data-mindmap-theme="forest"] jmexpander {
+  background-color: #ffffff !important;
+  border: 2px solid #81c784 !important;
+  color: #4caf50 !important;
+  border-radius: 50% !important;
+  width: 16px !important;
+  height: 16px !important;
+  line-height: 14px !important;
+  font-size: 11px !important;
+  font-weight: bold !important;
+  box-shadow: 0 2px 5px rgba(76, 175, 80, 0.2) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+body[data-mindmap-theme="forest"] jmexpander:hover {
+  background-color: #e8f5e9 !important;
+  border-color: #66bb6a !important;
+  color: #388e3c !important;
+  transform: scale(1.1);
+}
+
+/* 连线样式 - 绿色 */
+body[data-mindmap-theme="forest"] svg.jsmind path {
+  stroke: #a5d6a7 !important;
+  stroke-width: 2px !important;
+}
+
+/* 选中节点的连线 */
+body[data-mindmap-theme="forest"] jmnode.selected ~ svg.jsmind path {
+  stroke: #81c784 !important;
+  stroke-width: 2.5px !important;
+}
+
+/* 主题文字内容 */
+body[data-mindmap-theme="forest"] jmnode .topic {
+  color: inherit !important;
+}
+
+/* 多选状态 */
+body[data-mindmap-theme="forest"] jmnode.multi-selected {
+  background: #dcedc8 !important;
+  border-color: #aed581 !important;
+  box-shadow: 0 0 0 2px rgba(126, 182, 76, 0.3) !important;
+}
+
+/* 滚动条样式（森林绿） */
+body[data-mindmap-theme="forest"] #fullScreenMindmap::-webkit-scrollbar,
+body[data-mindmap-theme="forest"] .jsmind-inner::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+body[data-mindmap-theme="forest"] #fullScreenMindmap::-webkit-scrollbar-track,
+body[data-mindmap-theme="forest"] .jsmind-inner::-webkit-scrollbar-track {
+  background: #e8f5e9;
+  border-radius: 4px;
+}
+
+body[data-mindmap-theme="forest"] #fullScreenMindmap::-webkit-scrollbar-thumb,
+body[data-mindmap-theme="forest"] .jsmind-inner::-webkit-scrollbar-thumb {
+  background: #a5d6a7;
+  border-radius: 4px;
+}
+
+body[data-mindmap-theme="forest"] #fullScreenMindmap::-webkit-scrollbar-thumb:hover,
+body[data-mindmap-theme="forest"] .jsmind-inner::-webkit-scrollbar-thumb:hover {
+  background: #81c784;
+}
+
+/* Firefox 滚动条 */
+body[data-mindmap-theme="forest"] #fullScreenMindmap,
+body[data-mindmap-theme="forest"] .jsmind-inner {
+  scrollbar-width: thin;
+  scrollbar-color: #a5d6a7 #e8f5e9;
+}
+
+/* End of forest theme */

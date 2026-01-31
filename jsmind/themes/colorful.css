@@ -1,0 +1,219 @@
+/**
+ * MindWord - 树心 | 像画图一样写文档的思维导图写作工具
+ * GitHub: https://github.com/TimiKays/MindWord
+ * 
+ * Copyright 2025 Timi Kays
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/* colorful theme - 彩虹多彩皮肤
+ * 特点：不同层级使用不同颜色，活泼生动，适合创意和教育场景
+ */
+
+/* 画布背景 */
+body[data-mindmap-theme="colorful"] #fullScreenMindmap,
+body[data-mindmap-theme="colorful"] .jsmind-inner {
+  background-color: #fafbfc !important;
+}
+
+/* 节点基础字体 */
+body[data-mindmap-theme="colorful"] jmnode {
+  font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif !important;
+}
+
+/* ==================== 根节点 ==================== */
+body[data-mindmap-theme="colorful"] jmnode.root {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  color: #ffffff !important;
+  font-size: 20px !important;
+  font-weight: 600 !important;
+  border: none !important;
+  border-radius: 12px !important;
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4) !important;
+  padding: 12px 24px !important;
+}
+
+body[data-mindmap-theme="colorful"] jmnode.root:hover {
+  background: linear-gradient(135deg, #7b8eea 0%, #8a5ab2 100%) !important;
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5) !important;
+  transform: translateY(-2px);
+}
+
+body[data-mindmap-theme="colorful"] jmnode.root.selected {
+  background: linear-gradient(135deg, #4a5fc7 0%, #5a3d8a 100%) !important;
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.4), 0 8px 25px rgba(102, 126, 234, 0.5) !important;
+}
+
+/* ==================== 第一层子节点 - 红色系 ==================== */
+body[data-mindmap-theme="colorful"] jmnode[data-level="1"] {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 12px rgba(255, 107, 107, 0.35) !important;
+}
+
+body[data-mindmap-theme="colorful"] jmnode[data-level="1"]:hover {
+  background: linear-gradient(135deg, #ff7b7b 0%, #ee6a6a 100%) !important;
+  box-shadow: 0 6px 16px rgba(255, 107, 107, 0.45) !important;
+}
+
+body[data-mindmap-theme="colorful"] jmnode[data-level="1"].selected {
+  background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%) !important;
+  box-shadow: 0 0 0 4px rgba(255, 107, 107, 0.4), 0 6px 16px rgba(255, 107, 107, 0.45) !important;
+}
+
+/* ==================== 第二层子节点 - 橙色系 ==================== */
+body[data-mindmap-theme="colorful"] jmnode[data-level="2"] {
+  background: linear-gradient(135deg, #ffa726 0%, #ff9800 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  box-shadow: 0 3px 10px rgba(255, 167, 38, 0.35) !important;
+}
+
+body[data-mindmap-theme="colorful"] jmnode[data-level="2"]:hover {
+  background: linear-gradient(135deg, #ffb74d 0%, #ffa726 100%) !important;
+  box-shadow: 0 5px 14px rgba(255, 167, 38, 0.45) !important;
+}
+
+body[data-mindmap-theme="colorful"] jmnode[data-level="2"].selected {
+  background: linear-gradient(135deg, #e65100 0%, #bf360c 100%) !important;
+  box-shadow: 0 0 0 4px rgba(255, 167, 38, 0.4), 0 5px 14px rgba(255, 167, 38, 0.45) !important;
+}
+
+/* ==================== 第三层子节点 - 黄色系 ==================== */
+body[data-mindmap-theme="colorful"] jmnode[data-level="3"] {
+  background: linear-gradient(135deg, #ffcc02 0%, #ffc107 100%) !important;
+  color: #5d4037 !important;
+  border: none !important;
+  border-radius: 8px !important;
+  box-shadow: 0 3px 10px rgba(255, 204, 2, 0.35) !important;
+}
+
+body[data-mindmap-theme="colorful"] jmnode[data-level="3"]:hover {
+  background: linear-gradient(135deg, #ffe082 0%, #ffcc02 100%) !important;
+  box-shadow: 0 5px 14px rgba(255, 204, 2, 0.45) !important;
+}
+
+body[data-mindmap-theme="colorful"] jmnode[data-level="3"].selected {
+  background: linear-gradient(135deg, #ff8f00 0%, #e65100 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 0 4px rgba(255, 204, 2, 0.4), 0 5px 14px rgba(255, 204, 2, 0.45) !important;
+}
+
+/* ==================== 第四层子节点 - 绿色系 ==================== */
+body[data-mindmap-theme="colorful"] jmnode[data-level="4"] {
+  background: linear-gradient(135deg, #66bb6a 0%, #4caf50 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  box-shadow: 0 3px 10px rgba(102, 187, 106, 0.35) !important;
+}
+
+body[data-mindmap-theme="colorful"] jmnode[data-level="4"]:hover {
+  background: linear-gradient(135deg, #81c784 0%, #66bb6a 100%) !important;
+  box-shadow: 0 5px 14px rgba(102, 187, 106, 0.45) !important;
+}
+
+body[data-mindmap-theme="colorful"] jmnode[data-level="4"].selected {
+  background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%) !important;
+  box-shadow: 0 0 0 4px rgba(102, 187, 106, 0.4), 0 5px 14px rgba(102, 187, 106, 0.45) !important;
+}
+
+/* ==================== 第五层及以上子节点 - 青色系 ==================== */
+body[data-mindmap-theme="colorful"] jmnode[data-level="5"],
+body[data-mindmap-theme="colorful"] jmnode[data-level="6"],
+body[data-mindmap-theme="colorful"] jmnode[data-level="7"],
+body[data-mindmap-theme="colorful"] jmnode[data-level="8"] {
+  background: linear-gradient(135deg, #4dd0e1 0%, #26c6da 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  box-shadow: 0 3px 10px rgba(77, 208, 225, 0.35) !important;
+}
+
+body[data-mindmap-theme="colorful"] jmnode[data-level="5"]:hover,
+body[data-mindmap-theme="colorful"] jmnode[data-level="6"]:hover,
+body[data-mindmap-theme="colorful"] jmnode[data-level="7"]:hover,
+body[data-mindmap-theme="colorful"] jmnode[data-level="8"]:hover {
+  background: linear-gradient(135deg, #80deea 0%, #4dd0e1 100%) !important;
+  box-shadow: 0 5px 14px rgba(77, 208, 225, 0.45) !important;
+}
+
+body[data-mindmap-theme="colorful"] jmnode[data-level="5"].selected,
+body[data-mindmap-theme="colorful"] jmnode[data-level="6"].selected,
+body[data-mindmap-theme="colorful"] jmnode[data-level="7"].selected,
+body[data-mindmap-theme="colorful"] jmnode[data-level="8"].selected {
+  background: linear-gradient(135deg, #00838f 0%, #006064 100%) !important;
+  box-shadow: 0 0 0 4px rgba(77, 208, 225, 0.4), 0 5px 14px rgba(77, 208, 225, 0.45) !important;
+}
+
+/* 默认节点样式（无层级或层级未识别） */
+body[data-mindmap-theme="colorful"] jmnode:not([data-level]):not(.root) {
+  background: linear-gradient(135deg, #7986cb 0%, #5c6bc0 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  box-shadow: 0 3px 10px rgba(121, 134, 203, 0.35) !important;
+}
+
+/* 展开/折叠按钮 */
+body[data-mindmap-theme="colorful"] jmexpander {
+  background: #ffffff !important;
+  border: 2px solid #e0e0e0 !important;
+  color: #666666 !important;
+  border-radius: 50% !important;
+  width: 16px !important;
+  height: 16px !important;
+  line-height: 14px !important;
+  font-size: 11px !important;
+  font-weight: bold !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+body[data-mindmap-theme="colorful"] jmexpander:hover {
+  background: #f5f5f5 !important;
+  border-color: #cccccc !important;
+  color: #333333 !important;
+  transform: scale(1.1);
+}
+
+/* 连线样式 - 使用中性灰色 */
+body[data-mindmap-theme="colorful"] svg.jsmind path {
+  stroke: #b0b0b0 !important;
+  stroke-width: 2px !important;
+}
+
+/* 选中节点的连线 */
+body[data-mindmap-theme="colorful"] jmnode.selected ~ svg.jsmind path {
+  stroke: #7986cb !important;
+  stroke-width: 2.5px !important;
+}
+
+/* 主题文字内容 */
+body[data-mindmap-theme="colorful"] jmnode .topic {
+  color: inherit !important;
+  font-weight: 500 !important;
+}
+
+/* 多选状态 */
+body[data-mindmap-theme="colorful"] jmnode.multi-selected {
+  box-shadow: 0 0 0 3px rgba(121, 134, 203, 0.5), 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* End of colorful theme */

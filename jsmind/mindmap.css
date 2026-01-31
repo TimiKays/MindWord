@@ -611,3 +611,168 @@ body {
   color: #0066cc;
   text-decoration: underline;
 }
+
+/* ==================== 皮肤选择器样式 ==================== */
+
+/* 皮肤选择器容器 */
+.skin-selector {
+  display: inline-block;
+  position: static;
+}
+
+/* 皮肤选择器按钮 */
+.skin-selector-btn {
+  display: flex !important;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px !important;
+  font-size: 13px !important;
+  border-radius: 6px !important;
+  border: 1px solid #d1d5db !important;
+  background: #ffffff !important;
+  color: #374151 !important;
+  transition: background-color 0.2s ease, border-color 0.2s ease !important;
+}
+
+/* 移除 Bootstrap dropdown-toggle 的箭头 */
+.skin-selector-btn.dropdown-toggle::after {
+  display: none !important;
+  content: none !important;
+  border: none !important;
+}
+
+.skin-selector-btn:hover {
+  background: #f9fafb !important;
+  border-color: #9ca3af !important;
+}
+
+.skin-selector-btn:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.skin-selector-btn:active {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* 颜色预览圆点 */
+.skin-color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
+.skin-name {
+  font-weight: 500;
+}
+
+/* 下拉菜单 - 使用 fixed 定位避免被 toolbar 的 overflow 裁剪 */
+.skin-dropdown {
+  position: fixed !important;
+  min-width: 180px;
+  max-width: 280px;
+  padding: 8px 0 !important;
+  border-radius: 8px !important;
+  border: 1px solid #e5e7eb !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15) !important;
+  background: #ffffff !important;
+  z-index: 10000 !important;
+  margin: 0 !important;
+  display: none;
+  float: none !important;
+  text-align: left !important;
+  list-style: none !important;
+}
+
+.skin-dropdown.show {
+  display: block !important;
+}
+
+.skin-dropdown .dropdown-header {
+  padding: 8px 16px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #6b7280 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: transparent !important;
+  border: none !important;
+}
+
+/* 皮肤列表项 */
+.skin-item {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px !important;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  border: none !important;
+  text-decoration: none !important;
+  color: inherit !important;
+  white-space: nowrap !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.skin-item:hover {
+  background-color: #f3f4f6 !important;
+}
+
+.skin-item.active {
+  background-color: #eff6ff !important;
+}
+
+/* 皮肤颜色预览 */
+.skin-color-preview {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  display: inline-block;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
+/* 皮肤名称 */
+.skin-label {
+  flex: 1;
+  font-size: 14px;
+  color: #374151;
+}
+
+.skin-item.active .skin-label {
+  color: #2563eb;
+  font-weight: 500;
+}
+
+/* 选中标记 */
+.skin-check {
+  color: #2563eb;
+  font-size: 12px;
+  margin-left: auto;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .skin-selector-btn {
+    padding: 8px 10px !important;
+  }
+  
+  .skin-name {
+    display: none;
+  }
+  
+  .skin-dropdown {
+    min-width: 160px;
+  }
+  
+  .skin-item {
+    padding: 12px 16px !important;
+  }
+}
+
+/* ==================== 皮肤选择器样式结束 ==================== */
