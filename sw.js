@@ -3,7 +3,7 @@
  * 只缓存核心文件，避免路径重复问题
  */
 
-const CACHE_NAME = 'mindword-v41';
+const CACHE_NAME = 'mindword-v42';
 
 // 只缓存最关键的核心文件
 const CORE_FILES = [
@@ -37,6 +37,7 @@ const CORE_FILES = [
 
   // ai目录
   '/ai/newai/AIServiceModal.html',
+  '/ai/newai/AIServiceModal.css',
   '/ai/newai/platform-configs.json',
   '/ai/newai/prompt-templates.json',
   '/ai/newai/user-template-manager.html',
@@ -77,11 +78,17 @@ const CORE_FILES = [
   '/jsmind/mindmap-core.js',
   '/jsmind/mindmap.css',
   '/jsmind/mindmap.html',
-
   '/jsmind/node-data-structure.js',
   '/jsmind/node-operator.js',
   '/jsmind/plugins/undo_manager.js',
+  // 主题CSS - 所有皮肤文件
   '/jsmind/themes/modern-minimal.css',
+  '/jsmind/themes/primary.css',
+  '/jsmind/themes/dark.css',
+  '/jsmind/themes/colorful.css',
+  '/jsmind/themes/warm.css',
+  '/jsmind/themes/forest.css',
+  '/jsmind/skin-manager.js',
   '/jsmind/tree-operator.js',
   '/jsmind/ViewStateManager.js',
 
@@ -263,152 +270,91 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // 特别处理CSS文件
-  if (pathname.endsWith('.css')) {
-    event.respondWith(
-      caches.match(event.request).then(cached => {
-        if (cached) return cached;
+  // 判断是否为静态资源（CSS/JS/图片/字体等）
+  const isStaticResource = pathname.endsWith('.css') ||
+    pathname.endsWith('.js') ||
+    pathname.endsWith('.svg') ||
+    pathname.endsWith('.png') ||
+    pathname.endsWith('.jpg') ||
+    pathname.endsWith('.jpeg') ||
+    pathname.endsWith('.gif') ||
+    pathname.endsWith('.ico') ||
+    pathname.endsWith('.woff') ||
+    pathname.endsWith('.woff2') ||
+    pathname.endsWith('.ttf') ||
+    pathname.endsWith('.eot') ||
+    pathname.endsWith('.json');
 
-        return fetch(event.request).then(netRes => {
-          if (netRes.ok) {
-            const resClone = netRes.clone();
-            caches.open(CACHE_NAME).then(c => {
-              c.put(event.request, resClone).catch(err => {
-                console.error('CSS文件缓存失败:', pathname, err);
+  // 对静态资源使用"网络优先+缓存回退"策略
+  if (isStaticResource) {
+    event.respondWith(
+      fetch(event.request)
+        .then(networkRes => {
+          // 网络请求成功，更新缓存
+          if (networkRes.ok) {
+            const resClone = networkRes.clone();
+            caches.open(CACHE_NAME).then(cache => {
+              cache.put(event.request, resClone).catch(err => {
+                console.error('[SW] 缓存更新失败:', pathname, err);
               });
             });
           }
-          return netRes;
-        }).catch(() => {
-          // CSS文件离线时使用备用样式
-          return new Response(
-            '/* 离线模式下的备用样式 */ body { font-family: Arial, sans-serif; }',
-            {
-              headers: { 'Content-Type': 'text/css' },
-              status: 200
+          return networkRes;
+        })
+        .catch(() => {
+          // 网络失败，回退到缓存
+          console.log('[SW] 网络失败，使用缓存:', pathname);
+          return caches.match(event.request).then(cached => {
+            if (cached) {
+              return cached;
             }
-          );
-        });
-      })
-    );
-    return;
-  }
-
-  // 特别处理SVG文件和其他静态资源
-  if (pathname.endsWith('.svg') || pathname.endsWith('.png') || pathname.endsWith('.jpg') || pathname.endsWith('.gif') || pathname.endsWith('.ico')) {
-    event.respondWith(
-      caches.match(event.request).then(cached => {
-        console.log('Service Worker检查缓存:', event.request.url, '找到缓存:', !!cached);
-        if (cached) {
-          console.log('Service Worker返回缓存:', event.request.url);
-          return cached;
-        }
-
-        // 尝试匹配不带查询参数的URL
-        const cleanUrl = event.request.url.split('?')[0];
-        return caches.match(cleanUrl).then(cleanCached => {
-          if (cleanCached) {
-            console.log('Service Worker通过clean URL找到缓存:', cleanUrl);
-            return cleanCached;
-          }
-
-          return fetch(event.request).then(netRes => {
-            console.log('Service Worker网络请求:', event.request.url, '状态:', netRes.status);
-            if (netRes.ok) {
-              const resClone = netRes.clone();
-              caches.open(CACHE_NAME).then(c => {
-                c.put(event.request, resClone).then(() => {
-                  console.log('Service Worker缓存成功:', event.request.url);
-                }).catch(err => {
-                  console.error('Service Worker缓存失败:', pathname, err);
-                });
+            // 根据文件类型返回兜底响应
+            if (pathname.endsWith('.css')) {
+              return new Response('/* 离线模式 */', {
+                headers: { 'Content-Type': 'text/css' },
+                status: 200
               });
             }
-            return netRes;
-          }).catch(() => {
-            console.log('Service Worker网络失败，返回兜底:', event.request.url);
-            // 对于静态资源，返回透明1x1像素图片，避免页面出错
+            if (pathname.endsWith('.js')) {
+              return new Response('// 离线模式', {
+                headers: { 'Content-Type': 'application/javascript' },
+                status: 200
+              });
+            }
+            if (pathname.endsWith('.json')) {
+              return new Response('{}', {
+                headers: { 'Content-Type': 'application/json' },
+                status: 200
+              });
+            }
             if (pathname.endsWith('.svg')) {
               return new Response(
                 '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>',
-                {
-                  headers: { 'Content-Type': 'image/svg+xml' },
-                  status: 200
-                }
+                { headers: { 'Content-Type': 'image/svg+xml' }, status: 200 }
               );
             }
             return new Response('', { status: 404 });
           });
-        });
-      })
+        })
     );
     return;
   }
 
-  // 修复：处理其他资源请求（包括fetch API请求）
+  // 其他请求（如fetch API调用）使用"缓存优先"策略
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
 
       return fetch(event.request).then(netRes => {
-        // 修复：先克隆响应，避免body被使用后无法克隆
         const resClone = netRes.clone();
-
-        // 不缓存LeanCloud API请求
-        const requestUrl = new URL(event.request.url);
-        if (!(requestUrl.hostname.includes('lc-cn-n1-shared.com') ||
-          requestUrl.hostname.includes('lcapp.cn') ||
-          requestUrl.hostname.includes('leancloud.cn') ||
-          requestUrl.pathname.includes('/1.1/classes/') ||
-          requestUrl.pathname.includes('/1.1/users/') ||
-          requestUrl.pathname.includes('/1.1/files/') ||
-          (requestUrl.hostname.includes('lc-') && requestUrl.pathname.includes('/1.1/')))) {
-          // 只缓存非LeanCloud API请求
-          if (netRes.ok) {
-            caches.open(CACHE_NAME).then(c => {
-              return c.put(event.request, resClone);
-            }).catch(err => {
-              console.error('缓存存储失败:', err);
-            });
-          }
-        }
+        caches.open(CACHE_NAME).then(c => {
+          return c.put(event.request, resClone);
+        }).catch(err => {
+          console.error('[SW] 缓存存储失败:', err);
+        });
         return netRes;
       }).catch(() => {
-        // 网络失败时的统一处理
-        console.log('离线模式 - 尝试从缓存获取:', pathname);
-
-        // 对于HTML文件，优先返回缓存的对应文件
-        if (pathname.endsWith('.html') || pathname === '/') {
-          return caches.match(pathname).then(cached => {
-            if (cached) return cached;
-            return caches.match('/offline.html');
-          });
-        }
-
-        // 对于JS文件，尝试返回缓存的版本
-        if (pathname.endsWith('.js')) {
-          return caches.match(event.request).then(cached => {
-            if (cached) return cached;
-            return new Response('// 离线模式 - JS文件不可用', {
-              status: 200,
-              headers: { 'Content-Type': 'application/javascript' }
-            });
-          });
-        }
-
-        // 对于JSON文件，返回空对象
-        if (pathname.endsWith('.json')) {
-          return new Response('{}', {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' }
-          });
-        }
-
-        // 其他情况返回通用的离线响应
-        return caches.match(event.request).then(cached => {
-          if (cached) return cached;
-          return new Response('离线模式 - 内容不可用', { status: 503 });
-        });
+        return new Response('离线模式 - 内容不可用', { status: 503 });
       });
     })
   );
