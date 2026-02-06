@@ -46,8 +46,8 @@
     <meta name="msapplication-navbutton-color" content="#619dff">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <!-- 国际化支持 -->
-    <script src="i18n/locales.js"></script>
-    <script src="i18n/i18n-manager.js"></script>
+    <script src="i18n/locales.js?v=2"></script>
+    <script src="i18n/i18n-manager.js?v=2"></script>
     <!-- Bootstrap CSS for notifications -->
     <!-- <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet"> -->
     <style>
@@ -780,7 +780,7 @@
                 </svg>
 
 
-                <span data-i18n="app.editor">文本编辑</span>
+                <span data-i18n="app.editor">Markdown编辑器</span>
             </div>
             <div class="tab active" data-panel="preview" style="font-size:14px;"><svg t="1759394709317" class="icon"
                     viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1495">
@@ -788,7 +788,7 @@
                         d="M648.101506 803.835981a35.839821 35.839821 0 0 0-35.839821-35.839821H291.836621a35.839821 35.839821 0 1 0 0 72.106306h319.9984a35.839821 35.839821 0 0 0 36.266485-36.266485z m127.99936-159.9992a35.839821 35.839821 0 0 0-35.839821-35.839821H291.836621a35.839821 35.839821 0 1 0 0 72.106306h447.99776a35.839821 35.839821 0 0 0 36.266485-36.266485z m-191.99904-159.9992a35.839821 35.839821 0 0 0-35.839821-35.839821h-255.99872a35.839821 35.839821 0 1 0 0 72.106306h255.99872a35.839821 35.839821 0 0 0 35.839821-36.266485z m238.932139 469.330986H200.103746V72.106306H511.99552v239.785468A72.959635 72.959635 0 0 0 584.101826 383.99808h238.932139zM582.821833 110.506114l200.958995 201.812324h-200.958995z m291.83854 191.145711L597.328427 21.333227a76.799616 76.799616 0 0 0-14.506594-11.519943l-4.266646-2.133322h-2.986652A71.679642 71.679642 0 0 0 546.128683 0H200.957075A72.959635 72.959635 0 0 0 127.99744 72.106306v879.782268A72.959635 72.959635 0 0 0 200.957075 1023.99488h622.930219A71.252977 71.252977 0 0 0 895.9936 951.888574V352.424905a71.252977 71.252977 0 0 0-21.333227-50.77308z"
                         fill="#5E5C5C" p-id="1496"></path>
                 </svg>
-                <span data-i18n="app.preview">文档预览</span>
+                <span data-i18n="app.preview">Word文档预览</span>
             </div>
             <div class="tab active" data-panel="mindmap" style="font-size:14px;"><svg t="1759394646816" class="icon"
                     viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1189">
@@ -980,7 +980,7 @@
         <!-- MD编辑面板 -->
         <div class="panel editor-panel" id="editor-panel">
             <div class="panel-header">
-                <span data-i18n="app.editor">Markdown 编辑器</span>
+                <span data-i18n="app.editor">Markdown编辑器</span>
                 <button class="btn btn-icon" onclick="togglePanel('editor')">&times;</button>
             </div>
             <div class="panel-content">
@@ -998,7 +998,7 @@
         <!-- MD预览面板 -->
         <div class="panel preview-panel" id="preview-panel">
             <div class="panel-header">
-                <span data-i18n="app.preview">Markdown 预览</span>
+                <span data-i18n="app.preview">Word文档预览</span>
                 <button class="btn btn-icon" onclick="togglePanel('preview')">&times;</button>
             </div>
             <div class="panel-content">

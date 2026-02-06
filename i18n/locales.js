@@ -313,8 +313,8 @@ const i18nLocales = {
     // 应用界面
     app: {
       // 面板标题
-      editor: '文本编辑',
-      preview: '文档预览',
+      editor: 'Markdown编辑器',
+      preview: 'Word文档预览',
       mindmap: '思维导图',
       focus: '专注',
 
@@ -853,8 +853,8 @@ const i18nLocales = {
     // 应用界面
     app: {
       // 面板标题
-      editor: 'Editor',
-      preview: 'Preview',
+      editor: 'Markdown Editor',
+      preview: 'Word Preview',
       mindmap: 'MindMap',
       focus: 'Focus',
 
@@ -1388,8 +1388,8 @@ const i18nLocales = {
 
     // 面板标题
     app: {
-      editor: 'Editor de Texto',
-      preview: 'Vista Previa del Documento',
+      editor: 'Editor Markdown',
+      preview: 'Vista Previa Word',
       mindmap: 'Mapa Mental',
       focus: 'Enfoque',
 
