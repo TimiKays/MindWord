@@ -6,10 +6,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>支持一下 · MindWord</title>
 
-  <!-- Google AdSense -->
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8545877256902738"
-    crossorigin="anonymous"></script>
-
   <style>
     :root {
       --bg-gradient: linear-gradient(135deg, #eaf7f5, #eef3ff);
@@ -307,8 +303,8 @@
         <a class="action" href="#" id="shareBtn">
           🔗 分享给可能用得上的朋友
         </a>
-        <a class="action" href="#" id="watchAdBtn">
-          📺 看个广告（敬请期待...）
+        <a class="action" href="https://timikays.us.kg" target="_blank" rel="noopener" id="visitCreatorBtn">
+          🏠 访问创作者主页，体验更多产品
         </a>
         <a class="action" href="#" id="wechatBtn">
           🧋 请作者喝杯奶茶~ (微信赞赏任意金额)
@@ -339,7 +335,7 @@
         loading: '加载中...',
         feedback: '💬 留下一点想法或建议',
         share: '🔗 分享给可能用得上的朋友',
-        watchAd: '📺 看个广告（敬请期待...）',
+        visitCreator: '🏠 访问创作者主页，体验更多产品',
         wechatSupport: '🧋 请作者喝杯奶茶~ (微信赞赏任意金额)',
         microsoftStore: '🏪 在微软应用商店评分支持',
         footer: '是否支持完全自愿 · 对产品使用无任何影响哦 😺',
@@ -389,10 +385,6 @@
         shareSuccess: '✅ 链接已复制到剪贴板',
         shareFailed: '❌ 复制失败，请手动复制',
         shareRestore: '🔗 分享给可能用得上的朋友',
-        adLoading: '📺 正在加载广告...',
-        adSuccess: '✅ 感谢您的支持！',
-        adFailed: '❌ 广告加载失败',
-        adThanks: '您的支持让我们能持续提供免费服务 🙏',
         cloudLoadFailed: '加载云端点赞数失败，使用本地数据:',
         cloudSyncSuccess: '云端同步成功:',
         cloudSyncFailed: '云端同步失败，状态码:',
@@ -409,7 +401,7 @@
         loading: 'Loading...',
         feedback: '💬 Leave some thoughts or suggestions',
         share: '🔗 Share with friends who might need it',
-        watchAd: '📺 Watch an ad (coming soon...)',
+        visitCreator: '🏠 Visit creator homepage for more products',
         wechatSupport: '🧋 Buy the author a milk tea~ (WeChat appreciation any amount)',
         microsoftStore: '🏪 Rate us on Microsoft Store',
         footer: 'Support is completely voluntary · No impact on product usage 😺',
@@ -459,10 +451,6 @@
         shareSuccess: '✅ Link copied to clipboard',
         shareFailed: '❌ Copy failed, please copy manually',
         shareRestore: '🔗 Share with friends who might need it',
-        adLoading: '📺 Loading ad...',
-        adSuccess: '✅ Thank you for your support!',
-        adFailed: '❌ Ad loading failed',
-        adThanks: 'Your support allows us to continue providing free services 🙏',
         cloudLoadFailed: 'Failed to load likes from cloud, using local data:',
         cloudSyncSuccess: 'Cloud sync successful:',
         cloudSyncFailed: 'Cloud sync failed, status code:',
@@ -479,7 +467,7 @@
         loading: 'Cargando...',
         feedback: '💬 Deja algunos pensamientos o sugerencias',
         share: '🔗 Compartir con amigos que puedan necesitarlo',
-        watchAd: '📺 Ver un anuncio (próximamente...)',
+        visitCreator: '🏠 Visita la página del creador para más productos',
         wechatSupport: '🧋 Comprarle un té con leche al autor~ (Apreciación de WeChat cualquier cantidad)',
         microsoftStore: '🏪 Calificanos en Microsoft Store',
         footer: 'El apoyo es completamente voluntario · Sin impacto en el uso del producto 😺',
@@ -529,10 +517,6 @@
         shareSuccess: '✅ Enlace copiado al portapapeles',
         shareFailed: '❌ Copia fallida, por favor copia manualmente',
         shareRestore: '🔗 Compartir con amigos que puedan necesitarlo',
-        adLoading: '📺 Cargando anuncio...',
-        adSuccess: '✅ ¡Gracias por tu apoyo!',
-        adFailed: '❌ Falló la carga del anuncio',
-        adThanks: 'Tu apoyo nos permite continuar proporcionando servicios gratuitos 🙏',
         cloudLoadFailed: 'Error al cargar me gusta desde la nube, usando datos locales:',
         cloudSyncSuccess: 'Sincronización en la nube exitosa:',
         cloudSyncFailed: 'Sincronización en la nube fallida, código de estado:',
@@ -617,7 +601,7 @@
       document.querySelector('.footer').textContent = t('footer');
       document.querySelector('a[href="/feedback.html"]').innerHTML = t('feedback');
       document.getElementById('shareBtn').innerHTML = t('share');
-      document.getElementById('watchAdBtn').innerHTML = t('watchAd');
+      document.getElementById('visitCreatorBtn').innerHTML = t('visitCreator');
       document.getElementById('wechatBtn').innerHTML = t('wechatSupport');
 
       // 更新微软应用商店链接文本
@@ -877,55 +861,6 @@
 
       document.body.removeChild(textArea);
     }
-
-    // 看广告支持功能
-    const watchAdBtn = document.getElementById('watchAdBtn');
-    watchAdBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-
-      // 显示广告加载状态
-      const originalText = watchAdBtn.innerHTML;
-      watchAdBtn.innerHTML = t('adLoading');
-      watchAdBtn.style.background = '#fff3cd';
-      watchAdBtn.style.color = '#856404';
-
-      // 模拟广告加载和观看过程
-      setTimeout(() => {
-        // 这里可以集成真实的广告SDK，比如Google AdSense、腾讯广告等
-        // 现在用模拟的方式展示
-
-        const adCompleted = Math.random() > 0.2; // 80%成功率模拟
-
-        if (adCompleted) {
-          // 广告观看完成
-          watchAdBtn.innerHTML = t('adSuccess');
-          watchAdBtn.style.background = '#d4edda';
-          watchAdBtn.style.color = '#155724';
-
-          // 可以选择给一些正向反馈
-          thanksText.textContent = t('adThanks');
-          thanksText.classList.add("show");
-
-          // 3秒后恢复原状
-          setTimeout(() => {
-            watchAdBtn.innerHTML = originalText;
-            watchAdBtn.style.background = '';
-            watchAdBtn.style.color = '';
-          }, 3000);
-        } else {
-          // 广告加载失败
-          watchAdBtn.innerHTML = t('adFailed');
-          watchAdBtn.style.background = '#f8d7da';
-          watchAdBtn.style.color = '#721c24';
-
-          setTimeout(() => {
-            watchAdBtn.innerHTML = originalText;
-            watchAdBtn.style.background = '';
-            watchAdBtn.style.color = '';
-          }, 2000);
-        }
-      }, 1500); // 模拟1.5秒加载时间
-    });
 
     // 微信赞赏弹窗功能
     const wechatModal = document.getElementById('wechatModal');
