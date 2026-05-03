@@ -1,0 +1,1664 @@
+/**
+ * MindWord - Supabase 同步模块
+ * 
+ * 说明：
+ * 1. 此文件是 LeanCloud 同步的替代方案
+ * 2. 图片存储逻辑保持不变（base64 内嵌在 docs 中）
+ * 3. 原 leancloud-sync.js 保留，可随时切换回 LeanCloud
+ * 
+ * 使用方法：
+ * 1. 先在 supabase-config.js 中配置你的 Supabase 项目信息
+ * 2. 在 app.html 中引入此文件（替换 leancloud-sync.js）
+ * 3. 调用方式与原来相同：MW_SPB_SYNC.sync()
+ */
+
+(function () {
+    'use strict';
+
+    const MODULE_NAME = '[Supabase-Sync]';
+
+    const TABLE_USER_DATA = 'user_data';
+    const TABLE_FEEDBACK = 'feedback';
+
+    let supabase = null;
+
+    function initSupabase() {
+        if (supabase) return supabase;
+
+        if (typeof window.getSupabase !== 'function') {
+            console.error(MODULE_NAME, 'supabase-config.js 未加载');
+            return null;
+        }
+
+        supabase = window.getSupabase();
+        return supabase;
+    }
+
+    // 用户状态缓存
+    let cachedUser = null;
+    let lastUserCheck = 0;
+    const USER_CACHE_TTL = 5000; // 5秒缓存
+
+    // 同步预览弹窗锁 - 防止重复弹窗
+    let isSyncPreviewDialogOpen = false;
+
+    async function getCurrentUser(timeout = 10000) {
+        const client = initSupabase();
+        if (!client) return null;
+
+        // 检查缓存
+        const now = Date.now();
+        if (cachedUser && (now - lastUserCheck) < USER_CACHE_TTL) {
+            return cachedUser;
+        }
+
+        try {
+            // 添加超时控制
+            const getUserPromise = client.auth.getUser();
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('获取用户信息超时')), timeout);
+            });
+
+            const { data: { user }, error } = await Promise.race([getUserPromise, timeoutPromise]);
+
+            if (error) {
+                // 如果是401/403错误，说明未登录，不打印错误
+                if (error.status === 401 || error.status === 403) {
+                    cachedUser = null;
+                    lastUserCheck = now;
+                    return null;
+                }
+                // 网络错误不打印详细错误，避免控制台刷屏
+                if (error.message && (error.message.includes('fetch') || error.message.includes('timeout') || error.message.includes('network'))) {
+                    console.warn(MODULE_NAME, '获取用户网络超时，使用缓存或返回null');
+                    return cachedUser; // 返回缓存的用户（如果有）
+                }
+                console.error(MODULE_NAME, '获取用户失败:', error);
+                return null;
+            }
+
+            cachedUser = user;
+            lastUserCheck = now;
+            return user;
+        } catch (err) {
+            // 超时或其他错误
+            if (err.message && err.message.includes('超时')) {
+                console.warn(MODULE_NAME, '获取用户信息超时，使用缓存数据');
+                return cachedUser; // 返回缓存的用户（如果有）
+            }
+            console.error(MODULE_NAME, '获取用户异常:', err);
+            return null;
+        }
+    }
+
+    async function isLoggedIn() {
+        const user = await getCurrentUser();
+        return !!user;
+    }
+
+    // 清除用户缓存（退出登录时调用）
+    function clearUserCache() {
+        cachedUser = null;
+        lastUserCheck = 0;
+    }
+
+    async function fetchOrCreateUserData() {
+        const client = initSupabase();
+        if (!client) throw new Error('Supabase 未初始化');
+
+        const user = await getCurrentUser();
+        if (!user) throw new Error('用户未登录');
+
+        let { data: userData, error } = await client
+            .from(TABLE_USER_DATA)
+            .select('*')
+            .eq('user_id', user.id)
+            .single();
+
+        if (error && error.code === 'PGRST116') {
+            console.log(MODULE_NAME, '创建新用户数据记录');
+            const now = Date.now();
+            const { data: newData, error: createError } = await client
+                .from(TABLE_USER_DATA)
+                .insert([{
+                    user_id: user.id,
+                    docs: [],
+                    ai_config: {},
+                    prompt_templates: [],
+                    my_prompt_templates: [],
+                    doc_updated_at: now,
+                    config_updated_at: now,
+                    template_updated_at: now,
+                    my_prompt_template_updated_at: now,
+                    updated_at_ms: now
+                }])
+                .select()
+                .single();
+
+            if (createError) throw createError;
+            userData = newData;
+        } else if (error) {
+            throw error;
+        }
+
+        return userData;
+    }
+
+    async function downloadFromSupabase() {
+        const userData = await fetchOrCreateUserData();
+
+        return {
+            id: userData.id,
+            docs: userData.docs || [],
+            aiConfig: userData.ai_config || {},
+            promptTemplates: userData.prompt_templates || [],
+            myPromptTemplates: userData.my_prompt_templates || [],
+            docUpdatedAt: userData.doc_updated_at || 0,
+            configUpdatedAt: userData.config_updated_at || 0,
+            templateUpdatedAt: userData.template_updated_at || 0,
+            myPromptTemplateUpdatedAt: userData.my_prompt_template_updated_at || 0,
+            aiConfigHash: userData.ai_config_hash,
+            promptTemplatesHash: userData.prompt_templates_hash,
+            myPromptTemplatesHash: userData.my_prompt_templates_hash,
+            updatedAtMs: userData.updated_at_ms || 0
+        };
+    }
+
+    // 使用已获取的用户信息下载云端数据（避免重复获取用户）
+    async function downloadFromSupabaseWithUser(user) {
+        const userData = await fetchOrCreateUserDataWithUser(user);
+
+        return {
+            id: userData.id,
+            docs: userData.docs || [],
+            aiConfig: userData.ai_config || {},
+            promptTemplates: userData.prompt_templates || [],
+            myPromptTemplates: userData.my_prompt_templates || [],
+            docUpdatedAt: userData.doc_updated_at || 0,
+            configUpdatedAt: userData.config_updated_at || 0,
+            templateUpdatedAt: userData.template_updated_at || 0,
+            myPromptTemplateUpdatedAt: userData.my_prompt_template_updated_at || 0,
+            aiConfigHash: userData.ai_config_hash,
+            promptTemplatesHash: userData.prompt_templates_hash,
+            myPromptTemplatesHash: userData.my_prompt_templates_hash,
+            updatedAtMs: userData.updated_at_ms || 0
+        };
+    }
+
+    // 使用已获取的用户信息获取或创建用户数据
+    async function fetchOrCreateUserDataWithUser(user) {
+        const client = initSupabase();
+        if (!client) throw new Error('Supabase 未初始化');
+
+        let { data: userData, error } = await client
+            .from(TABLE_USER_DATA)
+            .select('*')
+            .eq('user_id', user.id)
+            .single();
+
+        if (error && error.code === 'PGRST116') {
+            console.log(MODULE_NAME, '创建新用户数据记录');
+            const now = Date.now();
+            const { data: newData, error: createError } = await client
+                .from(TABLE_USER_DATA)
+                .insert([{
+                    user_id: user.id,
+                    docs: [],
+                    ai_config: {},
+                    prompt_templates: [],
+                    my_prompt_templates: [],
+                    doc_updated_at: now,
+                    config_updated_at: now,
+                    template_updated_at: now,
+                    my_prompt_template_updated_at: now,
+                    updated_at_ms: now
+                }])
+                .select()
+                .single();
+
+            if (createError) throw createError;
+            userData = newData;
+        } else if (error) {
+            throw error;
+        }
+
+        return userData;
+    }
+
+    // 常量定义
+    const MAX_TOTAL_SIZE = 10 * 1024 * 1024; // 10MB
+
+    async function uploadToSupabase(target, user) {
+        const client = initSupabase();
+        if (!client) throw new Error('Supabase 未初始化');
+
+        // 如果没有传入user，则获取当前用户
+        if (!user) {
+            user = await getCurrentUser();
+        }
+        if (!user) throw new Error('用户未登录');
+
+        // 检查数据大小
+        const { totalSize } = calculateDataSize(target.docs);
+        if (totalSize > MAX_TOTAL_SIZE) {
+            const sizeInMB = (totalSize / 1024 / 1024).toFixed(1);
+            throw new Error(`数据大小超过10MB限制（当前${sizeInMB}MB），请删除一些文档或图片后再同步`);
+        }
+
+        const now = Date.now();
+
+        // 先查询是否已存在记录
+        const { data: existingData, error: queryError } = await client
+            .from(TABLE_USER_DATA)
+            .select('id')
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+        if (queryError) {
+            console.error(MODULE_NAME, '查询现有数据失败:', queryError);
+            throw queryError;
+        }
+
+        const dataToSave = {
+            user_id: user.id,
+            docs: target.docs,
+            ai_config: target.aiConfig,
+            prompt_templates: target.promptTemplates,
+            my_prompt_templates: target.myPromptTemplates,
+            doc_updated_at: target.docUpdatedAt,
+            config_updated_at: target.aiConfigLastModified,
+            template_updated_at: target.promptTemplatesLastModified,
+            my_prompt_template_updated_at: target.myPromptTemplatesLastModified,
+            ai_config_hash: target.aiConfigHash,
+            prompt_templates_hash: target.promptTemplatesHash,
+            my_prompt_templates_hash: target.myPromptTemplatesHash,
+            updated_at_ms: now
+        };
+
+        if (existingData) {
+            // 更新现有记录
+            console.log(MODULE_NAME, '更新现有记录:', existingData.id);
+            const { error } = await client
+                .from(TABLE_USER_DATA)
+                .update(dataToSave)
+                .eq('user_id', user.id);
+
+            if (error) {
+                console.error(MODULE_NAME, '更新数据失败:', error);
+                throw error;
+            }
+        } else {
+            // 插入新记录
+            console.log(MODULE_NAME, '插入新记录');
+            const { error } = await client
+                .from(TABLE_USER_DATA)
+                .insert([dataToSave]);
+
+            if (error) {
+                console.error(MODULE_NAME, '插入数据失败:', error);
+                throw error;
+            }
+        }
+    }
+
+    function threeWayMerge(local, cloud, base) {
+        const result = {
+            docs: local.docs,
+            aiConfig: local.aiConfig,
+            promptTemplates: local.promptTemplates,
+            myPromptTemplates: local.myPromptTemplates,
+            docUpdatedAt: local.docUpdatedAt,
+            aiConfigLastModified: local.aiConfigLastModified,
+            promptTemplatesLastModified: local.promptTemplatesLastModified,
+            myPromptTemplatesLastModified: local.myPromptTemplatesLastModified,
+            aiConfigHash: local.aiConfigHash,
+            promptTemplatesHash: local.promptTemplatesHash,
+            myPromptTemplatesHash: local.myPromptTemplatesHash
+        };
+
+        if (cloud.aiConfigLastModified > local.aiConfigLastModified) {
+            if (!base || cloud.aiConfigHash !== base.aiConfigHash) {
+                result.aiConfig = cloud.aiConfig;
+                result.aiConfigLastModified = cloud.aiConfigLastModified;
+                result.aiConfigHash = cloud.aiConfigHash;
+            }
+        }
+
+        if (cloud.promptTemplatesLastModified > local.promptTemplatesLastModified) {
+            if (!base || cloud.promptTemplatesHash !== base.promptTemplatesHash) {
+                result.promptTemplates = cloud.promptTemplates;
+                result.promptTemplatesLastModified = cloud.promptTemplatesLastModified;
+                result.promptTemplatesHash = cloud.promptTemplatesHash;
+            }
+        }
+
+        if (cloud.myPromptTemplatesLastModified > local.myPromptTemplatesLastModified) {
+            if (!base || cloud.myPromptTemplatesHash !== base.myPromptTemplatesHash) {
+                result.myPromptTemplates = cloud.myPromptTemplates;
+                result.myPromptTemplatesLastModified = cloud.myPromptTemplatesLastModified;
+                result.myPromptTemplatesHash = cloud.myPromptTemplatesHash;
+            }
+        }
+
+        if (cloud.docUpdatedAt > local.docUpdatedAt) {
+            result.docs = cloud.docs;
+            result.docUpdatedAt = cloud.docUpdatedAt;
+        }
+
+        return result;
+    }
+
+    // 显示同步预览对话框
+    async function showSyncPreviewDialog(localData, cloudData) {
+        // 检查是否已有弹窗正在显示
+        if (isSyncPreviewDialogOpen) {
+            console.log(MODULE_NAME, '同步预览弹窗已在显示中，忽略重复请求');
+            return null;
+        }
+
+        // 检查是否已存在弹窗DOM元素（双重保险）
+        const existingDialog = document.getElementById('sync-preview-dialog');
+        if (existingDialog) {
+            console.log(MODULE_NAME, '检测到已存在的弹窗DOM，忽略重复请求');
+            return null;
+        }
+
+        // 设置锁
+        isSyncPreviewDialogOpen = true;
+
+        return new Promise((resolve) => {
+            const dialog = document.createElement('div');
+            dialog.id = 'sync-preview-dialog';
+            dialog.innerHTML = `
+                <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; display: flex; align-items: center; justify-content: center;">
+                    <div style="background: white; border-radius: 12px; padding: 24px; width: 90%; max-width: 1000px; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
+                        <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                            <h3 style="margin: 0; color: #333; font-size: 20px; font-weight: 600;">🔄 同步预览</h3>
+                            <div style="margin-left: auto; font-size: 12px; color: #666; background: #f8f9fa; padding: 4px 8px; border-radius: 4px;">
+                                选择要保留的数据
+                            </div>
+                        </div>
+                        <div style="flex: 1; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 8px; background: #fafafa;">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead style="background: #f5f5f5; position: sticky; top: 0; z-index: 10;">
+                                    <tr>
+                                        <th style="padding: 16px; text-align: center; border-bottom: 1px solid #ddd; width: 50%; color: #333; font-weight: 600; font-size: 14px;">
+                                            <span style="display: inline-flex; align-items: center; gap: 8px;">
+                                                <span>📁</span>
+                                                <span>本地数据</span>
+                                            </span>
+                                        </th>
+                                        <th style="padding: 16px; text-align: center; border-bottom: 1px solid #ddd; width: 50%; color: #333; font-weight: 600; font-size: 14px;">
+                                            <span style="display: inline-flex; align-items: center; gap: 8px;">
+                                                <span>☁️</span>
+                                                <span>云端数据</span>
+                                            </span>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sync-preview-tbody">
+                                </tbody>
+                            </table>
+                        </div>
+                        <div style="margin-top: 20px; text-align: right; display: flex; justify-content: flex-end; align-items: center;">
+                            <div>
+                                <button id="sync-preview-cancel" style="margin-right: 12px; padding: 10px 20px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s;">取消</button>
+                                <button id="sync-preview-confirm" style="padding: 10px 24px; background: linear-gradient(135deg, #28a745, #20c997); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s; box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);">🔄 确定同步</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(dialog);
+
+            // 生成对比数据
+            const tbody = document.getElementById('sync-preview-tbody');
+            const comparisons = generateSyncComparisons(localData, cloudData);
+
+            // 检查是否所有数据都已一致
+            const allDataConsistent = comparisons.length > 0 && comparisons.every(item => item.isContentSame === true);
+
+            // 如果数据完全一致，更新按钮状态
+            if (allDataConsistent) {
+                const confirmBtn = document.getElementById('sync-preview-confirm');
+                confirmBtn.disabled = true;
+                confirmBtn.innerHTML = '✓ 数据已一致';
+                confirmBtn.style.background = '#6c757d';
+                confirmBtn.style.cursor = 'not-allowed';
+                confirmBtn.style.opacity = '0.6';
+                confirmBtn.style.boxShadow = 'none';
+            }
+
+            comparisons.forEach((item, index) => {
+                const row = document.createElement('tr');
+                row.style.borderBottom = '1px solid #eee';
+
+                // 如果内容一致，使用统一的淡灰色背景，禁用选择功能
+                if (item.isContentSame) {
+                    row.style.backgroundColor = '#f0f0f0';
+                    row.style.opacity = '0.8';
+                }
+
+                // 状态管理 - 使用数据属性存储当前选择
+                row.dataset.choice = item.recommendLocal ? 'local' : 'cloud';
+
+                // 本地数据列
+                const localCell = document.createElement('td');
+                localCell.style.padding = '8px';
+                localCell.style.verticalAlign = 'top';
+                localCell.style.position = 'relative';
+                localCell.style.cursor = 'pointer';
+                localCell.style.transition = 'all 0.2s ease';
+                localCell.style.width = '50%';
+
+                const updateLocalCellStyle = () => {
+                    if (item.isContentSame) {
+                        localCell.style.backgroundColor = '#e8e8e8';
+                        localCell.style.border = '1px solid #ccc';
+                        localCell.style.borderRadius = '6px';
+                        localCell.style.margin = '2px';
+                    } else {
+                        const isSelected = row.dataset.choice === 'local';
+                        localCell.style.backgroundColor = isSelected ? '#f0f8f0' : '#fafafa';
+                        localCell.style.border = isSelected ? '2px solid #28a745' : '1px solid #eee';
+                        localCell.style.borderRadius = '6px';
+                        localCell.style.margin = '2px';
+
+                        const checkMark = localCell.querySelector('.check-mark');
+                        const cloudCheckMark = cloudCell.querySelector('.check-mark');
+                        if (checkMark && cloudCheckMark) {
+                            checkMark.style.display = isSelected ? 'block' : 'none';
+                            cloudCheckMark.style.display = !isSelected ? 'block' : 'none';
+                        }
+                    }
+                };
+
+                localCell.innerHTML = `
+                    <div style="font-weight: bold; color: #333; margin-bottom: 2px; display: flex; align-items: center; justify-content: space-between;">
+                        <span>${item.local.name}</span>
+                        <span class="check-mark" style="color: #28a745; font-size: 16px; display: ${item.isContentSame ? 'none' : (row.dataset.choice === 'local' ? 'block' : 'none')};">✓</span>
+                    </div>
+                    <div style="font-size: 11px; color: #666; line-height: 1.3;">${item.local.description}</div>
+                    <div style="font-size: 11px; color: #999; margin-top: 2px;">更新时间: ${item.local.updatedAt}</div>
+                `;
+
+                localCell.addEventListener('click', () => {
+                    if (item.isContentSame) return;
+                    row.dataset.choice = 'local';
+                    updateLocalCellStyle();
+                    updateCloudCellStyle();
+                });
+
+                // 云端数据列
+                const cloudCell = document.createElement('td');
+                cloudCell.style.padding = '8px';
+                cloudCell.style.verticalAlign = 'top';
+                cloudCell.style.position = 'relative';
+                cloudCell.style.cursor = 'pointer';
+                cloudCell.style.transition = 'all 0.2s ease';
+                cloudCell.style.width = '50%';
+
+                const updateCloudCellStyle = () => {
+                    if (item.isContentSame) {
+                        cloudCell.style.backgroundColor = '#e8e8e8';
+                        cloudCell.style.border = '1px solid #ccc';
+                        cloudCell.style.borderRadius = '6px';
+                        cloudCell.style.margin = '2px';
+                    } else {
+                        const isSelected = row.dataset.choice === 'cloud';
+                        cloudCell.style.backgroundColor = isSelected ? '#f0f8f0' : '#fafafa';
+                        cloudCell.style.border = isSelected ? '2px solid #28a745' : '1px solid #eee';
+                        cloudCell.style.borderRadius = '6px';
+                        cloudCell.style.margin = '2px';
+
+                        const checkMark = cloudCell.querySelector('.check-mark');
+                        const localCheckMark = localCell.querySelector('.check-mark');
+                        if (checkMark && localCheckMark) {
+                            checkMark.style.display = isSelected ? 'block' : 'none';
+                            localCheckMark.style.display = !isSelected ? 'block' : 'none';
+                        }
+                    }
+                };
+
+                cloudCell.innerHTML = `
+                    <div style="font-weight: bold; color: #333; margin-bottom: 2px; display: flex; align-items: center; justify-content: space-between;">
+                        <span>${item.cloud.name}</span>
+                        <span class="check-mark" style="color: #28a745; font-size: 16px; display: ${item.isContentSame ? 'none' : (row.dataset.choice === 'cloud' ? 'block' : 'none')};">✓</span>
+                    </div>
+                    <div style="font-size: 11px; color: #666; line-height: 1.3;">${item.cloud.description}</div>
+                    <div style="font-size: 11px; color: #999; margin-top: 2px;">更新时间: ${item.cloud.updatedAt}</div>
+                `;
+
+                cloudCell.addEventListener('click', () => {
+                    if (item.isContentSame) return;
+                    row.dataset.choice = 'cloud';
+                    updateLocalCellStyle();
+                    updateCloudCellStyle();
+                });
+
+                // 初始化样式
+                updateLocalCellStyle();
+                updateCloudCellStyle();
+
+                row.appendChild(localCell);
+                row.appendChild(cloudCell);
+                tbody.appendChild(row);
+            });
+
+            // 绑定按钮事件
+            document.getElementById('sync-preview-cancel').addEventListener('click', () => {
+                document.body.removeChild(dialog);
+                isSyncPreviewDialogOpen = false; // 释放锁
+                resolve(null); // 用户取消
+            });
+
+            document.getElementById('sync-preview-confirm').addEventListener('click', async () => {
+                const confirmBtn = document.getElementById('sync-preview-confirm');
+                const cancelBtn = document.getElementById('sync-preview-cancel');
+
+                // 禁用按钮，显示加载状态
+                confirmBtn.disabled = true;
+                cancelBtn.disabled = true;
+                confirmBtn.innerHTML = '<span class="sync-preview-spinner" style="display:inline-block; width:14px; height:14px; border:2px solid #fff; border-top-color:transparent; border-radius:50%; animation:sync-preview-spin 1s linear infinite; margin-right:6px;"></span>正在同步...';
+                confirmBtn.style.opacity = '0.8';
+                confirmBtn.style.cursor = 'not-allowed';
+
+                // 添加CSS动画
+                if (!document.getElementById('sync-preview-spinner-style')) {
+                    const style = document.createElement('style');
+                    style.id = 'sync-preview-spinner-style';
+                    style.textContent = `
+                        @keyframes sync-preview-spin {
+                            to { transform: rotate(360deg); }
+                        }
+                    `;
+                    document.head.appendChild(style);
+                }
+
+                // 收集用户选择
+                const choices = {};
+                comparisons.forEach((item, index) => {
+                    const row = document.querySelectorAll('#sync-preview-tbody tr')[index];
+                    choices[item.key] = row.dataset.choice || (item.recommendLocal ? 'local' : 'cloud');
+                });
+
+                // 返回选择，但不关闭弹窗（让调用方执行同步，同步完成后再关闭）
+                resolve({
+                    choices, dialog, closeDialog: () => {
+                        if (document.body.contains(dialog)) {
+                            document.body.removeChild(dialog);
+                        }
+                        isSyncPreviewDialogOpen = false; // 释放锁
+                    }
+                });
+            });
+        });
+    }
+
+    // 生成同步对比数据
+    function generateSyncComparisons(localData, cloudData) {
+        const comparisons = [];
+
+        // 文档对比
+        const localDocs = localData.docs || [];
+        const cloudDocs = cloudData.docs || [];
+
+        const localDocMap = new Map(localDocs.map(d => [d.id, d]));
+        const cloudDocMap = new Map(cloudDocs.map(d => [d.id, d]));
+        const allDocIds = new Set([...localDocs.map(d => d.id), ...cloudDocs.map(d => d.id)]);
+
+        allDocIds.forEach(docId => {
+            const localDoc = localDocMap.get(docId);
+            const cloudDoc = cloudDocMap.get(docId);
+
+            if (localDoc && cloudDoc) {
+                // 两边都有 - 检查删除状态
+                const localDeleted = localDoc.deletedAt;
+                const cloudDeleted = cloudDoc.deletedAt;
+
+                // 如果双方都已删除，跳过不显示
+                if (localDeleted && cloudDeleted) {
+                    return;
+                }
+
+                // 检查内容是否一致
+                const isContentSame = localDoc.md === cloudDoc.md &&
+                    JSON.stringify(localDoc.images || []) === JSON.stringify(cloudDoc.images || []);
+
+                let description = '';
+                if (localDeleted && !cloudDeleted) {
+                    description = '<span style="color: #dc3545;">本地已删除文档</span>';
+                } else if (!localDeleted && cloudDeleted) {
+                    description = '<span style="color: #dc3545;">云端已删除文档</span>';
+                } else if (isContentSame) {
+                    description = '<span style="color: #28a745;">内容一致 ✓</span>';
+                } else {
+                    description = '<span style="color: #dc3545;">内容不一致</span>';
+                }
+
+                const localTime = new Date(Number(localDoc.updatedAt || localDoc.deletedAt || 0)).toLocaleString();
+                const cloudTime = new Date(Number(cloudDoc.updatedAt || cloudDoc.deletedAt || 0)).toLocaleString();
+
+                // 推荐选择：未删除的版本，或者更新时间较新的版本
+                let recommendLocal;
+                if (localDeleted && !cloudDeleted) {
+                    recommendLocal = false; // 推荐云端（未删除）
+                } else if (!localDeleted && cloudDeleted) {
+                    recommendLocal = true; // 推荐本地（未删除）
+                } else {
+                    recommendLocal = (localDoc.updatedAt || localDoc.deletedAt || 0) >= (cloudDoc.updatedAt || cloudDoc.deletedAt || 0);
+                }
+
+                comparisons.push({
+                    key: `doc_${docId}`,
+                    local: {
+                        name: localDoc.name || '未命名文档',
+                        description: description,
+                        updatedAt: localTime
+                    },
+                    cloud: {
+                        name: cloudDoc.name || '未命名文档',
+                        description: description,
+                        updatedAt: cloudTime
+                    },
+                    recommendLocal: recommendLocal,
+                    isContentSame: isContentSame && !localDeleted && !cloudDeleted
+                });
+            } else if (localDoc && !cloudDoc) {
+                // 只有本地有 - 如果本地已删除，跳过这个对比（空对空没有意义）
+                const localDeleted = localDoc.deletedAt;
+                if (localDeleted) {
+                    return; // 跳过本地已删除文档
+                }
+
+                comparisons.push({
+                    key: `doc_${docId}`,
+                    local: {
+                        name: localDoc.name || '未命名文档',
+                        description: '<span style="color: #28a745;">本地新增文档</span>',
+                        updatedAt: new Date(Number(localDoc.updatedAt || localDoc.deletedAt || 0)).toLocaleString()
+                    },
+                    cloud: {
+                        name: '(无)',
+                        description: '云端不存在',
+                        updatedAt: '-'
+                    },
+                    recommendLocal: true
+                });
+            } else if (!localDoc && cloudDoc) {
+                // 只有云端有 - 如果云端已删除，跳过这个对比（空对空没有意义）
+                const cloudDeleted = cloudDoc.deletedAt;
+                if (cloudDeleted) {
+                    return; // 跳过云端已删除文档
+                }
+
+                comparisons.push({
+                    key: `doc_${docId}`,
+                    local: {
+                        name: '(无)',
+                        description: '本地不存在',
+                        updatedAt: '-'
+                    },
+                    cloud: {
+                        name: cloudDoc.name || '未命名文档',
+                        description: '<span style="color: #28a745;">云端新增文档</span>',
+                        updatedAt: new Date(Number(cloudDoc.updatedAt || cloudDoc.deletedAt || 0)).toLocaleString()
+                    },
+                    recommendLocal: false
+                });
+            }
+        });
+
+        // AI配置对比
+        const localAIConfig = localData.aiConfig || {};
+        const cloudAIConfig = cloudData.aiConfig || {};
+        const isAIConfigSame = localData.aiConfigHash === cloudData.aiConfigHash;
+
+        comparisons.push({
+            key: 'ai_config',
+            local: {
+                name: 'AI平台配置',
+                description: isAIConfigSame ? `配置一致 ✓` : `平台数量: ${Object.keys(localAIConfig).length}个`,
+                updatedAt: new Date(localData.aiConfigLastModified || 0).toLocaleString()
+            },
+            cloud: {
+                name: 'AI平台配置',
+                description: isAIConfigSame ? `配置一致 ✓` : `平台数量: ${Object.keys(cloudAIConfig).length}个`,
+                updatedAt: new Date(cloudData.configUpdatedAt || 0).toLocaleString()
+            },
+            recommendLocal: (localData.aiConfigLastModified || 0) >= (cloudData.configUpdatedAt || 0),
+            isContentSame: isAIConfigSame
+        });
+
+        // 提示词模板对比
+        const localPromptTemplates = localData.promptTemplates || [];
+        const cloudPromptTemplates = cloudData.promptTemplates || [];
+        const isPromptTemplatesSame = localData.promptTemplatesHash === cloudData.promptTemplatesHash;
+
+        comparisons.push({
+            key: 'prompt_templates',
+            local: {
+                name: '提示词模板',
+                description: isPromptTemplatesSame ? `模板一致 ✓` : `模板数量: ${localPromptTemplates.length}个`,
+                updatedAt: new Date(localData.promptTemplatesLastModified || 0).toLocaleString()
+            },
+            cloud: {
+                name: '提示词模板',
+                description: isPromptTemplatesSame ? `模板一致 ✓` : `模板数量: ${cloudPromptTemplates.length}个`,
+                updatedAt: new Date(cloudData.templateUpdatedAt || 0).toLocaleString()
+            },
+            recommendLocal: (localData.promptTemplatesLastModified || 0) >= (cloudData.templateUpdatedAt || 0),
+            isContentSame: isPromptTemplatesSame
+        });
+
+        // 我的提示词模板对比
+        const localMyPromptTemplates = localData.myPromptTemplates || [];
+        const cloudMyPromptTemplates = cloudData.myPromptTemplates || [];
+        const isMyPromptTemplatesSame = localData.myPromptTemplatesHash === cloudData.myPromptTemplatesHash;
+
+        comparisons.push({
+            key: 'my_prompt_templates',
+            local: {
+                name: '我的提示词模板',
+                description: isMyPromptTemplatesSame ? `模板一致 ✓` : `模板数量: ${localMyPromptTemplates.length}个`,
+                updatedAt: new Date(localData.myPromptTemplatesLastModified || 0).toLocaleString()
+            },
+            cloud: {
+                name: '我的提示词模板',
+                description: isMyPromptTemplatesSame ? `模板一致 ✓` : `模板数量: ${cloudMyPromptTemplates.length}个`,
+                updatedAt: new Date(cloudData.myPromptTemplateUpdatedAt || 0).toLocaleString()
+            },
+            recommendLocal: (localData.myPromptTemplatesLastModified || 0) >= (cloudData.myPromptTemplateUpdatedAt || 0),
+            isContentSame: isMyPromptTemplatesSame
+        });
+
+        return comparisons;
+    }
+
+    // 根据用户选择重新构建目标数据
+    function buildTargetFromChoices(localData, cloudData, choices) {
+        const target = {
+            docs: [],
+            aiConfig: {},
+            promptTemplates: [],
+            myPromptTemplates: [],
+            docUpdatedAt: 0,
+            aiConfigLastModified: 0,
+            promptTemplatesLastModified: 0,
+            myPromptTemplatesLastModified: 0,
+            aiConfigHash: null,
+            promptTemplatesHash: null,
+            myPromptTemplatesHash: null
+        };
+
+        // 处理文档选择
+        const localDocs = localData.docs || [];
+        const cloudDocs = cloudData.docs || [];
+        const localDocMap = new Map(localDocs.map(d => [d.id, d]));
+        const cloudDocMap = new Map(cloudDocs.map(d => [d.id, d]));
+        const allDocIds = new Set([...localDocs.map(d => d.id), ...cloudDocs.map(d => d.id)]);
+
+        for (const docId of allDocIds) {
+            const choice = choices[`doc_${docId}`];
+            let docToAdd = null;
+
+            if (choice === 'local') {
+                docToAdd = localDocMap.get(docId);
+            } else if (choice === 'cloud') {
+                docToAdd = cloudDocMap.get(docId);
+            } else {
+                // 使用推荐逻辑
+                const localDoc = localDocMap.get(docId);
+                const cloudDoc = cloudDocMap.get(docId);
+                if (localDoc && cloudDoc) {
+                    docToAdd = (localDoc.updatedAt || 0) >= (cloudDoc.updatedAt || 0) ? localDoc : cloudDoc;
+                } else if (localDoc) {
+                    docToAdd = localDoc;
+                } else if (cloudDoc) {
+                    docToAdd = cloudDoc;
+                }
+            }
+
+            if (docToAdd) {
+                target.docs.push(docToAdd);
+                target.docUpdatedAt = Math.max(target.docUpdatedAt, docToAdd.updatedAt || 0);
+            }
+        }
+
+        // 处理AI配置选择
+        if (choices.ai_config === 'local') {
+            target.aiConfig = localData.aiConfig || {};
+            target.aiConfigHash = localData.aiConfigHash;
+            target.aiConfigLastModified = localData.aiConfigLastModified;
+        } else {
+            target.aiConfig = cloudData.aiConfig || {};
+            target.aiConfigHash = cloudData.aiConfigHash;
+            target.aiConfigLastModified = cloudData.configUpdatedAt;
+        }
+
+        // 处理提示词模板选择
+        if (choices.prompt_templates === 'local') {
+            target.promptTemplates = localData.promptTemplates || [];
+            target.promptTemplatesHash = localData.promptTemplatesHash;
+            target.promptTemplatesLastModified = localData.promptTemplatesLastModified;
+        } else {
+            target.promptTemplates = cloudData.promptTemplates || [];
+            target.promptTemplatesHash = cloudData.promptTemplatesHash;
+            target.promptTemplatesLastModified = cloudData.templateUpdatedAt;
+        }
+
+        // 处理我的提示词模板选择
+        if (choices.my_prompt_templates === 'local') {
+            target.myPromptTemplates = localData.myPromptTemplates || [];
+            target.myPromptTemplatesHash = localData.myPromptTemplatesHash;
+            target.myPromptTemplatesLastModified = localData.myPromptTemplatesLastModified;
+        } else {
+            target.myPromptTemplates = cloudData.myPromptTemplates || [];
+            target.myPromptTemplatesHash = cloudData.myPromptTemplatesHash;
+            target.myPromptTemplatesLastModified = cloudData.myPromptTemplateUpdatedAt;
+        }
+
+        return target;
+    }
+
+    async function bidirectionalSync() {
+        console.log(MODULE_NAME, '开始双向同步...');
+
+        // 只获取一次用户信息，后续复用（设置15秒超时）
+        const currentUser = await getCurrentUser(15000);
+        if (!currentUser) {
+            // 检查是否可能是网络问题
+            const client = initSupabase();
+            if (client) {
+                // 尝试快速检测网络
+                try {
+                    const { data } = await client.auth.getSession();
+                    if (data && data.session) {
+                        // 有session但获取用户失败，可能是网络问题
+                        if (window.showError) {
+                            window.showError('网络连接超时，请检查网络后重试');
+                        } else {
+                            alert('网络连接超时，请检查网络后重试');
+                        }
+                        throw new Error('网络连接超时');
+                    }
+                } catch (e) {
+                    // 忽略检测错误
+                }
+            }
+
+            if (window.showError) {
+                window.showError('请先登录后再同步');
+            } else {
+                alert('请先登录后再同步');
+            }
+            throw new Error('用户未登录，无法同步');
+        }
+
+        const syncStatusEl = document.getElementById('lc-sync-status-menu');
+        if (syncStatusEl) {
+            syncStatusEl.textContent = '同步中...';
+        }
+
+        try {
+            const localData = await getLocalData();
+            console.log(MODULE_NAME, '本地数据:', localData);
+
+            // 使用复用的用户信息下载云端数据
+            const cloudData = await downloadFromSupabaseWithUser(currentUser);
+            console.log(MODULE_NAME, '云端数据:', cloudData);
+
+            // 显示同步预览对话框，让用户选择保留哪一侧的数据
+            const previewResult = await showSyncPreviewDialog(localData, cloudData);
+
+            // 用户取消同步或弹窗已在显示中
+            if (!previewResult) {
+                // 检查是否因为弹窗已在显示中（锁被占用）
+                if (isSyncPreviewDialogOpen) {
+                    console.log(MODULE_NAME, '同步预览弹窗已在显示中，跳过本次同步请求');
+                    if (syncStatusEl) {
+                        syncStatusEl.textContent = '同步预览已打开';
+                    }
+                    return null;
+                }
+                // 用户真正取消了同步
+                if (syncStatusEl) {
+                    syncStatusEl.textContent = '同步已取消';
+                }
+                if (window.showInfo) {
+                    window.showInfo('同步已取消');
+                }
+                console.log(MODULE_NAME, '用户取消同步');
+                return null;
+            }
+
+            // 解构预览结果
+            const { choices: userChoices, closeDialog } = previewResult;
+
+            // 根据用户选择重新构建目标数据
+            const targetData = buildTargetFromChoices(localData, cloudData, userChoices);
+            console.log(MODULE_NAME, '目标数据:', targetData);
+
+            try {
+                // 使用已获取的用户信息上传，避免重复获取
+                await uploadToSupabase(targetData, currentUser);
+
+                // 同步完成后关闭弹窗
+                closeDialog();
+            } catch (error) {
+                // 同步失败也要关闭弹窗
+                closeDialog();
+                throw error;
+            }
+
+            await setLocalData(targetData);
+
+            // 刷新文档列表
+            if (typeof window.mw_renderList === 'function') {
+                window.mw_renderList();
+            } else if (typeof mw_renderList === 'function') {
+                mw_renderList();
+            }
+
+            // 刷新当前正在编辑的文档
+            if (typeof window.mw_getActive === 'function' && typeof window.mw_notifyEditorLoad === 'function') {
+                const activeId = window.mw_getActive();
+                if (activeId && typeof window.mw_loadDocs === 'function') {
+                    const docs = window.mw_loadDocs();
+                    const currentDoc = docs.find(d => d.id === activeId);
+                    if (currentDoc) {
+                        // 刷新当前文档到各个面板
+                        window.mw_notifyEditorLoad(currentDoc);
+                        if (typeof window.mw_notifyPreviewLoad === 'function') {
+                            window.mw_notifyPreviewLoad(currentDoc);
+                        }
+                        if (typeof window.mw_notifyMindmapLoad === 'function') {
+                            window.mw_notifyMindmapLoad(currentDoc);
+                        }
+                        console.log(MODULE_NAME, '已刷新当前编辑文档:', activeId);
+                    }
+                }
+
+                // 检查当前文档是否被删除，如果是则切换到第一个有效文档
+                const currentActiveId = window.mw_getActive();
+                if (currentActiveId) {
+                    const docs = window.mw_loadDocs ? window.mw_loadDocs() : [];
+                    const currentDoc = docs.find(d => d.id === currentActiveId);
+                    if (!currentDoc || currentDoc.deletedAt) {
+                        console.log(MODULE_NAME, '当前文档已被删除，准备切换到第一个有效文档');
+                        // 切换到第一个未删除的文档
+                        const firstValidDoc = docs.find(d => !d.deletedAt);
+                        if (firstValidDoc) {
+                            if (typeof window.mw_setActive === 'function') {
+                                window.mw_setActive(firstValidDoc.id);
+                            }
+                            window.mw_notifyEditorLoad(firstValidDoc);
+                            if (typeof window.mw_notifyPreviewLoad === 'function') {
+                                window.mw_notifyPreviewLoad(firstValidDoc);
+                            }
+                            if (typeof window.mw_notifyMindmapLoad === 'function') {
+                                window.mw_notifyMindmapLoad(firstValidDoc);
+                            }
+                            console.log(MODULE_NAME, '已切换到第一个有效文档:', firstValidDoc.id);
+                        } else {
+                            console.log(MODULE_NAME, '没有有效文档，等待用户手动创建');
+                        }
+                    }
+                }
+            }
+
+            // 更新同步状态（显示完整的云端备份时间）
+            await updateSyncStatus();
+
+            if (syncStatusEl) {
+                syncStatusEl.textContent = '同步成功';
+            }
+
+            if (window.showSuccess) {
+                window.showSuccess('同步成功！');
+            }
+
+            console.log(MODULE_NAME, '同步完成');
+            return targetData;
+        } catch (error) {
+            if (syncStatusEl) {
+                syncStatusEl.textContent = '同步失败';
+            }
+            throw error;
+        }
+    }
+
+    async function getLocalData() {
+        return new Promise((resolve) => {
+            // 使用 documents.js 中的函数读取本地数据
+            const docs = (typeof window.mw_loadDocs === 'function') ? window.mw_loadDocs() :
+                (typeof mw_loadDocs === 'function') ? mw_loadDocs() : [];
+
+            // 读取 AI 配置 - 使用与LeanCloud一致的键名
+            let aiConfig = {};
+            try {
+                const saved = localStorage.getItem('allAIPlatformConfigs');
+                if (saved) aiConfig = JSON.parse(saved);
+            } catch (_) { }
+
+            // 读取提示词模板 - 使用与LeanCloud一致的键名
+            let promptTemplates = [];
+            try {
+                const saved = localStorage.getItem('promptTemplates');
+                if (saved) promptTemplates = JSON.parse(saved);
+            } catch (_) { }
+
+            // 读取我的提示词模板 - 使用与LeanCloud一致的键名
+            let myPromptTemplates = [];
+            try {
+                const saved = localStorage.getItem('myPromptTemplates');
+                if (saved) myPromptTemplates = JSON.parse(saved);
+            } catch (_) { }
+
+            // 读取时间戳 - 使用与LeanCloud一致的键名
+            const docUpdatedAt = Number(localStorage.getItem('mw_doc_updated_at') || 0);
+            const aiConfigLastModified = Number(localStorage.getItem('allAIPlatformConfigs_last_modified') || 0);
+            const promptTemplatesLastModified = Number(localStorage.getItem('promptTemplates_last_modified') || 0);
+            const myPromptTemplatesLastModified = Number(localStorage.getItem('myPromptTemplates_last_modified') || 0);
+
+            resolve({
+                docs: docs,
+                aiConfig: aiConfig,
+                promptTemplates: promptTemplates,
+                myPromptTemplates: myPromptTemplates,
+                docUpdatedAt: docUpdatedAt,
+                aiConfigLastModified: aiConfigLastModified,
+                promptTemplatesLastModified: promptTemplatesLastModified,
+                myPromptTemplatesLastModified: myPromptTemplatesLastModified,
+                aiConfigHash: localStorage.getItem('allAIPlatformConfigs_hash') || null,
+                promptTemplatesHash: localStorage.getItem('promptTemplates_hash') || null,
+                myPromptTemplatesHash: localStorage.getItem('myPromptTemplates_hash') || null
+            });
+        });
+    }
+
+    async function setLocalData(data) {
+        return new Promise((resolve) => {
+            try {
+                // 保存文档数据
+                if (data.docs && Array.isArray(data.docs)) {
+                    if (typeof window.mw_saveDocs === 'function') {
+                        window.mw_saveDocs(data.docs);
+                    } else if (typeof mw_saveDocs === 'function') {
+                        mw_saveDocs(data.docs);
+                    } else {
+                        localStorage.setItem('mw_documents', JSON.stringify(data.docs));
+                    }
+
+                    // 触发文档列表刷新
+                    if (typeof window.mw_renderList === 'function') {
+                        window.mw_renderList();
+                    } else if (typeof mw_renderList === 'function') {
+                        mw_renderList();
+                    }
+                }
+
+                // 保存 AI 配置 - 使用与LeanCloud一致的键名
+                if (data.aiConfig) {
+                    localStorage.setItem('allAIPlatformConfigs', JSON.stringify(data.aiConfig));
+                }
+
+                // 保存提示词模板 - 使用与LeanCloud一致的键名
+                if (data.promptTemplates) {
+                    localStorage.setItem('promptTemplates', JSON.stringify(data.promptTemplates));
+                }
+
+                // 保存我的提示词模板 - 使用与LeanCloud一致的键名
+                if (data.myPromptTemplates) {
+                    localStorage.setItem('myPromptTemplates', JSON.stringify(data.myPromptTemplates));
+                }
+
+                // 保存时间戳 - 使用与LeanCloud一致的键名
+                if (data.docUpdatedAt) {
+                    localStorage.setItem('mw_doc_updated_at', String(data.docUpdatedAt));
+                }
+                if (data.aiConfigLastModified) {
+                    localStorage.setItem('allAIPlatformConfigs_last_modified', String(data.aiConfigLastModified));
+                }
+                if (data.promptTemplatesLastModified) {
+                    localStorage.setItem('promptTemplates_last_modified', String(data.promptTemplatesLastModified));
+                }
+                if (data.myPromptTemplatesLastModified) {
+                    localStorage.setItem('myPromptTemplates_last_modified', String(data.myPromptTemplatesLastModified));
+                }
+
+                // 保存哈希值 - 使用与LeanCloud一致的键名
+                if (data.aiConfigHash) {
+                    localStorage.setItem('allAIPlatformConfigs_hash', data.aiConfigHash);
+                }
+                if (data.promptTemplatesHash) {
+                    localStorage.setItem('promptTemplates_hash', data.promptTemplatesHash);
+                }
+                if (data.myPromptTemplatesHash) {
+                    localStorage.setItem('myPromptTemplates_hash', data.myPromptTemplatesHash);
+                }
+
+                console.log(MODULE_NAME, '本地数据已更新');
+                resolve();
+            } catch (error) {
+                console.error(MODULE_NAME, '保存本地数据失败:', error);
+                resolve();
+            }
+        });
+    }
+
+    async function submitFeedback(feedbackData) {
+        const client = initSupabase();
+        if (!client) throw new Error('Supabase 未初始化');
+
+        const { error } = await client
+            .from(TABLE_FEEDBACK)
+            .insert([{
+                email: feedbackData.email,
+                type: feedbackData.type,
+                content: feedbackData.content,
+                status: 'pending'
+            }]);
+
+        if (error) throw error;
+    }
+
+    async function clearCloudData() {
+        const client = initSupabase();
+        if (!client) throw new Error('Supabase 未初始化');
+
+        const user = await getCurrentUser();
+        if (!user) throw new Error('用户未登录');
+
+        const { error } = await client
+            .from(TABLE_USER_DATA)
+            .delete()
+            .eq('user_id', user.id);
+
+        if (error) throw error;
+
+        if (window.showSuccess) {
+            window.showSuccess('云端数据已清空');
+        }
+    }
+
+    // 计算文件大小（包括文档内容和图片）
+    function calculateDataSize(docs) {
+        let totalSize = 0;
+        let imageCount = 0;
+
+        for (const doc of (docs || [])) {
+            if (!doc) continue;
+
+            // 计算文档文本内容大小
+            if (doc.md) {
+                totalSize += new Blob([doc.md]).size;
+            }
+
+            // 计算标题大小
+            if (doc.name) {
+                totalSize += new Blob([doc.name]).size;
+            }
+
+            // 计算备注大小
+            if (doc.note) {
+                totalSize += new Blob([doc.note]).size;
+            }
+
+            // 计算文档中图片的大小
+            if (doc.images && Array.isArray(doc.images)) {
+                for (const img of doc.images) {
+                    if (img.data) {
+                        // base64 数据大小估算
+                        const base64Size = img.data.length * 0.75;
+                        totalSize += base64Size;
+                        imageCount++;
+                    }
+                }
+            }
+
+            // 检查 markdown 中的 base64 图片
+            if (doc.md) {
+                const imgMatches = doc.md.match(/data:image\/[^;]+;base64,[^"']+/g) || [];
+                for (const imgData of imgMatches) {
+                    const base64Data = imgData.split(',')[1];
+                    if (base64Data) {
+                        totalSize += base64Data.length * 0.75;
+                        imageCount++;
+                    }
+                }
+            }
+        }
+
+        return { totalSize, imageCount };
+    }
+
+    // 格式化相对时间
+    function formatRelativeTime(timestamp) {
+        if (!timestamp) return '';
+
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMins < 1) {
+            return '刚刚';
+        } else if (diffMins < 60) {
+            return `${diffMins}分钟前`;
+        } else if (diffHours < 24) {
+            return `${diffHours}小时前`;
+        } else if (diffDays < 7) {
+            return `${diffDays}天前`;
+        } else {
+            return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+        }
+    }
+
+    // 格式化文件大小
+    function formatFileSize(bytes) {
+        if (bytes < 1024) {
+            return bytes + 'B';
+        } else if (bytes < 1024 * 1024) {
+            return (bytes / 1024).toFixed(1) + 'KB';
+        } else {
+            return (bytes / 1024 / 1024).toFixed(1) + 'MB';
+        }
+    }
+
+    // 云端同步时间缓存
+    let cachedLastSyncTime = 0;
+    let lastSyncTimeCheck = 0;
+    const SYNC_TIME_CACHE_TTL = 60000; // 60秒缓存
+
+    // 只显示本地数据状态（完全不请求任何API）
+    function displayLocalDataStatus() {
+        const syncStatusEl = document.getElementById('lc-sync-status-menu');
+        if (!syncStatusEl) return;
+
+        try {
+            // 直接从localStorage获取文档数据（不调用任何API）
+            let docs = [];
+            try {
+                const saved = localStorage.getItem('mw_documents');
+                if (saved) docs = JSON.parse(saved);
+            } catch (_) { }
+
+            // 过滤掉已删除的文档
+            const validDocs = docs.filter(doc => !doc.deletedAt);
+            const fileCount = validDocs.length;
+
+            // 计算数据大小
+            const { totalSize } = calculateDataSize(validDocs);
+
+            // 更新状态显示
+            const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+            const maxSizeInMB = (MAX_SIZE / 1024 / 1024).toFixed(0);
+
+            // 根据大小智能选择单位
+            let sizeText;
+            if (totalSize >= 1024 * 1024) {
+                sizeText = (totalSize / 1024 / 1024).toFixed(1) + 'MB';
+            } else {
+                sizeText = (totalSize / 1024).toFixed(1) + 'KB';
+            }
+
+            // 只显示本地数据
+            let statusHtml = `文件: ${fileCount}个<br>${sizeText} / ${maxSizeInMB}MB`;
+
+            // 超过10MB时添加警告提示
+            if (totalSize > MAX_SIZE) {
+                statusHtml += `<br><span style="color: #e74c3c; font-weight: bold;">超过限制!</span>`;
+            }
+
+            syncStatusEl.innerHTML = statusHtml;
+
+            // 根据使用情况改变颜色
+            if (totalSize > MAX_SIZE) {
+                syncStatusEl.style.color = '#e74c3c';
+            } else if (totalSize > 8 * 1024 * 1024) {
+                syncStatusEl.style.color = '#f39c12';
+            } else if (totalSize > 5 * 1024 * 1024) {
+                syncStatusEl.style.color = '#f39c12';
+            } else {
+                syncStatusEl.style.color = '#9ca3af';
+            }
+        } catch (error) {
+            console.error(MODULE_NAME, '显示本地状态失败:', error);
+            syncStatusEl.textContent = '点击同步';
+            syncStatusEl.style.color = '#9ca3af';
+        }
+    }
+
+    // 更新本地数据状态（带登录检查，用于点击同步按钮前）
+    async function updateLocalSyncStatus() {
+        const syncStatusEl = document.getElementById('lc-sync-status-menu');
+        if (!syncStatusEl) return;
+
+        const loggedIn = await isLoggedIn();
+        if (!loggedIn) {
+            syncStatusEl.textContent = '请先登录';
+            syncStatusEl.style.color = '#9ca3af';
+            return;
+        }
+
+        // 登录后显示本地数据
+        displayLocalDataStatus();
+    }
+
+    // 更新完整状态（包括云端同步时间）- 按需调用
+    async function updateSyncStatus() {
+        const syncStatusEl = document.getElementById('lc-sync-status-menu');
+        if (!syncStatusEl) return;
+
+        const loggedIn = await isLoggedIn();
+        if (!loggedIn) {
+            syncStatusEl.textContent = '请先登录';
+            syncStatusEl.style.color = '#9ca3af';
+            return;
+        }
+
+        try {
+            // 获取本地数据
+            const localData = await getLocalData();
+            const docs = localData.docs || [];
+
+            // 过滤掉已删除的文档
+            const validDocs = docs.filter(doc => !doc.deletedAt);
+            const fileCount = validDocs.length;
+
+            // 计算数据大小
+            const { totalSize } = calculateDataSize(validDocs);
+
+            // 获取云端最后同步时间
+            let lastSyncTime = 0;
+            try {
+                const cloudData = await downloadFromSupabase();
+                if (cloudData && cloudData.updatedAtMs) {
+                    lastSyncTime = cloudData.updatedAtMs;
+                    // 更新缓存
+                    cachedLastSyncTime = lastSyncTime;
+                    lastSyncTimeCheck = Date.now();
+                }
+            } catch (e) {
+                console.log(MODULE_NAME, '获取云端同步时间失败');
+            }
+
+            // 如果没有云端同步时间，显示"未同步"
+            let timeText;
+            if (lastSyncTime > 0) {
+                timeText = formatRelativeTime(lastSyncTime);
+            } else {
+                timeText = '未同步';
+            }
+
+            // 更新状态显示
+            // 格式：文件: X个
+            //      X.XKB / 10MB  或  X.XMB / 10MB
+            //      备份: X小时前
+            const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+            const maxSizeInMB = (MAX_SIZE / 1024 / 1024).toFixed(0);
+
+            // 根据大小智能选择单位
+            let sizeText;
+            if (totalSize >= 1024 * 1024) {
+                // 超过1MB，显示为MB
+                sizeText = (totalSize / 1024 / 1024).toFixed(1) + 'MB';
+            } else {
+                // 小于1MB，显示为KB
+                sizeText = (totalSize / 1024).toFixed(1) + 'KB';
+            }
+
+            let statusHtml = `文件: ${fileCount}个<br>${sizeText} / ${maxSizeInMB}MB`;
+            if (timeText) {
+                statusHtml += `<br>备份: ${timeText}`;
+            }
+
+            // 超过10MB时添加警告提示
+            if (totalSize > MAX_SIZE) {
+                statusHtml += `<br><span style="color: #e74c3c; font-weight: bold;">超过限制!</span>`;
+            }
+
+            syncStatusEl.innerHTML = statusHtml;
+
+            // 根据使用情况改变颜色
+            if (totalSize > MAX_SIZE) { // 超过10MB - 红色警告
+                syncStatusEl.style.color = '#e74c3c';
+            } else if (totalSize > 8 * 1024 * 1024) { // 超过8MB - 橙色警告
+                syncStatusEl.style.color = '#f39c12';
+            } else if (totalSize > 5 * 1024 * 1024) { // 超过5MB - 黄色提示
+                syncStatusEl.style.color = '#f39c12';
+            } else {
+                syncStatusEl.style.color = '#9ca3af';
+            }
+
+            console.log(MODULE_NAME, '状态已更新:', { fileCount, formattedSize, timeText });
+        } catch (error) {
+            console.error(MODULE_NAME, '更新状态失败:', error);
+            syncStatusEl.textContent = '点击同步';
+            syncStatusEl.style.color = '#9ca3af';
+        }
+    }
+
+    function initUIBindings() {
+        console.log(MODULE_NAME, '初始化UI绑定...');
+
+        const zhCtrls = document.getElementById('lc-sync-controls-menu');
+        const menuSyncBtn = document.getElementById('lc-sync-btn-menu');
+        const menuClearBtn = document.getElementById('lc-clear-btn-menu');
+
+        console.log(MODULE_NAME, 'UI元素查找结果:', {
+            '同步控制区域': !!zhCtrls,
+            '同步按钮': !!menuSyncBtn,
+            '清空按钮': !!menuClearBtn
+        });
+
+        // 检查登录状态，决定是否显示同步控制区域
+        function refreshVisible() {
+            const authUser = document.getElementById('auth-user');
+            console.log(MODULE_NAME, '刷新可见性 - auth-user元素:', !!authUser, 'display:', authUser ? authUser.style.display : 'null');
+
+            // 未登录：隐藏同步控制区域，避免初次闪现
+            if (!authUser || authUser.style.display === 'none') {
+                if (zhCtrls) {
+                    zhCtrls.style.display = 'none';
+                    console.log(MODULE_NAME, '隐藏同步控制区域（未登录）');
+                }
+                return;
+            }
+            // 已登录：显示同步控制区域
+            if (zhCtrls) {
+                zhCtrls.style.display = 'flex';
+                console.log(MODULE_NAME, '显示同步控制区域（已登录）');
+            }
+        }
+
+        // 阻止父元素的点击事件冒泡到按钮
+        if (zhCtrls) {
+            zhCtrls.addEventListener('click', function (e) {
+                // 如果点击的是按钮，不处理
+                if (e.target.id === 'lc-sync-btn-menu' || e.target.closest('#lc-sync-btn-menu')) {
+                    return;
+                }
+                // 如果点击的是清空按钮区域，也不处理
+                if (e.target.closest('[onclick*="lc-clear-btn-menu"]')) {
+                    return;
+                }
+                // 否则阻止默认行为和冒泡
+                e.preventDefault();
+                e.stopPropagation();
+            });
+        }
+
+        if (menuSyncBtn) {
+            console.log(MODULE_NAME, '找到同步按钮，准备绑定点击事件');
+
+            // 同步状态标记
+            let isSyncing = false;
+
+            // 显示加载状态
+            function showSyncLoading() {
+                isSyncing = true;
+                menuSyncBtn.disabled = true;
+                menuSyncBtn.innerHTML = '<span class="sync-spinner" style="display:inline-block; width:12px; height:12px; border:2px solid #fff; border-top-color:transparent; border-radius:50%; animation:sync-spin 1s linear infinite;"></span> 同步中...';
+                menuSyncBtn.style.opacity = '0.8';
+                menuSyncBtn.style.cursor = 'not-allowed';
+
+                // 添加CSS动画
+                if (!document.getElementById('sync-spinner-style')) {
+                    const style = document.createElement('style');
+                    style.id = 'sync-spinner-style';
+                    style.textContent = `
+                        @keyframes sync-spin {
+                            to { transform: rotate(360deg); }
+                        }
+                    `;
+                    document.head.appendChild(style);
+                }
+            }
+
+            // 恢复按钮状态
+            function hideSyncLoading() {
+                isSyncing = false;
+                menuSyncBtn.disabled = false;
+                menuSyncBtn.innerHTML = '同步';
+                menuSyncBtn.style.opacity = '1';
+                menuSyncBtn.style.cursor = 'pointer';
+            }
+
+            // 直接使用onclick属性绑定，确保事件能触发
+            menuSyncBtn.onclick = async function (e) {
+                e.stopPropagation();
+                e.preventDefault();
+
+                // 防止重复点击
+                if (isSyncing) {
+                    console.log(MODULE_NAME, '同步正在进行中，忽略重复点击');
+                    return;
+                }
+
+                console.log(MODULE_NAME, '=== 同步按钮被点击 (onclick) ===');
+
+                try {
+                    showSyncLoading();
+                    console.log(MODULE_NAME, '开始执行同步...');
+                    await bidirectionalSync();
+                    console.log(MODULE_NAME, '同步执行完成');
+                } catch (error) {
+                    console.error(MODULE_NAME, '同步失败:', error);
+                    if (window.showError) {
+                        window.showError('同步失败: ' + (error.message || '未知错误'));
+                    }
+                } finally {
+                    hideSyncLoading();
+                }
+            };
+
+            console.log(MODULE_NAME, '同步按钮事件绑定成功');
+        } else {
+            console.warn(MODULE_NAME, '未找到同步按钮 lc-sync-btn-menu');
+        }
+
+        if (menuClearBtn) {
+            console.log(MODULE_NAME, '找到清空按钮，准备绑定点击事件');
+
+            // 直接使用onclick属性绑定
+            menuClearBtn.onclick = async function (e) {
+                e.stopPropagation();
+                e.preventDefault();
+                console.log(MODULE_NAME, '=== 清空按钮被点击 (onclick) ===');
+
+                if (confirm('确定要清空云端数据吗？此操作不可恢复！')) {
+                    try {
+                        await clearCloudData();
+                    } catch (error) {
+                        console.error(MODULE_NAME, '清空失败:', error);
+                        if (window.showError) {
+                            window.showError('清空失败: ' + (error.message || '未知错误'));
+                        }
+                    }
+                }
+            };
+
+            console.log(MODULE_NAME, '清空按钮事件绑定成功');
+        } else {
+            console.warn(MODULE_NAME, '未找到清空按钮 lc-clear-btn-menu');
+        }
+
+        // 监听登录状态变化（只刷新可见性，不请求数据）
+        window.addEventListener('storage', function (e) {
+            if (e.key && e.key.includes('supabase')) {
+                console.log(MODULE_NAME, '检测到Supabase存储变化，刷新可见性');
+                setTimeout(refreshVisible, 50);
+            }
+            // 监听文档变化，只更新本地数据显示（不请求云端）
+            if (e.key && (e.key.includes('doc') || e.key.includes('mw_documents'))) {
+                console.log(MODULE_NAME, '检测到文档变化，更新本地状态显示');
+                setTimeout(displayLocalDataStatus, 100);
+            }
+        });
+
+        // 提供给外部在认证区变化后刷新
+        window.__mw_refreshSyncLangUI = refreshVisible;
+
+        // 初始化：只显示本地数据状态（不请求用户状态和云端）
+        setTimeout(function () {
+            // 只显示本地文件数和大小，不请求任何API
+            displayLocalDataStatus();
+        }, 500);
+        setTimeout(refreshVisible, 100);
+
+        console.log(MODULE_NAME, 'UI绑定初始化完成');
+    }
+
+    // 立即执行UI绑定（因为脚本可能是延迟加载的）
+    if (document.readyState === 'loading') {
+        // DOM还在加载中，等待DOMContentLoaded
+        document.addEventListener('DOMContentLoaded', function () {
+            console.log(MODULE_NAME, 'DOMContentLoaded触发，开始初始化UI绑定');
+            initUIBindings();
+        });
+    } else {
+        // DOM已经加载完成，立即执行
+        console.log(MODULE_NAME, 'DOM已加载完成，立即初始化UI绑定');
+        initUIBindings();
+    }
+
+    window.MW_SPB_SYNC = {
+        sync: async function () {
+            try {
+                return await bidirectionalSync();
+            } catch (error) {
+                console.error(MODULE_NAME, '同步失败:', error);
+                throw error;
+            }
+        },
+
+        isLoggedIn: isLoggedIn,
+
+        getCurrentUser: getCurrentUser,
+
+        download: downloadFromSupabase,
+
+        upload: async function (data) {
+            await uploadToSupabase(data);
+        },
+
+        clearCloud: clearCloudData,
+
+        submitFeedback: submitFeedback,
+
+        isAvailable: function () {
+            return typeof window.getSupabase === 'function' && !!window.getSupabase();
+        },
+
+        updateStatus: updateSyncStatus,
+
+        displayLocalStatus: displayLocalDataStatus
+    };
+
+    console.log(MODULE_NAME, '模块已加载');
+})();

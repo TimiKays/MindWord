@@ -409,14 +409,15 @@
             }
         }
     </style>
-    <!-- LeanCloud SDK -->
-    <script src="/local-deps/av-min.js"></script>
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
+    <script src="supabase-config.js"></script>
 </head>
 
 <body style="flex-direction: column; ">
     <div>
 
-    </div display="flex" flex-direction="column" align-items="center">
+    </div>
     <div class="container">
         <h1 data-i18n="auth.welcome">欢迎使用MindWord</h1>
         <div class="tabs">
@@ -428,7 +429,7 @@
         <form id="f-login" class="active">
             <label data-i18n="auth.email">邮箱</label>
             <input id="login-email" type="email" data-i18n-placeholder="auth.emailPlaceholder" placeholder="请输入您的邮箱地址"
-                required autocomplete="email" />
+                required autocomplete="off" />
             <label data-i18n="auth.password">密码</label>
             <input id="login-pass" type="password" data-i18n-placeholder="auth.passwordPlaceholder"
                 placeholder="请输入您的密码" required autocomplete="current-password" />
@@ -462,7 +463,8 @@
 
             <div class="row">
                 <button id="btn-signup" type="button" data-i18n="auth.signup">注册</button>
-
+                <button id="btn-resend-verify" type="button"
+                    style="background: transparent; color: #619dff; border: 1px solid #619dff; display: none;">重新发送验证邮件</button>
             </div>
             <div id="signup-msg" class="hint" data-i18n="auth.signupHint">注册后会发送验证邮件到您的邮箱</div>
         </form>
@@ -497,290 +499,467 @@
             <p data-i18n="auth.verificationEmailContent">验证邮件已发送。请查看邮箱并点击链接，完成注册后即可登录</p>
             <button id="btn-verify-complete" class="modal-button" data-i18n="auth.verifiedGoLogin">我已验证，去登录</button>
         </div>
+    </div>
 
+    <script>
+        // 轻量提示
+        function setMsg(id, text, kind) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            el.className = kind || 'hint';
+            el.textContent = text || '';
+        }
 
-        <script>
-            //  LeanCloud 应用信息
-            var APP_ID = 'MQ3fZEqOgskJBWGoxOwqG1nT-gzGzoHsz';
-            var APP_KEY = 'bhU0peMhrAVKEJ2OQbiFKXwC';
+        // 等待 Supabase 初始化
+        async function waitForSupabase(maxWait = 5000) {
+            const startTime = Date.now();
+            while (Date.now() - startTime < maxWait) {
+                if (typeof window.getSupabase === 'function') {
+                    const client = window.getSupabase();
+                    if (client) return client;
+                }
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            throw new Error('Supabase 初始化超时');
+        }
+
+        // Tab 切换
+        document.querySelectorAll('.tab').forEach(function (tab) {
+            tab.addEventListener('click', function () {
+                document.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('active'); });
+                tab.classList.add('active');
+                var t = tab.getAttribute('data-t');
+                document.querySelectorAll('form').forEach(function (f) { f.classList.remove('active'); });
+                document.getElementById('f-' + t).classList.add('active');
+            });
+        });
+
+        // 为登录表单添加Enter键提交功能
+        document.getElementById('login-pass').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('btn-login').click();
+            }
+        });
+
+        // 为注册表单的确认密码输入框添加Enter键提交功能
+        document.getElementById('signup-pass-confirm').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('btn-signup').click();
+            }
+        });
+
+        // 为重置密码表单的邮箱输入框添加Enter键提交功能
+        document.getElementById('reset-email').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('btn-reset').click();
+            }
+        });
+
+        // Cloudflare Worker 迁移服务地址
+        const MIGRATE_WORKER_URL = 'https://migrate.mindword.dpdns.org';
+
+        // 登录（支持自动迁移）
+        document.getElementById('btn-login').addEventListener('click', async function () {
+            var email = document.getElementById('login-email').value.trim();
+            var pass = document.getElementById('login-pass').value;
+            if (!email || !pass) return setMsg('login-msg', i18n.t('auth.pleaseEnterEmailAndPassword'), 'err');
+            setMsg('login-msg', i18n.t('auth.loggingIn'), 'hint');
 
             try {
-                if (typeof AV !== 'undefined' && AV && !AV.applicationId) {
-                    // 从 LeanCloud 控制台复制“API 服务器地址”到 SERVER_URL（必填）
-                    var SERVER_URL = 'https://mq3fzeqo.lc-cn-n1-shared.com';
-                    if (!SERVER_URL || SERVER_URL.indexOf('http') !== 0) {
-                        console.error('[AUTH] LeanCloud SERVER_URL 未设置，请到控制台复制“API 服务器地址”并替换占位符 LEANCLOUD_SERVER_URL');
-                    }
-                    AV.init({ appId: APP_ID, appKey: APP_KEY, serverURL: SERVER_URL });
-                }
-            } catch (e) {
-                console.warn('[AUTH] AV init failed', e);
-            }
+                const supabase = await waitForSupabase();
 
-            // 轻量提示
-            function setMsg(id, text, kind) {
-                var el = document.getElementById(id);
-                if (!el) return;
-                el.className = kind || 'hint';
-                el.textContent = text || '';
-            }
-
-            // Tab 切换
-            document.querySelectorAll('.tab').forEach(function (tab) {
-                tab.addEventListener('click', function () {
-                    document.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('active'); });
-                    tab.classList.add('active');
-                    var t = tab.getAttribute('data-t');
-                    document.querySelectorAll('form').forEach(function (f) { f.classList.remove('active'); });
-                    document.getElementById('f-' + t).classList.add('active');
+                // 步骤1：先尝试 Supabase 登录
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: email,
+                    password: pass
                 });
-            });
 
-            // 为登录表单添加Enter键提交功能
-            document.getElementById('login-pass').addEventListener('keypress', function (e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    document.getElementById('btn-login').click();
-                }
-            });
-
-            // 为注册表单的确认密码输入框添加Enter键提交功能
-            document.getElementById('signup-pass-confirm').addEventListener('keypress', function (e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    document.getElementById('btn-signup').click();
-                }
-            });
-
-            // 为重置密码表单的邮箱输入框添加Enter键提交功能
-            document.getElementById('reset-email').addEventListener('keypress', function (e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    document.getElementById('btn-reset').click();
-                }
-            });
-
-            // 登录（仅支持邮箱+密码登录，检查邮箱验证状态）
-            document.getElementById('btn-login').addEventListener('click', async function () {
-                var email = document.getElementById('login-email').value.trim();
-                var pass = document.getElementById('login-pass').value;
-                if (!email || !pass) return setMsg('login-msg', i18n.t('auth.pleaseEnterEmailAndPassword'), 'err');
-                setMsg('login-msg', i18n.t('auth.loggingIn'), 'hint');
-
-                try {
-                    // 仅使用邮箱登录
-                    await AV.User.loginWithEmail(email, pass);
-
+                // 如果登录成功
+                if (!error && data.user) {
                     // 检查邮箱是否已验证
-                    var currentUser = AV.User.current();
-                    if (currentUser && !currentUser.get('emailVerified')) {
+                    if (!data.user.email_confirmed_at) {
                         setMsg('login-msg', i18n.t('auth.emailNotVerified'), 'err');
-                        // 登出未验证的用户
-                        await AV.User.logOut();
+                        await supabase.auth.signOut();
                         return;
                     }
 
                     setMsg('login-msg', i18n.t('auth.loginSuccess'), 'success');
+                    localStorage.setItem('lastLoginEmail', email);
                     setTimeout(function () { window.location.href = 'app.html'; }, 600);
-                } catch (e) {
-                    let errorMsg = i18n.t('auth.loginFailed');
-                    if (e && e.message) {
-                        // 根据LeanCloud错误消息提供更友好的提示
-                        if (e.message.includes("Email address isn't verified.")) {
-                            errorMsg = i18n.t('auth.emailNotVerified');
-                            setMsg('login-msg', errorMsg, 'err');
+                    return;
+                }
 
-                            // 添加重新发送激活邮件的按钮
-                            setTimeout(() => {
-                                const loginMsg = document.getElementById('login-msg');
-                                if (loginMsg && loginMsg.textContent.includes(i18n.t('auth.emailNotVerified'))) {
-                                    const resendBtn = document.createElement('button');
-                                    resendBtn.textContent = i18n.t('auth.resendActivationEmail');
-                                    resendBtn.className = 'resend-email-btn';
-                                    resendBtn.onclick = async function () {
-                                        try {
-                                            resendBtn.disabled = true;
-                                            resendBtn.textContent = i18n.t('auth.sending');
+                // 步骤2：Supabase 登录失败，尝试兼容性登录（支持旧平台账号迁移）
+                // 注意：Supabase 不会区分"用户不存在"和"密码错误"，都返回 Invalid login credentials
+                if (error && (error.message.includes('Invalid login credentials') ||
+                    error.message.includes('user not found'))) {
 
-                                            // 请求发送验证邮件
-                                            await AV.User.requestEmailVerify(email);
+                    setMsg('login-msg', '正在尝试兼容性登录（约需10-60秒，请耐心等待）...', 'hint');
 
-                                            resendBtn.textContent = i18n.t('auth.sent');
+                    // 步骤3：调用迁移服务
+                    try {
+                        const migrateController = new AbortController();
+                        const migrateTimeout = setTimeout(() => migrateController.abort(), 30000); // 30秒超时
 
-                                            setMsg('login-msg', i18n.t('auth.activationEmailResent'), 'success');
-                                        } catch (resendError) {
-                                            resendBtn.disabled = false;
-                                            resendBtn.textContent = i18n.t('auth.resendActivationEmail');
+                        const migrateResponse = await fetch(MIGRATE_WORKER_URL, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email: email, password: pass }),
+                            signal: migrateController.signal
+                        });
+                        clearTimeout(migrateTimeout);
 
-                                            let resendErrorMsg = i18n.t('auth.sendFailedRetry');
-                                            if (resendError && resendError.message) {
-                                                if (resendError.message.includes('network') || resendError.message.includes('timeout')) {
-                                                    resendErrorMsg = i18n.t('auth.networkError');
-                                                } else if (resendError.message.includes('email')) {
-                                                    resendErrorMsg = i18n.t('auth.invalidEmailFormat');
-                                                } else if (resendError.message.includes('already verified')) {
-                                                    resendErrorMsg = i18n.t('auth.emailAlreadyVerified');
-                                                } else {
-                                                    resendErrorMsg = resendError.message;
-                                                }
-                                            }
-                                            setMsg('login-msg', `${i18n.t('auth.resendFailed')}: ${resendErrorMsg}`, 'err');
-                                        }
-                                    };
-                                    loginMsg.appendChild(resendBtn);
+                        const migrateResult = await migrateResponse.json();
+
+                        if (!migrateResponse.ok) {
+                            // 迁移失败，显示具体错误
+                            if (migrateResult && migrateResult.error) {
+                                throw new Error('迁移失败: ' + migrateResult.error);
+                            }
+                            throw error;
+                        }
+
+                        // 迁移成功，自动登录
+                        setMsg('login-msg', '迁移成功，正在登录...', 'hint');
+
+                        const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+                            email: email,
+                            password: pass
+                        });
+
+                        if (loginError) {
+                            throw loginError;
+                        }
+
+                        setMsg('login-msg', '登录成功！', 'success');
+                        localStorage.setItem('lastLoginEmail', email);
+                        setTimeout(function () { window.location.href = 'app.html'; }, 600);
+                        return;
+
+                    } catch (migrateError) {
+                        // 迁移超时或失败
+                        if (migrateError.name === 'AbortError') {
+                            setMsg('login-msg', '迁移超时，请稍后重试或联系客服', 'err');
+                        } else {
+                            // 迁移也失败，显示原登录错误
+                            throw error;
+                        }
+                    }
+                }
+
+                // 其他错误直接抛出
+                throw error;
+
+            } catch (e) {
+                let errorMsg = '登录失败，请重试';
+                let showResendBtn = false;
+
+                if (e && e.message) {
+                    const msg = e.message.toLowerCase();
+
+                    // 英文错误翻译成中文
+                    if (msg.includes('email not confirmed') || msg.includes('not confirmed')) {
+                        errorMsg = '邮箱尚未验证，请查看邮件或点击重新发送';
+                        showResendBtn = true;
+                    } else if (msg.includes('invalid login credentials') || msg.includes('invalid credentials')) {
+                        errorMsg = '邮箱或密码错误，请检查';
+                    } else if (msg.includes('rate limit') || msg.includes('rate_limit') || msg.includes('too many requests')) {
+                        errorMsg = '登录尝试太频繁，请稍后再试';
+                    } else if (msg.includes('network') || msg.includes('timeout') || msg.includes('fetch')) {
+                        errorMsg = '网络连接失败，请检查网络后重试';
+                    } else if (msg.includes('user not found') || msg.includes('not found')) {
+                        errorMsg = '该邮箱未注册，请先注册';
+                    } else if (msg.includes('invalid email') || msg.includes('valid email')) {
+                        errorMsg = '邮箱格式不正确';
+                    } else if (msg.includes('jwt') || msg.includes('token')) {
+                        errorMsg = '登录状态已过期，请重新登录';
+                    } else {
+                        errorMsg = '登录失败: ' + e.message;
+                    }
+                }
+
+                setMsg('login-msg', errorMsg, 'err');
+
+                // 如果需要显示重新发送按钮
+                if (showResendBtn) {
+                    setTimeout(() => {
+                        const loginMsg = document.getElementById('login-msg');
+                        if (loginMsg && !loginMsg.querySelector('.resend-email-btn')) {
+                            const resendBtn = document.createElement('button');
+                            resendBtn.textContent = '重新发送验证邮件';
+                            resendBtn.className = 'resend-email-btn';
+                            resendBtn.onclick = async function () {
+                                try {
+                                    resendBtn.disabled = true;
+                                    resendBtn.textContent = '发送中...';
+
+                                    const supabase = await waitForSupabase();
+                                    const { error } = await supabase.auth.resend({
+                                        type: 'signup',
+                                        email: email
+                                    });
+
+                                    if (error) throw error;
+
+                                    resendBtn.textContent = '已发送';
+                                    setMsg('login-msg', '验证邮件已发送，请查收', 'success');
+                                } catch (resendError) {
+                                    resendBtn.disabled = false;
+                                    resendBtn.textContent = '重新发送验证邮件';
+                                    let resendErrorMsg = resendError.message;
+                                    const resendMsg = resendError.message.toLowerCase();
+                                    if (resendMsg.includes('rate limit') || resendMsg.includes('too many requests')) {
+                                        resendErrorMsg = '发送太频繁，请稍后再试';
+                                    } else if (resendMsg.includes('not found') || resendMsg.includes('user not found')) {
+                                        resendErrorMsg = '该邮箱未注册';
+                                    }
+                                    setMsg('login-msg', '发送失败: ' + resendErrorMsg, 'err');
                                 }
-                            }, 100);
-                            return;
-                        } else if (e.message.includes('network') || e.message.includes('timeout')) {
-                            errorMsg = i18n.t('auth.networkError');
-                        } else {
-                            errorMsg = i18n.t('auth.emailNotFoundOrWrongPassword');
+                            };
+                            loginMsg.appendChild(resendBtn);
                         }
-                    }
-                    return setMsg('login-msg', errorMsg, 'err');
+                    }, 100);
                 }
-            });
-
-            // 显示验证邮件弹窗
-            function showEmailVerifyModal(email) {
-                document.getElementById('emailVerifyModal').style.display = 'block';
+                return;
             }
+        });
 
-            // 隐藏验证邮件弹窗
-            function hideEmailVerifyModal() {
-                document.getElementById('emailVerifyModal').style.display = 'none';
-            }
+        // 显示验证邮件弹窗
+        function showEmailVerifyModal(email) {
+            document.getElementById('emailVerifyModal').style.display = 'block';
+        }
 
-            // 注册（邮箱作为用户名 + email）
-            document.getElementById('btn-signup').addEventListener('click', async function () {
-                var email = document.getElementById('signup-email').value.trim();
-                var pass = document.getElementById('signup-pass').value;
-                var passConfirm = document.getElementById('signup-pass-confirm').value;
-                var privacyAgreement = document.getElementById('privacy-agreement');
+        // 隐藏验证邮件弹窗
+        function hideEmailVerifyModal() {
+            document.getElementById('emailVerifyModal').style.display = 'none';
+        }
 
-                if (!email || !pass) return setMsg('signup-msg', i18n.t('auth.pleaseEnterEmailAndPassword'), 'err');
-                if (pass.length < 6) return setMsg('signup-msg', i18n.t('auth.passwordTooShort'), 'err');
-                if (pass !== passConfirm) return setMsg('signup-msg', i18n.t('auth.passwordsDoNotMatch'), 'err');
-                if (!privacyAgreement || !privacyAgreement.checked) return setMsg('signup-msg', '请阅读并同意隐私政策', 'err');
-                setMsg('signup-msg', i18n.t('auth.registering'), 'info');
-                try {
-                    var user = new AV.User();
-                    user.setUsername(email);
-                    user.setPassword(pass);
-                    user.setEmail(email);
-                    // 设置邮箱未验证状态
-                    user.set('emailVerified', false);
-                    await user.signUp();
+        // 注册
+        document.getElementById('btn-signup').addEventListener('click', async function () {
+            var email = document.getElementById('signup-email').value.trim();
+            var pass = document.getElementById('signup-pass').value;
+            var passConfirm = document.getElementById('signup-pass-confirm').value;
+            var privacyAgreement = document.getElementById('privacy-agreement');
 
-                    // signUp()已自动发送验证邮件，无需重复发送
+            if (!email || !pass) return setMsg('signup-msg', i18n.t('auth.pleaseEnterEmailAndPassword'), 'err');
+            if (pass.length < 6) return setMsg('signup-msg', i18n.t('auth.passwordTooShort'), 'err');
+            if (pass !== passConfirm) return setMsg('signup-msg', i18n.t('auth.passwordsDoNotMatch'), 'err');
+            if (!privacyAgreement || !privacyAgreement.checked) return setMsg('signup-msg', '请阅读并同意隐私政策', 'err');
+            setMsg('signup-msg', i18n.t('auth.registering'), 'info');
 
-                    // 清空密码字段
-                    document.getElementById('signup-pass').value = '';
-                    document.getElementById('signup-pass-confirm').value = '';
-
-                    // 显示验证邮件弹窗
-                    showEmailVerifyModal(email);
-
-                    // 显示注册成功消息
-                    setMsg('signup-msg', i18n.t('auth.signupSuccess'), 'ok');
-
-                } catch (e) {
-                    let errorMsg = i18n.t('auth.registrationFailed');
-                    if (e && e.message) {
-                        // 根据LeanCloud错误消息提供更友好的提示
-                        if (e.message.includes('already exists') || e.message.includes('taken') || e.message.includes('此电子邮箱已经被占用')) {
-                            errorMsg = i18n.t('auth.emailAlreadyExists');
-                        } else if (e.message.includes('email')) {
-                            errorMsg = i18n.t('auth.invalidEmailFormat');
-                        } else if (e.message.includes('password')) {
-                            errorMsg = i18n.t('auth.passwordRequirements');
-                        } else if (e.message.includes('network') || e.message.includes('timeout')) {
-                            errorMsg = i18n.t('auth.networkError');
-                        } else {
-                            errorMsg = e.message; // 其他未知错误显示原始消息
-                        }
-                    }
-                    setMsg('signup-msg', errorMsg, 'err');
-                }
-            });
-
-            // 点击"我已验证，去登录"按钮
-            document.getElementById('btn-verify-complete').addEventListener('click', function () {
-                hideEmailVerifyModal();
-
-                // 获取注册时使用的邮箱
-                var email = document.getElementById('signup-email').value.trim();
-
-                // 切换到登录界面并传递邮箱
-                document.querySelector('.tab[data-t="login"]').click();
-                document.getElementById('login-email').value = email;
-                document.getElementById('login-pass').focus();
-            });
-
-            // 点击弹窗外部关闭弹窗
-            document.getElementById('emailVerifyModal').addEventListener('click', function (e) {
-                if (e.target === this) {
-                    hideEmailVerifyModal();
-                }
-            });
-
-            // 忘记密码（发送重置邮件）
-            document.getElementById('btn-reset').addEventListener('click', async function () {
-                var email = document.getElementById('reset-email').value.trim();
-                if (!email) return setMsg('reset-msg', i18n.t('auth.pleaseEnterEmail'), 'err');
-                setMsg('reset-msg', i18n.t('auth.sendingResetEmail'), 'hint');
-                try {
-                    await AV.User.requestPasswordReset(email);
-                    setMsg('reset-msg', i18n.t('auth.resetEmailSent'), 'success');
-                } catch (e) {
-                    let errorMsg = i18n.t('auth.sendFailedRetry');
-                    if (e && e.message) {
-                        // 根据LeanCloud错误消息提供更友好的提示
-                        if (e.message.includes('not found') || e.message.includes('user')) {
-                            errorMsg = i18n.t('auth.emailNotRegistered');
-                        } else if (e.message.includes('email')) {
-                            errorMsg = i18n.t('auth.invalidEmailFormat');
-                        } else if (e.message.includes('network') || e.message.includes('timeout')) {
-                            errorMsg = i18n.t('auth.networkError');
-                        } else {
-                            errorMsg = e.message; // 其他未知错误显示原始消息
-                        }
-                    }
-                    setMsg('reset-msg', errorMsg, 'err');
-                }
-            });
-
-            // 若已登录，直接回跳
             try {
-                var cur = AV.User.current && AV.User.current();
-                if (cur) {
+                const supabase = await waitForSupabase();
+
+                const { data, error } = await supabase.auth.signUp({
+                    email: email,
+                    password: pass
+                });
+
+                if (error) throw error;
+
+                // 清空密码字段
+                document.getElementById('signup-pass').value = '';
+                document.getElementById('signup-pass-confirm').value = '';
+
+                // 显示验证邮件弹窗
+                showEmailVerifyModal(email);
+
+                // 显示注册成功消息
+                setMsg('signup-msg', i18n.t('auth.signupSuccess'), 'ok');
+
+            } catch (e) {
+                let errorMsg = '注册失败，请重试';
+                let showResendBtn = false;
+
+                if (e && e.message) {
+                    const msg = e.message.toLowerCase();
+
+                    // 英文错误翻译成中文
+                    if (msg.includes('already exists') || msg.includes('taken') || msg.includes('user already registered')) {
+                        errorMsg = '该邮箱已被注册，请直接登录';
+                        showResendBtn = true; // 显示重新发送按钮，可能之前注册过但没验证
+                    } else if (msg.includes('rate limit') || msg.includes('rate_limit') || msg.includes('too many requests')) {
+                        errorMsg = '当前注册人数较多，请1小时后再试';
+                    } else if (msg.includes('invalid email') || msg.includes('valid email')) {
+                        errorMsg = '邮箱格式不正确，请检查';
+                    } else if (msg.includes('password') && (msg.includes('weak') || msg.includes('short') || msg.includes('6 characters'))) {
+                        errorMsg = '密码太简单，请设置至少6位密码';
+                    } else if (msg.includes('network') || msg.includes('timeout') || msg.includes('fetch')) {
+                        errorMsg = '网络连接失败，请检查网络后重试';
+                    } else if (msg.includes('email not confirmed') || msg.includes('not confirmed')) {
+                        errorMsg = '邮箱尚未验证，请查看邮件或重新发送验证邮件';
+                        showResendBtn = true;
+                    } else if (msg.includes('unable to validate') || msg.includes('validation')) {
+                        errorMsg = '输入信息验证失败，请检查邮箱和密码';
+                    } else if (msg.includes('over email send rate limit')) {
+                        errorMsg = '邮件发送太频繁，请稍后再试';
+                    } else {
+                        // 保留原始错误，但加上前缀
+                        errorMsg = '注册失败: ' + e.message;
+                    }
+                }
+
+                setMsg('signup-msg', errorMsg, 'err');
+
+                // 显示重新发送验证邮件按钮
+                const resendBtn = document.getElementById('btn-resend-verify');
+                if (resendBtn && showResendBtn) {
+                    resendBtn.style.display = 'inline-block';
+                }
+            }
+        });
+
+        // 重新发送验证邮件按钮点击事件
+        document.getElementById('btn-resend-verify').addEventListener('click', async function () {
+            const email = document.getElementById('signup-email').value.trim();
+            if (!email) {
+                setMsg('signup-msg', '请先输入邮箱地址', 'err');
+                return;
+            }
+
+            const btn = document.getElementById('btn-resend-verify');
+            btn.disabled = true;
+            btn.textContent = '发送中...';
+            setMsg('signup-msg', '正在发送验证邮件...', 'hint');
+
+            try {
+                const supabase = await waitForSupabase();
+                const { error } = await supabase.auth.resend({
+                    type: 'signup',
+                    email: email
+                });
+
+                if (error) throw error;
+
+                setMsg('signup-msg', '验证邮件已重新发送，请查收', 'success');
+                btn.textContent = '已发送';
+
+                // 3秒后恢复按钮
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.textContent = '重新发送验证邮件';
+                }, 3000);
+
+            } catch (e) {
+                btn.disabled = false;
+                btn.textContent = '重新发送验证邮件';
+
+                let errorMsg = '发送失败';
+                if (e && e.message) {
+                    const msg = e.message.toLowerCase();
+                    if (msg.includes('rate limit') || msg.includes('too many requests')) {
+                        errorMsg = '发送太频繁，请稍后再试';
+                    } else if (msg.includes('not found') || msg.includes('user not found')) {
+                        errorMsg = '该邮箱未注册，请先注册';
+                    } else {
+                        errorMsg = '发送失败: ' + e.message;
+                    }
+                }
+                setMsg('signup-msg', errorMsg, 'err');
+            }
+        });
+
+        // 点击"我已验证，去登录"按钮
+        document.getElementById('btn-verify-complete').addEventListener('click', function () {
+            hideEmailVerifyModal();
+
+            // 获取注册时使用的邮箱
+            var email = document.getElementById('signup-email').value.trim();
+
+            // 切换到登录界面并传递邮箱
+            document.querySelector('.tab[data-t="login"]').click();
+            document.getElementById('login-email').value = email;
+            document.getElementById('login-pass').focus();
+        });
+
+        // 点击弹窗外部关闭弹窗
+        document.getElementById('emailVerifyModal').addEventListener('click', function (e) {
+            if (e.target === this) {
+                hideEmailVerifyModal();
+            }
+        });
+
+        // 忘记密码（发送重置邮件）
+        document.getElementById('btn-reset').addEventListener('click', async function () {
+            var email = document.getElementById('reset-email').value.trim();
+            if (!email) return setMsg('reset-msg', i18n.t('auth.pleaseEnterEmail'), 'err');
+            setMsg('reset-msg', i18n.t('auth.sendingResetEmail'), 'hint');
+
+            try {
+                const supabase = await waitForSupabase();
+
+                const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                    redirectTo: window.location.origin + '/reset-password.html'
+                });
+
+                if (error) throw error;
+
+                setMsg('reset-msg', i18n.t('auth.resetEmailSent'), 'success');
+            } catch (e) {
+                let errorMsg = '发送失败，请重试';
+                if (e && e.message) {
+                    const msg = e.message.toLowerCase();
+                    if (msg.includes('not found') || msg.includes('user not found')) {
+                        errorMsg = '该邮箱未注册，请先注册';
+                    } else if (msg.includes('rate limit') || msg.includes('rate_limit') || msg.includes('too many requests')) {
+                        errorMsg = '发送太频繁，请稍后再试';
+                    } else if (msg.includes('invalid email') || msg.includes('valid email')) {
+                        errorMsg = '邮箱格式不正确';
+                    } else if (msg.includes('network') || msg.includes('timeout') || msg.includes('fetch')) {
+                        errorMsg = '网络连接失败，请检查网络后重试';
+                    } else {
+                        errorMsg = '发送失败: ' + e.message;
+                    }
+                }
+                setMsg('reset-msg', errorMsg, 'err');
+            }
+        });
+
+        // 若已登录，直接回跳
+        (async function () {
+            try {
+                const supabase = await waitForSupabase();
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
                     window.location.replace('app.html');
                 }
-            } catch (_) { }
-        </script>
-
-        <!-- Translation Application Script -->
-        <script>
-            // 在页面完全加载后立即应用翻译
-            function applyTranslationsWhenReady() {
-                if (window.i18nManager && window.i18nManager.isInitialized) {
-                    // 如果i18n管理器已初始化，立即应用翻译
-                    window.i18nManager.updatePageTranslations();
-                    window.i18nManager.updatePageTitle();
-                } else {
-                    // 如果还未初始化，等待一下再试
-                    setTimeout(applyTranslationsWhenReady, 100);
-                }
+            } catch (e) {
+                console.log('检查登录状态失败:', e);
             }
 
-            // 多种方式确保翻译被应用
-            if (document.readyState === 'complete') {
-                applyTranslationsWhenReady();
+            // 填充上次登录的邮箱
+            const lastEmail = localStorage.getItem('lastLoginEmail');
+            if (lastEmail) {
+                document.getElementById('login-email').value = lastEmail;
+            }
+        })();
+    </script>
+
+    <!-- Translation Application Script -->
+    <script>
+        // 在页面完全加载后立即应用翻译
+        function applyTranslationsWhenReady() {
+            if (window.i18nManager && window.i18nManager.isInitialized) {
+                // 如果i18n管理器已初始化，立即应用翻译
+                window.i18nManager.updatePageTranslations();
+                window.i18nManager.updatePageTitle();
             } else {
-                window.addEventListener('load', applyTranslationsWhenReady);
-                document.addEventListener('DOMContentLoaded', applyTranslationsWhenReady);
+                // 如果还未初始化，等待一下再试
+                setTimeout(applyTranslationsWhenReady, 100);
             }
-        </script>
+        }
+
+        // 多种方式确保翻译被应用
+        if (document.readyState === 'complete') {
+            applyTranslationsWhenReady();
+        } else {
+            window.addEventListener('load', applyTranslationsWhenReady);
+            document.addEventListener('DOMContentLoaded', applyTranslationsWhenReady);
+        }
+    </script>
 </body>
 
 </html>

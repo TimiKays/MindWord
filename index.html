@@ -1718,11 +1718,11 @@
             </div>
         </section>
 
-        <!-- 反馈与建议 -->
+        <!-- 联系作者 -->
         <section id="feedback" class="py-20 bg-white">
             <div class="container mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="max-w-3xl mx-auto text-center mb-16">
-                    <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold mb-6" data-i18n="feedback.title">反馈与建议</h2>
+                    <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold mb-6" data-i18n="feedback.title">联系作者</h2>
                     <div class="w-20 h-1 bg-primary mx-auto mb-8 rounded-full"></div>
                     <p class="text-lg text-dark/70" data-i18n="feedback.subtitle">
                         本产品由1名产品经理 + ChatGPT + KIMI 独立开发完成，如有任何问题或建议，欢迎联系我~
@@ -1741,14 +1741,14 @@
                     </p>
                     <div class="flex justify-center space-x-6 mb-6">
                         <div class="relative group">
-                            <a href="feedback.html" target="_blank"
+                            <a href="https://timikays.us.kg/#contact" target="_blank"
                                 class="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center cursor-pointer transition-all hover:bg-green-600 hover:scale-110"
-                                aria-label="Feedback Form">
+                                aria-label="Contact Author">
                                 <i class="fa fa-comment text-white text-xl"></i>
                             </a>
                             <div
                                 class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-                                <span data-i18n="feedback.onlineForm">在线提交建议&反馈</span>
+                                <span data-i18n="feedback.onlineForm">联系作者</span>
                                 <div
                                     class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800">
                                 </div>
@@ -1891,9 +1891,10 @@
                         data-i18n="footer.communityInteraction">社区互动</h3>
                     <ul class="space-y-2">
                         <li>
-                            <a href="feedback.html" class="text-white/60 hover:text-white text-sm transition-colors"
-                                target="_blank" rel="noopener" data-i18n="feedback.onlineForm">
-                                建议&反馈
+                            <a href="https://timikays.us.kg/#contact"
+                                class="text-white/60 hover:text-white text-sm transition-colors" target="_blank"
+                                rel="noopener" data-i18n="feedback.onlineForm">
+                                联系作者
                             </a>
                         </li>
                         <li>
@@ -2059,7 +2060,7 @@
         });
     </script>
 
-    <!-- PWA Service Worker Registration -->
+    <!-- PWA 安装支持 -->
     <script>
         // 骨架屏加载动画控制
         function hideSkeletonLoading() {
@@ -2094,35 +2095,7 @@
             setTimeout(hideSkeletonLoading, 300);
         }
 
-        // 注册Service Worker
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js')
-                    .then(registration => {
-                        console.log('MindWord PWA: Service Worker 注册成功');
 
-                        // 监听更新
-                        registration.addEventListener('updatefound', () => {
-                            const newWorker = registration.installing;
-                            newWorker.addEventListener('statechange', () => {
-                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                    // 发现新版本
-                                    console.log('MindWord PWA: 发现新版本');
-                                    if (confirm('MindWord有新版本可用，是否立即更新？')) {
-                                        newWorker.postMessage({ type: 'SKIP_WAITING' });
-                                        window.location.reload();
-                                    }
-                                }
-                            });
-                        });
-                    })
-                    .catch(error => {
-                        console.error('MindWord PWA: Service Worker 注册失败:', error);
-                    });
-            });
-        }
-
-        // PWA安装提示
         let deferredPrompt;
         window.addEventListener('beforeinstallprompt', (e) => {
             // 阻止默认的安装提示

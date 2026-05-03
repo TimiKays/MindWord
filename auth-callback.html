@@ -1,0 +1,232 @@
+<!--
+ * MindWord - 树心 | 认证回调处理页面
+ * 用于处理 Supabase 邮件验证、密码重置等回调
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>验证处理中 - MindWord</title>
+    <link rel="icon" href="res/LOGO32.ico">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            background: white;
+            padding: 48px;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .icon {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+        }
+
+        .icon.loading {
+            background: #e3f2fd;
+            animation: pulse 2s infinite;
+        }
+
+        .icon.success {
+            background: #e8f5e9;
+        }
+
+        .icon.error {
+            background: #ffebee;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        h1 {
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 16px;
+        }
+
+        p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 32px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #e3f2fd;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
+    <script src="supabase-config.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <div id="loading-state">
+            <div class="spinner"></div>
+            <h1>正在处理验证...</h1>
+            <p>请稍候，我们正在验证您的邮箱</p>
+        </div>
+        <div id="success-state" style="display: none;">
+            <div class="icon success">✓</div>
+            <h1>验证成功！</h1>
+            <p>您的邮箱已成功验证，现在可以登录使用 MindWord 了</p>
+            <a href="auth.html" class="btn">去登录</a>
+        </div>
+        <div id="error-state" style="display: none;">
+            <div class="icon error">✗</div>
+            <h1>验证失败</h1>
+            <p id="error-message">验证链接已过期或无效</p>
+            <a href="auth.html" class="btn">返回登录页</a>
+        </div>
+    </div>
+
+    <script>
+        async function handleAuthCallback() {
+            const loadingState = document.getElementById('loading-state');
+            const successState = document.getElementById('success-state');
+            const errorState = document.getElementById('error-state');
+            const errorMessage = document.getElementById('error-message');
+
+            try {
+                // 等待 Supabase 初始化
+                let supabaseClient = null;
+                let attempts = 0;
+                while (attempts < 50) {
+                    if (typeof window.getSupabase === 'function') {
+                        supabaseClient = window.getSupabase();
+                        if (supabaseClient) break;
+                    }
+                    await new Promise(r => setTimeout(r, 100));
+                    attempts++;
+                }
+
+                if (!supabaseClient) {
+                    throw new Error('Supabase 初始化失败');
+                }
+
+                // 从 URL 获取 hash 参数（Supabase 回调格式）
+                const hash = window.location.hash;
+                const query = window.location.search;
+
+                console.log('回调 URL:', window.location.href);
+                console.log('Hash:', hash);
+                console.log('Query:', query);
+
+                // 处理邮箱验证回调
+                if (hash.includes('access_token') && hash.includes('type=signup')) {
+                    // 验证成功，Supabase 会自动处理 session
+                    const { data, error } = await supabaseClient.auth.getSession();
+
+                    if (error) {
+                        throw error;
+                    }
+
+                    if (data.session) {
+                        // 验证成功
+                        loadingState.style.display = 'none';
+                        successState.style.display = 'block';
+
+                        // 3秒后自动跳转到登录页
+                        setTimeout(() => {
+                            window.location.href = 'auth.html';
+                        }, 3000);
+                        return;
+                    }
+                }
+
+                // 处理密码重置回调
+                if (hash.includes('access_token') && hash.includes('type=recovery')) {
+                    // 密码重置流程，重定向到重置密码页面
+                    window.location.href = 'reset-password.html' + hash;
+                    return;
+                }
+
+                // 检查 URL 参数
+                const urlParams = new URLSearchParams(query);
+
+                if (urlParams.get('error')) {
+                    throw new Error(urlParams.get('error_description') || '验证失败');
+                }
+
+                // 如果没有识别到有效的回调参数
+                throw new Error('无效的验证链接');
+
+            } catch (error) {
+                console.error('验证处理错误:', error);
+                loadingState.style.display = 'none';
+                errorState.style.display = 'block';
+                errorMessage.textContent = error.message || '验证链接已过期或无效，请重新注册或联系客服';
+            }
+        }
+
+        // 页面加载完成后处理
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', handleAuthCallback);
+        } else {
+            handleAuthCallback();
+        }
+    </script>
+</body>
+
+</html>

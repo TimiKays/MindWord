@@ -136,10 +136,10 @@ const i18nLocales = {
       compatibility: '兼容PC和移动端，全平台一致体验'
     },
 
-    // 反馈建议
+    // 联系作者
     feedback: {
-      title: '反馈建议',
-      onlineForm: '建议&反馈',
+      title: '联系作者',
+      onlineForm: '联系作者',
       reportAI: 'AI的回答不合适？点这里',
       subtitle: '本产品由1名产品经理+ChatGPT+KIMI独立开发，如有问题或建议，欢迎随时联系我~',
       contactInfo: '产品 | UI | 开发 | 测试 | 运营 | 客服',
@@ -200,7 +200,7 @@ const i18nLocales = {
       scenarios: '适用场景',
       guide: '快速上手',
       privacy: '隐私保障',
-      feedback: '反馈建议',
+      feedback: '联系作者',
       tryNow: '开始使用',
       freeTrial: '开始使用',
       featureIntro: '功能介绍',
@@ -699,10 +699,10 @@ const i18nLocales = {
       compatibility: 'Compatible with PC and mobile, consistent experience across all platforms'
     },
 
-    // 反馈建议
+    // 联系作者
     feedback: {
-      title: 'Feedback & Suggestions',
-      onlineForm: 'Suggestions & Feedback',
+      title: 'Contact Author',
+      onlineForm: 'Contact Author',
       reportAI: 'AI response inappropriate? Click here',
       subtitle: 'This product was independently developed by 1 product manager + ChatGPT + KIMI. For any questions or suggestions, feel free to contact me~',
       contactInfo: 'Product | UI | Development | Testing | Operations | Support',
@@ -1213,10 +1213,10 @@ const i18nLocales = {
       compatibility: 'Compatible con PC y móviles, experiencia consistente en todas las plataformas'
     },
 
-    // 反馈建议
+    // 联系作者
     feedback: {
-      title: 'Comentarios y Sugerencias',
-      onlineForm: 'Sugerencias y Comentarios',
+      title: 'Contactar Autor',
+      onlineForm: 'Contactar Autor',
       reportAI: '¿Respuesta de la IA inadecuada? Haz clic aquí',
       subtitle: 'Este producto es desarrollado independientemente por 1 gerente de producto + ChatGPT + KIMI, si tiene problemas o sugerencias, no dude en contactarme~',
       contactInfo: 'Producto | UI | Desarrollo | Prueba | Operación | Servicio al Cliente',
@@ -1276,7 +1276,7 @@ const i18nLocales = {
       scenarios: 'Escenarios de Aplicación',
       guide: 'Guía Rápida',
       privacy: 'Privacidad y Seguridad',
-      feedback: 'Comentarios',
+      feedback: 'Contacto',
       tryNow: 'Comenzar',
       freeTrial: 'Comenzar',
       featureIntro: 'Introducción de Funciones',

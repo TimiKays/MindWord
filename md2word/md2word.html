@@ -280,8 +280,7 @@
           + String(now.getHours()).padStart(2, '0')
           + String(now.getMinutes()).padStart(2, '0')
           + String(now.getSeconds()).padStart(2, '0');
-        // 移除自动添加时间戳的逻辑，以便支持离线缓存
-        // 时间戳会导致Service Worker无法正确匹配缓存的资源
+        // 时间戳逻辑已禁用
       } catch (e) {
         // 不影响主流程
         console.warn('timestamp reload failed', e);

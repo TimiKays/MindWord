@@ -359,8 +359,9 @@
     <!-- ZIP 打包依赖 -->
     <script src="/local-deps/jszip.min.js"></script>
     <script src="/local-deps/FileSaver.min.js"></script>
-    <!-- LeanCloud SDK（仅前端 AppID/AppKey，切勿使用 Master Key） -->
-    <script src="/local-deps/av-min.js"></script>
+    <!-- Supabase SDK -->
+    <script src="/local-deps/supabase.min.js"></script>
+    <script src="supabase-config.js"></script>
 
 </head>
 
@@ -847,12 +848,12 @@
                             <span style="font-size: 14px;">📒</span>
                             <span data-i18n="app.toolbar.changelog" style="font-size: 13px;">更新日志</span>
                         </div>
-                        <!-- 反馈建议 -->
+                        <!-- 联系作者 -->
                         <div class="menu-item"
                             style="display: flex; align-items: center; gap: 8px; padding: 8px 16px; cursor: pointer; transition: background-color 0.15s ease;"
-                            onclick="window.open('feedback.html', '_blank')">
+                            onclick="window.open('https://timikays.us.kg/#contact', '_blank')">
                             <span style="font-size: 14px;">💬</span>
-                            <span data-i18n="feedback.onlineForm" style="font-size: 13px;">建议&反馈</span>
+                            <span data-i18n="feedback.onlineForm" style="font-size: 13px;">联系作者</span>
                         </div>
                         <!-- 支持一下 -->
                         <div class="menu-item"
@@ -904,7 +905,7 @@
                         </div>
 
                         <div class="user-menu-items" style="padding: 8px 0;">
-                            <!-- 云同步控制区：LeanCloud Data 方案 -->
+                            <!-- 云同步控制区：Supabase 方案 -->
                             <div class="menu-item" id="lc-sync-controls-menu"
                                 style="display:flex; align-items:center; gap:8px; padding: 8px 16px; cursor: pointer; transition: background-color 0.15s ease;">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -959,7 +960,7 @@
                     </div>
 
                     <!-- 隐藏的退出登录按钮（用于菜单调用） -->
-                    <button id="auth-logout-menu" style="display:none;"></button>
+                    <button type="button" id="auth-logout-menu" style="display:none;"></button>
 
 
                 </div>
@@ -1094,8 +1095,8 @@
     <!-- 复制新建文件 -->
     <script src="copynew_file.js"></script>
 
-    <!-- 登录状态初始化与切换 -->
-    <script src="user.js"></script>
+    <!-- 登录状态初始化与切换 (Supabase) -->
+    <script src="user-supabase.js"></script>
 
     <script src="language-switch.js"> </script>
 
@@ -1108,19 +1109,8 @@
         }, 3000);
     </script>
 
-    <!-- 中文方案：LeanCloud Data 同步脚本 - 延迟加载 -->
-    <script>
-        // 当用户首次交互时加载
-        const loadLeanCloudSync = () => {
-            const script = document.createElement('script');
-            script.src = 'leancloud-sync.js';
-            document.body.appendChild(script);
-        };
-
-        // 延迟3秒后自动加载，或者用户首次交互时加载
-        setTimeout(loadLeanCloudSync, 3000);
-        document.addEventListener('click', loadLeanCloudSync, { once: true });
-    </script>
+    <!-- Supabase 数据同步脚本 - 立即加载 -->
+    <script src="supabase-sync.js?v=2"></script>
 
     <!-- 滚动条优化：滚动时显示滚动条 -->
     <script>
@@ -1287,42 +1277,14 @@
         });
     </script>
 
-    <!-- PWA Service Worker Registration -->
     <script>
-        // 注册Service Worker
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(registration => {
-                        console.log('MindWord PWA: Service Worker 注册成功');
-
-                        // 监听更新
-                        registration.addEventListener('updatefound', () => {
-                            const newWorker = registration.installing;
-                            newWorker.addEventListener('statechange', () => {
-                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                    // 发现新版本
-                                    console.log('MindWord PWA: 发现新版本');
-                                    if (confirm('MindWord有新版本可用，是否立即更新？')) {
-                                        newWorker.postMessage({ type: 'SKIP_WAITING' });
-                                        window.location.reload();
-                                    }
-                                }
-                            });
-                        });
-                    })
-                    .catch(error => {
-                        console.error('MindWord PWA: Service Worker 注册失败:', error);
-                    });
-            });
-        }
-
-        // 监听应用安装成功
         window.addEventListener('appinstalled', () => {
             console.log('MindWord PWA: 应用安装成功');
             deferredPrompt = null;
         });
+    </script>
 
+    <script>
         // 更多选项下拉菜单功能
         document.addEventListener('DOMContentLoaded', () => {
             const moreOptionsBtn = document.getElementById('more-options-btn');
