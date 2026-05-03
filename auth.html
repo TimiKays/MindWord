@@ -429,7 +429,7 @@
         <form id="f-login" class="active">
             <label data-i18n="auth.email">邮箱</label>
             <input id="login-email" type="email" data-i18n-placeholder="auth.emailPlaceholder" placeholder="请输入您的邮箱地址"
-                required autocomplete="off" />
+                required autocomplete="email" />
             <label data-i18n="auth.password">密码</label>
             <input id="login-pass" type="password" data-i18n-placeholder="auth.passwordPlaceholder"
                 placeholder="请输入您的密码" required autocomplete="current-password" />
@@ -587,7 +587,6 @@
                     }
 
                     setMsg('login-msg', i18n.t('auth.loginSuccess'), 'success');
-                    localStorage.setItem('lastLoginEmail', email);
                     setTimeout(function () { window.location.href = 'app.html'; }, 600);
                     return;
                 }
@@ -635,7 +634,6 @@
                         }
 
                         setMsg('login-msg', '登录成功！', 'success');
-                        localStorage.setItem('lastLoginEmail', email);
                         setTimeout(function () { window.location.href = 'app.html'; }, 600);
                         return;
 
@@ -928,12 +926,6 @@
                 }
             } catch (e) {
                 console.log('检查登录状态失败:', e);
-            }
-
-            // 填充上次登录的邮箱
-            const lastEmail = localStorage.getItem('lastLoginEmail');
-            if (lastEmail) {
-                document.getElementById('login-email').value = lastEmail;
             }
         })();
     </script>
