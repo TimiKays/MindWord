@@ -3,7 +3,7 @@
  * 只缓存核心文件，避免路径重复问题
  */
 
-const CACHE_NAME = 'mindword-v42';
+const CACHE_NAME = 'mindword-v43';
 
 // 只缓存最关键的核心文件
 const CORE_FILES = [
@@ -80,6 +80,8 @@ const CORE_FILES = [
   '/jsmind/mindmap.html',
   '/jsmind/node-data-structure.js',
   '/jsmind/node-operator.js',
+  '/jsmind/outline-editor.css',
+  '/jsmind/outline-editor.js',
   '/jsmind/plugins/undo_manager.js',
   // 主题CSS - 所有皮肤文件
   '/jsmind/themes/modern-minimal.css',
