@@ -271,11 +271,12 @@
     }, 2000);
 
     // 登录后执行Supabase同步（每次登录都触发）
+    // 立即设置登录标记，确保页面加载时的检查能识别到这是刚登录的状态
+    localStorage.setItem('mw_just_logged_in', 'true');
+    console.log(MODULE_NAME, '已设置登录标记，准备执行自动同步');
+
     setTimeout(function () {
       console.log(MODULE_NAME, '登录后自动同步检测');
-
-      // 设置登录标记，表示这是刚刚登录
-      localStorage.setItem('mw_just_logged_in', 'true');
 
       // 检查Supabase认证状态是否准备好
       async function checkAndSync() {
@@ -341,13 +342,15 @@
           }, 2000); // 每2秒重试一次
         }
       });
-    }, 5000); // 增加延迟，确保所有组件和认证状态完全初始化
+    }, 1500); // 1.5秒延迟，平衡用户体验和组件初始化时间
   }
 
   // 页面加载时检查是否需要自动同步（非登录情况，带时间间隔限制）
+  // 延迟必须比登录后同步的延迟(1.5s) + 重试时间更长，确保登录同步先执行
   setTimeout(function () {
-    // 如果是刚刚登录，则跳过这次检查
+    // 如果是刚刚登录，则跳过这次检查（让登录后的同步来处理）
     if (localStorage.getItem('mw_just_logged_in') === 'true') {
+      console.log(MODULE_NAME, '检测到刚登录状态，跳过页面加载时的自动同步检查');
       localStorage.removeItem('mw_just_logged_in'); // 清除标记
       return;
     }
