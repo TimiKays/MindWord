@@ -75,6 +75,7 @@ serve(async (req) => {
       .from('user_data')
       .upsert({
         user_id: userId,
+        email: email,
         docs: userData?.docs || [],
         ai_config: userData?.aiConfig || {},
         prompt_templates: userData?.promptTemplates || [],
