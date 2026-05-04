@@ -1017,7 +1017,26 @@
         <!-- 思维导图面板 -->
         <div class="panel mindmap-panel" id="mindmap-panel">
             <div class="panel-header">
-                <span data-i18n="app.mindmap">思维导图</span>
+                <div class="view-tabs" id="mindmapViewTabs">
+                    <div class="view-tab active" data-view="mindmap" id="tabMindmap">
+                        <svg width="14" height="14" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"
+                            style="vertical-align: -1px;">
+                            <path
+                                d="M911.46 467.62a44.38 44.38 0 0 1 0 88.77H556.38a44.38 44.38 0 0 1 0-88.77h355.08zm0 310.69a44.38 44.38 0 0 1 0 88.77H556.38a44.38 44.38 0 0 1 0-88.77h355.08zm0-621.38a44.38 44.38 0 0 1 0 88.77H556.38a44.38 44.38 0 0 1 0-88.77h355.08zM112.54 556.38l-5.9-0.31C53.42 550.35 55.42 467.62 112.54 467.62h88.77c23.17 0 32.22-18.6 44.92-101.06 1.51-9.85 2.22-14.65 3.11-19.97 17.13-107.72 42.61-163.07 115.49-187.39a44.38 44.38 0 0 1 28.05 84.24c-29.6 9.85-43.72 40.57-55.92 117.09l-3.02 19.53c-4.84 31.47-9.99 58.19-16.42 80.6l-2.13 6.97h63.47a44.38 44.38 0 0 1 44.07 39.19L423.23 512a44.38 44.38 0 0 1-44.38 44.38H315.42l2.13 6.97c5.59 19.62 10.21 42.52 14.56 69.02l1.82 11.54 3.06 19.57c12.16 76.52 26.28 107.23 55.92 117.09a44.38 44.38 0 1 1-28.09 84.24c-72.92-24.32-98.36-79.67-115.49-187.39-0.89-5.33-1.6-10.12-3.11-19.97-12.21-76.47-21.26-95.11-44.43-95.11H112.54z"
+                                fill="currentColor" fill-opacity=".65" />
+                        </svg>
+                        <span data-i18n="app.mindmap">思维导图</span>
+                    </div>
+                    <div class="view-tab" data-view="outline" id="tabOutline">
+                        <svg width="14" height="14" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
+                            style="vertical-align: -1px;">
+                            <path
+                                d="M3 4h18v2H3V4zm0 7h18v2H3v-2zm0 7h18v2H3v-2zm0-14h2v2H3V4zm0 7h2v2H3v-2zm0 7h2v2H3v-2z"
+                                fill="currentColor" />
+                        </svg>
+                        <span data-i18n="app.outline">大纲</span>
+                    </div>
+                </div>
                 <button class="btn btn-icon" onclick="togglePanel('mindmap')">&times;</button>
             </div>
             <div class="panel-content">
@@ -1029,6 +1048,59 @@
             </div>
         </div>
     </main>
+
+    <!-- 思维导图面板视图Tab切换逻辑 -->
+    <script>
+        (function () {
+            var currentMindmapView = 'mindmap';
+
+            function getMindmapIframe() {
+                return document.getElementById('iframe-mindmap') ||
+                    document.querySelector('iframe[data-panel="mindmap"]') ||
+                    document.querySelector('iframe[src*="jsmind/mindmap.html"]');
+            }
+
+            function updateTabUI(view) {
+                currentMindmapView = view;
+                var tabs = document.querySelectorAll('#mindmapViewTabs .view-tab');
+                tabs.forEach(function (tab) {
+                    if (tab.dataset.view === view) {
+                        tab.classList.add('active');
+                    } else {
+                        tab.classList.remove('active');
+                    }
+                });
+            }
+
+            function switchView(view) {
+                if (view === currentMindmapView) return;
+                var iframe = getMindmapIframe();
+                if (!iframe || !iframe.contentWindow) {
+                    console.warn('[App] mindmap iframe not ready');
+                    return;
+                }
+                iframe.contentWindow.postMessage({ type: 'mw_switch_view', view: view }, '*');
+                updateTabUI(view);
+            }
+
+            document.addEventListener('DOMContentLoaded', function () {
+                var tabs = document.querySelectorAll('#mindmapViewTabs .view-tab');
+                tabs.forEach(function (tab) {
+                    tab.addEventListener('click', function () {
+                        switchView(tab.dataset.view);
+                    });
+                });
+            });
+
+            window.addEventListener('message', function (e) {
+                var msg = e.data;
+                if (!msg || typeof msg !== 'object') return;
+                if (msg.type === 'mw_view_changed') {
+                    updateTabUI(msg.view);
+                }
+            });
+        })();
+    </script>
 
     <!-- 懒加载器 -->
     <script src="lazy-loader.js"></script>

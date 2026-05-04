@@ -956,18 +956,19 @@
             console.log(MODULE_NAME, '目标数据:', targetData);
 
             try {
-                // 使用已获取的用户信息上传，避免重复获取
-                await uploadToSupabase(targetData, currentUser);
+                const docsToUpload = await embedImagesFromIndexedDB(targetData.docs);
+                const uploadData = { ...targetData, docs: docsToUpload };
+                await uploadToSupabase(uploadData, currentUser);
 
-                // 同步完成后关闭弹窗
                 closeDialog();
             } catch (error) {
-                // 同步失败也要关闭弹窗
                 closeDialog();
                 throw error;
             }
 
             await setLocalData(targetData);
+
+            await extractImagesToIndexedDB(targetData.docs);
 
             // 刷新文档列表
             if (typeof window.mw_renderList === 'function') {
@@ -1091,6 +1092,131 @@
                 myPromptTemplatesHash: localStorage.getItem('myPromptTemplates_hash') || null
             });
         });
+    }
+
+    async function extractImagesToIndexedDB(docs) {
+        if (!window.imageStorage) {
+            console.warn(MODULE_NAME, '图片存储管理器未初始化，跳过图片提取');
+            return { saved: 0, skipped: 0, errors: 0 };
+        }
+
+        let savedCount = 0;
+        let skippedCount = 0;
+        let errorCount = 0;
+
+        for (const doc of (docs || [])) {
+            if (!doc || !doc.id) continue;
+            if (!doc.images || !Array.isArray(doc.images)) continue;
+
+            for (const img of doc.images) {
+                if (!img || !img.id) continue;
+
+                const dataUrl = img.dataUrl || img.data;
+                if (!dataUrl) {
+                    skippedCount++;
+                    continue;
+                }
+
+                try {
+                    const existingImage = await window.imageStorage.getImage(img.id);
+                    if (existingImage && existingImage.blob) {
+                        skippedCount++;
+                        continue;
+                    }
+
+                    const blob = await window.imageStorage.dataUrlToBlob(dataUrl);
+                    await window.imageStorage.saveImage(img.id, blob, {
+                        name: img.name || img.id,
+                        documentId: doc.id
+                    });
+                    savedCount++;
+                    console.log(MODULE_NAME, `提取图片到IndexedDB: ${img.id} (文档: ${doc.id})`);
+                } catch (error) {
+                    errorCount++;
+                    console.error(MODULE_NAME, `提取图片失败 ${img.id}:`, error);
+                }
+            }
+        }
+
+        console.log(MODULE_NAME, `图片提取完成: 保存${savedCount}张, 跳过${skippedCount}张, 失败${errorCount}张`);
+        return { saved: savedCount, skipped: skippedCount, errors: errorCount };
+    }
+
+    async function embedImagesFromIndexedDB(docs) {
+        if (!window.imageStorage) {
+            console.warn(MODULE_NAME, '图片存储管理器未初始化，跳过图片嵌入');
+            return docs;
+        }
+
+        const updatedDocs = [];
+
+        for (const doc of (docs || [])) {
+            if (!doc || !doc.id) {
+                updatedDocs.push(doc);
+                continue;
+            }
+
+            const imageIds = extractImageIdsFromDoc(doc);
+            if (imageIds.length === 0) {
+                updatedDocs.push(doc);
+                continue;
+            }
+
+            const imagesArray = Array.isArray(doc.images) ? [...doc.images] : [];
+            const existingIds = new Set(imagesArray.map(img => img && img.id));
+
+            for (const imageId of imageIds) {
+                if (existingIds.has(imageId)) continue;
+
+                try {
+                    const imageData = await window.imageStorage.getImage(imageId);
+                    if (!imageData || !imageData.blob) continue;
+
+                    const dataUrl = await window.imageStorage.blobToDataUrl(imageData.blob);
+                    imagesArray.push({
+                        id: imageId,
+                        name: imageData.name || imageId,
+                        mime: imageData.type || 'image/png',
+                        dataUrl: dataUrl
+                    });
+                } catch (error) {
+                    console.error(MODULE_NAME, `嵌入图片失败 ${imageId}:`, error);
+                }
+            }
+
+            for (const img of imagesArray) {
+                if (!img || !img.id) continue;
+                if (img.dataUrl || img.data) continue;
+
+                try {
+                    const imageData = await window.imageStorage.getImage(img.id);
+                    if (!imageData || !imageData.blob) continue;
+
+                    const dataUrl = await window.imageStorage.blobToDataUrl(imageData.blob);
+                    img.dataUrl = dataUrl;
+                } catch (error) {
+                    console.error(MODULE_NAME, `补全图片数据失败 ${img.id}:`, error);
+                }
+            }
+
+            updatedDocs.push({ ...doc, images: imagesArray });
+        }
+
+        return updatedDocs;
+    }
+
+    function extractImageIdsFromDoc(doc) {
+        const imageIds = [];
+        const content = (doc.md || '') + (doc.note || '');
+        const imageRegex = /!\[[^\]]*\]\(([^)]+)\)/g;
+        let match;
+        while ((match = imageRegex.exec(content)) !== null) {
+            const imageId = match[1];
+            if (imageId && !imageId.startsWith('http') && !imageId.startsWith('data:')) {
+                imageIds.push(imageId);
+            }
+        }
+        return [...new Set(imageIds)];
     }
 
     async function setLocalData(data) {
@@ -1224,9 +1350,9 @@
             // 计算文档中图片的大小
             if (doc.images && Array.isArray(doc.images)) {
                 for (const img of doc.images) {
-                    if (img.data) {
-                        // base64 数据大小估算
-                        const base64Size = img.data.length * 0.75;
+                    const imgData = img.dataUrl || img.data;
+                    if (imgData) {
+                        const base64Size = imgData.length * 0.75;
                         totalSize += base64Size;
                         imageCount++;
                     }

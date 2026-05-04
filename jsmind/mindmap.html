@@ -38,6 +38,7 @@
 
 
   <link rel="stylesheet" href="mindmap.css">
+  <link rel="stylesheet" href="outline-editor.css">
   <style>
     .requires-single-selection {
       display: none !important;
@@ -391,7 +392,6 @@
       <button class="level-expand-btn" onclick="expandToLevel('all')" title="展开全部">all</button>
     </div>
 
-
     <!-- batchOperations 保留在 DOM 中但会被移动到画布左上（通过脚本在非移动端显示） -->
     <div id="batchOperations"
       style="display: none; float: right; padding: 1px 6px; background: rgba(76, 154, 255, 0.1); border-radius: 4px; border: 1px solid #4c9aff;">
@@ -437,6 +437,8 @@
       style="display:none; position: absolute; top: 10px; left: 10px; z-index: 1000; background: transparent; padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 500;">
     </div>
     <div id="fullScreenMindmap"></div>
+    <!-- 大纲编辑器容器 -->
+    <div id="outlineContainer" class="outline-container"></div>
     <!-- 浮动节点详情面板（可关闭），保留内部字段和功能 -->
     <div id="nodeDetails" role="dialog" aria-hidden="true" aria-label="节点详情">
       <div class="panel-header">
@@ -522,6 +524,7 @@
   <!-- <script src="node-ultils.js"></script> -->
   <script src="/jsmind/node-operator.js"></script>
   <script src="/jsmind/ViewStateManager.js"></script>
+  <script src="/jsmind/outline-editor.js"></script>
   <script type="module" src="/jsmind/mindmap-core.js"></script>
   <script>
 
@@ -1912,6 +1915,16 @@
             console.warn('[mindmap] 关闭AI生成弹窗失败:', e);
           }
         }
+
+        if (msg.type === 'mw_switch_view') {
+          var view = msg.view;
+          console.log('[mindmap] 收到 mw_switch_view 消息, view:', view);
+          if (view === 'outline' && !isOutlineView) {
+            switchToOutlineView();
+          } else if (view === 'mindmap' && isOutlineView) {
+            switchToMindmapView();
+          }
+        }
       }, { passive: true });
     })();
   </script>
@@ -1927,11 +1940,9 @@
 
       try {
         if (level === 'all') {
-          // 展开全部
           console.log('[mindmap] 展开全部节点');
           jm.expand_all();
         } else {
-          // 展开到指定层级
           console.log('[mindmap] 展开到层级:', level);
           jm.expand_to_depth(level);
         }
@@ -1939,6 +1950,110 @@
       } catch (error) {
         console.error('[mindmap] 展开层级失败, level:', level, '错误:', error);
       }
+    }
+
+    var outlineEditor = null;
+    var isOutlineView = false;
+
+    function _ot(key, fallback) {
+      try {
+        if (typeof i18nManager !== 'undefined' && typeof i18nManager.t === 'function') {
+          var val = i18nManager.t('app.toolbar.' + key);
+          if (val && val !== 'app.toolbar.' + key) return val;
+        }
+      } catch (e) { /* ignore */ }
+      return fallback || key;
+    }
+
+    function toggleOutlineView() {
+      if (isOutlineView) {
+        switchToMindmapView();
+      } else {
+        switchToOutlineView();
+      }
+    }
+
+    function switchToOutlineView() {
+      if (!window.jm) {
+        console.warn('[OutlineView] jm not available');
+        return;
+      }
+
+      if (!outlineEditor) {
+        outlineEditor = new OutlineEditor();
+        outlineEditor.init(document.getElementById('outlineContainer'));
+      }
+
+      outlineEditor.loadFromMindmap();
+
+      document.getElementById('fullScreenMindmap').style.display = 'none';
+      document.getElementById('outlineContainer').classList.add('active');
+      document.getElementById('nodeDetails').style.display = 'none';
+
+      var expandBtns = document.getElementById('expandLevelButtons');
+      if (expandBtns) expandBtns.style.display = 'none';
+
+      var aiActions = document.getElementById('aiQuickActions');
+      if (aiActions) aiActions.style.display = 'none';
+
+      var iconPicker = document.getElementById('iconPickerDropdown');
+      if (iconPicker) iconPicker.style.display = 'none';
+
+      var batchOps = document.getElementById('batchOperations');
+      if (batchOps) batchOps.style.display = 'none';
+
+      isOutlineView = true;
+
+      try {
+        window.parent.postMessage({ type: 'mw_view_changed', view: 'outline' }, '*');
+      } catch (e) { console.warn('[OutlineView] postMessage failed:', e); }
+
+      console.log('[OutlineView] switched to outline view');
+    }
+
+    function switchToMindmapView() {
+      if (!outlineEditor) return;
+
+      document.getElementById('fullScreenMindmap').style.display = '';
+      document.getElementById('outlineContainer').classList.remove('active');
+
+      var expandBtns = document.getElementById('expandLevelButtons');
+      if (expandBtns) expandBtns.style.display = '';
+
+      var container = document.getElementById('fullScreenMindmap');
+      if (container) {
+        void container.offsetHeight;
+      }
+
+      var applyAndResize = function () {
+        outlineEditor.applyToMindmap();
+
+        if (window.jm) {
+          try { window.jm.resize(); } catch (e) { console.warn('[OutlineView] jm.resize failed:', e); }
+        }
+      };
+
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(function () {
+          requestAnimationFrame(applyAndResize);
+        });
+      } else {
+        setTimeout(applyAndResize, 50);
+      }
+
+      var aiActions = document.getElementById('aiQuickActions');
+      if (aiActions) aiActions.style.display = '';
+
+      var iconPicker = document.getElementById('iconPickerDropdown');
+      if (iconPicker) iconPicker.style.display = '';
+
+      isOutlineView = false;
+
+      try {
+        window.parent.postMessage({ type: 'mw_view_changed', view: 'mindmap' }, '*');
+      } catch (e) { console.warn('[OutlineView] postMessage failed:', e); }
+
+      console.log('[OutlineView] switched to mindmap view');
     }
 
     // AI生成初始树相关函数
