@@ -149,7 +149,7 @@ const i18nLocales = {
 
       // 反馈页面
       page: {
-        title: '建议与反馈',
+        title: '建议&反馈',
         subtitle: '您的意见对我们非常重要，请告诉我们您的想法',
         formTitle: '标题',
         formTitlePlaceholder: '请输入反馈标题',
@@ -372,7 +372,8 @@ const i18nLocales = {
         installPWA: '安装web应用',
         microsoftStore: '从微软应用商店安装',
         changelog: '更新日志',
-        support: '支持一下'
+        support: '支持一下',
+        feedback: '建议&反馈'
       },
 
       // 节点操作
@@ -924,7 +925,8 @@ const i18nLocales = {
         installPWA: 'Install Web App',
         microsoftStore: 'Install from Microsoft Store',
         changelog: 'Update Log',
-        support: 'Support Us'
+        support: 'Support Us',
+        feedback: 'Feedback & Suggestions'
       },
 
       // 节点操作
@@ -1471,7 +1473,8 @@ const i18nLocales = {
         installPWA: 'Instalar Aplicación Web',
         microsoftStore: 'Instalar desde Microsoft Store',
         changelog: 'Registro de Cambios',
-        support: 'Apóyanos'
+        support: 'Apóyanos',
+        feedback: 'Sugerencias y Comentarios'
       },
 
       // 节点操作

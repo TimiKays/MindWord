@@ -810,6 +810,13 @@
             <!-- 账号区：未登录显示"注册/登录"，已登录显示"用户名/退出登录" -->
             <div id="auth-area" style="display:inline-flex; align-items:center; gap:6px; ">
 
+                <!-- 支持一下按钮 -->
+                <button id="support-btn" title="支持一下"
+                    style="height:30px; width:30px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px; transition: all 0.2s ease;"
+                    onclick="openSupportModal()">
+                    <span style="color: #ef4444;">🤍</span>
+                </button>
+
                 <!-- 更多选项菜单 -->
                 <div class="more-options-dropdown" style="position: relative; display: inline-flex;">
                     <button id="more-options-btn" title="更多选项"
@@ -854,6 +861,13 @@
                             onclick="window.open('https://timikays.us.kg/#contact', '_blank')">
                             <span style="font-size: 14px;">💬</span>
                             <span data-i18n="feedback.onlineForm" style="font-size: 13px;">联系作者</span>
+                        </div>
+                        <!-- 建议&反馈 -->
+                        <div class="menu-item"
+                            style="display: flex; align-items: center; gap: 8px; padding: 8px 16px; cursor: pointer; transition: background-color 0.15s ease;"
+                            onclick="window.open('https://timikays.feishu.cn/share/base/form/shrcnCnxRRhU4naUS2s14KbPwph', '_blank')">
+                            <span style="font-size: 14px;">📝</span>
+                            <span data-i18n="app.toolbar.feedback" style="font-size: 13px;">建议&反馈</span>
                         </div>
                         <!-- 支持一下 -->
                         <div class="menu-item"
@@ -1426,6 +1440,156 @@
             }
         });
     </script>
+
+    <!-- 支持一下弹窗 -->
+    <div id="support-modal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 10000; justify-content: center; align-items: center;">
+        <div
+            style="background: white; border-radius: 16px; padding: 24px; max-width: 360px; width: 90%; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.15); position: relative;">
+            <!-- 关闭按钮 -->
+            <span onclick="closeSupportModal()"
+                style="position: absolute; top: 12px; right: 12px; color: #9ca3af; font-size: 20px; cursor: pointer; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: all 0.2s;"
+                onmouseover="this.style.background='#f3f4f6';this.style.color='#374151'"
+                onmouseout="this.style.background='transparent';this.style.color='#9ca3af'">&times;</span>
+
+            <h3 style="margin: 0 0 12px; font-size: 18px; color: #1f2937;">🌱 支持 MindWord</h3>
+            <p style="margin: 0 0 16px; font-size: 13px; color: #6b7280; line-height: 1.6;">
+                MindWord 是完全免费的小工具<br>如果它帮到你，我们会很开心
+            </p>
+
+            <!-- 点赞按钮 -->
+            <div style="margin-bottom: 16px;">
+                <button id="like-btn"
+                    style="width: 64px; height: 64px; border-radius: 50%; border: none; background: white; box-shadow: 0 8px 20px rgba(0,0,0,0.1); font-size: 26px; cursor: pointer; transition: transform 0.2s ease;">
+                    👍
+                </button>
+                <div id="like-count" style="margin-top: 10px; font-size: 12px; color: #6b7280;">加载中...</div>
+                <div id="thanks-text"
+                    style="min-height: 18px; margin-top: 6px; font-size: 12px; color: #5bbcb3; opacity: 0; transition: opacity 0.4s ease;">
+                </div>
+            </div>
+
+            <!-- 微信赞赏二维码 -->
+            <div style="border-top: 1px solid #e5e7eb; padding-top: 16px; margin-top: 4px;">
+                <p style="margin: 0 0 10px; font-size: 12px; color: #6b7280;">🧋 请作者喝杯奶茶</p>
+                <img src="supoort/wx_zsm.jpg" alt="微信赞赏码"
+                    style="width: 140px; height: 140px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            </div>
+
+            <p style="margin: 14px 0 0; font-size: 11px; color: #9ca3af;">是否支持完全自愿 · 对产品使用无任何影响 😺</p>
+        </div>
+    </div>
+
+    <script>
+        // 支持一下弹窗功能
+        const supportModal = document.getElementById('support-modal');
+        const likeBtn = document.getElementById('like-btn');
+        const likeCountEl = document.getElementById('like-count');
+        const thanksText = document.getElementById('thanks-text');
+
+        const WORKER_URL = 'https://good.mindword.dpdns.org/api/likes';
+        let likeCount = 0;
+
+        function openSupportModal() {
+            supportModal.style.display = 'flex';
+            loadLikes();
+        }
+
+        function closeSupportModal() {
+            supportModal.style.display = 'none';
+        }
+
+        supportModal.addEventListener('click', function (e) {
+            if (e.target === supportModal) {
+                closeSupportModal();
+            }
+        });
+
+        async function loadLikes() {
+            try {
+                const response = await fetch(WORKER_URL);
+                if (!response.ok) throw new Error('Network error');
+                const data = await response.json();
+                likeCount = data.count;
+                localStorage.setItem('mw_like_count', likeCount);
+                likeCountEl.textContent = `已获得 ${likeCount} 次支持`;
+            } catch (error) {
+                console.log('加载点赞数失败，使用本地数据:', error);
+                likeCount = Number(localStorage.getItem('mw_like_count') || 0);
+                likeCountEl.textContent = `已获得 ${likeCount} 次支持`;
+            }
+        }
+
+        const thanksMessages = [
+            "收到了一点点温暖 🌿",
+            "这个点赞被我们珍藏了",
+            "你刚刚让这个项目更开心了一点",
+            "谢谢你，真的",
+            "我们会继续把它照顾好的",
+            "今天的好心情 +1",
+            "你的这份支持很重要",
+            "像阳光照进来一样 🌞",
+            "心里开了一朵小花 🌸",
+            "这份鼓励很珍贵",
+            "这份支持有魔法 ✨"
+        ];
+
+        likeBtn.addEventListener('click', async function (e) {
+            likeCount++;
+            localStorage.setItem('mw_like_count', likeCount);
+            likeCountEl.textContent = `已获得 ${likeCount} 次支持`;
+
+            likeCountEl.style.transform = 'scale(1.1)';
+            setTimeout(() => {
+                likeCountEl.style.transform = 'scale(1)';
+            }, 150);
+
+            const bubble = document.createElement('span');
+            bubble.style.cssText = 'position: fixed; font-size: 18px; pointer-events: none; animation: floatUp 1.2s ease-out forwards; z-index: 10002;';
+            bubble.textContent = ['💙', '🌱', '✨', '🫧'][Math.floor(Math.random() * 4)];
+            bubble.style.left = e.clientX + 'px';
+            bubble.style.top = e.clientY + 'px';
+            document.body.appendChild(bubble);
+            setTimeout(() => bubble.remove(), 1200);
+
+            const msg = thanksMessages[Math.floor(Math.random() * thanksMessages.length)];
+            thanksText.textContent = msg;
+            thanksText.style.opacity = '0';
+            void thanksText.offsetWidth;
+            thanksText.style.opacity = '1';
+
+            setTimeout(async () => {
+                try {
+                    await fetch(WORKER_URL, { method: 'POST' });
+                } catch (err) {
+                    console.log('同步失败:', err);
+                }
+            }, 0);
+        });
+    </script>
+
+    <style>
+        @keyframes floatUp {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.6);
+            }
+
+            20% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -110px) scale(1.2);
+            }
+        }
+
+        #support-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2);
+        }
+    </style>
 
 
 </body>
