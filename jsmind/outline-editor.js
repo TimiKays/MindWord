@@ -105,12 +105,102 @@
 
   OutlineEditor.prototype.init = function (containerEl) {
     this.container = containerEl;
+    this._dragState = null;
     var self = this;
     this.container.addEventListener('compositionstart', function () {
       self._composing = true;
     });
     this.container.addEventListener('compositionend', function () {
       self._composing = false;
+    });
+
+    this.container.addEventListener('dragstart', function (e) {
+      var row = e.target.closest('.outline-row');
+      if (!row) return;
+      var item = row.closest('.outline-item');
+      if (!item) return;
+      var nodeId = item.dataset.id;
+      if (!nodeId || nodeId === self.treeData.id) return;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', nodeId);
+      row.classList.add('outline-dragging');
+      self._dragState = { dragId: nodeId };
+    });
+
+    this.container.addEventListener('dragend', function (e) {
+      var row = e.target.closest('.outline-row');
+      if (row) row.classList.remove('outline-dragging');
+      self._clearDropIndicators();
+      self._dragState = null;
+    });
+
+    this.container.addEventListener('dragover', function (e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if (!self._dragState) return;
+
+      self._clearDropIndicators();
+
+      var row = e.target.closest('.outline-row');
+      if (!row) return;
+      var item = row.closest('.outline-item');
+      if (!item) return;
+      var targetId = item.dataset.id;
+      if (!targetId || targetId === self._dragState.dragId) return;
+
+      if (self._isDescendant(self._dragState.dragId, targetId)) return;
+
+      var rect = row.getBoundingClientRect();
+      var y = e.clientY - rect.top;
+      var threshold = rect.height / 3;
+
+      if (y < threshold) {
+        row.classList.add('outline-drop-before');
+      } else if (y > rect.height - threshold) {
+        row.classList.add('outline-drop-after');
+      } else {
+        row.classList.add('outline-drop-inside');
+      }
+    });
+
+    this.container.addEventListener('dragleave', function (e) {
+      var row = e.target.closest('.outline-row');
+      if (row) {
+        row.classList.remove('outline-drop-before', 'outline-drop-after', 'outline-drop-inside');
+      }
+    });
+
+    this.container.addEventListener('drop', function (e) {
+      e.preventDefault();
+      if (!self._dragState) return;
+
+      var dragId = self._dragState.dragId;
+      self._clearDropIndicators();
+
+      var row = e.target.closest('.outline-row');
+      if (!row) return;
+      var item = row.closest('.outline-item');
+      if (!item) return;
+      var targetId = item.dataset.id;
+      if (!targetId || targetId === dragId) return;
+
+      if (self._isDescendant(dragId, targetId)) return;
+
+      var rect = row.getBoundingClientRect();
+      var y = e.clientY - rect.top;
+      var threshold = rect.height / 3;
+
+      var position;
+      if (y < threshold) {
+        position = 'before';
+      } else if (y > rect.height - threshold) {
+        position = 'after';
+      } else {
+        position = 'inside';
+      }
+
+      self._moveNode(dragId, targetId, position);
+      self._dragState = null;
     });
   };
 
@@ -177,12 +267,22 @@
   };
 
   OutlineEditor.prototype._renderNode = function (node, parentEl, depth, isRoot) {
+    var self = this;
     var itemEl = document.createElement('div');
     itemEl.className = 'outline-item' + (isRoot ? ' outline-root' : '');
     itemEl.dataset.id = node.id;
 
     var rowEl = document.createElement('div');
     rowEl.className = 'outline-row';
+    rowEl.draggable = !isRoot;
+
+    if (!isRoot) {
+      var dragHandle = document.createElement('span');
+      dragHandle.className = 'outline-drag-handle';
+      dragHandle.textContent = '⋮⋮';
+      dragHandle.title = self._t('outlineDragHint', '拖拽排序');
+      rowEl.appendChild(dragHandle);
+    }
 
     for (var i = 0; i < depth; i++) {
       var indentUnit = document.createElement('span');
@@ -197,7 +297,6 @@
       var isExpanded = node.expanded !== false;
       toggleEl.textContent = isExpanded ? '▾' : '▸';
       if (!isExpanded) toggleEl.classList.add('outline-collapsed');
-      var self = this;
       (function (n, t) {
         t.addEventListener('click', function (e) {
           e.stopPropagation();
@@ -258,15 +357,40 @@
     rowEl.appendChild(textEl);
 
     var notes = node.notes || (node.data && node.data.notes) || '';
+    var notesHint = document.createElement('span');
+    notesHint.className = 'outline-notes-hint';
     if (notes) {
-      var notesHint = document.createElement('span');
-      notesHint.className = 'outline-notes-hint';
       notesHint.textContent = self._t('outlineNotesHint', '备注');
       notesHint.title = notes.length > 50 ? notes.substring(0, 50) + '...' : notes;
-      rowEl.appendChild(notesHint);
+    } else {
+      notesHint.textContent = '+ ' + self._t('outlineAddNotes', '备注');
+      notesHint.classList.add('outline-notes-add');
     }
+    (function (n) {
+      notesHint.addEventListener('click', function (e) {
+        e.stopPropagation();
+        self._toggleNotesEditor(n, itemEl);
+      });
+    })(node);
+    rowEl.appendChild(notesHint);
 
     itemEl.appendChild(rowEl);
+
+    if (notes) {
+      var notesRow = document.createElement('div');
+      notesRow.className = 'outline-notes-row';
+      var notesContent = document.createElement('div');
+      notesContent.className = 'outline-notes-content';
+      notesContent.textContent = notes;
+      (function (n, nc) {
+        nc.addEventListener('click', function (e) {
+          e.stopPropagation();
+          self._toggleNotesEditor(n, itemEl);
+        });
+      })(node, notesContent);
+      notesRow.appendChild(notesContent);
+      itemEl.appendChild(notesRow);
+    }
 
     if (hasChildren) {
       var childrenEl = document.createElement('div');
@@ -281,6 +405,166 @@
     }
 
     parentEl.appendChild(itemEl);
+  };
+
+  OutlineEditor.prototype._clearDropIndicators = function () {
+    if (!this.container) return;
+    var rows = this.container.querySelectorAll('.outline-drop-before, .outline-drop-after, .outline-drop-inside');
+    for (var i = 0; i < rows.length; i++) {
+      rows[i].classList.remove('outline-drop-before', 'outline-drop-after', 'outline-drop-inside');
+    }
+  };
+
+  OutlineEditor.prototype._isDescendant = function (ancestorId, nodeId) {
+    var ancestor = this._nodeMap[ancestorId];
+    if (!ancestor) return false;
+    function check(node) {
+      if (node.id === nodeId) return true;
+      if (node.children) {
+        for (var i = 0; i < node.children.length; i++) {
+          if (check(node.children[i])) return true;
+        }
+      }
+      return false;
+    }
+    return check(ancestor);
+  };
+
+  OutlineEditor.prototype._moveNode = function (dragId, targetId, position) {
+    var dragNode = this._nodeMap[dragId];
+    var targetNode = this._nodeMap[targetId];
+    if (!dragNode || !targetNode) return;
+
+    var dragParentId = this._parentMap[dragId];
+    if (!dragParentId) return;
+    var dragParent = this._nodeMap[dragParentId];
+    if (!dragParent || !dragParent.children) return;
+
+    var dragIdx = -1;
+    for (var i = 0; i < dragParent.children.length; i++) {
+      if (dragParent.children[i].id === dragId) {
+        dragIdx = i;
+        break;
+      }
+    }
+    if (dragIdx === -1) return;
+
+    dragParent.children.splice(dragIdx, 1);
+
+    var indentDelta = 0;
+
+    if (position === 'inside') {
+      if (!targetNode.children) targetNode.children = [];
+      targetNode.children.push(dragNode);
+      dragNode.parentid = targetId;
+      targetNode.expanded = true;
+      indentDelta = 2;
+    } else {
+      var targetParentId = this._parentMap[targetId];
+      if (!targetParentId) {
+        dragParent.children.splice(dragIdx, 0, dragNode);
+        return;
+      }
+      var targetParent = this._nodeMap[targetParentId];
+      if (!targetParent || !targetParent.children) {
+        dragParent.children.splice(dragIdx, 0, dragNode);
+        return;
+      }
+
+      var targetIdx = -1;
+      for (var j = 0; j < targetParent.children.length; j++) {
+        if (targetParent.children[j].id === targetId) {
+          targetIdx = j;
+          break;
+        }
+      }
+      if (targetIdx === -1) {
+        dragParent.children.splice(dragIdx, 0, dragNode);
+        return;
+      }
+
+      var insertIdx = position === 'before' ? targetIdx : targetIdx + 1;
+      targetParent.children.splice(insertIdx, 0, dragNode);
+      dragNode.parentid = targetParentId;
+
+      var oldIndent = dragNode.data && typeof dragNode.data.indent === 'number' ? dragNode.data.indent : 0;
+      var newIndent = targetNode.data && typeof targetNode.data.indent === 'number' ? targetNode.data.indent : 0;
+      indentDelta = newIndent - oldIndent;
+    }
+
+    if (indentDelta !== 0) {
+      updateIndentRecursive(dragNode, indentDelta);
+    }
+
+    this.focusedId = dragId;
+    this.render();
+    this.applyToMindmap();
+  };
+
+  OutlineEditor.prototype._toggleNotesEditor = function (node, itemEl) {
+    var existing = itemEl.querySelector('.outline-notes-editor');
+    if (existing) {
+      this._saveNotes(node, existing);
+      existing.remove();
+      return;
+    }
+
+    var notesRow = itemEl.querySelector(':scope > .outline-notes-row');
+    var editorRow = document.createElement('div');
+    editorRow.className = 'outline-notes-editor';
+
+    var textarea = document.createElement('textarea');
+    textarea.className = 'outline-notes-textarea';
+    var currentNotes = node.notes || (node.data && node.data.notes) || '';
+    textarea.value = currentNotes;
+    textarea.placeholder = this._t('outlineNotesPlaceholder', '输入备注内容...');
+
+    var self = this;
+    (function (n, ta) {
+      ta.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          self._saveNotes(n, ta.closest('.outline-notes-editor'));
+          self.render();
+        } else if (e.key === 'Escape') {
+          self.render();
+        }
+      });
+      ta.addEventListener('blur', function () {
+        setTimeout(function () {
+          if (ta.closest('.outline-notes-editor')) {
+            self._saveNotes(n, ta.closest('.outline-notes-editor'));
+            self.render();
+          }
+        }, 100);
+      });
+    })(node, textarea);
+
+    editorRow.appendChild(textarea);
+
+    if (notesRow) {
+      itemEl.insertBefore(editorRow, notesRow);
+    } else {
+      var childrenEl = itemEl.querySelector(':scope > .outline-children');
+      if (childrenEl) {
+        itemEl.insertBefore(editorRow, childrenEl);
+      } else {
+        itemEl.appendChild(editorRow);
+      }
+    }
+
+    textarea.focus();
+  };
+
+  OutlineEditor.prototype._saveNotes = function (node, editorEl) {
+    if (!editorEl) return;
+    var textarea = editorEl.querySelector('.outline-notes-textarea');
+    if (!textarea) return;
+    var newNotes = textarea.value.trim();
+    if (!node.data) node.data = {};
+    node.data.notes = newNotes;
+    node.notes = newNotes;
+    this.applyToMindmap();
   };
 
   OutlineEditor.prototype._toggleExpand = function (node, toggleEl) {
