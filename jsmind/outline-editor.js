@@ -72,6 +72,18 @@
     sel.addRange(range);
   }
 
+  function updateIndentRecursive(node, delta) {
+    if (!node) return;
+    if (node.data && typeof node.data.indent === 'number') {
+      node.data.indent = Math.max(0, node.data.indent + delta);
+    }
+    if (node.children) {
+      for (var i = 0; i < node.children.length; i++) {
+        updateIndentRecursive(node.children[i], delta);
+      }
+    }
+  }
+
   function OutlineEditor() {
     this.container = null;
     this.treeData = null;
@@ -224,9 +236,10 @@
       });
       t.addEventListener('blur', function () {
         var newTopic = t.textContent.trim();
-        if (n.topic !== newTopic) {
-          n.topic = newTopic;
-        }
+        // 无论内容是否变化，都同步更新到思维导图和编辑器
+        // 因为 input 事件已经实时更新了 n.topic，所以这里直接调用 applyToMindmap
+        n.topic = newTopic;
+        self.applyToMindmap();
         if (!newTopic) {
           t.dataset.placeholder = n.id === self.treeData.id ? self._t('outlineRootPlaceholder', '输入主题...') : self._t('outlinePlaceholder', '输入内容...');
         } else {
@@ -234,6 +247,7 @@
         }
       });
       t.addEventListener('input', function () {
+        // 实时更新节点 topic，但不触发同步（等待 blur 时再同步）
         n.topic = t.textContent;
         if (t.textContent) {
           delete t.dataset.placeholder;
@@ -361,6 +375,8 @@
     parent.children.splice(idx + 1, 0, newNode);
     this.focusedId = newNode.id;
     this.render();
+    // 同步更新到思维导图和编辑器
+    this.applyToMindmap();
   };
 
   OutlineEditor.prototype._addChild = function (node, textEl) {
@@ -377,12 +393,17 @@
     if (node.data) {
       newNode.data = deepClone(node.data);
       delete newNode.data.notes;
+      if (typeof newNode.data.indent === 'number') {
+        newNode.data.indent = node.data.indent + 2;
+      }
     }
 
     node.children.push(newNode);
     node.expanded = true;
     this.focusedId = newNode.id;
     this.render();
+    // 同步更新到思维导图和编辑器
+    this.applyToMindmap();
   };
 
   OutlineEditor.prototype._indent = function (node, textEl) {
@@ -412,8 +433,16 @@
 
     node.parentid = prevSibling.id;
 
+    if (node.data && typeof node.data.level !== 'undefined') {
+      node.data.level = node.data.level + 1;
+    }
+
+    updateIndentRecursive(node, 2);
+
     this.focusedId = node.id;
     this.render();
+    // 同步更新到思维导图和编辑器
+    this.applyToMindmap();
   };
 
   OutlineEditor.prototype._outdent = function (node, textEl) {
@@ -454,8 +483,16 @@
 
     node.parentid = grandparent.id;
 
+    if (node.data && typeof node.data.level !== 'undefined' && node.data.level > 1) {
+      node.data.level = node.data.level - 1;
+    }
+
+    updateIndentRecursive(node, -2);
+
     this.focusedId = node.id;
     this.render();
+    // 同步更新到思维导图和编辑器
+    this.applyToMindmap();
   };
 
   OutlineEditor.prototype._deleteNode = function (node, textEl) {
@@ -486,6 +523,8 @@
     }
 
     this.render();
+    // 同步更新到思维导图和编辑器
+    this.applyToMindmap();
   };
 
   OutlineEditor.prototype._navigatePrev = function (textEl) {
@@ -571,7 +610,15 @@
       console.error('[OutlineEditor] jm.show() failed:', e);
     }
 
-    if (typeof debouncedSave === 'function') {
+    // 直接调用保存，确保数据同步到编辑器
+    // 优先使用 syncAll 进行完整同步（nodetree -> ast -> markdown）
+    // 注意：syncAll 期望的 nodeTree 格式是 { data: nodeTree }，这是 jm.get_data() 的返回格式
+    if (typeof syncAll === 'function') {
+      var nodeTreeWrapper = { data: nodeTree };
+      syncAll('mindmap', true, true, nodeTreeWrapper);
+    } else if (typeof saveToLocalStorage === 'function') {
+      saveToLocalStorage();
+    } else if (typeof debouncedSave === 'function') {
       debouncedSave();
     }
   };

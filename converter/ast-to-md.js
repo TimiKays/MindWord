@@ -34,7 +34,7 @@ export class AstToMdConverter {
    */
   convert(ast) {
     if (!ast) return '';
-    
+
     return this.convertNode(ast, 0).trim();
   }
 
@@ -82,11 +82,11 @@ export class AstToMdConverter {
         if (node.notes) {
           markdown += `\n${indent}  ${node.notes}`;
         }
-        
+
         // 处理子节点（通常是列表项）
         if (node.children.length > 0) {
           markdown += '\n\n' + node.children
-            .map(child => this.convertNode(child, depth))
+            .map(child => this.convertNode(child, depth + 1))
             .join('\n');
         }
         break;
@@ -95,8 +95,8 @@ export class AstToMdConverter {
         // 优先使用保存的 marker，如果没有则根据 ordered 判断
         const marker = node.marker || (node.ordered ? '1.' : '-');
         // 列表节点的缩进应该使用 node.indent（如果存在），否则使用 depth 计算
-        const listIndent = (node.indent !== undefined && node.indent !== null) 
-          ? ' '.repeat(node.indent) 
+        const listIndent = (node.indent !== undefined && node.indent !== null)
+          ? ' '.repeat(node.indent)
           : indent;
         // 将 HTML 的 <strong> 标签转换回 Markdown 的 **文本** 格式
         const listName = convertHtmlBoldToMarkdown(node.name);
@@ -104,7 +104,7 @@ export class AstToMdConverter {
         if (node.notes) {
           markdown += `\n${listIndent}  ${node.notes}`;
         }
-        
+
         // 处理子节点（嵌套列表项）
         if (node.children.length > 0) {
           markdown += '\n' + node.children
@@ -138,7 +138,7 @@ export class AstToMdConverter {
    */
   convertBatch(nodes) {
     if (!Array.isArray(nodes)) return '';
-    
+
     return nodes
       .map(node => this.convert(node))
       .join('\n\n---\n\n');
@@ -166,7 +166,7 @@ export class AstToMdConverter {
 
     const traverse = (node) => {
       stats.totalNodes++;
-      
+
       switch (node.type) {
         case 'heading':
         case 'title':
@@ -188,9 +188,9 @@ export class AstToMdConverter {
     } else {
       traverse(ast);
     }
-    
+
     stats.lines = this.convert(ast).split('\n').length;
-    
+
     return stats;
   }
 }
