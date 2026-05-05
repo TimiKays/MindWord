@@ -12,6 +12,7 @@
 
     let swRegistration = null;
     let updateAvailable = false;
+    let currentVersion = null;
 
     function initServiceWorker() {
         if (!('serviceWorker' in navigator)) {
@@ -25,6 +26,9 @@
             .then(function (registration) {
                 swRegistration = registration;
                 console.log('[SW] Service Worker 注册成功，作用域:', registration.scope);
+
+                // 查询当前版本
+                querySWVersion();
 
                 registration.onupdatefound = function () {
                     const installingWorker = registration.installing;
@@ -191,12 +195,45 @@
         }
     }
 
+    function querySWVersion() {
+        return new Promise(function (resolve, reject) {
+            if (!navigator.serviceWorker.controller) {
+                console.log('[SW] Service Worker 还未激活');
+                resolve(null);
+                return;
+            }
+
+            const messageChannel = new MessageChannel();
+            messageChannel.port1.onmessage = function (event) {
+                currentVersion = event.data;
+                console.log('[SW] 当前版本:', event.data);
+                resolve(event.data);
+            };
+
+            navigator.serviceWorker.controller.postMessage(
+                { type: 'GET_VERSION' },
+                [messageChannel.port2]
+            );
+
+            // 超时处理
+            setTimeout(function () {
+                reject(new Error('版本查询超时'));
+            }, 5000);
+        });
+    }
+
+    function getCurrentVersion() {
+        return currentVersion;
+    }
+
     window.MindWordSW = {
         checkForUpdate: checkForUpdate,
         forceUpdate: forceUpdateSW,
         isUpdateAvailable: function () {
             return updateAvailable;
-        }
+        },
+        getVersion: querySWVersion,
+        getCurrentVersion: getCurrentVersion
     };
 
     if (document.readyState === 'loading') {
