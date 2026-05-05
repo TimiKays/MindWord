@@ -3,7 +3,7 @@
  * 只缓存核心文件，避免路径重复问题
  */
 
-const CACHE_NAME = 'mindword-v47';
+const CACHE_NAME = 'mindword-v50';
 
 // 只缓存最关键的核心文件
 const CORE_FILES = [
@@ -30,7 +30,6 @@ const CORE_FILES = [
   '/notification-bridge.js',
   '/offline-config.json',
   '/styles.css',
-  '/sw.js',
   '/three-iframes.js',
   '/user.js',
   '/offline.html', // 离线页面
@@ -227,6 +226,13 @@ self.addEventListener('activate', event => {
       )
     ).then(() => self.clients.claim())
   );
+});
+
+// --- 处理SKIP_WAITING消息，立即激活新版本 ---
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 // --- 修复重定向循环和离线导航问题 ---
