@@ -271,6 +271,8 @@
     var itemEl = document.createElement('div');
     itemEl.className = 'outline-item' + (isRoot ? ' outline-root' : '');
     itemEl.dataset.id = node.id;
+    itemEl.dataset.depth = depth;
+    itemEl.dataset.isRoot = isRoot ? '1' : '0';
 
     var rowEl = document.createElement('div');
     rowEl.className = 'outline-row';
@@ -379,6 +381,21 @@
     if (notes) {
       var notesRow = document.createElement('div');
       notesRow.className = 'outline-notes-row';
+      if (!isRoot) {
+        var notesDragSpacer = document.createElement('span');
+        notesDragSpacer.className = 'outline-notes-spacer';
+        notesDragSpacer.style.width = '16px';
+        notesRow.appendChild(notesDragSpacer);
+      }
+      for (var ni = 0; ni < depth; ni++) {
+        var notesIndentUnit = document.createElement('span');
+        notesIndentUnit.className = 'outline-indent-unit';
+        notesRow.appendChild(notesIndentUnit);
+      }
+      var notesToggleSpacer = document.createElement('span');
+      notesToggleSpacer.className = 'outline-notes-spacer';
+      notesToggleSpacer.style.width = '20px';
+      notesRow.appendChild(notesToggleSpacer);
       var notesContent = document.createElement('div');
       notesContent.className = 'outline-notes-content';
       notesContent.textContent = notes;
@@ -512,6 +529,23 @@
     var notesRow = itemEl.querySelector(':scope > .outline-notes-row');
     var editorRow = document.createElement('div');
     editorRow.className = 'outline-notes-editor';
+    var depth = parseInt(itemEl.dataset.depth, 10) || 0;
+    var isRootNode = itemEl.dataset.isRoot === '1';
+    if (!isRootNode) {
+      var editorDragSpacer = document.createElement('span');
+      editorDragSpacer.className = 'outline-notes-spacer';
+      editorDragSpacer.style.width = '16px';
+      editorRow.appendChild(editorDragSpacer);
+    }
+    for (var ei = 0; ei < depth; ei++) {
+      var editorIndentUnit = document.createElement('span');
+      editorIndentUnit.className = 'outline-indent-unit';
+      editorRow.appendChild(editorIndentUnit);
+    }
+    var editorToggleSpacer = document.createElement('span');
+    editorToggleSpacer.className = 'outline-notes-spacer';
+    editorToggleSpacer.style.width = '20px';
+    editorRow.appendChild(editorToggleSpacer);
 
     var textarea = document.createElement('textarea');
     textarea.className = 'outline-notes-textarea';

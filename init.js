@@ -31,21 +31,37 @@ MindWord 应用的 主初始化模块 ，核心职责是：
 */
 
 function initApp() {
-  // 从localStorage恢复状态（在移动端自动专注模式之前）
   restoreStateFromStorage();
 
   updateLayout();
   initResizing();
 
-  // 加载所有面板内容
-  Object.keys(PAGE_CONFIG).forEach(panelName => {
+  var _loadedPanels = {};
+  function loadPanelIfNeeded(panelName) {
+    if (_loadedPanels[panelName]) return;
+    _loadedPanels[panelName] = true;
     loadPanelContent(panelName);
-  });
+  }
 
-  // 应用恢复的状态到UI
+  loadPanelIfNeeded('editor');
+
+  var _deferredPanels = Object.keys(PAGE_CONFIG).filter(function (n) { return n !== 'editor'; });
+  function loadDeferredPanels() {
+    _deferredPanels.forEach(function (panelName) {
+      loadPanelIfNeeded(panelName);
+    });
+  }
+
+  if ('requestIdleCallback' in window) {
+    requestIdleCallback(loadDeferredPanels, { timeout: 3000 });
+  } else {
+    setTimeout(loadDeferredPanels, 2000);
+  }
+
+  window.__mw_loadPanelIfNeeded = loadPanelIfNeeded;
+
   applyRestoredState();
 
-  // 移动端自动专注模式初始化（在状态恢复之后）
   initMobileFocus();
 
   // 监听来自子页面的消息
@@ -146,34 +162,190 @@ document.addEventListener('DOMContentLoaded', initApp);
   } catch (e) { console.warn('[INDEX] preloadAIPromptTemplates error', e); }
 })();
 
-/* ==== AI 弹窗父层托管注入（来自 ai/newai/demo-caller.html 的适配实现） ====
+/* ==== AI 弹窗父层托管注入（按需加载版） ====
    子 iframe 通过 postMessage({ type:'AI_MODAL_OPEN', requestId, payload }, '*')
    调用位于 ai/newai/AIServiceModal.html 的 AIServiceModal。支持 modal 与 silent
+   
+   优化：不再在页面加载时立即创建 aiModalFrame iframe，
+   而是等到首次收到 AI_MODAL_OPEN 消息时才创建，避免加载 cdn.tailwindcss.com 等重资源。
 */
 (function injectAiModalHost() {
-  try {
-    var existing = document.getElementById('aiModalFrame');
-    if (!existing) {
-      var frame = document.createElement('iframe');
-      frame.id = 'aiModalFrame';
-      frame.src = 'ai/newai/AIServiceModal.html';
-      frame.style.position = 'fixed';
-      frame.style.inset = '0';
-      frame.style.width = '100%';
-      frame.style.height = '100%';
-      frame.style.border = '0';
-      frame.style.display = 'none';
-      frame.setAttribute('aria-hidden', 'true');
-      frame.style.zIndex = '9999';
-      frame.style.background = 'transparent';
-      document.body.appendChild(frame);
-    }
-  } catch (e) {
-    console.warn('[INDEX][AI] inject aiModalFrame failed', e);
-  }
-
   window.__ai_req_map = window.__ai_req_map || new Map();
   window._headlessTimeouts = window._headlessTimeouts || new Map();
+
+  var _pendingAiMessages = [];
+  var _aiFrameReady = false;
+
+  function ensureAiFrame(callback) {
+    var existing = document.getElementById('aiModalFrame');
+    if (existing) {
+      if (_aiFrameReady) {
+        callback && callback();
+      } else {
+        existing.addEventListener('load', function onLoad() {
+          existing.removeEventListener('load', onLoad);
+          _aiFrameReady = true;
+          callback && callback();
+        }, { once: true });
+      }
+      return;
+    }
+
+    _aiFrameReady = false;
+    var frame = document.createElement('iframe');
+    frame.id = 'aiModalFrame';
+    frame.src = 'ai/newai/AIServiceModal.html';
+    frame.style.position = 'fixed';
+    frame.style.inset = '0';
+    frame.style.width = '100%';
+    frame.style.height = '100%';
+    frame.style.border = '0';
+    frame.style.display = 'none';
+    frame.setAttribute('aria-hidden', 'true');
+    frame.style.zIndex = '9999';
+    frame.style.background = 'transparent';
+
+    frame.onload = function () {
+      _aiFrameReady = true;
+      while (_pendingAiMessages.length > 0) {
+        var item = _pendingAiMessages.shift();
+        processAiMessage(item.e, item.msg);
+      }
+      callback && callback();
+    };
+
+    document.body.appendChild(frame);
+  }
+
+  function processAiMessage(e, msg) {
+    try {
+      window.__ai_req_map.set(msg.requestId, e.source);
+      var aiFrame = document.getElementById('aiModalFrame');
+
+      if (msg.payload && msg.payload.mode === 'silent') {
+        var platformCfgRaw = msg.payload.platformConfig || msg.payload.platform || {};
+        var platformConfig = Object.assign({}, platformCfgRaw);
+
+        try {
+          var storageStr = aiFrame && aiFrame.contentWindow && aiFrame.contentWindow.localStorage
+            ? aiFrame.contentWindow.localStorage.getItem('allAIPlatformConfigs')
+            : null;
+          if (!platformConfig.provider && storageStr) {
+            try {
+              var allCfgs = JSON.parse(storageStr || '{}') || {};
+              var keys = Object.keys(allCfgs || {});
+              var chosen = null;
+              for (var i = 0; i < keys.length; i++) {
+                var k = keys[i];
+                var c = allCfgs[k] || {};
+                var hasApiKey = c.apiKey && String(c.apiKey).trim() !== '';
+                var okCloudflare = (k !== 'cloudflare') || (c.cloudflareAccountId && String(c.cloudflareAccountId).trim() !== '');
+                var okAzure = (k !== 'azure') || (c.azureEndpoint && String(c.azureEndpoint).trim() !== '');
+                if (hasApiKey && okCloudflare && okAzure) {
+                  chosen = { key: k, cfg: c };
+                  break;
+                }
+              }
+              if (chosen) {
+                platformConfig.provider = platformConfig.provider || chosen.key;
+                platformConfig.apiKey = platformConfig.apiKey || chosen.cfg.apiKey || '';
+                if (chosen.cfg.azureEndpoint) platformConfig.azureEndpoint = platformConfig.azureEndpoint || chosen.cfg.azureEndpoint;
+                if (chosen.cfg.cloudflareAccountId) platformConfig.cloudflareAccountId = platformConfig.cloudflareAccountId || chosen.cfg.cloudflareAccountId;
+                console.log('[INDEX] selected saved platform from aiModalFrame.localStorage:', chosen.key);
+              }
+            } catch (err) { console.warn('[INDEX] parse aiModalFrame.localStorage failed', err); }
+          }
+        } catch (err) { console.warn('[INDEX] read aiFrame localStorage failed', err); }
+
+        var _tplRaw = msg.payload.templateData || {
+          templateText: msg.payload.template || '',
+          placeholders: msg.payload.placeholders || msg.payload.params || {}
+        };
+
+        if (msg.payload.templateKey && !(_tplRaw && typeof _tplRaw.templateText === 'string' && _tplRaw.templateText.trim())) {
+          try {
+            if (aiFrame && aiFrame.contentWindow && aiFrame.contentWindow.promptTemplates) {
+              var templates = aiFrame.contentWindow.promptTemplates;
+              for (var i = 0; i < templates.length; i++) {
+                if (templates[i].name === msg.payload.templateKey) {
+                  _tplRaw.templateText = templates[i].content || '';
+                  console.log('[INDEX] Loaded template content for key:', msg.payload.templateKey);
+                  break;
+                }
+              }
+            }
+          } catch (err) {
+            console.warn('[INDEX] Failed to load template content for key:', msg.payload.templateKey, err);
+          }
+        }
+
+        try {
+          if (!(_tplRaw && typeof _tplRaw.templateText === 'string' && _tplRaw.templateText.trim())) {
+            var ph = (_tplRaw && _tplRaw.placeholders) ? _tplRaw.placeholders : (msg.payload.placeholders || msg.payload.params || {});
+            var candidate = '';
+            if (ph) {
+              if (ph.input && typeof ph.input === 'object' && typeof ph.input.value === 'string') candidate = ph.input.value;
+              else if (typeof ph.input === 'string') candidate = ph.input;
+            }
+            if (!candidate && typeof msg.payload.template === 'string') candidate = msg.payload.template;
+            if (candidate && String(candidate).trim()) { _tplRaw.templateText = String(candidate); }
+          }
+        } catch (err) { console.warn('[INDEX] fill templateText failed', err); }
+
+        try {
+          aiFrame.contentWindow.postMessage(msg);
+          var HEADLESS_TIMEOUT_MS = 60000;
+          var t = setTimeout(function () {
+            try {
+              var src = window.__ai_req_map.get(msg.requestId);
+              if (src) {
+                src.postMessage({
+                  type: 'AI_MODAL_RESULT',
+                  requestId: msg.requestId,
+                  status: 'error',
+                  detail: { message: 'headless call timeout' }
+                }, '*');
+              }
+            } catch (e) { }
+            window._headlessTimeouts.delete(msg.requestId);
+            window.__ai_req_map.delete(msg.requestId);
+          }, HEADLESS_TIMEOUT_MS);
+          window._headlessTimeouts.set(msg.requestId, { timer: t, source: e.source });
+        } catch (err) {
+          console.error('[INDEX] post to aiModalFrame failed', err);
+          try { e.source.postMessage({ type: 'AI_MODAL_RESULT', requestId: msg.requestId, status: 'error', detail: { message: 'failed to post to aiModalFrame: ' + (err && err.message ? err.message : String(err)) } }, '*'); } catch (_) { }
+          window.__ai_req_map.delete(msg.requestId);
+        }
+        return;
+      }
+
+      try { if (aiFrame) { aiFrame.style.display = 'block'; aiFrame.focus && aiFrame.focus(); } } catch (_) { }
+
+      var modalPayload = Object.assign({}, msg.payload || {}, { requestId: msg.requestId });
+
+      if (modalPayload.templateKey && !modalPayload.templateData) {
+        modalPayload.templateData = {
+          templateKey: modalPayload.templateKey,
+          templateText: modalPayload.template || '',
+          placeholders: modalPayload.placeholders || modalPayload.params || {}
+        };
+      }
+
+      try {
+        aiFrame.contentWindow.postMessage({
+          type: 'AI_MODAL_OPEN',
+          payload: modalPayload
+        }, '*');
+        console.log('[INDEX] forwarded AI_MODAL_OPEN to aiModalFrame', msg.requestId);
+      } catch (err) {
+        console.error('[INDEX] forward AI_MODAL_OPEN failed', err);
+        try { e.source.postMessage({ type: 'AI_MODAL_RESULT', requestId: msg.requestId, status: 'error', detail: { message: 'failed to forward to aiModalFrame' } }, '*'); } catch (_) { }
+        window.__ai_req_map.delete(msg.requestId);
+      }
+    } catch (err) {
+      console.warn('[INDEX] ai message handler error', err);
+    }
+  }
 
   window.addEventListener('message', function (e) {
     try {
@@ -182,162 +354,21 @@ document.addEventListener('DOMContentLoaded', initApp);
 
       if (msg.type === 'AI_MODAL_OPEN' && msg.requestId) {
         console.log('[INDEX] AI_MODAL_OPEN', msg.requestId, msg.payload);
-        window.__ai_req_map.set(msg.requestId, e.source);
         var aiFrame = document.getElementById('aiModalFrame');
-
-        if (msg.payload && msg.payload.mode === 'silent') {
-          // headless handling (kept for compatibility)
-          var platformCfgRaw = msg.payload.platformConfig || msg.payload.platform || {};
-          var platformConfig = Object.assign({}, platformCfgRaw);
-
-          try {
-            var storageStr = aiFrame && aiFrame.contentWindow && aiFrame.contentWindow.localStorage
-              ? aiFrame.contentWindow.localStorage.getItem('allAIPlatformConfigs')
-              : null;
-            if (!platformConfig.provider && storageStr) {
-              try {
-                var allCfgs = JSON.parse(storageStr || '{}') || {};
-                var keys = Object.keys(allCfgs || {});
-                var chosen = null;
-                for (var i = 0; i < keys.length; i++) {
-                  var k = keys[i];
-                  var c = allCfgs[k] || {};
-                  var hasApiKey = c.apiKey && String(c.apiKey).trim() !== '';
-                  var okCloudflare = (k !== 'cloudflare') || (c.cloudflareAccountId && String(c.cloudflareAccountId).trim() !== '');
-                  var okAzure = (k !== 'azure') || (c.azureEndpoint && String(c.azureEndpoint).trim() !== '');
-                  if (hasApiKey && okCloudflare && okAzure) {
-                    chosen = { key: k, cfg: c };
-                    break;
-                  }
-                }
-                if (chosen) {
-                  platformConfig.provider = platformConfig.provider || chosen.key;
-                  platformConfig.apiKey = platformConfig.apiKey || chosen.cfg.apiKey || '';
-                  if (chosen.cfg.azureEndpoint) platformConfig.azureEndpoint = platformConfig.azureEndpoint || chosen.cfg.azureEndpoint;
-                  if (chosen.cfg.cloudflareAccountId) platformConfig.cloudflareAccountId = platformConfig.cloudflareAccountId || chosen.cfg.cloudflareAccountId;
-                  console.log('[INDEX] selected saved platform from aiModalFrame.localStorage:', chosen.key);
-                }
-              } catch (err) { console.warn('[INDEX] parse aiModalFrame.localStorage failed', err); }
-            }
-          } catch (err) { console.warn('[INDEX] read aiFrame localStorage failed', err); }
-
-          var _tplRaw = msg.payload.templateData || {
-            templateText: msg.payload.template || '',
-            placeholders: msg.payload.placeholders || msg.payload.params || {}
-          };
-
-          // Handle templateKey - load template content if templateKey is provided
-          if (msg.payload.templateKey && !(_tplRaw && typeof _tplRaw.templateText === 'string' && _tplRaw.templateText.trim())) {
-            try {
-              // Try to get template content from the iframe's template system
-              var aiFrame = document.getElementById('aiModalFrame');
-              if (aiFrame && aiFrame.contentWindow && aiFrame.contentWindow.promptTemplates) {
-                var templates = aiFrame.contentWindow.promptTemplates;
-                for (var i = 0; i < templates.length; i++) {
-                  if (templates[i].name === msg.payload.templateKey) {
-                    _tplRaw.templateText = templates[i].content || '';
-                    console.log('[INDEX] Loaded template content for key:', msg.payload.templateKey);
-                    break;
-                  }
-                }
-              }
-            } catch (err) {
-              console.warn('[INDEX] Failed to load template content for key:', msg.payload.templateKey, err);
-            }
-          }
-
-          try {
-            if (!(_tplRaw && typeof _tplRaw.templateText === 'string' && _tplRaw.templateText.trim())) {
-              var ph = (_tplRaw && _tplRaw.placeholders) ? _tplRaw.placeholders : (msg.payload.placeholders || msg.payload.params || {});
-              var candidate = '';
-              if (ph) {
-                if (ph.input && typeof ph.input === 'object' && typeof ph.input.value === 'string') candidate = ph.input.value;
-                else if (typeof ph.input === 'string') candidate = ph.input;
-              }
-              if (!candidate && typeof msg.payload.template === 'string') candidate = msg.payload.template;
-              if (candidate && String(candidate).trim()) { _tplRaw.templateText = String(candidate); }
-            }
-          } catch (err) { console.warn('[INDEX] fill templateText failed', err); }
-
-          // // 保留原始payload的所有字段，避免字段丢失
-          // var headlessPayload = Object.assign({}, msg.payload || {}, {
-          //     platformConfig: platformConfig,
-          //     modelConfig: msg.payload.modelConfig || msg.payload.model || {},
-          //     templateData: _tplRaw,
-          //     options: msg.payload.options || {}
-          // });
-
-          try {
-            aiFrame.contentWindow.postMessage(msg);
-            var HEADLESS_TIMEOUT_MS = 60000;
-            var t = setTimeout(function () {
-              try {
-                var src = window.__ai_req_map.get(msg.requestId);
-                if (src) {
-                  src.postMessage({
-                    type: 'AI_MODAL_RESULT',
-
-                    requestId: msg.requestId,
-                    status: 'error',
-                    detail: { message: 'headless call timeout' }
-                  }, '*');
-                }
-              } catch (e) { }
-              window._headlessTimeouts.delete(msg.requestId);
-              window.__ai_req_map.delete(msg.requestId);
-            }, HEADLESS_TIMEOUT_MS);
-            window._headlessTimeouts.set(msg.requestId, { timer: t, source: e.source });
-          } catch (err) {
-            console.error('[INDEX] post to aiModalFrame failed', err);
-            try { e.source.postMessage({ type: 'AI_MODAL_RESULT', requestId: msg.requestId, status: 'error', detail: { message: 'failed to post to aiModalFrame: ' + (err && err.message ? err.message : String(err)) } }, '*'); } catch (_) { }
-            window.__ai_req_map.delete(msg.requestId);
-          }
+        if (!aiFrame || !_aiFrameReady) {
+          _pendingAiMessages.push({ e: e, msg: msg });
+          ensureAiFrame();
           return;
         }
-
-        // modal path: show frame and forward
-        try { if (aiFrame) { aiFrame.style.display = 'block'; aiFrame.focus && aiFrame.focus(); } } catch (_) { }
-
-        // 处理templateKey参数，类似headless模式的逻辑
-        var modalPayload = Object.assign({}, msg.payload || {}, { requestId: msg.requestId });
-
-        // 如果存在templateKey但没有templateData，需要构建templateData
-        if (modalPayload.templateKey && !modalPayload.templateData) {
-          modalPayload.templateData = {
-            templateKey: modalPayload.templateKey,
-            templateText: modalPayload.template || '',
-            placeholders: modalPayload.placeholders || modalPayload.params || {}
-          };
-        }
-
-        try {
-          aiFrame.contentWindow.postMessage({
-            type: 'AI_MODAL_OPEN',
-            payload: modalPayload
-          }, '*');
-          console.log('[INDEX] forwarded AI_MODAL_OPEN to aiModalFrame', msg.requestId);
-        } catch (err) {
-          console.error('[INDEX] forward AI_MODAL_OPEN failed', err);
-          try { e.source.postMessage({ type: 'AI_MODAL_RESULT', requestId: msg.requestId, status: 'error', detail: { message: 'failed to forward to aiModalFrame' } }, '*'); } catch (_) { }
-          window.__ai_req_map.delete(msg.requestId);
-        }
+        processAiMessage(e, msg);
+        return;
       }
 
-      // handle AI_MODAL_RESULT: when modal's "保存并应用" sends output, forward it as a RESULT to the original requester
       if (msg.type === 'AI_MODAL_RESULT' && msg.requestId) {
         console.log('[INDEX] AI_MODAL_RESULT', msg.requestId, 'actionType:', msg.actionType);
         var srcWinSave = window.__ai_req_map.get(msg.requestId);
         try { var fsave = document.getElementById('aiModalFrame'); if (fsave) fsave.style.display = 'none'; } catch (_) { }
 
-        // 构造消息？
-
-        // var outMsgSave = {
-        //     type: 'AI_MODAL_RESULT',
-        //     actionType: msg.actionType,
-        //     requestId: msg.requestId,
-        //     status: 'ok',
-        //     detail: { output: msg.output }
-        // };
         if (srcWinSave) {
           try {
             srcWinSave.postMessage(msg, '*');
@@ -352,32 +383,6 @@ document.addEventListener('DOMContentLoaded', initApp);
         return;
       }
 
-      // modal result
-      if (msg.type === 'AI_MODAL_RESULT' && msg.requestId) {
-        console.log('[INDEX] AI_MODAL_RESULT', msg.requestId, msg.status, 'actionType:', msg.actionType);
-        var srcWin = window.__ai_req_map.get(msg.requestId);
-        // 仅在消息没有要求保留（keepOpen）时才隐藏 aiModalFrame。
-        // 如果 msg.keepOpen === true，则保持弹窗打开（错误时 modal 会发送 keepOpen:true）
-        try {
-          var f = document.getElementById('aiModalFrame');
-          if (f && !msg.keepOpen) {
-            f.style.display = 'none';
-          }
-        } catch (_) { }
-        if (srcWin) {
-          try {
-            srcWin.postMessage(msg, '*');
-            console.log('[INDEX] forwarded AI_MODAL_RESULT to source', msg.requestId, 'with actionType:', msg.actionType);
-          } catch (e) {
-            console.warn('[INDEX] forward result failed', e);
-          }
-          window.__ai_req_map.delete(msg.requestId);
-        } else {
-          console.warn('[INDEX] source not found for', msg.requestId);
-        }
-      }
-
-      // headless run result
       if (msg.type === 'AI_MODAL_RUN_RESULT' && msg.requestId) {
         console.log('[INDEX] AI_MODAL_RUN_RESULT', msg.requestId, msg.status);
         var srcWin2 = window.__ai_req_map.get(msg.requestId);

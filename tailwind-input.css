@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .content-auto {
+    content-visibility: auto;
+  }
+  .text-gradient {
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .bg-blur {
+    backdrop-filter: blur(8px);
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .card-hover {
+    transition: all 0.3s ease;
+  }
+  .card-hover:hover {
+    transform: translateY(-5px);
+  }
+}

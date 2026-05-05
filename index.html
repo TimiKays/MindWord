@@ -326,8 +326,7 @@
     <link rel="sitemap" type="application/xml" title="Sitemap" href="https://mindword.dpdns.org/sitemap.xml">
     <link rel="author" type="text/plain" href="https://mindword.dpdns.org/humans.txt">
 
-    <!-- Open Graph Meta Tags - Bilingual -->
-    <!-- Chinese Open Graph -->
+    <!-- Open Graph Meta Tags -->
     <meta property="og:title" content="MindWord - 树心 | 像画图一样写文档的思维导图写作工具">
     <meta property="og:description"
         content="MindWord是一款创新的思维导图写作工具，像画图一样写文档。支持Markdown与思维导图双向实时同步，AI辅助生成内容，一键导出Word文档。">
@@ -338,25 +337,13 @@
     <meta property="og:locale" content="zh_CN">
     <meta property="og:locale:alternate" content="en_US">
 
-    <!-- English Open Graph -->
-    <meta property="og:title" content="MindWord | Mind Mapping Writing Tool - Write Documents Like Drawing">
-    <meta property="og:description" lang="en"
-        content="MindWord is an innovative mind mapping writing tool that lets you write documents like drawing. Supports bidirectional real-time sync between Markdown and mind maps, AI-assisted content generation, and one-click Word document export.">
-    <meta property="og:locale:alternate" content="zh_CN">
-
-    <!-- Twitter Card Meta Tags - Bilingual -->
-    <!-- Chinese Twitter Card -->
+    <!-- Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="MindWord - 树心 | 像画图一样写文档的思维导图写作工具">
     <meta name="twitter:description"
         content="MindWord是一款创新的思维导图写作工具，像画图一样写文档。支持Markdown与思维导图双向实时同步，AI辅助生成内容，一键导出Word文档。">
     <meta name="twitter:image" content="res/screenShot-all.png">
     <meta name="twitter:site" content="@MindWordApp">
-
-    <!-- English Twitter Card -->
-    <meta name="twitter:title" lang="en" content="MindWord | Mind Mapping Writing Tool - Write Documents Like Drawing">
-    <meta name="twitter:description" lang="en"
-        content="MindWord is an innovative mind mapping writing tool that lets you write documents like drawing. Supports bidirectional real-time sync between Markdown and mind maps, AI-assisted content generation, and one-click Word document export.">
 
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="res/LOGO32.ico">
@@ -374,13 +361,7 @@
 
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="application-name" content="MindWord">
-    <meta name="apple-mobile-web-app-title" content="MindWord">
-    <meta name="theme-color" content="#619dff">
     <meta name="msapplication-navbutton-color" content="#619dff">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
 
     <!-- Preconnect to external domains for performance -->
     <!-- <link rel="preconnect" href="https://cdn.tailwindcss.com"> -->
@@ -494,10 +475,10 @@
       }
     }
     </script>
-    <script src="local-deps/tailwindcss.min.js"></script>
+    <link href="local-deps/tailwind-compiled.min.css" rel="stylesheet">
     <link href="local-deps/font-awesome.min.css" rel="stylesheet">
-    <script src="i18n/locales.js"></script>
-    <script src="i18n/i18n-manager.js"></script>
+    <script src="i18n/locales.js" defer></script>
+    <script src="i18n/i18n-manager.js" defer></script>
 
     <!-- Language Detection Script for SEO -->
     <script>
@@ -546,49 +527,6 @@
         // // 额外的保险机制
         // setTimeout(applyTranslationsWhenReady, 500);
     </script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#619dff',
-                        secondary: '#5eb97e',
-                        accent: '#b88bf1',
-                        dark: '#1E293B',
-                        light: '#F8FAFC',
-                        third: '#f3e8ff'
-                    },
-                    fontFamily: {
-                        sans: ['Inter', 'system-ui', 'sans-serif'],
-                    },
-                }
-            }
-        }
-    </script>
-    <style type="text/tailwindcss">
-        @layer utilities {
-            .content-auto {
-                content-visibility: auto;
-            }
-            .text-gradient {
-                background-clip: text;
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-            }
-            .bg-blur {
-                backdrop-filter: blur(8px);
-            }
-            .scrollbar-hide::-webkit-scrollbar {
-                display: none;
-            }
-            .card-hover {
-                transition: all 0.3s ease;
-            }
-            .card-hover:hover {
-                transform: translateY(-5px);
-            }
-        }
-    </style>
     <style>
         html {
             scroll-behavior: smooth;
@@ -1005,8 +943,12 @@
                         <div
                             class="absolute inset-0 bg-gradient-to-tr from-primary/20 to-secondary/20 rounded-3xl transform rotate-3 scale-105">
                         </div>
-                        <img src="res/screenShot-all.png" alt="MindWord思维导图写作工具界面截图" data-i18n="hero.productShow.alt"
-                            class="relative z-10 rounded-3xl shadow-2xl w-full">
+                        <picture>
+                            <source srcset="res/screenShot-all.webp" type="image/webp">
+                            <img src="res/screenShot-all.png" alt="MindWord思维导图写作工具界面截图"
+                                data-i18n="hero.productShow.alt" class="relative z-10 rounded-3xl shadow-2xl w-full"
+                                loading="lazy" width="1873" height="1088">
+                        </picture>
                         <div
                             class="absolute -bottom-6 -left-6 bg-white p-4 rounded-xl shadow-lg z-20 border border-green-100">
                             <div class="flex items-center space-x-2">
@@ -1079,7 +1021,6 @@
                         </div>
                     </div>
                 </div>
-            </div>
             </div>
         </section>
 
@@ -1255,8 +1196,12 @@
                                     </div>
                                 </div>
                                 <div class="lg:w-1/2 bg-gray-100 p-8 flex items-center justify-center">
-                                    <img src="res/screenShot-editor.png" alt="Markdown编辑器界面"
-                                        class="rounded-xl shadow-md max-w-full h-auto">
+                                    <picture>
+                                        <source srcset="res/screenShot-editor.webp" type="image/webp">
+                                        <img src="res/screenShot-editor.png" alt="Markdown编辑器界面"
+                                            class="rounded-xl shadow-md max-w-full h-auto" loading="lazy" width="1209"
+                                            height="1090">
+                                    </picture>
                                 </div>
                             </div>
                         </div>
@@ -1328,8 +1273,13 @@
                                     </div>
                                 </div>
                                 <div class="lg:w-1/2 bg-gray-100 p-8 flex items-center justify-center">
-                                    <img src="res/rec-mindmap.gif" alt="思维导图画布界面"
-                                        class="rounded-xl shadow-md max-w-full h-auto">
+                                    <video autoplay loop muted playsinline
+                                        class="rounded-xl shadow-md max-w-full h-auto" loading="lazy" width="1358"
+                                        height="1040">
+                                        <source src="res/rec-mindmap.mp4" type="video/mp4">
+                                        <img src="res/rec-mindmap.gif" alt="思维导图画布界面"
+                                            class="rounded-xl shadow-md max-w-full h-auto">
+                                    </video>
                                 </div>
                             </div>
                         </div>
@@ -1403,8 +1353,13 @@
                                     </div>
                                 </div>
                                 <div class="lg:w-1/2 bg-gray-100 p-8 flex items-center justify-center">
-                                    <img src="res/rec-docx.gif" alt="Word文件生成示例"
-                                        class="rounded-xl shadow-md max-w-full h-auto">
+                                    <video autoplay loop muted playsinline
+                                        class="rounded-xl shadow-md max-w-full h-auto" loading="lazy" width="1640"
+                                        height="1090">
+                                        <source src="res/rec-docx.mp4" type="video/mp4">
+                                        <img src="res/rec-docx.gif" alt="Word文件生成示例"
+                                            class="rounded-xl shadow-md max-w-full h-auto">
+                                    </video>
                                 </div>
                             </div>
                         </div>
@@ -1853,7 +1808,7 @@
                             target="_blank" rel="noopener">
                             <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1034451&theme=neutral&t=1763369182704"
                                 alt="MindWord&#0032;–&#0032;AI&#0045;Powered&#0032;Mind&#0032;Mapping - Turn&#0032;AI&#0032;replies&#0032;&#0038;&#0032;your&#0032;thoughts&#0032;&#0032;into&#0032;structured&#0032;mind&#0032;maps&#0046; | Product Hunt"
-                                style="width: 250px; height: 54px;" width="250" height="54" /></a>
+                                style="width: 250px; height: 54px;" width="250" height="54" loading="lazy" /></a>
                     </div>
                 </div>
 
@@ -1993,14 +1948,21 @@
 
     <script>
         // 导航栏滚动效果
+        let scrollTicking = false;
         window.addEventListener('scroll', function () {
-            const navbar = document.getElementById('navbar');
-            if (window.scrollY > 50) {
-                navbar.classList.add('py-2', 'shadow-md');
-                navbar.classList.remove('py-4', 'shadow-sm');
-            } else {
-                navbar.classList.add('py-4', 'shadow-sm');
-                navbar.classList.remove('py-2', 'shadow-md');
+            if (!scrollTicking) {
+                requestAnimationFrame(function () {
+                    const navbar = document.getElementById('navbar');
+                    if (window.scrollY > 50) {
+                        navbar.classList.add('py-2', 'shadow-md');
+                        navbar.classList.remove('py-4', 'shadow-sm');
+                    } else {
+                        navbar.classList.add('py-4', 'shadow-sm');
+                        navbar.classList.remove('py-2', 'shadow-md');
+                    }
+                    scrollTicking = false;
+                });
+                scrollTicking = true;
             }
         });
 
@@ -2076,7 +2038,7 @@
 
         // 页面加载完成后隐藏骨架屏
         window.addEventListener('load', () => {
-            setTimeout(hideSkeletonLoading, 800); // 至少显示0.8秒
+            hideSkeletonLoading();
 
             // 检查是否已经安装（对于已安装的PWA，隐藏安装按钮）
             if (window.matchMedia('(display-mode: standalone)').matches ||
@@ -2092,7 +2054,7 @@
 
         // 如果页面已经加载完成，立即隐藏
         if (document.readyState === 'complete') {
-            setTimeout(hideSkeletonLoading, 300);
+            hideSkeletonLoading();
         }
 
 

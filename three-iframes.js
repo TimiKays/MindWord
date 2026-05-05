@@ -262,6 +262,9 @@ function exitFocusMode() {
 
 // 切换面板显示/隐藏
 function togglePanel(panelName) {
+  if (window.__mw_loadPanelIfNeeded) {
+    window.__mw_loadPanelIfNeeded(panelName);
+  }
   if (focusMode) {
     activeFocusPanel = panelName;
     Object.keys(panels).forEach(name => {
@@ -287,6 +290,9 @@ function togglePanel(panelName) {
 
 // 处理Tab点击
 function handleTabClick(panelName) {
+  if (window.__mw_loadPanelIfNeeded) {
+    window.__mw_loadPanelIfNeeded(panelName);
+  }
   if (focusMode) {
     activeFocusPanel = panelName;
     Object.keys(panels).forEach(name => {

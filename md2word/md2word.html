@@ -120,6 +120,8 @@
     .preview-container {
       font-size: 1rem;
       line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
 
     .preview-container h1,
@@ -299,7 +301,9 @@
 
 
     <select id="templateSelect" class="toolbar-select" style="display:inline-block; width:auto; margin-left:6px;">
-      <option value="default">默认模板</option>
+      <option value="minimal-black" selected>等线黑</option>
+      <option value="business-blue">商务蓝</option>
+      <option value="classic-black">楷体黑</option>
 
     </select>
     <span id="setTemplate" class="ico-btn" role="button" tabindex="0" title="配置模板"
@@ -496,7 +500,12 @@
 
   <script>
     (async function () {
-      const DEFAULT_TEMPLATE_PATH = 'default-template.docx';
+      const BUILTIN_TEMPLATES = {
+        'business-blue': { path: 'template-business-blue.docx', name: '商务蓝' },
+        'classic-black': { path: 'template-classic-black.docx', name: '楷体黑' },
+        'minimal-black': { path: 'template-minimal-black.docx', name: '等线黑' },
+      };
+      const builtinTplAB = new Map();
       let defaultTplAB = null;
       let userTplAB = null;
 
@@ -925,15 +934,22 @@
         }
       }, { passive: true });
 
-      // load default template if present
-      try {
-        const resp = await fetch(DEFAULT_TEMPLATE_PATH);
-        if (resp.ok) defaultTplAB = await resp.arrayBuffer();
-        if (defaultTplAB) status('默认模板加载成功');
-        else status('未找到 default-template.docx（请上传模板或使用回退）');
-      } catch (e) {
-        status('默认模板加载异常');
+      // load builtin templates
+      for (const [key, tpl] of Object.entries(BUILTIN_TEMPLATES)) {
+        try {
+          const resp = await fetch(tpl.path);
+          if (resp.ok) {
+            const ab = await resp.arrayBuffer();
+            builtinTplAB.set(key, ab);
+          }
+        } catch (e) { console.warn('Failed to load template:', tpl.name, e); }
       }
+      defaultTplAB = builtinTplAB.get('minimal-black') || null;
+      if (defaultTplAB) {
+        status('模板加载成功');
+        loadAndApplyTemplateStyles(defaultTplAB);
+      }
+      else status('未找到内置模板（请上传模板或使用回退）');
 
       // 上传模板按钮
       document.getElementById('uploadTplBtn').addEventListener('click', () => document.getElementById('uploadTplInput').click());
@@ -955,12 +971,33 @@
         templateSelect.value = templateId;
 
         status('已上传模板：' + f.name);
+        loadAndApplyTemplateStyles(arrayBuffer);
       });
 
-      // 下载默认模板
+      // 模板选择变化时，应用对应模板样式到预览
+      templateSelect.addEventListener('change', () => {
+        const selected = templateSelect.value;
+        if (builtinTplAB.has(selected)) {
+          loadAndApplyTemplateStyles(builtinTplAB.get(selected));
+        } else if (userTemplates.has(selected)) {
+          loadAndApplyTemplateStyles(userTemplates.get(selected).data);
+        }
+      });
+
+      // 下载当前选中模板
       document.getElementById('downloadDefaultTplBtn').addEventListener('click', () => {
-        if (!defaultTplAB) { status('默认模板未加载'); return; }
-        saveAs(new Blob([defaultTplAB], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }), 'default-template.docx');
+        const selected = templateSelect.value;
+        let tplData = null;
+        let tplName = 'template.docx';
+        if (builtinTplAB.has(selected)) {
+          tplData = builtinTplAB.get(selected);
+          tplName = BUILTIN_TEMPLATES[selected].path;
+        } else if (userTemplates.has(selected)) {
+          tplData = userTemplates.get(selected).data;
+          tplName = userTemplates.get(selected).name;
+        }
+        if (!tplData) { status('模板未加载'); return; }
+        saveAs(new Blob([tplData], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }), tplName);
       });
 
       function normName(s) {
@@ -1027,6 +1064,211 @@
           }
         } catch (e) { console.warn('parse styles.xml failed', e); }
         return { parStyleMap, charStyleMap };
+      }
+
+      function extractStyleVisuals(stylesXmlText) {
+        const styleMap = new Map();
+        try {
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(stylesXmlText, 'application/xml');
+          const ns = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+          const styles = doc.getElementsByTagNameNS(ns, 'style');
+          for (let i = 0; i < styles.length; i++) {
+            const s = styles[i];
+            const type = s.getAttribute('w:type') || s.getAttribute('type') || 'paragraph';
+            if (type !== 'paragraph' && type !== 'character') continue;
+            const styleId = s.getAttribute('w:styleId') || s.getAttribute('styleId');
+            const nameEl = s.getElementsByTagNameNS(ns, 'name')[0];
+            const displayName = nameEl ? nameEl.getAttribute('w:val') : null;
+            const basedOnEl = s.getElementsByTagNameNS(ns, 'basedOn')[0];
+            const basedOn = basedOnEl ? (basedOnEl.getAttribute('w:val') || basedOnEl.getAttribute('val')) : null;
+            const visuals = { styleId, displayName, basedOn, type };
+            const rPr = s.getElementsByTagNameNS(ns, 'rPr')[0];
+            if (rPr) {
+              const szEl = rPr.getElementsByTagNameNS(ns, 'sz')[0];
+              if (szEl) {
+                const szVal = szEl.getAttribute('w:val') || szEl.getAttribute('val');
+                if (szVal) visuals.fontSize = parseInt(szVal, 10) / 2;
+              }
+              const bEl = rPr.getElementsByTagNameNS(ns, 'b')[0];
+              if (bEl) {
+                const bVal = bEl.getAttribute('w:val') || bEl.getAttribute('val');
+                visuals.bold = bVal !== '0' && bVal !== 'false';
+              }
+              const iEl = rPr.getElementsByTagNameNS(ns, 'i')[0];
+              if (iEl) {
+                const iVal = iEl.getAttribute('w:val') || iEl.getAttribute('val');
+                visuals.italic = iVal !== '0' && iVal !== 'false';
+              }
+              const colorEl = rPr.getElementsByTagNameNS(ns, 'color')[0];
+              if (colorEl) {
+                const colorVal = colorEl.getAttribute('w:val') || colorEl.getAttribute('val');
+                if (colorVal && colorVal !== 'auto') visuals.color = '#' + colorVal;
+              }
+              const rFontsEl = rPr.getElementsByTagNameNS(ns, 'rFonts')[0];
+              if (rFontsEl) {
+                const eastAsia = rFontsEl.getAttribute('w:eastAsia') || rFontsEl.getAttribute('eastAsia');
+                const ascii = rFontsEl.getAttribute('w:ascii') || rFontsEl.getAttribute('ascii');
+                visuals.fontFamily = eastAsia || ascii || null;
+              }
+            }
+            const pPr = s.getElementsByTagNameNS(ns, 'pPr')[0];
+            if (pPr) {
+              const spacingEl = pPr.getElementsByTagNameNS(ns, 'spacing')[0];
+              if (spacingEl) {
+                const before = spacingEl.getAttribute('w:before') || spacingEl.getAttribute('before');
+                const after = spacingEl.getAttribute('w:after') || spacingEl.getAttribute('after');
+                if (before) visuals.spaceBefore = parseInt(before, 10) / 20;
+                if (after) visuals.spaceAfter = parseInt(after, 10) / 20;
+              }
+              const jcEl = pPr.getElementsByTagNameNS(ns, 'jc')[0];
+              if (jcEl) {
+                visuals.textAlign = jcEl.getAttribute('w:val') || jcEl.getAttribute('val');
+              }
+              const indEl = pPr.getElementsByTagNameNS(ns, 'ind')[0];
+              if (indEl) {
+                const firstLine = indEl.getAttribute('w:firstLine') || indEl.getAttribute('firstLine');
+                if (firstLine) visuals.firstLineIndent = parseInt(firstLine, 10) / 20;
+              }
+            }
+            if (displayName) styleMap.set(normName(displayName), visuals);
+            if (styleId) styleMap.set(normName(styleId), visuals);
+          }
+        } catch (e) { console.warn('extractStyleVisuals failed', e); }
+        return styleMap;
+      }
+
+      function resolveVisuals(styleMap, key) {
+        const visited = new Set();
+        const merged = {};
+        function merge(k) {
+          const nk = normName(k);
+          if (visited.has(nk)) return;
+          visited.add(nk);
+          const v = styleMap.get(nk);
+          if (!v) return;
+          if (v.basedOn) merge(v.basedOn);
+          if (v.fontSize !== undefined) merged.fontSize = v.fontSize;
+          if (v.bold !== undefined) merged.bold = v.bold;
+          if (v.italic !== undefined) merged.italic = v.italic;
+          if (v.color !== undefined) merged.color = v.color;
+          if (v.fontFamily !== undefined) merged.fontFamily = v.fontFamily;
+          if (v.spaceBefore !== undefined) merged.spaceBefore = v.spaceBefore;
+          if (v.spaceAfter !== undefined) merged.spaceAfter = v.spaceAfter;
+          if (v.textAlign !== undefined) merged.textAlign = v.textAlign;
+          if (v.firstLineIndent !== undefined) merged.firstLineIndent = v.firstLineIndent;
+        }
+        merge(key);
+        return merged;
+      }
+
+      function buildPreviewCssFromStyles(styleMap) {
+        let css = '';
+        for (let level = 1; level <= 6; level++) {
+          const candidates = ['heading ' + level, 'heading' + level, '标题' + level];
+          let resolved = null;
+          for (const c of candidates) {
+            const v = resolveVisuals(styleMap, c);
+            if (v && Object.keys(v).length > 1) { resolved = v; break; }
+          }
+          if (!resolved) continue;
+          const rules = [];
+          if (resolved.fontSize) rules.push('font-size: ' + resolved.fontSize + 'pt');
+          if (resolved.bold) rules.push('font-weight: bold');
+          if (resolved.italic) rules.push('font-style: italic');
+          if (resolved.color) rules.push('color: ' + resolved.color);
+          if (resolved.fontFamily) rules.push('font-family: "' + resolved.fontFamily + '"');
+          if (resolved.spaceBefore) rules.push('margin-top: ' + resolved.spaceBefore + 'pt');
+          if (resolved.spaceAfter) rules.push('margin-bottom: ' + resolved.spaceAfter + 'pt');
+          if (resolved.textAlign) {
+            const align = resolved.textAlign === 'both' ? 'justify' : resolved.textAlign;
+            rules.push('text-align: ' + align);
+          }
+          if (rules.length > 0) css += '.preview-container h' + level + ' { ' + rules.join('; ') + '; }\n';
+        }
+        const normalCandidates = ['normal', '正文', 'bodytext', 'plaintext'];
+        let normalResolved = null;
+        for (const c of normalCandidates) {
+          const v = resolveVisuals(styleMap, c);
+          if (v && Object.keys(v).length > 1) { normalResolved = v; break; }
+        }
+        if (normalResolved) {
+          const containerRules = [];
+          const pRules = [];
+          if (normalResolved.fontSize) { containerRules.push('font-size: ' + normalResolved.fontSize + 'pt'); pRules.push('font-size: ' + normalResolved.fontSize + 'pt'); }
+          if (normalResolved.fontFamily) { containerRules.push('font-family: "' + normalResolved.fontFamily + '"'); pRules.push('font-family: "' + normalResolved.fontFamily + '"'); }
+          if (normalResolved.color) { containerRules.push('color: ' + normalResolved.color); pRules.push('color: ' + normalResolved.color); }
+          if (normalResolved.textAlign) {
+            const align = normalResolved.textAlign === 'both' ? 'justify' : normalResolved.textAlign;
+            pRules.push('text-align: ' + align);
+          }
+          if (normalResolved.firstLineIndent) pRules.push('text-indent: ' + normalResolved.firstLineIndent + 'pt');
+          if (containerRules.length > 0) css += '.preview-container { ' + containerRules.join('; ') + '; }\n';
+          if (pRules.length > 0) css += '.preview-container p { ' + pRules.join('; ') + '; }\n';
+        }
+        const quoteCandidates = ['引用', 'quote', 'blocktext'];
+        let quoteResolved = null;
+        for (const c of quoteCandidates) {
+          const v = resolveVisuals(styleMap, c);
+          if (v && Object.keys(v).length > 1) { quoteResolved = v; break; }
+        }
+        if (quoteResolved) {
+          const rules = [];
+          if (quoteResolved.italic) rules.push('font-style: italic');
+          if (quoteResolved.color) rules.push('color: ' + quoteResolved.color);
+          if (quoteResolved.fontFamily) rules.push('font-family: "' + quoteResolved.fontFamily + '"');
+          if (rules.length > 0) css += '.preview-container blockquote { ' + rules.join('; ') + '; }\n';
+        }
+        const listCandidates = ['无序列表', 'listbullet', '有序列表', 'listnumber', 'list'];
+        let listResolved = null;
+        for (const c of listCandidates) {
+          const v = resolveVisuals(styleMap, c);
+          if (v && Object.keys(v).length > 1) { listResolved = v; break; }
+        }
+        if (listResolved) {
+          const rules = [];
+          if (listResolved.fontFamily) rules.push('font-family: "' + listResolved.fontFamily + '"');
+          if (listResolved.fontSize) rules.push('font-size: ' + listResolved.fontSize + 'pt');
+          if (rules.length > 0) css += '.preview-container ul, .preview-container ol { ' + rules.join('; ') + '; }\n';
+        }
+        return css;
+      }
+
+      let currentTemplateStyleEl = null;
+
+      function applyTemplateStylesToPreview(css) {
+        if (!css) {
+          if (currentTemplateStyleEl) {
+            currentTemplateStyleEl.remove();
+            currentTemplateStyleEl = null;
+          }
+          return;
+        }
+        if (!currentTemplateStyleEl) {
+          currentTemplateStyleEl = document.createElement('style');
+          currentTemplateStyleEl.id = 'template-preview-styles';
+          document.head.appendChild(currentTemplateStyleEl);
+        }
+        currentTemplateStyleEl.textContent = css;
+      }
+
+      async function loadAndApplyTemplateStyles(tplAB) {
+        try {
+          const zip = new PizZip(tplAB);
+          const stylesTxt = await readZipFileAsync(zip, 'word/styles.xml');
+          if (!stylesTxt) {
+            console.warn('[md2word] Template has no styles.xml, using default preview styles');
+            applyTemplateStylesToPreview('');
+            return;
+          }
+          const styleMap = extractStyleVisuals(stylesTxt);
+          const css = buildPreviewCssFromStyles(styleMap);
+          applyTemplateStylesToPreview(css);
+          console.log('[md2word] Applied template styles to preview');
+        } catch (e) {
+          console.warn('[md2word] Failed to apply template styles to preview:', e);
+          applyTemplateStylesToPreview('');
+        }
       }
 
       function parseNumberingXml(numberingXmlText) {
@@ -2130,8 +2372,8 @@
           const selectedTemplate = templateSelect.value;
           let tplAB = null;
 
-          if (selectedTemplate === 'default') {
-            tplAB = defaultTplAB;
+          if (builtinTplAB.has(selectedTemplate)) {
+            tplAB = builtinTplAB.get(selectedTemplate);
           } else if (userTemplates.has(selectedTemplate)) {
             tplAB = userTemplates.get(selectedTemplate).data;
           }
