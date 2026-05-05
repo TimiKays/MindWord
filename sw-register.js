@@ -99,11 +99,12 @@
             position: fixed;
             bottom: 20px;
             right: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: #ffffff;
+            color: #1f2937;
             padding: 16px 20px;
             border-radius: 12px;
-            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            border: 1px solid #e5e7eb;
             z-index: 99999;
             display: flex;
             align-items: center;
@@ -115,19 +116,19 @@
         `;
 
         notification.innerHTML = `
-            <div style="flex-shrink: 0; width: 40px; height: 40px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <div style="flex-shrink: 0; width: 40px; height: 40px; background: #f3f4f6; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1f2937" stroke-width="2">
                     <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     <path d="M9 12l2 2 4-4"/>
                 </svg>
             </div>
             <div style="flex: 1;">
                 <div style="font-weight: 600; margin-bottom: 4px;">发现新版本 🎉</div>
-                <div style="opacity: 0.9; font-size: 13px;">点击更新按钮立即体验最新功能</div>
+                <div style="color: #6b7280; font-size: 13px;">点击更新按钮立即体验最新功能</div>
             </div>
             <button id="sw-update-btn" style="
-                background: white;
-                color: #667eea;
+                background: #1f2937;
+                color: #ffffff;
                 border: none;
                 padding: 8px 16px;
                 border-radius: 6px;
@@ -135,19 +136,18 @@
                 cursor: pointer;
                 font-size: 13px;
                 transition: all 0.2s;
-            " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+            " onmouseover="this.style.background='#374151'" onmouseout="this.style.background='#1f2937'">
                 更新
             </button>
             <button id="sw-close-btn" style="
                 background: transparent;
-                color: white;
+                color: #6b7280;
                 border: none;
                 padding: 4px;
                 cursor: pointer;
-                opacity: 0.7;
                 font-size: 18px;
                 line-height: 1;
-            ">×</button>
+            " onmouseover="this.style.color='#1f2937'" onmouseout="this.style.color='#6b7280'">×</button>
         `;
 
         const style = document.createElement('style');

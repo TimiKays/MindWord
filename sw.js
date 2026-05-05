@@ -3,7 +3,7 @@
  * 只缓存核心文件，避免路径重复问题
  */
 
-const SW_VERSION = 'v51';
+const SW_VERSION = 'v52';
 const CACHE_NAME = 'mindword-' + SW_VERSION;
 const BUILD_TIME = '2026-05-05T00:00:00Z';
 
