@@ -1966,6 +1966,7 @@
     var outlineRefreshTimer = null;
 
     window.MW_refreshOutlineFromMindmap = function (reason) {
+      console.log('[OutlineView] MW_refreshOutlineFromMindmap 被调用 v2, reason:', reason, '标志:', window.__outlineSyncingToMindmap);
       if (!isOutlineView || !outlineEditor || !window.jm) return;
       // 如果正在从大纲同步到思维导图，跳过刷新以避免焦点丢失
       if (window.__outlineSyncingToMindmap) {
@@ -1974,6 +1975,7 @@
       }
       clearTimeout(outlineRefreshTimer);
       outlineRefreshTimer = setTimeout(function () {
+        console.log('[OutlineView] 延迟执行, 标志:', window.__outlineSyncingToMindmap);
         if (!isOutlineView || !outlineEditor || !window.jm) return;
         // 再次检查标志
         if (window.__outlineSyncingToMindmap) {

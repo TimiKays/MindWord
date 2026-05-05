@@ -330,7 +330,18 @@
         // 无论内容是否变化，都同步更新到思维导图和编辑器
         // 因为 input 事件已经实时更新了 n.topic，所以这里直接调用 applyToMindmap
         n.topic = newTopic;
+        // 设置标志防止焦点丢失（延长到 3000ms 确保覆盖所有 storage 事件）
+        window.__outlineSyncingToMindmap = true;
+        console.log('[OutlineEditor] blur: 设置同步标志, node:', n.id);
         self.applyToMindmap();
+        // 延迟清除标志，确保 storage 事件不会触发刷新
+        // 清除之前如果又有新的 blur 设置了标志，不要覆盖
+        var currentFlag = window.__outlineBlurTimeout;
+        if (currentFlag) clearTimeout(currentFlag);
+        window.__outlineBlurTimeout = setTimeout(function () {
+          window.__outlineSyncingToMindmap = false;
+          console.log('[OutlineEditor] blur: 清除同步标志');
+        }, 3000);
         if (!newTopic) {
           t.dataset.placeholder = n.id === self.treeData.id ? self._t('outlineRootPlaceholder', '输入主题...') : self._t('outlinePlaceholder', '输入内容...');
         } else {
@@ -921,9 +932,6 @@
 
     console.log('[OutlineEditor] applyToMindmap 开始, root:', this.treeData?.topic);
 
-    // 设置同步标志，防止 MW_refreshOutlineFromMindmap 在此期间刷新大纲导致焦点丢失
-    window.__outlineSyncingToMindmap = true;
-
     this._syncTextFromDOM();
 
     var nodeTree = this._removeEmptyLeaves(this.toNodeTree(), true);
@@ -967,13 +975,7 @@
       debouncedSave();
     }
 
-    // 延迟清除同步标志，确保 storage 事件触发时标志还在
-    // storage 事件有 700ms 延迟，所以这里需要更长的时间
-    var self = this;
-    setTimeout(function () {
-      window.__outlineSyncingToMindmap = false;
-      console.log('[OutlineEditor] applyToMindmap 完成');
-    }, 1000);
+    console.log('[OutlineEditor] applyToMindmap 完成');
   };
 
   OutlineEditor.prototype._removeEmptyLeaves = function (node, isRoot) {
