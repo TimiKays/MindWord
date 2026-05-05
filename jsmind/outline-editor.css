@@ -298,33 +298,6 @@
   color: #d1d5db;
 }
 
-.outline-shortcut-bar {
-  position: sticky;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: linear-gradient(to top, #fff 60%, transparent);
-  padding: 16px 0 8px;
-  display: flex;
-  gap: 16px;
-  justify-content: center;
-  font-size: 11px;
-  color: #9ca3af;
-  pointer-events: none;
-}
-
-.outline-shortcut-bar kbd {
-  display: inline-block;
-  padding: 1px 5px;
-  font-size: 10px;
-  font-family: inherit;
-  background: #f3f4f6;
-  border: 1px solid #e5e7eb;
-  border-radius: 3px;
-  color: #6b7280;
-  margin: 0 1px;
-}
-
 @media (max-width: 768px) {
   .outline-container {
     padding: 12px 12px 80px;

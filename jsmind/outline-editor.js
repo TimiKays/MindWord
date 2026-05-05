@@ -247,16 +247,6 @@
 
     this._renderNode(this.treeData, this.container, 0, true);
 
-    var shortcutBar = document.createElement('div');
-    shortcutBar.className = 'outline-shortcut-bar';
-    shortcutBar.innerHTML =
-      '<span><kbd>Enter</kbd> ' + this._t('outlineAddSibling', '添加同级') + '</span>' +
-      '<span><kbd>Tab</kbd> ' + this._t('outlineIndent', '缩进') + '</span>' +
-      '<span><kbd>Shift+Tab</kbd> ' + this._t('outlineOutdent', '提升') + '</span>' +
-      '<span><kbd>↑↓</kbd> ' + this._t('outlineNavigate', '导航') + '</span>' +
-      '<span><kbd>Backspace</kbd> ' + this._t('outlineDeleteEmpty', '删除空节点') + '</span>';
-    this.container.appendChild(shortcutBar);
-
     if (!this.focusedId) {
       this.focusedId = this.treeData.id;
     }
