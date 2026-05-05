@@ -1705,6 +1705,14 @@ window.addEventListener('message', function (e) {
           mw_renderList();
         }
 
+        const updatedDoc = docs[idx];
+        try {
+          mw_notifyPreviewLoad(updatedDoc);
+          mw_notifyMindmapLoad(updatedDoc);
+        } catch (e) {
+          console.warn('[SYNC] notify panels after editor change failed:', e);
+        }
+
         console.log(`[SYNC] 文档 ${targetId} 已同步至主数据库 (含 ${docs[idx].images.length} 张图片)`);
       }
     }

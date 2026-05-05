@@ -1889,6 +1889,9 @@
           }
 
           document.dispatchEvent(new CustomEvent('mw:load_markdown', { detail: payload }));
+          if (typeof window.MW_refreshOutlineFromMindmap === 'function') {
+            window.MW_refreshOutlineFromMindmap('load_markdown');
+          }
           console.log('[mindmap] renderMindmapFromMd 完成, 已派发 mw:load_markdown 事件');
 
         } catch (e) {
@@ -1961,6 +1964,33 @@
 
     var outlineEditor = null;
     var isOutlineView = false;
+    var outlineRefreshTimer = null;
+
+    window.MW_refreshOutlineFromMindmap = function (reason) {
+      if (!isOutlineView || !outlineEditor || !window.jm) return;
+      clearTimeout(outlineRefreshTimer);
+      outlineRefreshTimer = setTimeout(function () {
+        if (!isOutlineView || !outlineEditor || !window.jm) return;
+        try {
+          outlineEditor.loadFromMindmap();
+          console.log('[OutlineView] refreshed from mindmap:', reason || 'external');
+        } catch (e) {
+          console.warn('[OutlineView] refresh from mindmap failed:', e);
+        }
+      }, 80);
+    };
+
+    window.addEventListener('storage', function (e) {
+      if (e.key === 'mindword_nodetree_data') {
+        setTimeout(function () {
+          window.MW_refreshOutlineFromMindmap('nodetree_storage');
+        }, 700);
+      }
+    });
+
+    window.addEventListener('mindmapReady', function () {
+      window.MW_refreshOutlineFromMindmap('mindmap_ready');
+    });
 
     function _ot(key, fallback) {
       try {
