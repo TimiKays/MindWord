@@ -1967,9 +1967,19 @@
 
     window.MW_refreshOutlineFromMindmap = function (reason) {
       if (!isOutlineView || !outlineEditor || !window.jm) return;
+      // 如果正在从大纲同步到思维导图，跳过刷新以避免焦点丢失
+      if (window.__outlineSyncingToMindmap) {
+        console.log('[OutlineView] skip refresh during sync:', reason);
+        return;
+      }
       clearTimeout(outlineRefreshTimer);
       outlineRefreshTimer = setTimeout(function () {
         if (!isOutlineView || !outlineEditor || !window.jm) return;
+        // 再次检查标志
+        if (window.__outlineSyncingToMindmap) {
+          console.log('[OutlineView] skip refresh during sync (delayed):', reason);
+          return;
+        }
         try {
           outlineEditor.loadFromMindmap();
           console.log('[OutlineView] refreshed from mindmap:', reason || 'external');
@@ -2058,7 +2068,7 @@
       document.getElementById('outlineContainer').classList.remove('active');
 
       var expandBtns = document.getElementById('expandLevelButtons');
-      if (expandBtns) expandBtns.style.display = '';
+      if (expandBtns) expandBtns.style.display = 'inline-flex';
 
       var container = document.getElementById('fullScreenMindmap');
       if (container) {

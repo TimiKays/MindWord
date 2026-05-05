@@ -616,6 +616,10 @@
 
     if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
       e.preventDefault();
+      // 如果当前行没内容，不新建行
+      if (!textEl.textContent.trim()) {
+        return;
+      }
       this._addSibling(node, textEl);
     } else if (e.key === 'Tab' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
       e.preventDefault();
@@ -683,8 +687,11 @@
     parent.children.splice(idx + 1, 0, newNode);
     this.focusedId = newNode.id;
     this.render();
-    // 同步更新到思维导图和编辑器
     this.applyToMindmap();
+    var self = this;
+    setTimeout(function () {
+      self._focusNode(self.focusedId, false);
+    }, 100);
   };
 
   OutlineEditor.prototype._addChild = function (node, textEl) {
@@ -710,8 +717,11 @@
     node.expanded = true;
     this.focusedId = newNode.id;
     this.render();
-    // 同步更新到思维导图和编辑器
     this.applyToMindmap();
+    var self = this;
+    setTimeout(function () {
+      self._focusNode(self.focusedId, false);
+    }, 100);
   };
 
   OutlineEditor.prototype._indent = function (node, textEl) {
@@ -749,8 +759,11 @@
 
     this.focusedId = node.id;
     this.render();
-    // 同步更新到思维导图和编辑器
     this.applyToMindmap();
+    var self = this;
+    setTimeout(function () {
+      self._focusNode(self.focusedId, false);
+    }, 100);
   };
 
   OutlineEditor.prototype._outdent = function (node, textEl) {
@@ -799,8 +812,11 @@
 
     this.focusedId = node.id;
     this.render();
-    // 同步更新到思维导图和编辑器
     this.applyToMindmap();
+    var self = this;
+    setTimeout(function () {
+      self._focusNode(self.focusedId, false);
+    }, 100);
   };
 
   OutlineEditor.prototype._deleteNode = function (node, textEl) {
@@ -831,8 +847,11 @@
     }
 
     this.render();
-    // 同步更新到思维导图和编辑器
     this.applyToMindmap();
+    var self = this;
+    setTimeout(function () {
+      self._focusNode(self.focusedId, false);
+    }, 100);
   };
 
   OutlineEditor.prototype._navigatePrev = function (textEl) {
@@ -902,12 +921,16 @@
 
     console.log('[OutlineEditor] applyToMindmap 开始, root:', this.treeData?.topic);
 
+    // 设置同步标志，防止 MW_refreshOutlineFromMindmap 在此期间刷新大纲导致焦点丢失
+    window.__outlineSyncingToMindmap = true;
+
     this._syncTextFromDOM();
 
     var nodeTree = this._removeEmptyLeaves(this.toNodeTree(), true);
 
     if (!nodeTree || !nodeTree.id) {
       console.error('[OutlineEditor] nodeTree is invalid after removing empty leaves');
+      window.__outlineSyncingToMindmap = false;
       return;
     }
 
@@ -944,7 +967,13 @@
       debouncedSave();
     }
 
-    console.log('[OutlineEditor] applyToMindmap 完成');
+    // 延迟清除同步标志，确保 storage 事件触发时标志还在
+    // storage 事件有 700ms 延迟，所以这里需要更长的时间
+    var self = this;
+    setTimeout(function () {
+      window.__outlineSyncingToMindmap = false;
+      console.log('[OutlineEditor] applyToMindmap 完成');
+    }, 1000);
   };
 
   OutlineEditor.prototype._removeEmptyLeaves = function (node, isRoot) {
