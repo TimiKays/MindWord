@@ -159,13 +159,13 @@
           console.log('[MW] applyNodeVisibilityFilter: 启用过滤视图（隐藏 list 子树）');
           // save viewport then show filtered view and restore viewport
           let viewportState = null;
-          try { 
-            viewportState = window.MW_saveViewport ? window.MW_saveViewport() : saveViewport(); 
+          try {
+            viewportState = window.MW_saveViewport ? window.MW_saveViewport() : saveViewport();
           } catch (e) { }
           jm.show(filtered);
           // small delay then restore viewport and badges and re-init scrolling/layout
           setTimeout(function () {
-            try { 
+            try {
               if (window.MW_restoreViewport && viewportState) {
                 window.MW_restoreViewport(viewportState);
               } else {
@@ -200,12 +200,12 @@
           if (snap) {
             console.log('[MW] applyNodeVisibilityFilter: 恢复完整视图');
             let viewportState = null;
-            try { 
-              viewportState = window.MW_saveViewport ? window.MW_saveViewport() : saveViewport(); 
+            try {
+              viewportState = window.MW_saveViewport ? window.MW_saveViewport() : saveViewport();
             } catch (e) { }
             jm.show(snap);
             setTimeout(function () {
-              try { 
+              try {
                 if (window.MW_restoreViewport && viewportState) {
                   window.MW_restoreViewport(viewportState);
                 } else {
@@ -948,189 +948,241 @@ function setupMindmapScrolling() {
 function loadNodeTree(nodeTreeData) {
   if (!jm) return;
 
-  // 如果没有提供数据，尝试从localStorage获取
-  if (!nodeTreeData) {
-    const cachedData = localStorage.getItem('mindword_nodetree_data');
-    if (cachedData) {
-      try {
-        nodeTreeData = JSON.parse(cachedData);
-      } catch (error) {
-        nodeTreeData = getDefaultNodeTree();
-      }
-    } else {
-      nodeTreeData = getDefaultNodeTree();
-    }
+  // 防止嵌套调用：loadNodeTree 内部调用 jm.show 会触发数据重置，
+  // 如果外部再次调用 loadNodeTree 会导致 jm 状态异常
+  if (window.__mw_loadNodeTreeInProgress) {
+    console.warn('[MW][loadNodeTree] 已有loadNodeTree在执行中，跳过重复调用');
+    return;
   }
+  window.__mw_loadNodeTreeInProgress = true;
 
   try {
-    // 确保数据格式正确
-    if (typeof nodeTreeData === 'string') {
-      nodeTreeData = JSON.parse(nodeTreeData);
-    }
 
-    // 在显示前保存视口（以便在重新渲染后恢复）
-    let viewportState = null;
-    try { 
-      viewportState = window.MW_saveViewport ? window.MW_saveViewport() : saveViewport(); 
-    } catch (e) { }
-    jm.show(nodeTreeData);
-    currentNodeTree = nodeTreeData;
-    // 渲染完成后尝试恢复视口（延迟以保证DOM已就绪）
-    window.MW_scheduleOnce('restoreViewportAfterShow', function () { 
-      try { 
-        if (window.MW_restoreViewport && viewportState) {
-          window.MW_restoreViewport(viewportState);
-        } else {
-          restoreViewport();
-        }
-      } catch (e) { } 
-    }, 120);
-
-    // 更新ViewStateManager状态
-    if (window.viewStateManager) {
-      try {
-        window.viewStateManager.updateToolbarButtons();
-        window.viewStateManager.updateBreadcrumb();
-      } catch (e) {
-        console.warn('[MW][ViewStateManager] 更新状态失败:', e);
-      }
-    }
-
-    // 兼容补丁：在 jm.show 后可能有其他逻辑（restoreViewport / setZoom / style 调整）覆盖初始 scroll，
-    // 此处再延迟一次强制应用 view.initial_offset_x（以像素为单位，乘以 actualZoom）
-    // 目的：确保用户配置的 initial_offset_x 在初始化后最终生效（例如 -600 向左偏移）。
-    // 注意：只在首次加载时应用偏移，避免刷新时重复添加导致画布偏移
-    try {
-      // 标记是否已经应用过初始偏移
-      if (window._mwInitialOffsetApplied) {
-        console.log('[MW][offset-fix] 初始偏移已应用，跳过');
-      } else {
-        window._mwInitialOffsetApplied = true;
-      setTimeout(function () {
+    // 如果没有提供数据，尝试从localStorage获取
+    if (!nodeTreeData) {
+      const cachedData = localStorage.getItem('mindword_nodetree_data');
+      console.log('[MW][loadNodeTree] 从localStorage读取, 有缓存:', !!cachedData);
+      if (cachedData) {
         try {
-          var container = document.getElementById('fullScreenMindmap');
-          console.log('[MW][offset-fix] running post-show offset fix, container=', !!container);
-          if (!container) return;
-          var inner = container.querySelector('.jsmind-inner') || container;
-          console.log('[MW][offset-fix] inner found=', !!inner);
-          if (!inner) return;
-          if (!jm || !jm.view) {
-            console.log('[MW][offset-fix] jm or jm.view missing', { jm: !!jm, view: !!(jm && jm.view) });
-            return;
-          }
-          var off = (jm.view.opts && typeof jm.view.opts.initial_offset_x !== 'undefined') ? jm.view.opts.initial_offset_x : 0;
-          var zoom = (typeof jm.view.actualZoom === 'number') ? jm.view.actualZoom : null;
-          try { console.log('[MW][offset-fix] initial_offset_x=', off, 'actualZoom=', zoom, 'inner.scrollLeft(before)=', inner.scrollLeft); } catch (e) { /* ignore */ }
-
-          // 支持百分比字符串（例如 "10%" 或 "-5%"）或像素数值。
-          // 百分比基准使用 jm.view.size.w（视图宽度），然后再乘以 actualZoom 应用到 scrollLeft。
-          function _parseInitialOffset(o) {
-            try {
-              if (o == null) return 0;
-              if (typeof o === 'string') {
-                var s = o.trim();
-                if (s.endsWith('%')) {
-                  var v = parseFloat(s.slice(0, -1));
-                  if (isNaN(v)) return 0;
-                  var vw_source = null;
-                  var vw = 0;
-                  // 优先使用显式的 .jsmind-inner.jmnode-overflow-wrap 容器宽度（更贴近可视画布）
-                  var explicitInner = null;
-                  try {
-                    var rootContainer = document.getElementById('fullScreenMindmap');
-                    if (rootContainer) {
-                      explicitInner = rootContainer.querySelector('.jsmind-inner.jmnode-overflow-wrap') || rootContainer.querySelector('.jsmind-inner');
-                    } else {
-                      explicitInner = document.querySelector('.jsmind-inner.jmnode-overflow-wrap') || document.querySelector('.jsmind-inner');
-                    }
-                  } catch (e) { explicitInner = null; }
-
-                  if (explicitInner && explicitInner.clientWidth) {
-                    vw_source = '.jsmind-inner.jmnode-overflow-wrap';
-                    vw = explicitInner.clientWidth;
-                  } else if (jm && jm.view && jm.view.size && typeof jm.view.size.w === 'number') {
-                    vw_source = 'jm.view.size.w';
-                    vw = jm.view.size.w;
-                  } else if (inner && inner.clientWidth) {
-                    vw_source = 'inner.clientWidth';
-                    vw = inner.clientWidth;
-                  } else {
-                    vw_source = 'unknown';
-                    vw = 0;
-                  }
-                  try { console.log('[MW][offset-fix] percent baseline=', vw_source, 'explicitInner.clientWidth=', (explicitInner && explicitInner.clientWidth), 'jm.view.size.w=', (jm && jm.view && jm.view.size && jm.view.size.w), 'inner.clientWidth=', (inner && inner.clientWidth), 'pct=', v); } catch (e) { /* ignore */ }
-                  return Math.round(v / 100 * vw);
-                }
-                // fallback: try parse as number string
-                var n = parseFloat(s);
-                return isNaN(n) ? 0 : n;
-              }
-              // if numeric already
-              var num = Number(o);
-              return isNaN(num) ? 0 : num;
-            } catch (ee) { return 0; }
-          }
-
-          var pixelOff = _parseInitialOffset(off);
-          try { console.log('[MW][offset-fix] parsed initial_offset_x -> pixelOff=', pixelOff); } catch (e) { /* ignore */ }
-
-          // 将偏移按当前缩放比例应用（保持与 _center_root 计算一致）
-          if (pixelOff && zoom != null) {
-            try {
-              var delta = pixelOff * zoom;
-              console.log('[MW][offset-fix] applying delta=', delta);
-              inner.scrollLeft = (inner.scrollLeft || 0) + delta;
-              console.log('[MW][offset-fix] inner.scrollLeft(after)=', inner.scrollLeft);
-            } catch (e) {
-              console.error('[MW][offset-fix] apply error', e);
+          nodeTreeData = JSON.parse(cachedData);
+          window.__mw_showingDefaultNodeTree = false;
+          console.log('[MW][loadNodeTree] 解析缓存成功, root:', nodeTreeData?.data?.topic || nodeTreeData?.topic);
+          if (isDefaultNodeTreeData(nodeTreeData)) {
+            console.log('[MW][loadNodeTree] 检测到默认样本数据, 尝试从markdown恢复');
+            var realMarkdown = '';
+            try { realMarkdown = localStorage.getItem('mindword_markdown_data') || ''; } catch (e) { realMarkdown = ''; }
+            if (realMarkdown.trim() && hasRealMarkdownCache() && window.converter && typeof window.converter.mdToNodeTree === 'function') {
+              nodeTreeData = window.converter.mdToNodeTree(realMarkdown);
+              console.log('[MW][loadNodeTree] 从markdown恢复成功');
             }
-          } else {
-            console.log('[MW][offset-fix] nothing to apply (pixelOff or zoom invalid)');
           }
-        } catch (e) {
-          console.error('[MW][offset-fix] unexpected error', e);
+        } catch (error) {
+          console.error('[MW][loadNodeTree] 解析缓存失败, 使用默认数据:', error);
+          nodeTreeData = getDefaultNodeTree();
+          window.__mw_showingDefaultNodeTree = true;
         }
-      }, 180);
-      } // 结束 if (!window._mwInitialOffsetApplied)
-    } catch (e) { console.error('[MW][offset-fix] outer error', e); }
+      } else {
+        var cachedMarkdown = '';
+        try { cachedMarkdown = localStorage.getItem('mindword_markdown_data') || ''; } catch (e) { cachedMarkdown = ''; }
+        console.log('[MW][loadNodeTree] 无nodetree缓存, 尝试从markdown加载, 有markdown:', !!cachedMarkdown.trim());
+        if (cachedMarkdown.trim() && window.converter && typeof window.converter.mdToNodeTree === 'function') {
+          try {
+            nodeTreeData = window.converter.mdToNodeTree(cachedMarkdown);
+            window.__mw_showingDefaultNodeTree = false;
+            console.log('[MW][loadNodeTree] 从markdown加载成功');
+          } catch (error) {
+            console.warn('[MW][loadNodeTree] markdown -> nodeTree失败, 使用默认:', error);
+            nodeTreeData = getDefaultNodeTree();
+            window.__mw_showingDefaultNodeTree = true;
+          }
+        } else {
+          console.log('[MW][loadNodeTree] 无markdown缓存, 使用默认数据');
+          nodeTreeData = getDefaultNodeTree();
+          window.__mw_showingDefaultNodeTree = true;
+        }
+      }
+    } else {
+      window.__mw_showingDefaultNodeTree = isDefaultNodeTreeData(nodeTreeData);
+      console.log('[MW][loadNodeTree] 使用传入数据, 是否默认:', window.__mw_showingDefaultNodeTree);
+    }
 
-    // 渲染完成后同步节点类型徽章与可见性过滤（确保开关生效）
     try {
-      if (typeof window.MW_updateNodeTypeBadges === 'function') {
-        setTimeout(window.MW_updateNodeTypeBadges, 80);
+      // 确保数据格式正确
+      if (typeof nodeTreeData === 'string') {
+        nodeTreeData = JSON.parse(nodeTreeData);
       }
-      if (typeof window.MW_applyNodeVisibilityFilter === 'function') {
-        setTimeout(window.MW_applyNodeVisibilityFilter, 80);
-      }
-    } catch (e) { /* ignore */ }
 
-    // 延迟执行DOM操作，确保元素已加载
-    setTimeout(() => {
-
-
+      // 在显示前保存视口（以便在重新渲染后恢复）
+      let viewportState = null;
       try {
-        if (typeof window.MW_updateNodeTypeBadges === 'function') window.MW_updateNodeTypeBadges();
-        if (typeof window.MW_applyNodeVisibilityFilter === 'function') window.MW_applyNodeVisibilityFilter();
+        viewportState = window.MW_saveViewport ? window.MW_saveViewport() : saveViewport();
       } catch (e) { }
-    }, 100);
+      console.log('[MW][loadNodeTree] 调用jm.show, root:', nodeTreeData?.data?.topic || nodeTreeData?.topic);
+      jm.show(nodeTreeData);
+      console.log('[MW][loadNodeTree] jm.show成功');
+      window.__mw_showingDefaultNodeTree = isDefaultNodeTreeData(nodeTreeData);
+      currentNodeTree = nodeTreeData;
+      // 渲染完成后尝试恢复视口（延迟以保证DOM已就绪）
+      window.MW_scheduleOnce('restoreViewportAfterShow', function () {
+        try {
+          if (window.MW_restoreViewport && viewportState) {
+            window.MW_restoreViewport(viewportState);
+          } else {
+            restoreViewport();
+          }
+        } catch (e) { }
+      }, 120);
 
-    // 派发mindmapReady事件，通知mindmap.html思维导图已准备就绪
-    try {
-      window.dispatchEvent(new Event('mindmapReady'));
-      console.log('[MW] 已派发 mindmapReady 事件');
-    } catch (e) {
-      console.warn('[MW] 派发 mindmapReady 事件失败:', e);
+      // 更新ViewStateManager状态
+      if (window.viewStateManager) {
+        try {
+          window.viewStateManager.updateToolbarButtons();
+          window.viewStateManager.updateBreadcrumb();
+        } catch (e) {
+          console.warn('[MW][ViewStateManager] 更新状态失败:', e);
+        }
+      }
+
+      // 兼容补丁：在 jm.show 后可能有其他逻辑（restoreViewport / setZoom / style 调整）覆盖初始 scroll，
+      // 此处再延迟一次强制应用 view.initial_offset_x（以像素为单位，乘以 actualZoom）
+      // 目的：确保用户配置的 initial_offset_x 在初始化后最终生效（例如 -600 向左偏移）。
+      // 注意：只在首次加载时应用偏移，避免刷新时重复添加导致画布偏移
+      try {
+        // 标记是否已经应用过初始偏移
+        if (window._mwInitialOffsetApplied) {
+          console.log('[MW][offset-fix] 初始偏移已应用，跳过');
+        } else {
+          window._mwInitialOffsetApplied = true;
+          setTimeout(function () {
+            try {
+              var container = document.getElementById('fullScreenMindmap');
+              console.log('[MW][offset-fix] running post-show offset fix, container=', !!container);
+              if (!container) return;
+              var inner = container.querySelector('.jsmind-inner') || container;
+              console.log('[MW][offset-fix] inner found=', !!inner);
+              if (!inner) return;
+              if (!jm || !jm.view) {
+                console.log('[MW][offset-fix] jm or jm.view missing', { jm: !!jm, view: !!(jm && jm.view) });
+                return;
+              }
+              var off = (jm.view.opts && typeof jm.view.opts.initial_offset_x !== 'undefined') ? jm.view.opts.initial_offset_x : 0;
+              var zoom = (typeof jm.view.actualZoom === 'number') ? jm.view.actualZoom : null;
+              try { console.log('[MW][offset-fix] initial_offset_x=', off, 'actualZoom=', zoom, 'inner.scrollLeft(before)=', inner.scrollLeft); } catch (e) { /* ignore */ }
+
+              // 支持百分比字符串（例如 "10%" 或 "-5%"）或像素数值。
+              // 百分比基准使用 jm.view.size.w（视图宽度），然后再乘以 actualZoom 应用到 scrollLeft。
+              function _parseInitialOffset(o) {
+                try {
+                  if (o == null) return 0;
+                  if (typeof o === 'string') {
+                    var s = o.trim();
+                    if (s.endsWith('%')) {
+                      var v = parseFloat(s.slice(0, -1));
+                      if (isNaN(v)) return 0;
+                      var vw_source = null;
+                      var vw = 0;
+                      // 优先使用显式的 .jsmind-inner.jmnode-overflow-wrap 容器宽度（更贴近可视画布）
+                      var explicitInner = null;
+                      try {
+                        var rootContainer = document.getElementById('fullScreenMindmap');
+                        if (rootContainer) {
+                          explicitInner = rootContainer.querySelector('.jsmind-inner.jmnode-overflow-wrap') || rootContainer.querySelector('.jsmind-inner');
+                        } else {
+                          explicitInner = document.querySelector('.jsmind-inner.jmnode-overflow-wrap') || document.querySelector('.jsmind-inner');
+                        }
+                      } catch (e) { explicitInner = null; }
+
+                      if (explicitInner && explicitInner.clientWidth) {
+                        vw_source = '.jsmind-inner.jmnode-overflow-wrap';
+                        vw = explicitInner.clientWidth;
+                      } else if (jm && jm.view && jm.view.size && typeof jm.view.size.w === 'number') {
+                        vw_source = 'jm.view.size.w';
+                        vw = jm.view.size.w;
+                      } else if (inner && inner.clientWidth) {
+                        vw_source = 'inner.clientWidth';
+                        vw = inner.clientWidth;
+                      } else {
+                        vw_source = 'unknown';
+                        vw = 0;
+                      }
+                      try { console.log('[MW][offset-fix] percent baseline=', vw_source, 'explicitInner.clientWidth=', (explicitInner && explicitInner.clientWidth), 'jm.view.size.w=', (jm && jm.view && jm.view.size && jm.view.size.w), 'inner.clientWidth=', (inner && inner.clientWidth), 'pct=', v); } catch (e) { /* ignore */ }
+                      return Math.round(v / 100 * vw);
+                    }
+                    // fallback: try parse as number string
+                    var n = parseFloat(s);
+                    return isNaN(n) ? 0 : n;
+                  }
+                  // if numeric already
+                  var num = Number(o);
+                  return isNaN(num) ? 0 : num;
+                } catch (ee) { return 0; }
+              }
+
+              var pixelOff = _parseInitialOffset(off);
+              try { console.log('[MW][offset-fix] parsed initial_offset_x -> pixelOff=', pixelOff); } catch (e) { /* ignore */ }
+
+              // 将偏移按当前缩放比例应用（保持与 _center_root 计算一致）
+              if (pixelOff && zoom != null) {
+                try {
+                  var delta = pixelOff * zoom;
+                  console.log('[MW][offset-fix] applying delta=', delta);
+                  inner.scrollLeft = (inner.scrollLeft || 0) + delta;
+                  console.log('[MW][offset-fix] inner.scrollLeft(after)=', inner.scrollLeft);
+                } catch (e) {
+                  console.error('[MW][offset-fix] apply error', e);
+                }
+              } else {
+                console.log('[MW][offset-fix] nothing to apply (pixelOff or zoom invalid)');
+              }
+            } catch (e) {
+              console.error('[MW][offset-fix] unexpected error', e);
+            }
+          }, 180);
+        } // 结束 if (!window._mwInitialOffsetApplied)
+      } catch (e) { console.error('[MW][offset-fix] outer error', e); }
+
+      // 渲染完成后同步节点类型徽章与可见性过滤（确保开关生效）
+      try {
+        if (typeof window.MW_updateNodeTypeBadges === 'function') {
+          setTimeout(window.MW_updateNodeTypeBadges, 80);
+        }
+        if (typeof window.MW_applyNodeVisibilityFilter === 'function') {
+          setTimeout(window.MW_applyNodeVisibilityFilter, 80);
+        }
+      } catch (e) { /* ignore */ }
+
+      // 延迟执行DOM操作，确保元素已加载
+      setTimeout(() => {
+
+
+        try {
+          if (typeof window.MW_updateNodeTypeBadges === 'function') window.MW_updateNodeTypeBadges();
+          if (typeof window.MW_applyNodeVisibilityFilter === 'function') window.MW_applyNodeVisibilityFilter();
+        } catch (e) { }
+      }, 100);
+
+      // 派发mindmapReady事件，通知mindmap.html思维导图已准备就绪
+      try {
+        window.dispatchEvent(new Event('mindmapReady'));
+        console.log('[MW] 已派发 mindmapReady 事件');
+      } catch (e) {
+        console.warn('[MW] 派发 mindmapReady 事件失败:', e);
+      }
+    } catch (error) {
+      // 如果加载失败，尝试加载默认数据
+      console.error('[MW][loadNodeTree] jm.show失败, 切换到默认数据:', error);
+      try {
+        window.__mw_showingDefaultNodeTree = true;
+        jm.show(getDefaultNodeTree());
+        console.log('[MW][loadNodeTree] 已加载默认数据');
+      } catch (defaultError) {
+        console.error('[MW][loadNodeTree] 加载默认数据也失败:', defaultError);
+      }
     }
-  } catch (error) {
-    // 如果加载失败，尝试加载默认数据
-    try {
-      jm.show(getDefaultNodeTree());
-    } catch (defaultError) {
-      console.error('加载默认数据失败:', defaultError);
-    }
+  } finally {
+    window.__mw_loadNodeTreeInProgress = false;
   }
 }
-
 // 获取当前NodeTree
 function getCurrentNodeTree() {
   // 如果处于下钻模式，返回原始完整数据
@@ -2712,8 +2764,8 @@ function setupBoxSelection() {
         e.stopPropagation();
         // 保存视口以便删除后恢复位置
         let viewportState = null;
-        try { 
-          viewportState = window.MW_saveViewport ? window.MW_saveViewport() : saveViewport(); 
+        try {
+          viewportState = window.MW_saveViewport ? window.MW_saveViewport() : saveViewport();
         } catch (e) { }
         ids.filter(id => id && id !== 'root').forEach(id => {
           try { jm.remove_node(id); } catch (err) { }
@@ -2721,14 +2773,14 @@ function setupBoxSelection() {
         if (typeof window.clearMultiSelection === 'function') window.clearMultiSelection();
         if (typeof debouncedSave === 'function') debouncedSave();
         // 延迟恢复视口，等DOM与jsMind重建完成
-        setTimeout(function () { 
-          try { 
+        setTimeout(function () {
+          try {
             if (window.MW_restoreViewport && viewportState) {
               window.MW_restoreViewport(viewportState);
             } else {
               restoreViewport();
             }
-          } catch (e) { } 
+          } catch (e) { }
         }, 160);
       }
     }
@@ -2990,8 +3042,8 @@ function setupBoxSelection() {
 
         // 保存视口以便粘贴后恢复位置
         let viewportState = null;
-        try { 
-          viewportState = window.MW_saveViewport ? window.MW_saveViewport() : saveViewport(); 
+        try {
+          viewportState = window.MW_saveViewport ? window.MW_saveViewport() : saveViewport();
         } catch (e) { }
 
         let pastedCount = 0;
@@ -3433,12 +3485,47 @@ function getDefaultNodeTree() {
 }
 
 // 保存当前数据到localStorage
+function isDefaultNodeTreeData(nodeTreeData) {
+  try {
+    var root = nodeTreeData && nodeTreeData.data ? nodeTreeData.data : nodeTreeData;
+    if (!root || root.topic !== '欢迎使用思维导图') return false;
+    var children = Array.isArray(root.children) ? root.children : [];
+    var hasLeft = children.some(function (node) { return node && node.topic === '第一层节点'; });
+    var hasRight = children.some(function (node) { return node && node.topic === '第一层右侧节点'; });
+    return hasLeft && hasRight;
+  } catch (e) {
+    return false;
+  }
+}
+
+function hasRealMarkdownCache() {
+  try {
+    var md = localStorage.getItem('mindword_markdown_data') || '';
+    if (!md.trim()) return false;
+    return md.indexOf('欢迎使用思维导图') === -1 ||
+      md.indexOf('第一层节点') === -1 ||
+      md.indexOf('第一层右侧节点') === -1;
+  } catch (e) {
+    return false;
+  }
+}
+
 function saveToLocalStorage() {
   console.log('进入函数：saveToLocalStorage');
 
 
 
   if (!jm) return;
+
+  try {
+    var currentForGuard = jm.get_data();
+    if ((window.__mw_showingDefaultNodeTree || isDefaultNodeTreeData(currentForGuard)) && hasRealMarkdownCache()) {
+      console.warn('[MW] blocked default sample mindmap from overwriting current markdown');
+      return;
+    }
+  } catch (e) {
+    console.warn('[MW] default sample overwrite guard failed:', e);
+  }
 
   // 如果处于过滤视图（只看标题），需要把过滤视图中的变更合并回原始快照再保存
   try {
@@ -4236,7 +4323,7 @@ function handlePNGDownload(action) {
 function getCurrentThemeBackgroundColor() {
   // 获取当前主题
   const currentTheme = document.body.getAttribute('data-mindmap-theme') || 'primary';
-  
+
   // 主题背景色映射
   const themeBackgrounds = {
     'primary': '#f8f9fa',        // 经典蓝 - 浅灰背景
@@ -4246,7 +4333,7 @@ function getCurrentThemeBackgroundColor() {
     'warm': '#faf8f5',           // 暖色调 - 暖米色背景
     'forest': '#f5f9f5'          // 森林绿 - 浅绿背景
   };
-  
+
   // 尝试从实际 DOM 元素获取背景色
   const mindmapInner = document.querySelector('.jsmind-inner');
   if (mindmapInner) {
@@ -4257,7 +4344,7 @@ function getCurrentThemeBackgroundColor() {
       return bgColor;
     }
   }
-  
+
   // 返回映射的背景色，如果没有找到则返回默认白色
   return themeBackgrounds[currentTheme] || '#ffffff';
 }
@@ -4426,7 +4513,7 @@ function copyImageToClipboard(dataUrl) {
       window.focus();
       document.body.focus();
     }
-    
+
     // 将dataUrl转换为blob
     fetch(dataUrl)
       .then(res => res.blob())
@@ -4858,7 +4945,7 @@ window.addEventListener('load', async function () {
             pan = jm.view.get_translate();
           }
         } catch (e) { }
-        
+
         // 保存下钻状态
         let viewState = null;
         try {
@@ -4870,7 +4957,7 @@ window.addEventListener('load', async function () {
             };
           }
         } catch (e) { viewState = null; }
-        
+
         return {
           scrollTop: inner.scrollTop,
           scrollLeft: inner.scrollLeft,
@@ -4895,7 +4982,7 @@ window.addEventListener('load', async function () {
             if (window.jm && typeof jm.select_clear === 'function') jm.select_clear();
           }
         } catch (e) { }
-        
+
         // 恢复下钻状态
         if (state.viewState && window.viewStateManager) {
           try {
@@ -4903,12 +4990,12 @@ window.addEventListener('load', async function () {
             if (state.viewState.mode === 'drilldown' && state.viewState.rootId) {
               // 保存当前的原始数据引用
               const originalData = window.viewStateManager.originalData;
-              
+
               // 恢复下钻状态
               window.viewStateManager.currentViewMode = state.viewState.mode;
               window.viewStateManager.currentRootId = state.viewState.rootId;
               window.viewStateManager.drillDownHistoryStack = [...state.viewState.drillDownHistoryStack];
-              
+
               // 如果有原始数据，应用下钻视图
               if (originalData) {
                 window.viewStateManager.applyFilteredView();
@@ -4923,7 +5010,7 @@ window.addEventListener('load', async function () {
             console.warn('[MW_restoreViewport] 恢复下钻状态失败:', e);
           }
         }
-        
+
         // 恢复缩放与平移
         try {
           if (window.jm && jm.view && typeof jm.view.set_scale === 'function' && state.zoom != null) {
@@ -4951,12 +5038,12 @@ window.addEventListener('load', async function () {
       if (window.viewStateManager && window.viewStateManager.isInDrillDownMode()) {
         originalData = window.viewStateManager.originalData;
       }
-      
+
       // 保存视口状态（包含下钻状态）
       const st = window.MW_saveViewport && window.MW_saveViewport();
-      
+
       try { fn && fn(); } catch (e) { }
-      
+
       const delay = typeof restoreDelayMs === 'number' ? restoreDelayMs : 100;
       setTimeout(function () {
         try {
@@ -4964,7 +5051,7 @@ window.addEventListener('load', async function () {
           if (window.viewStateManager && originalData) {
             window.viewStateManager.originalData = originalData;
           }
-          
+
           // 恢复视口状态（包含下钻状态）
           window.MW_restoreViewport && window.MW_restoreViewport(st, opts);
         } catch (e) { }

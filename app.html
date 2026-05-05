@@ -1088,6 +1088,8 @@
 
             function switchView(view) {
                 if (view === currentMindmapView) return;
+                // 不调用 MW_flushEditorMarkdownToStorage，因为编辑器内容可能是过期的，
+                // 切换视图时思维导图/大纲的数据才是最新的，应以其为准
                 var iframe = getMindmapIframe();
                 if (!iframe || !iframe.contentWindow) {
                     console.warn('[App] mindmap iframe not ready');

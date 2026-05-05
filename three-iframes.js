@@ -161,6 +161,27 @@ function loadPanelContent(panelName) {
             console.log(`[IFRAME-ONLOAD] ${panelName} iframe ready, sending cached mindmap message, docId:`, window.__mw_pendingMindmapMarkdown?.doc?.id);
             iframe.contentWindow.postMessage({ type: 'mw_load_markdown', payload: window.__mw_pendingMindmapMarkdown }, '*');
             window.__mw_pendingMindmapMarkdown = null;
+          } else if (panelName === 'mindmap') {
+            try {
+              const docs = JSON.parse(localStorage.getItem('mindword_docs') || '[]');
+              const activeId = localStorage.getItem('mw_active_doc') || '';
+              const activeDoc = docs.find(doc => doc && doc.id === activeId && !doc.deletedAt);
+              if (activeDoc && typeof activeDoc.md === 'string') {
+                iframe.contentWindow.postMessage({
+                  type: 'mw_load_markdown',
+                  payload: {
+                    md: activeDoc.md,
+                    images: activeDoc.images || [],
+                    rev: activeDoc.version || activeDoc.updatedAt || Date.now(),
+                    origin: 'index',
+                    docId: activeDoc.id
+                  }
+                }, '*');
+                console.log('[IFRAME-ONLOAD] mindmap iframe ready, sent active document markdown', activeDoc.id);
+              }
+            } catch (e) {
+              console.warn('[IFRAME-ONLOAD] failed to send active document to mindmap:', e);
+            }
           }
         } catch (e) { /* ignore */ }
       }
@@ -214,6 +235,59 @@ function retryLoad(panelName) {
   setTimeout(() => loadPanelContent(panelName), 100);
 }
 
+function MW_flushEditorMarkdownToStorage(reason = '') {
+  try {
+    const editorIframe = document.querySelector('iframe[data-panel="editor"], iframe#iframe-editor, iframe[src*="editor/editor.html"]');
+    const editorWin = editorIframe && editorIframe.contentWindow;
+    const editor = editorWin && editorWin.markdownEditor;
+    if (!editor || typeof editor.getContent !== 'function') return false;
+
+    const md = editor.getContent();
+    localStorage.setItem('mindword_markdown_data', md);
+    localStorage.setItem('mindword-save-time', Date.now().toString());
+
+    const docs = JSON.parse(localStorage.getItem('mindword_docs') || '[]');
+    const activeId = localStorage.getItem('mw_active_doc') || '';
+    const idx = docs.findIndex(doc => doc && doc.id === activeId && !doc.deletedAt);
+    let activeDoc = null;
+    if (idx >= 0) {
+      if (docs[idx].md !== md) {
+        docs[idx].md = md;
+        docs[idx].updatedAt = Date.now();
+        docs[idx].version = Number(docs[idx].version || 1) + 1;
+        localStorage.setItem('mindword_docs', JSON.stringify(docs));
+      }
+      activeDoc = docs[idx];
+    }
+
+    const payload = {
+      md,
+      images: activeDoc ? (activeDoc.images || []) : [],
+      rev: activeDoc ? (activeDoc.version || activeDoc.updatedAt || Date.now()) : Date.now(),
+      origin: 'editor-flush',
+      docId: activeDoc ? activeDoc.id : activeId
+    };
+
+    ['preview', 'mindmap'].forEach(panelName => {
+      const frame = document.querySelector(`iframe[data-panel="${panelName}"], iframe#iframe-${panelName}`);
+      if (frame && frame.contentWindow) {
+        try { frame.contentWindow.postMessage({ type: 'mw_load_markdown', payload }, '*'); } catch (e) { }
+      }
+    });
+
+    try {
+      if (editorWin.syncAll) editorWin.syncAll('markdown', true, true);
+    } catch (e) { }
+
+    console.log('[IFRAME] flushed editor markdown before view switch:', reason);
+    return true;
+  } catch (e) {
+    console.warn('[IFRAME] flush editor markdown failed:', e);
+    return false;
+  }
+}
+window.MW_flushEditorMarkdownToStorage = MW_flushEditorMarkdownToStorage;
+
 // ===================================
 // 专注模式功能
 // ===================================
@@ -262,6 +336,9 @@ function exitFocusMode() {
 
 // 切换面板显示/隐藏
 function togglePanel(panelName) {
+  if (panelName === 'mindmap') {
+    MW_flushEditorMarkdownToStorage('togglePanel:mindmap');
+  }
   if (window.__mw_loadPanelIfNeeded) {
     window.__mw_loadPanelIfNeeded(panelName);
   }
@@ -290,6 +367,9 @@ function togglePanel(panelName) {
 
 // 处理Tab点击
 function handleTabClick(panelName) {
+  if (panelName === 'mindmap') {
+    MW_flushEditorMarkdownToStorage('handleTabClick:mindmap');
+  }
   if (window.__mw_loadPanelIfNeeded) {
     window.__mw_loadPanelIfNeeded(panelName);
   }

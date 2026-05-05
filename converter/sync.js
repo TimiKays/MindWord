@@ -26,6 +26,31 @@
 window.currentAst = null;
 window.currentNodeTree = null;
 
+function isDefaultMindmapSample(nodeTreeData) {
+    try {
+        var root = nodeTreeData && nodeTreeData.data ? nodeTreeData.data : nodeTreeData;
+        if (!root || root.topic !== '欢迎使用思维导图') return false;
+        var children = Array.isArray(root.children) ? root.children : [];
+        var hasLeft = children.some(function (node) { return node && node.topic === '第一层节点'; });
+        var hasRight = children.some(function (node) { return node && node.topic === '第一层右侧节点'; });
+        return hasLeft && hasRight;
+    } catch (e) {
+        return false;
+    }
+}
+
+function hasRealMarkdownCacheForDefaultGuard() {
+    try {
+        var md = localStorage.getItem('mindword_markdown_data') || '';
+        if (!md.trim()) return false;
+        return md.indexOf('欢迎使用思维导图') === -1 ||
+            md.indexOf('第一层节点') === -1 ||
+            md.indexOf('第一层右侧节点') === -1;
+    } catch (e) {
+        return false;
+    }
+}
+
 /**
  * 统一的同步入口
  * 根据指定来源，同步三套数据，然后调用saveAll保存到localstorage
@@ -126,6 +151,10 @@ async function syncAll(source = 'markdown', refreshViews = true, saveToCache = t
                     const nodeTreeData = localStorage.getItem(storageKeys[source]);
                     nodeTree = nodeTreeData ? JSON.parse(nodeTreeData) : {};
                 }
+                if (isDefaultMindmapSample(nodeTree) && hasRealMarkdownCacheForDefaultGuard()) {
+                    console.warn('[syncAll] blocked default sample mindmap from overwriting current markdown');
+                    return;
+                }
                 ast = window.converter.nodeTreeToAst(nodeTree);
                 markdown = window.converter.astToMd(ast);
                 break;
@@ -213,4 +242,3 @@ window.syncFromMarkdown = () => syncAll('markdown');
 window.syncFromAst = () => syncAll('ast');
 window.syncFromNodeTree = () => syncAll('nodeTree');
 window.syncFromMindmap = (nodeTree) => syncAll('mindmap', true, true, nodeTree);
-

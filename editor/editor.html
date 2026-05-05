@@ -712,6 +712,7 @@
 
             onContentChange() {
                 this.lastSaveTime = Date.now();
+                this.saveMarkdownSnapshot('input');
 
                 // 如果刚刚插入图片，延迟稍长一点时间再保存，确保内容完全更新
                 const timeSinceImageInsert = Date.now() - this.lastImageInsertTime;
@@ -722,10 +723,36 @@
                 this.saveTimeout = setTimeout(() => {
                     console.log(`[editor] onContentChange triggering saveToStorage (delay: ${delay}ms)`);
                     this.saveToStorage(false);
-                }, delay);
+                }, Math.min(delay, 500));
 
                 // 通知其他窗口内容变化
                 this.broadcastChange();
+            }
+
+            saveMarkdownSnapshot(reason = '') {
+                const content = this.getContent();
+                try {
+                    localStorage.setItem('mindword_markdown_data', content);
+                    localStorage.setItem('mindword-save-time', Date.now().toString());
+                } catch (e) {
+                    console.warn('[editor] save markdown snapshot failed:', e);
+                }
+                clearTimeout(this.snapshotSyncTimeout);
+                this.snapshotSyncTimeout = setTimeout(() => {
+                    try {
+                        if (window.syncAll) window.syncAll('markdown', true, true);
+                    } catch (e) {
+                        console.warn('[editor] snapshot syncAll failed:', e);
+                    }
+                }, 120);
+                try {
+                    window.parent.postMessage({
+                        type: 'markdown-content-change',
+                        content,
+                        reason,
+                        timestamp: Date.now()
+                    }, '*');
+                } catch (e) { }
             }
 
             hasUnsavedChanges() {

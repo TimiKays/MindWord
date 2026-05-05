@@ -900,6 +900,8 @@
       return;
     }
 
+    console.log('[OutlineEditor] applyToMindmap 开始, root:', this.treeData?.topic);
+
     this._syncTextFromDOM();
 
     var nodeTree = this._removeEmptyLeaves(this.toNodeTree(), true);
@@ -909,11 +911,20 @@
       return;
     }
 
+    console.log('[OutlineEditor] 处理后的nodeTree root:', nodeTree.topic);
+
     var jmData = window.jm.get_data();
+    console.log('[OutlineEditor] 当前jm数据 root:', jmData?.data?.topic);
     jmData.data = nodeTree;
 
+    // 增加抑制计数，防止本次写入触发 localStorage 监听器回掉 loadNodeTree
+    // 导致嵌套 jm.show() 崩溃。jm.show + syncAll 各可能触发一次写入
+    window.__mindmapSuppressCount = (window.__mindmapSuppressCount || 0) + 3;
+
     try {
+      console.log('[OutlineEditor] 调用jm.show...');
       window.jm.show(jmData);
+      console.log('[OutlineEditor] jm.show成功');
     } catch (e) {
       console.error('[OutlineEditor] jm.show() failed:', e);
     }
@@ -922,13 +933,18 @@
     // 优先使用 syncAll 进行完整同步（nodetree -> ast -> markdown）
     // 注意：syncAll 期望的 nodeTree 格式是 { data: nodeTree }，这是 jm.get_data() 的返回格式
     if (typeof syncAll === 'function') {
+      console.log('[OutlineEditor] 调用syncAll...');
       var nodeTreeWrapper = { data: nodeTree };
       syncAll('mindmap', true, true, nodeTreeWrapper);
+      console.log('[OutlineEditor] syncAll完成');
     } else if (typeof saveToLocalStorage === 'function') {
+      console.log('[OutlineEditor] 调用saveToLocalStorage...');
       saveToLocalStorage();
     } else if (typeof debouncedSave === 'function') {
       debouncedSave();
     }
+
+    console.log('[OutlineEditor] applyToMindmap 完成');
   };
 
   OutlineEditor.prototype._removeEmptyLeaves = function (node, isRoot) {

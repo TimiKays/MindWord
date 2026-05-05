@@ -1628,6 +1628,34 @@ async function mw_clearAllData() {
 window.addEventListener('message', function (e) {
   const msg = e && e.data;
   if (!msg || typeof msg !== 'object') return;
+  if (msg.type === 'markdown-content-change') {
+    try {
+      const md = typeof msg.content === 'string' ? msg.content : '';
+      const activeId = mw_getActive();
+      if (!activeId) return;
+
+      const docs = mw_loadDocs();
+      const idx = docs.findIndex(d => d.id === activeId);
+      if (idx < 0 || docs[idx].md === md) return;
+
+      docs[idx].md = md;
+      docs[idx].updatedAt = Date.now();
+      docs[idx].version = Number(docs[idx].version || 1) + 1;
+
+      const newName = mw_extractTitleFromMd(md);
+      if (newName && docs[idx].name !== newName) docs[idx].name = newName;
+
+      mw_saveDocs(docs);
+      clearTimeout(window.__mw_markdownChangeNotifyTimer);
+      window.__mw_markdownChangeNotifyTimer = setTimeout(() => {
+        mw_notifyPreviewLoad(docs[idx]);
+        mw_notifyMindmapLoad(docs[idx]);
+      }, 120);
+    } catch (err) {
+      console.warn('[SYNC] markdown-content-change failed:', err);
+    }
+    return;
+  }
 
   // 1. 编辑器内容变更同步 (修复图片丢失和导出无图片的核心)
   // 当 editor.html 执行 saveToStorage 时会发送此消息
