@@ -3,7 +3,7 @@
  * 只缓存核心文件，避免路径重复问题
  */
 
-const CACHE_NAME = 'mindword-v46';
+const CACHE_NAME = 'mindword-v47';
 
 // 只缓存最关键的核心文件
 const CORE_FILES = [
@@ -115,7 +115,7 @@ const CORE_FILES = [
   '/local-deps/jsmind.screenshot.js',
   '/local-deps/markdown-it.min.js',
   '/local-deps/pizzip.min.js',
-  '/local-deps/tailwindcss.min.js',
+  '/local-deps/tailwind-compiled.min.css',
   '/local-deps/jszip.min.js',
 
   // md2word目录
@@ -139,12 +139,14 @@ const CORE_FILES = [
   '/res/LOGO256.ico',
   '/res/LOGO32.ico',
   '/res/MindWord二维码.png',
-  '/res/rec-mindmap.gif',
-  '/res/rec-docx.gif',
+  '/res/rec-mindmap.mp4',
+  '/res/rec-docx.mp4',
   '/res/redo.svg',
   '/res/screenShot-all.png',
+  '/res/screenShot-all.webp',
   '/res/screenShot-docx.png',
   '/res/screenShot-editor.png',
+  '/res/screenShot-editor.webp',
   '/res/screenShot-phone.png',
   '/res/screenShot-tags.png',
   '/res/setting.svg',

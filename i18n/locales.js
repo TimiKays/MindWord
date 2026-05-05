@@ -290,6 +290,10 @@ const i18nLocales = {
         aiSubnodes: {
           title: 'AI生成子节点',
           desc: '头脑风暴或细化主题时，可让AI基于某节点一键生成子节点，人工采纳或编辑。'
+        },
+        outline: {
+          title: '大纲视图编辑',
+          desc: '纯键盘沉浸式编辑体验，无需鼠标即可完成节点编辑、层级调整、添加备注等操作，让思路流畅不间断。'
         }
       },
       word: {
@@ -843,6 +847,10 @@ const i18nLocales = {
         aiSubnodes: {
           title: 'AI Generate Subnodes',
           desc: 'During brainstorming or topic refinement, you can let AI generate subnodes based on a node with one click, and manually adopt or edit.'
+        },
+        outline: {
+          title: 'Outline View Editing',
+          desc: 'Immersive keyboard-only editing experience. Complete node editing, hierarchy adjustment, and note addition without touching the mouse, keeping your thoughts flowing uninterrupted.'
         }
       },
       word: {
@@ -1392,6 +1400,10 @@ const i18nLocales = {
         aiSubnodes: {
           title: 'IA Genera Subnodos',
           desc: 'Seleccione un nodo, use IA para generar automáticamente contenido de subnodos relacionados'
+        },
+        outline: {
+          title: 'Edición en Vista de Esquema',
+          desc: 'Experiencia de edición inmersiva solo con teclado. Complete la edición de nodos, ajuste de jerarquía y adición de notas sin usar el mouse, manteniendo su flujo de pensamiento ininterrumpido.'
         }
       },
       word: {
