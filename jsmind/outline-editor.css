@@ -99,6 +99,19 @@
   color: #d1d5db;
 }
 
+.outline-list-prefix {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 4px 0 2px;
+  font-size: 14px;
+  color: #6b7280;
+  flex-shrink: 0;
+  user-select: none;
+  -webkit-user-select: none;
+  font-weight: 500;
+}
+
 .outline-text {
   flex: 1;
   outline: none;

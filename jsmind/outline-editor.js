@@ -84,6 +84,78 @@
     }
   }
 
+  function reorderOrderedSiblings(children, startIndex) {
+    if (!children) return;
+    var orderedIndex = 0;
+    for (var i = 0; i < startIndex; i++) {
+      if (children[i].data && children[i].data.type === 'list' && children[i].data.ordered) {
+        orderedIndex = children[i].data.listIndex || 0;
+      }
+    }
+    for (var j = startIndex; j < children.length; j++) {
+      if (children[j].data && children[j].data.type === 'list' && children[j].data.ordered) {
+        orderedIndex++;
+        children[j].data.listIndex = orderedIndex;
+      }
+    }
+  }
+
+  function getListTypeAtLevel(parentNode) {
+    if (!parentNode || !parentNode.children) return null;
+    for (var i = 0; i < parentNode.children.length; i++) {
+      var child = parentNode.children[i];
+      if (child.data && child.data.type === 'list') {
+        return {
+          ordered: child.data.ordered,
+          marker: child.data.marker
+        };
+      }
+    }
+    return null;
+  }
+
+  function detectListPrefix(text) {
+    if (!text || typeof text !== 'string') return null;
+
+    var trimmed = text.trim();
+    if (!trimmed) return null;
+
+    var unorderedMatch = trimmed.match(/^([-*+])\s+/);
+    if (unorderedMatch) {
+      var contentAfterPrefix = trimmed.substring(unorderedMatch[0].length);
+      return {
+        type: 'unordered',
+        marker: unorderedMatch[1],
+        content: contentAfterPrefix
+      };
+    }
+
+    var orderedMatch = trimmed.match(/^(\d+)\.\s+/);
+    if (orderedMatch) {
+      var contentAfterPrefix = trimmed.substring(orderedMatch[0].length);
+      var num = parseInt(orderedMatch[1], 10);
+      return {
+        type: 'ordered',
+        index: num,
+        content: contentAfterPrefix
+      };
+    }
+
+    return null;
+  }
+
+  function getListPrefixDisplay(listInfo) {
+    if (!listInfo) return '';
+
+    if (listInfo.type === 'unordered') {
+      return listInfo.marker + ' ';
+    } else if (listInfo.type === 'ordered') {
+      return listInfo.index + '. ';
+    }
+
+    return '';
+  }
+
   function OutlineEditor() {
     this.container = null;
     this.treeData = null;
@@ -212,7 +284,7 @@
     var jmData = window.jm.get_data();
     this.treeData = deepClone(jmData.data);
     this._buildNodeMaps();
-    this.render();
+    this.render(false);
   };
 
   OutlineEditor.prototype._buildNodeMaps = function () {
@@ -235,7 +307,7 @@
     }
   };
 
-  OutlineEditor.prototype.render = function () {
+  OutlineEditor.prototype.render = function (autoFocus) {
     if (!this.container) return;
     this.container.innerHTML = '';
     this._buildNodeMaps();
@@ -250,10 +322,12 @@
     if (!this.focusedId) {
       this.focusedId = this.treeData.id;
     }
-    var self = this;
-    setTimeout(function () {
-      self._focusNode(self.focusedId, false);
-    }, 50);
+    if (autoFocus !== false) {
+      var self = this;
+      setTimeout(function () {
+        self._focusNode(self.focusedId, false);
+      }, 50);
+    }
   };
 
   OutlineEditor.prototype._renderNode = function (node, parentEl, depth, isRoot) {
@@ -301,13 +375,42 @@
     }
     rowEl.appendChild(toggleEl);
 
+    var listInfo = null;
+    if (node.data && node.data.type === 'list') {
+      listInfo = {
+        type: node.data.ordered ? 'ordered' : 'unordered',
+        marker: node.data.marker || '-',
+        index: node.data.listIndex || 1
+      };
+    }
+
+    if (listInfo) {
+      var listPrefixEl = document.createElement('span');
+      listPrefixEl.className = 'outline-list-prefix';
+      listPrefixEl.textContent = getListPrefixDisplay(listInfo);
+      rowEl.appendChild(listPrefixEl);
+    }
+
     var textEl = document.createElement('span');
     textEl.className = 'outline-text';
     textEl.contentEditable = 'true';
     textEl.spellcheck = false;
     textEl.dataset.nodeId = node.id;
-    textEl.textContent = node.topic || '';
-    if (!node.topic) {
+
+    var displayTopic = node.topic || '';
+    if (listInfo && displayTopic) {
+      var detectedList = detectListPrefix(displayTopic);
+      if (detectedList) {
+        displayTopic = detectedList.content;
+      } else {
+        // 如果 node.topic 不以列表标记开头，但 node.data 标记为列表
+        // 说明这是首次输入时数据还没完全同步，直接显示原始内容
+        // 因为前缀已经作为独立元素显示了
+      }
+    }
+    textEl.textContent = displayTopic;
+
+    if (!displayTopic) {
       textEl.dataset.placeholder = isRoot ? this._t('outlineRootPlaceholder', '输入主题...') : this._t('outlinePlaceholder', '输入内容...');
     }
 
@@ -327,21 +430,8 @@
       });
       t.addEventListener('blur', function () {
         var newTopic = t.textContent.trim();
-        // 无论内容是否变化，都同步更新到思维导图和编辑器
-        // 因为 input 事件已经实时更新了 n.topic，所以这里直接调用 applyToMindmap
         n.topic = newTopic;
-        // 设置标志防止焦点丢失（延长到 3000ms 确保覆盖所有 storage 事件）
-        window.__outlineSyncingToMindmap = true;
-        console.log('[OutlineEditor] blur: 设置同步标志, node:', n.id);
         self.applyToMindmap();
-        // 延迟清除标志，确保 storage 事件不会触发刷新
-        // 清除之前如果又有新的 blur 设置了标志，不要覆盖
-        var currentFlag = window.__outlineBlurTimeout;
-        if (currentFlag) clearTimeout(currentFlag);
-        window.__outlineBlurTimeout = setTimeout(function () {
-          window.__outlineSyncingToMindmap = false;
-          console.log('[OutlineEditor] blur: 清除同步标志');
-        }, 3000);
         if (!newTopic) {
           t.dataset.placeholder = n.id === self.treeData.id ? self._t('outlineRootPlaceholder', '输入主题...') : self._t('outlinePlaceholder', '输入内容...');
         } else {
@@ -349,8 +439,66 @@
         }
       });
       t.addEventListener('input', function () {
-        // 实时更新节点 topic，但不触发同步（等待 blur 时再同步）
-        n.topic = t.textContent;
+        var currentText = t.textContent;
+
+        var hasListPrefix = false;
+        var itemEl = t.closest('.outline-item');
+        if (itemEl) {
+          hasListPrefix = itemEl.querySelector('.outline-list-prefix') !== null;
+        }
+
+        var detectedList = detectListPrefix(currentText);
+
+        if (detectedList && detectedList.content.trim()) {
+          if (!n.data) n.data = {};
+          n.data.type = 'list';
+          n.data.ordered = detectedList.type !== 'unordered';
+          n.data.marker = detectedList.type === 'unordered' ? detectedList.marker : '.';
+          if (detectedList.type !== 'unordered') {
+            n.data.listIndex = detectedList.index;
+          }
+
+          n.topic = detectedList.content;
+
+          if (itemEl) {
+            var existingPrefix = itemEl.querySelector('.outline-list-prefix');
+            if (!existingPrefix) {
+              var rowEl = t.closest('.outline-row');
+              if (rowEl) {
+                var listPrefixEl = document.createElement('span');
+                listPrefixEl.className = 'outline-list-prefix';
+                listPrefixEl.textContent = getListPrefixDisplay(detectedList);
+                rowEl.insertBefore(listPrefixEl, t);
+              }
+            } else {
+              existingPrefix.textContent = getListPrefixDisplay(detectedList);
+            }
+          }
+
+          if (t.textContent !== detectedList.content) {
+            t.textContent = detectedList.content;
+
+            var range = document.createRange();
+            var sel = window.getSelection();
+            if (t.firstChild) {
+              range.setStart(t.firstChild, t.firstChild.length);
+              range.collapse(true);
+              sel.removeAllRanges();
+              sel.addRange(range);
+            }
+          }
+        } else if (!hasListPrefix) {
+          if (n.data) {
+            delete n.data.type;
+            delete n.data.ordered;
+            delete n.data.marker;
+            delete n.data.listIndex;
+          }
+          n.topic = currentText;
+        } else {
+          n.topic = currentText;
+        }
+
         if (t.textContent) {
           delete t.dataset.placeholder;
         }
@@ -514,6 +662,20 @@
       updateIndentRecursive(dragNode, indentDelta);
     }
 
+    reorderOrderedSiblings(dragParent.children, 0);
+
+    if (position === 'inside') {
+      reorderOrderedSiblings(targetNode.children, 0);
+    } else {
+      var targetParentId = this._parentMap[targetId];
+      if (targetParentId) {
+        var targetParent = this._nodeMap[targetParentId];
+        if (targetParent && targetParent.children) {
+          reorderOrderedSiblings(targetParent.children, 0);
+        }
+      }
+    }
+
     this.focusedId = dragId;
     this.render();
     this.applyToMindmap();
@@ -651,12 +813,20 @@
     } else if (e.key === 'Backspace') {
       if (textEl.textContent === '' && node.id !== this.treeData.id) {
         e.preventDefault();
-        this._deleteNode(node, textEl);
+        if (node.data && node.data.type === 'list' && node.data.ordered) {
+          this._convertOrderedToUnordered(node, textEl);
+        } else {
+          this._deleteNode(node, textEl);
+        }
       }
     } else if (e.key === 'Delete') {
       if (textEl.textContent === '' && node.id !== this.treeData.id) {
         e.preventDefault();
-        this._deleteNode(node, textEl);
+        if (node.data && node.data.type === 'list' && node.data.ordered) {
+          this._convertOrderedToUnordered(node, textEl);
+        } else {
+          this._deleteNode(node, textEl);
+        }
       }
     }
   };
@@ -680,7 +850,17 @@
       parentid: parentId
     };
 
-    if (node.data) {
+    if (node.data && node.data.type === 'list') {
+      if (!newNode.data) newNode.data = {};
+      newNode.data.type = 'list';
+      newNode.data.ordered = node.data.ordered;
+      newNode.data.marker = node.data.marker;
+
+      if (node.data.ordered) {
+        var currentIndex = node.data.listIndex || 1;
+        newNode.data.listIndex = currentIndex + 1;
+      }
+    } else if (node.data) {
       newNode.data = deepClone(node.data);
       delete newNode.data.notes;
     }
@@ -696,6 +876,11 @@
     if (idx === -1) return;
 
     parent.children.splice(idx + 1, 0, newNode);
+
+    if (node.data && node.data.type === 'list' && node.data.ordered) {
+      reorderOrderedSiblings(parent.children, idx + 1);
+    }
+
     this.focusedId = newNode.id;
     this.render();
     this.applyToMindmap();
@@ -703,6 +888,23 @@
     setTimeout(function () {
       self._focusNode(self.focusedId, false);
     }, 100);
+  };
+
+  OutlineEditor.prototype._convertOrderedToUnordered = function (node, textEl) {
+    if (!node.data) return;
+
+    node.data.ordered = false;
+    delete node.data.listIndex;
+
+    var itemEl = textEl.closest('.outline-item');
+    if (itemEl) {
+      var prefixEl = itemEl.querySelector('.outline-list-prefix');
+      if (prefixEl) {
+        prefixEl.textContent = '- ';
+      }
+    }
+
+    this.applyToMindmap();
   };
 
   OutlineEditor.prototype._addChild = function (node, textEl) {
@@ -766,7 +968,17 @@
       node.data.level = node.data.level + 1;
     }
 
+    if (node.data && node.data.type === 'list' && node.data.ordered) {
+      node.data.listIndex = 1;
+    }
+
     updateIndentRecursive(node, 2);
+
+    reorderOrderedSiblings(parent.children, 0);
+
+    if (prevSibling.children && prevSibling.children.length > 0) {
+      reorderOrderedSiblings(prevSibling.children, prevSibling.children.length - 1);
+    }
 
     this.focusedId = node.id;
     this.render();
@@ -821,6 +1033,9 @@
 
     updateIndentRecursive(node, -2);
 
+    reorderOrderedSiblings(parent.children, 0);
+    reorderOrderedSiblings(grandparent.children, parentIdx + 1);
+
     this.focusedId = node.id;
     this.render();
     this.applyToMindmap();
@@ -850,6 +1065,8 @@
     var prevSibling = idx > 0 ? parent.children[idx - 1] : null;
 
     parent.children.splice(idx, 1);
+
+    reorderOrderedSiblings(parent.children, idx);
 
     if (prevSibling) {
       this.focusedId = prevSibling.id;
@@ -938,7 +1155,6 @@
 
     if (!nodeTree || !nodeTree.id) {
       console.error('[OutlineEditor] nodeTree is invalid after removing empty leaves');
-      window.__outlineSyncingToMindmap = false;
       return;
     }
 
@@ -980,15 +1196,18 @@
 
   OutlineEditor.prototype._removeEmptyLeaves = function (node, isRoot) {
     if (!node) return node;
-    if (node.children && node.children.length > 0) {
+    if (node.children) {
       var filtered = [];
       for (var i = 0; i < node.children.length; i++) {
-        var child = this._removeEmptyLeaves(node.children[i], false);
-        if (child) filtered.push(child);
+        var cleaned = this._removeEmptyLeaves(node.children[i], false);
+        if (cleaned) filtered.push(cleaned);
       }
       node.children = filtered;
     }
     if (!isRoot && !node.topic && (!node.children || node.children.length === 0)) {
+      if (node.data && node.data.type === 'list') {
+        return node;
+      }
       return null;
     }
     return node;

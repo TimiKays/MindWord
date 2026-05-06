@@ -1826,7 +1826,6 @@ window.addEventListener('message', function (e) {
           mw_notifyEditorLoad(doc);
           mw_notifyPreviewLoad(doc);
           mw_notifyMindmapLoad(doc);
-          try { showSuccess && showSuccess('文档已更新'); } catch (_) { }
           return;
         }
       }
@@ -1960,8 +1959,6 @@ function checkMarkdownDataChange() {
       // 保存文档列表并刷新显示
       mw_saveDocs(docs);
       mw_renderList();
-
-      try { showSuccess && showSuccess('文档内容已更新'); } catch (_) { }
     }
   }
 

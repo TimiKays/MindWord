@@ -24,21 +24,21 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>思维导图编辑器</title>
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/styles.css?v=2026.05.06.0855">
   <link type="text/css" rel="stylesheet" href="/jsmind-local/jsmind.css" />
   <link rel="stylesheet" href="/local-deps/bootstrap.min.css" />
   <script defer src="/local-deps/jquery.min.js"></script>
   <script defer src="/local-deps/bootstrap.bundle.min.js"></script>
-  <script defer src="/jsmind/tree-operator.js"></script>
-  <script defer src="/jsmind/ai-handler.js"></script>
-  <script defer src="/utils/html-to-markdown.js"></script>
-  <script defer src="/i18n/locales.js"></script>
-  <script defer src="/i18n/i18n-manager.js"></script>
-  <script defer src="/jsmind/skin-manager.js"></script>
+  <script defer src="/jsmind/tree-operator.js?v=2026.05.06.0855"></script>
+  <script defer src="/jsmind/ai-handler.js?v=2026.05.06.0855"></script>
+  <script defer src="/utils/html-to-markdown.js?v=2026.05.06.0855"></script>
+  <script defer src="/i18n/locales.js?v=2026.05.06.0855"></script>
+  <script defer src="/i18n/i18n-manager.js?v=2026.05.06.0855"></script>
+  <script defer src="/jsmind/skin-manager.js?v=2026.05.06.0855"></script>
 
 
-  <link rel="stylesheet" href="mindmap.css">
-  <link rel="stylesheet" href="outline-editor.css">
+  <link rel="stylesheet" href="mindmap.css?v=2026.05.06.0855">
+  <link rel="stylesheet" href="outline-editor.css?v=2026.05.06.0855">
   <style>
     .requires-single-selection {
       display: none !important;
@@ -497,9 +497,9 @@
       </div>
 
       <!-- 通知桥接器 -->
-      <script defer src="/notification-bridge.js"></script>
-      <script defer src="/utils/image-storage.js"></script>
-      <script defer src="/utils/note-image-utils.js"></script>
+      <script defer src="/notification-bridge.js?v=2026.05.06.0855"></script>
+      <script defer src="/utils/image-storage.js?v=2026.05.06.0855"></script>
+      <script defer src="/utils/note-image-utils.js?v=2026.05.06.0855"></script>
 
     </div>
   </div>
@@ -509,18 +509,18 @@
   <script defer src="/jsmind-local/jsmind.draggable-node.js"></script>
   <script defer src="/local-deps/dom-to-image.min.js"></script>
   <script defer src="/jsmind-local/jsmind.screenshot.js"></script>
-  <script type="module" src="/converter/sync.js"></script>
-  <script type="module" src="/converter/load.js"></script>
-  <script defer src="/jsmind/plugins/undo_manager.js"></script>
+  <script type="module" src="/converter/sync.js?v=2026.05.06.0855"></script>
+  <script type="module" src="/converter/load.js?v=2026.05.06.0855"></script>
+  <script defer src="/jsmind/plugins/undo_manager.js?v=2026.05.06.0855"></script>
 
 
 
 
-  <script defer src="/jsmind/icons.js"></script>
-  <script defer src="/jsmind/node-operator.js"></script>
-  <script defer src="/jsmind/ViewStateManager.js"></script>
-  <script defer src="/jsmind/outline-editor.js"></script>
-  <script type="module" src="/jsmind/mindmap-core.js"></script>
+  <script defer src="/jsmind/icons.js?v=2026.05.06.0855"></script>
+  <script defer src="/jsmind/node-operator.js?v=2026.05.06.0855"></script>
+  <script defer src="/jsmind/ViewStateManager.js?v=2026.05.06.0855"></script>
+  <script defer src="/jsmind/outline-editor.js?v=2026.05.06.0855"></script>
+  <script type="module" src="/jsmind/mindmap-core.js?v=2026.05.06.0855"></script>
   <script>
 
     /* mindmap-ui.js - UI related extracted scripts */
@@ -1966,25 +1966,25 @@
     var outlineRefreshTimer = null;
 
     window.MW_refreshOutlineFromMindmap = function (reason) {
-      console.log('[OutlineView] MW_refreshOutlineFromMindmap 被调用 v2, reason:', reason, '标志:', window.__outlineSyncingToMindmap);
       if (!isOutlineView || !outlineEditor || !window.jm) return;
-      // 如果正在从大纲同步到思维导图，跳过刷新以避免焦点丢失
-      if (window.__outlineSyncingToMindmap) {
-        console.log('[OutlineView] skip refresh during sync:', reason);
+
+      var outlineContainer = document.getElementById('outlineContainer');
+      var outlineHasFocus = outlineContainer && outlineContainer.contains(document.activeElement);
+
+      if (outlineHasFocus) {
         return;
       }
+
       clearTimeout(outlineRefreshTimer);
       outlineRefreshTimer = setTimeout(function () {
-        console.log('[OutlineView] 延迟执行, 标志:', window.__outlineSyncingToMindmap);
         if (!isOutlineView || !outlineEditor || !window.jm) return;
-        // 再次检查标志
-        if (window.__outlineSyncingToMindmap) {
-          console.log('[OutlineView] skip refresh during sync (delayed):', reason);
+        var outlineContainer2 = document.getElementById('outlineContainer');
+        var outlineHasFocus2 = outlineContainer2 && outlineContainer2.contains(document.activeElement);
+        if (outlineHasFocus2) {
           return;
         }
         try {
           outlineEditor.loadFromMindmap();
-          console.log('[OutlineView] refreshed from mindmap:', reason || 'external');
         } catch (e) {
           console.warn('[OutlineView] refresh from mindmap failed:', e);
         }

@@ -23,8 +23,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="mindword-version" content="2026.05.06.0855">
     <title>MindWord</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=2026.05.06.0855">
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" sizes="180x180" href="/res/LOGO.png">
@@ -46,11 +47,22 @@
     <meta name="msapplication-navbutton-color" content="#619dff">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <!-- 国际化支持 -->
-    <script src="i18n/locales.js?v=2"></script>
-    <script src="i18n/i18n-manager.js?v=2"></script>
+    <script src="i18n/locales.js?v=2026.05.06.0855"></script>
+    <script src="i18n/i18n-manager.js?v=2026.05.06.0855"></script>
     <!-- Bootstrap CSS for notifications -->
     <!-- <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet"> -->
     <style>
+        /* 保存状态指示器动画 */
+        @keyframes save-spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
         /* 完全匹配你贴出的按钮组外观（非 Tailwind 实现） */
         .tabs {
             display: flex;
@@ -361,7 +373,7 @@
     <script src="/local-deps/FileSaver.min.js"></script>
     <!-- Supabase SDK -->
     <script src="/local-deps/supabase.min.js"></script>
-    <script src="supabase-config.js"></script>
+    <script src="supabase-config.js?v=2026.05.06.0855"></script>
 
 </head>
 
@@ -772,6 +784,20 @@
                 <span class="brand-text">MindWord</span>
             </span>
         </div>
+        <!-- 保存状态指示器 -->
+        <div id="save-status-indicator"
+            style="display: flex; align-items: center; margin-right: 8px; min-width: 24px; height: 24px; justify-content: center;">
+            <!-- 保存中：灰色转圈 -->
+            <div id="save-spinner"
+                style="display: none; width: 18px; height: 18px; border: 2px solid #d1d5db; border-top-color: #4b5563; border-radius: 50%; animation: save-spin 0.8s linear infinite;">
+            </div>
+            <!-- 已保存：绿色实心圆+白色勾 -->
+            <svg id="save-check" style="display: none; width: 18px; height: 18px;" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" fill="#10b981" />
+                <polyline points="8 12 11 15 16 9" fill="none" stroke="#ffffff" stroke-width="2.5"
+                    stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+        </div>
         <div class="tabs">
             <div class="tab active" data-panel="editor" style="font-size:14px;"><svg t="1759394685575" class="icon"
                     viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1342">
@@ -1119,11 +1145,11 @@
     </script>
 
     <!-- 懒加载器 -->
-    <script src="lazy-loader.js"></script>
+    <script src="lazy-loader.js?v=2026.05.06.0855"></script>
     <!-- 图片存储管理 -->
-    <script src="utils/image-storage.js"></script>
+    <script src="utils/image-storage.js?v=2026.05.06.0855"></script>
     <!-- 备注图片工具 -->
-    <script src="utils/note-image-utils.js"></script>
+    <script src="utils/note-image-utils.js?v=2026.05.06.0855"></script>
 
     <!-- 初始化图片存储迁移 -->
     <script>
@@ -1155,12 +1181,12 @@
     </script>
 
     <!-- 关键资源预加载 -->
-    <link rel="preload" href="three-iframes.js" as="script">
-    <link rel="preload" href="init.js" as="script">
-    <link rel="preload" href="documents.js" as="script">
+    <link rel="preload" href="three-iframes.js?v=2026.05.06.0855" as="script">
+    <link rel="preload" href="init.js?v=2026.05.06.0855" as="script">
+    <link rel="preload" href="documents.js?v=2026.05.06.0855" as="script">
 
     <!-- 管理三个Iframe的展示、切换、拖拽调整宽度、专注模式、移动端自动专注 -->
-    <script src="three-iframes.js" defer></script>
+    <script src="three-iframes.js?v=2026.05.06.0855" defer></script>
 
     <!-- 初始化应用，包括 
         1. 恢复用户状态 （专注模式、布局等）
@@ -1170,23 +1196,109 @@
         5. 预加载 AI 提示词模板 到全局变量 window.__prompt_templates
         6. 调用移动端自动专注模式 （ initMobileFocus ），移动端把三个面板显示到下面。
         7. 统一监听子页面消息 （通知、AI 调用等）-->
-    <script src="init.js" defer> </script>
+    <script src="init.js?v=2026.05.06.0855" defer> </script>
 
     <!-- 如果是移动端需要重新绘制 -->
-    <script src="mobile-suit.js"></script>
+    <script src="mobile-suit.js?v=2026.05.06.0855"></script>
+
+    <!-- 全局保存状态指示器管理 -->
+    <script>
+        (function () {
+            var spinnerEl = null;
+            var checkEl = null;
+            var savedTimeout = null;
+            var savingStartTime = null;
+            var MIN_SPINNER_TIME = 400; // spinner最小显示时间(ms)
+
+            function getElements() {
+                if (!spinnerEl) spinnerEl = document.getElementById('save-spinner');
+                if (!checkEl) checkEl = document.getElementById('save-check');
+            }
+
+            window.MWSaveStatus = {
+                showSaving: function () {
+                    getElements();
+                    if (savedTimeout) {
+                        clearTimeout(savedTimeout);
+                        savedTimeout = null;
+                    }
+                    savingStartTime = Date.now();
+                    if (spinnerEl) spinnerEl.style.display = 'block';
+                    if (checkEl) checkEl.style.display = 'none';
+                },
+                showSaved: function () {
+                    getElements();
+                    var now = Date.now();
+                    var elapsed = savingStartTime ? (now - savingStartTime) : MIN_SPINNER_TIME;
+                    var remainingTime = Math.max(0, MIN_SPINNER_TIME - elapsed);
+
+                    if (remainingTime > 0) {
+                        // 还没到最小显示时间，等待剩余时间后再显示checkmark
+                        var self = this;
+                        setTimeout(function () {
+                            self._doShowSaved();
+                        }, remainingTime);
+                    } else {
+                        this._doShowSaved();
+                    }
+                },
+                _doShowSaved: function () {
+                    getElements();
+                    if (spinnerEl) spinnerEl.style.display = 'none';
+                    if (checkEl) {
+                        checkEl.style.display = 'block';
+                        checkEl.style.opacity = '1';
+                    }
+                    savingStartTime = null;
+                    if (savedTimeout) clearTimeout(savedTimeout);
+                    savedTimeout = setTimeout(function () {
+                        if (checkEl) {
+                            checkEl.style.transition = 'opacity 0.3s ease';
+                            checkEl.style.opacity = '0';
+                            setTimeout(function () {
+                                if (checkEl) checkEl.style.display = 'none';
+                            }, 300);
+                        }
+                    }, 1200);
+                },
+                hide: function () {
+                    getElements();
+                    if (spinnerEl) spinnerEl.style.display = 'none';
+                    if (checkEl) checkEl.style.display = 'none';
+                    if (savedTimeout) {
+                        clearTimeout(savedTimeout);
+                        savedTimeout = null;
+                    }
+                    savingStartTime = null;
+                }
+            };
+
+            window.addEventListener('message', function (e) {
+                if (!e || !e.data) return;
+                var msg = e.data;
+                if (msg.type === 'mw_save_status') {
+                    if (msg.status === 'saving') {
+                        window.MWSaveStatus.showSaving();
+                    } else if (msg.status === 'saved') {
+                        window.MWSaveStatus.showSaved();
+                    }
+                }
+            });
+        })();
+    </script>
 
     <!-- 监听来自eidtor的监听器 -->
-    <script src="msg-listener-show.js"></script>
+    <script src="msg-listener-show.js?v=2026.05.06.0855"></script>
 
     <!-- 我的文档、文档列表、批量操作文档 -->
-    <script src="documents.js"></script>
+    <script src="documents.js?v=2026.05.06.0855"></script>
     <!-- 复制新建文件 -->
-    <script src="copynew_file.js"></script>
+    <script src="copynew_file.js?v=2026.05.06.0855"></script>
 
     <!-- 登录状态初始化与切换 (Supabase) -->
-    <script src="user-supabase.js"></script>
+    <script src="user-supabase.js?v=2026.05.06.0855"></script>
 
-    <script src="language-switch.js"> </script>
+    <script src="language-switch.js?v=2026.05.06.0855"> </script>
 
     <!-- AI配置和提示词模板的修改监听 - 延迟加载 -->
     <script>
@@ -1198,7 +1310,7 @@
     </script>
 
     <!-- Supabase 数据同步脚本 - 立即加载 -->
-    <script src="supabase-sync.js?v=2"></script>
+    <script src="supabase-sync.js?v=2026.05.06.0855"></script>
 
     <!-- 滚动条优化：滚动时显示滚动条 -->
     <script>
@@ -1245,7 +1357,7 @@
 
     <!-- PWA安装功能 -->
     <!-- Service Worker 注册和更新管理 -->
-    <script src="/sw-register.js?v=1"></script>
+    <script src="/sw-register.js?v=2026.05.06.0855"></script>
     <script>
         // PWA安装事件处理
         let deferredPrompt = null;

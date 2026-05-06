@@ -52,10 +52,10 @@ export class NodeTreeToAstConverter {
 
     // 根据主题与上下文推断节点类型（传入 node、parentInfo、parentNode 以支持同级判断）
     const nodeType = this.inferNodeType(topic, data, node, parentInfo, parentNode);
-    
+
     // 优先使用节点中已有的depth值，如果没有则使用默认值
     const nodeDepth = node.depth !== undefined ? node.depth : depth;
-    
+
     // 计算缩进：优先使用保存的 indent，否则根据节点类型和父节点计算
     let indent = 0;
     // 优先使用保存的 indent 信息（如果存在）
@@ -73,11 +73,11 @@ export class NodeTreeToAstConverter {
       // 非列表节点保持父级缩进
       indent = parentIndent;
     }
-    
+
     // 保留fullPath和siblingNodes字段（如果存在）
     const fullPath = data.fullPath || '';
     const siblingNodes = data.siblingNodes || [];
-    
+
     const astNode = new ASTNode({
       id: node.id,  // 保持与NodeTree相同的ID
       type: nodeType.type,
@@ -140,12 +140,27 @@ export class NodeTreeToAstConverter {
       }
 
       if (type === 'list') {
+        const listIndex = (data && data.listIndex != null) ? data.listIndex : 1;
+        let finalMarker;
+
+        if (ord) {
+          // 检查 marker 是否已经是完整格式 "1."
+          if (mrk && /^\d+\.$/.test(mrk)) {
+            finalMarker = mrk;
+          } else {
+            // 只是分隔符 "."，需要拼接
+            finalMarker = listIndex + (mrk || '.');
+          }
+        } else {
+          finalMarker = mrk || '-';
+        }
+
         return {
           type: 'list',
           name: (topic || '').trim(),
           level: null,
           ordered: !!ord,
-          marker: mrk || '-'
+          marker: finalMarker
         };
       }
 
@@ -287,7 +302,7 @@ export class NodeTreeToAstConverter {
    */
   convertBatch(nodeTrees) {
     if (!Array.isArray(nodeTrees)) return [];
-    
+
     return nodeTrees.map(tree => this.convert(tree)).filter(Boolean);
   }
 
@@ -322,7 +337,7 @@ export class NodeTreeToAstConverter {
     };
 
     traverse(ast);
-    
+
     return stats;
   }
 

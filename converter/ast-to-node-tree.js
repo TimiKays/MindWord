@@ -69,7 +69,7 @@ class AstToNodeTreeConverter {
 
     // 提取当前节点的主题
     const nodeTopic = this.extractTopic(node);
-    
+
     // 计算当前节点的完整路径
     const currentPath = parentPath ? `${parentPath}/${nodeTopic}` : nodeTopic;
 
@@ -101,8 +101,21 @@ class AstToNodeTreeConverter {
     // 如果是列表节点，保存 ordered、marker 和 indent 信息，确保转换回 Markdown 时保留列表格式
     if (node.type === 'list') {
       mindNode.data.ordered = node.ordered !== undefined ? node.ordered : false;
-      mindNode.data.marker = node.marker || '-';
       mindNode.data.indent = node.indent !== undefined ? node.indent : 0;
+
+      // 解析 marker，提取序号和分隔符
+      if (node.ordered && node.marker) {
+        // 匹配 "1." 格式
+        const match = node.marker.match(/^(\d+)\.$/);
+        if (match) {
+          mindNode.data.listIndex = parseInt(match[1], 10);
+          mindNode.data.marker = '.';
+        } else {
+          mindNode.data.marker = node.marker;
+        }
+      } else {
+        mindNode.data.marker = node.marker || '-';
+      }
     }
 
     // 如果有notes，添加到节点根级别，而不是data中
@@ -131,7 +144,7 @@ class AstToNodeTreeConverter {
     // 匹配 **文本** 或 __文本__ 格式（但不匹配 ***文本*** 或中间有空格的）
     // 使用非贪婪匹配，避免跨行匹配
     return text.replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>')
-               .replace(/__([^_]+?)__/g, '<strong>$1</strong>');
+      .replace(/__([^_]+?)__/g, '<strong>$1</strong>');
   }
 
   /**
@@ -161,7 +174,7 @@ class AstToNodeTreeConverter {
       default:
         topic = node.name || node.type || 'Node';
     }
-    
+
     // 将 Markdown 粗体语法转换为 HTML，以便在思维导图中显示加粗效果
     return this.convertMarkdownBoldToHtml(topic);
   }

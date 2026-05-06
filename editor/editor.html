@@ -24,11 +24,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Markdown 编辑器</title>
-    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="../styles.css?v=2026.05.06.0855">
     <!-- Bootstrap CSS for notifications -->
     <link href="/local-deps/bootstrap.min.css" rel="stylesheet">
     <!-- HTML转Markdown工具库 -->
-    <script src="../utils/html-to-markdown.js"></script>
+    <script src="../utils/html-to-markdown.js?v=2026.05.06.0855"></script>
     <style>
         * {
             margin: 0;
@@ -872,6 +872,9 @@
             async saveToStorage(manual = false) {
                 console.log(`[editor] saveToStorage called, manual=${manual}, activeDocId=${window.__mw_activeDocId}`);
 
+                // 通知父页面显示保存中状态
+                try { window.parent.postMessage({ type: 'mw_save_status', status: 'saving' }, '*'); } catch (e) { }
+
                 const content = this.getContent();
                 console.log(`[editor] 当前内容长度: ${content.length}, 图片数量: ${this.images.size}`);
                 await this.extractAndSupplementImages(content);
@@ -889,6 +892,8 @@
                         console.log(`[editor] Recovered activeDocId from localStorage for save: ${savedDocId}`);
                     } else {
                         console.warn('[editor] No active document ID, skipping image save to IndexedDB');
+                        // 隐藏保存状态指示器
+                        try { window.parent.postMessage({ type: 'mw_save_status', status: 'saved' }, '*'); } catch (e) { }
                         return;
                     }
                 }
@@ -951,9 +956,9 @@
                 if (manual) {
                     this.showMessage('✅ 手动保存成功', 'success');
                 } else {
-                    // 自动保存时显示小绿钩提示（统一走全局通知）
+                    // 自动保存时使用全局状态指示器（绿色勾）
                     if (!window.__mw_receiving) {
-                        window.showSuccess && window.showSuccess('已自动保存');
+                        try { window.parent.postMessage({ type: 'mw_save_status', status: 'saved' }, '*'); } catch (e) { }
                     }
                 }
             }
@@ -1833,15 +1838,12 @@
                         if (!ok) {
                             // 若编辑器尚未初始化，缓存一次
                             try { window.__mw_pending_editor_set = String(msg.markdown || ''); } catch (_) { }
-                        } else {
-                            try { window.showSuccess && window.showSuccess('已接收并应用 Markdown'); } catch (_) { }
                         }
                         return;
                     }
 
                     if (msg.type === 'editor-save-or-sync') {
                         saveOrSync(msg.reason || '');
-                        try { window.showSuccess && window.showSuccess('已保存并同步'); } catch (_) { }
                         return;
                     }
                 } catch (err) {
@@ -1875,18 +1877,18 @@
         // 广播就绪事件，供 sync.js / load.js 等等待
         window.dispatchEvent(new Event('converterReady'));
     </script>
-    <script type="module" src="../converter/sync.js"></script>
-    <script type="module" src="../converter/load.js"></script>
+    <script type="module" src="../converter/sync.js?v=2026.05.06.0855"></script>
+    <script type="module" src="../converter/load.js?v=2026.05.06.0855"></script>
 
     <!-- Bootstrap JS for notifications -->
     <script src="/local-deps/jquery.min.js"></script>
     <script src="/local-deps/bootstrap.bundle.min.js"></script>
     <!-- 通知桥接器 -->
-    <script src="../notification-bridge.js"></script>
+    <script src="../notification-bridge.js?v=2026.05.06.0855"></script>
     <!-- 图片存储管理 -->
-    <script src="../utils/image-storage.js"></script>
+    <script src="../utils/image-storage.js?v=2026.05.06.0855"></script>
     <!-- 备注图片工具 -->
-    <script src="../utils/note-image-utils.js"></script>
+    <script src="../utils/note-image-utils.js?v=2026.05.06.0855"></script>
     <script>
         (function () {
             // 初始化图片存储管理器
