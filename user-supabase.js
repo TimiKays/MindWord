@@ -324,22 +324,10 @@
       // 立即尝试一次
       checkAndSync().then(success => {
         if (!success) {
-          // 如果失败，延迟重试
-          let retryCount = 0;
-          const maxRetries = 5;
-          const retryInterval = setInterval(function () {
-            retryCount++;
-            console.log(MODULE_NAME, `重试同步 (${retryCount}/${maxRetries})`);
-
-            checkAndSync().then(retrySuccess => {
-              if (retrySuccess || retryCount >= maxRetries) {
-                clearInterval(retryInterval);
-                if (retryCount >= maxRetries) {
-                  console.error(MODULE_NAME, '登录后同步重试次数已达上限，放弃自动同步');
-                }
-              }
-            });
-          }, 2000); // 每2秒重试一次
+          console.log(MODULE_NAME, '登录后自动同步失败，建议用户手动重试');
+          if (window.showInfo) {
+            window.showInfo('同步失败，请检查网络后手动点击同步按钮重试');
+          }
         }
       });
     }, 1500); // 1.5秒延迟，平衡用户体验和组件初始化时间
