@@ -19,20 +19,21 @@
     // ============================================
     // Supabase 配置 - 需要替换为你的实际配置
     // ============================================
-    const SUPABASE_CONFIG = {
-        // 替换为：Project Settings → API → Project URL
-        url: 'https://ohvsfqdbcelmokkslqlw.supabase.co',
+    const PROXY_URL = 'https://cloudsync.mindword.dpdns.org';
 
-        // 替换为：Project Settings → API → anon public
-        anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9odnNmcWRiY2VsbW9ra3NscWx3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1MDg0MTYsImV4cCI6MjA5MzA4NDQxNn0.t3uTrr5aikTiTFKAK_mNKZCdKcpy3dkpM7JShnXrBEk'
+    const SUPABASE_CONFIG = {
+        url: PROXY_URL || 'https://ohvsfqdbcelmokkslqlw.supabase.co',
+
+        anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9odnNmcWRiY2VsbW9ra3NscWx3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1MDg0MTYsImV4cCI6MjA5MzA4NDQxNn0.t3uTrr5aikTiTFKAK_mNKZCdKcpy3dkpM7JShnXrBEk',
+
+        storageKey: 'sb-ohvsfqdbcelmokkslqlw-auth-token'
     };
 
     // ============================================
     // 表名配置（对应 Supabase 数据库表）
     // ============================================
     const TABLE_NAMES = {
-        userData: 'user_data',      // 用户数据同步表
-        feedback: 'feedback'        // 用户反馈表
+        userData: 'user_data'      // 用户数据同步表
     };
 
     // ============================================
@@ -69,7 +70,8 @@
                     auth: {
                         autoRefreshToken: true,
                         persistSession: true,
-                        detectSessionInUrl: true
+                        detectSessionInUrl: true,
+                        storageKey: SUPABASE_CONFIG.storageKey
                     },
                     global: {
                         headers: {
@@ -82,6 +84,26 @@
             console.log('[Supabase] URL:', SUPABASE_CONFIG.url);
             console.log('[Supabase] API Key 长度:', anonKey.length);
             console.log('[Supabase] API Key 前10位:', anonKey.substring(0, 10) + '...');
+
+            // 迁移旧 session key（代理 URL 可能生成了不同的 key）
+            var targetKey = SUPABASE_CONFIG.storageKey;
+            if (targetKey) {
+                for (var i = 0; i < localStorage.length; i++) {
+                    var k = localStorage.key(i);
+                    if (k && k.startsWith('sb-') && k.endsWith('-auth-token') && k !== targetKey) {
+                        var oldData = localStorage.getItem(k);
+                        if (oldData && !localStorage.getItem(targetKey)) {
+                            localStorage.setItem(targetKey, oldData);
+                            localStorage.removeItem(k);
+                            console.log('[Supabase] 已迁移 session:', k, '→', targetKey);
+                        } else if (oldData && localStorage.getItem(targetKey)) {
+                            localStorage.removeItem(k);
+                            console.log('[Supabase] 已清理旧 session:', k);
+                        }
+                    }
+                }
+            }
+
             return supabaseClient;
         } catch (error) {
             console.error('[Supabase] 初始化失败:', error);
@@ -120,8 +142,8 @@
     window.getSupabaseConfig = function () {
         return {
             url: SUPABASE_CONFIG.url,
-            tables: TABLE_NAMES
-            // 注意：不返回 anonKey，避免泄露
+            tables: TABLE_NAMES,
+            storageKey: SUPABASE_CONFIG.storageKey
         };
     };
 

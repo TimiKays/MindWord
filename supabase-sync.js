@@ -18,7 +18,6 @@
     const MODULE_NAME = '[Supabase-Sync]';
 
     const TABLE_USER_DATA = 'user_data';
-    const TABLE_FEEDBACK = 'feedback';
 
     let supabase = null;
 
@@ -1304,22 +1303,6 @@
         });
     }
 
-    async function submitFeedback(feedbackData) {
-        const client = initSupabase();
-        if (!client) throw new Error('Supabase 未初始化');
-
-        const { error } = await client
-            .from(TABLE_FEEDBACK)
-            .insert([{
-                email: feedbackData.email,
-                type: feedbackData.type,
-                content: feedbackData.content,
-                status: 'pending'
-            }]);
-
-        if (error) throw error;
-    }
-
     async function clearCloudData() {
         const client = initSupabase();
         if (!client) throw new Error('Supabase 未初始化');
@@ -1815,8 +1798,6 @@
         },
 
         clearCloud: clearCloudData,
-
-        submitFeedback: submitFeedback,
 
         isAvailable: function () {
             return typeof window.getSupabase === 'function' && !!window.getSupabase();

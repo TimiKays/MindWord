@@ -46,9 +46,21 @@
   /**
    * 刷新认证 UI（不请求API，只根据UI状态判断）
    */
+  function getSupabaseSessionKey() {
+    if (typeof window.getSupabaseConfig === 'function') {
+      const config = window.getSupabaseConfig();
+      if (config && config.storageKey) return config.storageKey;
+    }
+    for (var i = 0; i < localStorage.length; i++) {
+      var key = localStorage.key(i);
+      if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) return key;
+    }
+    return 'sb-ohvsfqdbcelmokkslqlw-auth-token';
+  }
+
   function refreshAuthUI() {
-    // 从localStorage检查登录状态（不请求API）
-    const supabaseSession = localStorage.getItem('sb-ohvsfqdbcelmokkslqlw-auth-token');
+    var sessionKey = getSupabaseSessionKey();
+    var supabaseSession = localStorage.getItem(sessionKey);
     const isLoggedIn = !!supabaseSession;
 
     var link = document.getElementById('auth-link');
