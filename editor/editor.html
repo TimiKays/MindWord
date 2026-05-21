@@ -732,6 +732,9 @@
             saveMarkdownSnapshot(reason = '') {
                 const content = this.getContent();
                 try {
+                    const until = Date.now() + 800;
+                    localStorage.setItem('mw_sync_cooldown_until', String(until));
+                    window.__mw_editor_cooldown_until = until;
                     localStorage.setItem('mindword_markdown_data', content);
                     localStorage.setItem('mindword-save-time', Date.now().toString());
                 } catch (e) {
@@ -1527,7 +1530,19 @@
             }
 
             setContent(content) {
-                this.editor.value = content;
+                const textarea = this.editor;
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                const scrollTop = textarea.scrollTop;
+                const oldValue = textarea.value;
+
+                textarea.value = content;
+
+                if (document.activeElement === textarea && content === oldValue) {
+                    textarea.selectionStart = start;
+                    textarea.selectionEnd = end;
+                    textarea.scrollTop = scrollTop;
+                }
             }
 
             convertHtmlToMarkdown(html) {
