@@ -1399,6 +1399,14 @@
         this.view.save_location(parent_node);
         this.view.remove_node(node);
         this.mind.remove_node(node);
+        var siblings = parent_node.children;
+        var orderedIndex = 0;
+        for (var si = 0; si < siblings.length; si++) {
+          if (siblings[si].data && siblings[si].data.type === 'list' && siblings[si].data.ordered) {
+            orderedIndex++;
+            siblings[si].data.listIndex = orderedIndex;
+          }
+        }
         this.layout.layout();
         this.view.show(false);
         this.view.restore_location(parent_node);

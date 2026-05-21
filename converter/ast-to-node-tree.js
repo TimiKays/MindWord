@@ -118,9 +118,9 @@ class AstToNodeTreeConverter {
       }
     }
 
-    // 如果有notes，添加到节点根级别，而不是data中
+    // 如果有notes，trim后添加到节点根级别
     if (node.notes && node.notes.trim()) {
-      mindNode.notes = node.notes;
+      mindNode.notes = node.notes.trim();
     }
 
     // 处理子节点

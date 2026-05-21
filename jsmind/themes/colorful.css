@@ -181,7 +181,7 @@ body[data-mindmap-theme="colorful"] jmexpander {
   font-size: 11px !important;
   font-weight: bold !important;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15) !important;
-  display: flex !important;
+  display: flex;
   align-items: center !important;
   justify-content: center !important;
 }

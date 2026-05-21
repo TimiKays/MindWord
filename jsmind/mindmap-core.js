@@ -427,6 +427,40 @@ function initMindmap() {
   // 配置思维导图容器的滚动行为
   setupMindmapScrolling();
 
+  // 重新计算同级有序列表的编号
+  function reorderOrderedSiblings(parentNode, startIndex) {
+    if (!parentNode || !parentNode.children || parentNode.children.length === 0) {
+      return;
+    }
+
+    const children = parentNode.children;
+    let orderedIndex = 0;
+
+    // 先找到 startIndex 之前的最后一个有序列表的编号
+    for (let i = 0; i < startIndex; i++) {
+      const child = children[i];
+      if (child && child.data && child.data.type === 'list' && child.data.ordered) {
+        orderedIndex = child.data.listIndex || 0;
+      }
+    }
+
+    // 从 startIndex 开始重新编号所有有序列表
+    for (let j = startIndex; j < children.length; j++) {
+      const child = children[j];
+      if (child && child.data && child.data.type === 'list' && child.data.ordered) {
+        orderedIndex++;
+        child.data.listIndex = orderedIndex;
+        // 同步更新 marker，确保 AST 转换时使用正确的编号
+        child.data.marker = orderedIndex + '.';
+        // 同时更新根级 marker（如果存在）
+        if (child.marker != null) {
+          child.marker = orderedIndex + '.';
+        }
+      }
+    }
+  }
+  window.reorderOrderedSiblings = reorderOrderedSiblings;
+
   // 包装核心API以捕获新增/移动节点，做"类型对齐"并保存
   (function wrapMindAPIs() {
     // 新增节点包装
@@ -451,6 +485,21 @@ function initMindmap() {
             }
           } catch (e2) {
             // 忽略归一列表处理错误
+          }
+          // 重新计算有序列表编号
+          try {
+            const newNode = jm.get_node(id);
+            if (newNode && newNode.parent) {
+              // 找到新添加的兄弟节点
+              const parentNode = newNode.parent;
+              // 查找新添加节点在兄弟节点中的索引
+              const childIndex = parentNode.children.findIndex(child => child && child.id === id);
+              if (childIndex !== -1) {
+                reorderOrderedSiblings(parentNode, childIndex);
+              }
+            }
+          } catch (e3) {
+            // 忽略重新编号错误
           }
           if (typeof debouncedSave === 'function') debouncedSave();
         } catch (e) {
@@ -567,7 +616,7 @@ function initMindmap() {
               }
             }
 
-            // 后置处理：类型对齐和列表归一化
+            // 后置处理：类型对齐和列表归一化，以及有序列表重新编号
             try {
               if (nodeid && typeof applySiblingOrParentType === 'function') {
                 applySiblingOrParentType(nodeid);
@@ -583,6 +632,8 @@ function initMindmap() {
                     }
                   });
                 }
+                // 重新编号新父节点的所有有序列表
+                reorderOrderedSiblings(p, 0);
               }
 
               if (typeof debouncedSave === 'function') debouncedSave();
@@ -596,6 +647,18 @@ function initMindmap() {
 
         // 普通单个节点移动
         console.log('🔄 普通单个节点移动');
+
+        // 记录原父节点（移动前）
+        let oldParentNode = null;
+        try {
+          const nodeBeforeMove = jm.get_node(nodeid);
+          if (nodeBeforeMove && nodeBeforeMove.parent) {
+            oldParentNode = nodeBeforeMove.parent;
+          }
+        } catch (e0) {
+          // 忽略获取原父节点错误
+        }
+
         const ret = __origMove(nodeid, beforeid, parentid, direction);
         try {
           if (nodeid && typeof applySiblingOrParentType === 'function') {
@@ -612,10 +675,59 @@ function initMindmap() {
           } catch (e2) {
             // 忽略归一列表处理错误
           }
+          // 重新计算有序列表编号：原父节点和新父节点
+          try {
+            // 重新编号原父节点（如果还存在并且与新父不同）
+            if (oldParentNode) {
+              const oldParentChanged = !parentid || !oldParentNode.id || oldParentNode.id !== parentid;
+              if (oldParentChanged) {
+                reorderOrderedSiblings(oldParentNode, 0);
+              }
+            }
+            // 新父节点重新编号
+            if (parentid) {
+              const newParent = jm.get_node(parentid);
+              if (newParent) {
+                reorderOrderedSiblings(newParent, 0);
+              }
+            }
+          } catch (e3) {
+            // 忽略重新编号错误
+          }
           if (typeof debouncedSave === 'function') debouncedSave();
         } catch (e) {
           // 忽略后置处理错误
         }
+        return ret;
+      };
+    }
+    // 删除节点包装
+    const __origRemove = jm.remove_node && jm.remove_node.bind(jm);
+    if (__origRemove) {
+      jm.remove_node = function (nodeid) {
+        // 获取即将删除的节点信息，以便知道从哪里开始重新编号
+        let parentNode = null;
+        let deleteIndex = -1;
+        try {
+          const nodeToDelete = jm.get_node(nodeid);
+          if (nodeToDelete && nodeToDelete.parent) {
+            parentNode = nodeToDelete.parent;
+            deleteIndex = parentNode.children.findIndex(child => child && child.id === nodeid);
+          }
+        } catch (e1) {
+          // 忽略获取节点信息错误
+        }
+        // 执行删除
+        const ret = __origRemove(nodeid);
+        // 删除后重新编号
+        try {
+          if (parentNode && deleteIndex !== -1) {
+            reorderOrderedSiblings(parentNode, deleteIndex);
+          }
+        } catch (e2) {
+          // 忽略重新编号错误
+        }
+        if (typeof debouncedSave === 'function') debouncedSave();
         return ret;
       };
     }
@@ -737,6 +849,13 @@ function initMindmap() {
       if (interesting.indexOf(type) !== -1) {
         console.log('[MW] 捕获 jsMind 事件:', type);
         debouncedApply();
+      }
+      if (type === window.jsMind.event_type.show) {
+        try {
+          if (window.skinManager && window.skinManager.currentSkin) {
+            window.skinManager.applyThemeClass(window.skinManager.currentSkin.themeClass);
+          }
+        } catch (e) { }
       }
     });
 
@@ -1022,16 +1141,22 @@ function loadNodeTree(nodeTreeData) {
       console.log('[MW][loadNodeTree] jm.show成功');
       window.__mw_showingDefaultNodeTree = isDefaultNodeTreeData(nodeTreeData);
       currentNodeTree = nodeTreeData;
-      // 渲染完成后尝试恢复视口（延迟以保证DOM已就绪）
+      try {
+        if (window.MW_restoreViewport && viewportState) {
+          window.MW_restoreViewport(viewportState, { avoidReselect: true });
+        } else {
+          restoreViewport();
+        }
+      } catch (e) { }
       window.MW_scheduleOnce('restoreViewportAfterShow', function () {
         try {
           if (window.MW_restoreViewport && viewportState) {
-            window.MW_restoreViewport(viewportState);
+            window.MW_restoreViewport(viewportState, { avoidReselect: true });
           } else {
             restoreViewport();
           }
         } catch (e) { }
-      }, 120);
+      }, 30);
 
       // 更新ViewStateManager状态
       if (window.viewStateManager) {
@@ -1447,6 +1572,7 @@ function handleAutoUpdate() {
     const prevNotes = (selected.notes != null ? selected.notes : (selected.data.notes != null ? selected.data.notes : ''));
     if (newNotes !== prevNotes) {
       selected.data.notes = newNotes;
+      selected.notes = newNotes;
       hasChanges = true;
     }
 
@@ -1627,6 +1753,7 @@ function updateNodeNotes() {
   if (newNotes !== (selected.notes || '')) {
     // 直接更新根级别的notes字段（与其他代码保持一致）
     selected.data.notes = newNotes;
+    selected.notes = newNotes;
     hasChanges = true;
     // 如果备注有变化，需要调用update_node来触发视图更新（包括备注图标）
     jm.update_node(selected.id, selected.topic);
@@ -4936,17 +5063,13 @@ window.addEventListener('load', async function () {
           const sel = (window.jm && typeof jm.get_selected_node === 'function') ? jm.get_selected_node() : null;
           selectedId = sel ? (sel.id || String(sel)) : null;
         } catch (e) { selectedId = null; }
-        let zoom = null, pan = null;
+        let zoom = null;
         try {
-          if (window.jm && jm.view && typeof jm.view.get_scale === 'function') {
-            zoom = jm.view.get_scale();
-          }
-          if (window.jm && jm.view && typeof jm.view.get_translate === 'function') {
-            pan = jm.view.get_translate();
+          if (window.jm && jm.view && typeof jm.view.actualZoom !== 'undefined') {
+            zoom = jm.view.actualZoom;
           }
         } catch (e) { }
 
-        // 保存下钻状态
         let viewState = null;
         try {
           if (window.viewStateManager) {
@@ -4961,21 +5084,20 @@ window.addEventListener('load', async function () {
         return {
           scrollTop: inner.scrollTop,
           scrollLeft: inner.scrollLeft,
-          zoom, pan, selectedId,
-          viewState
+          zoom: zoom,
+          selectedId: selectedId,
+          viewState: viewState
         };
       } catch (e) { return null; }
     };
   }
   if (!window.MW_restoreViewport) {
-    // opts: { avoidReselect: true } 来避免 select 导致再次居中
     window.MW_restoreViewport = function (state, opts) {
       try {
         if (!state) return;
         const container = document.getElementById('fullScreenMindmap');
         if (!container) return;
         const inner = container.querySelector('.jsmind-inner') || container;
-        // 若调用方明确要求避免恢复选中（例如 jm.show 可能会触发自动居中），则清除选中以避免居中
         try {
           var _avoid = opts && opts.avoidReselect === true;
           if (_avoid) {
@@ -4983,52 +5105,51 @@ window.addEventListener('load', async function () {
           }
         } catch (e) { }
 
-        // 恢复下钻状态
         if (state.viewState && window.viewStateManager) {
           try {
-            // 如果保存的是下钻状态，恢复到该下钻状态
             if (state.viewState.mode === 'drilldown' && state.viewState.rootId) {
-              // 保存当前的原始数据引用
               const originalData = window.viewStateManager.originalData;
-
-              // 恢复下钻状态
               window.viewStateManager.currentViewMode = state.viewState.mode;
               window.viewStateManager.currentRootId = state.viewState.rootId;
               window.viewStateManager.drillDownHistoryStack = [...state.viewState.drillDownHistoryStack];
-
-              // 如果有原始数据，应用下钻视图
               if (originalData) {
                 window.viewStateManager.applyFilteredView();
               }
             } else if (state.viewState.mode === 'full') {
-              // 如果保存的是完整视图状态，确保回到完整视图
               if (window.viewStateManager.currentViewMode !== 'full') {
                 window.viewStateManager.returnToFullView(false);
               }
             }
           } catch (e) {
-            console.warn('[MW_restoreViewport] 恢复下钻状态失败:', e);
+            console.warn('[MW_restoreViewport] restore drilldown failed:', e);
           }
         }
 
-        // 恢复缩放与平移
         try {
-          if (window.jm && jm.view && typeof jm.view.set_scale === 'function' && state.zoom != null) {
-            jm.view.set_scale(state.zoom);
+          if (window.jm && jm.view && state.zoom != null) {
+            jm.view.actualZoom = state.zoom;
+            var panel = jm.view.e_panel;
+            if (panel) {
+              for (var i = 0; i < panel.children.length; i++) {
+                panel.children[i].style.zoom = state.zoom;
+              }
+            }
           }
-          if (window.jm && jm.view && typeof jm.view.set_translate === 'function' && state.pan != null) {
-            jm.view.set_translate(state.pan);
-          }
-        } catch (e) { }
-        // 恢复滚动
+        } catch (e) { console.warn('[MW_restoreViewport] restore zoom failed:', e); }
+
         try { inner.scrollTop = state.scrollTop || 0; } catch (e) { }
         try { inner.scrollLeft = state.scrollLeft || 0; } catch (e) { }
-        // 可选：恢复之前选中的节点（可能触发居中，默认关闭）
+
+        requestAnimationFrame(function () {
+          try { inner.scrollTop = state.scrollTop || 0; } catch (e) { }
+          try { inner.scrollLeft = state.scrollLeft || 0; } catch (e) { }
+        });
+
         const avoidReselect = opts && opts.avoidReselect !== undefined ? opts.avoidReselect : true;
         if (!avoidReselect && state.selectedId && window.jm && typeof jm.get_node === 'function' && jm.get_node(state.selectedId)) {
           try { jm.select_node(state.selectedId); } catch (e) { }
         }
-      } catch (e) { }
+      } catch (e) { console.warn('[MW_restoreViewport] failed:', e); }
     };
   }
   if (!window.MW_preserveViewportAround) {

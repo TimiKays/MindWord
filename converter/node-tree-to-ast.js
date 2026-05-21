@@ -82,7 +82,7 @@ export class NodeTreeToAstConverter {
       id: node.id,  // 保持与NodeTree相同的ID
       type: nodeType.type,
       name: nodeType.name,
-      notes: node.notes || '',  // 从节点根级别读取notes，而不是data.notes
+      notes: node.notes || (node.data && node.data.notes) || '',
       level: nodeType.level,
       ordered: nodeType.ordered,
       marker: nodeType.marker,
@@ -144,13 +144,8 @@ export class NodeTreeToAstConverter {
         let finalMarker;
 
         if (ord) {
-          // 检查 marker 是否已经是完整格式 "1."
-          if (mrk && /^\d+\.$/.test(mrk)) {
-            finalMarker = mrk;
-          } else {
-            // 只是分隔符 "."，需要拼接
-            finalMarker = listIndex + (mrk || '.');
-          }
+          // 优先使用 listIndex 生成 marker，确保序号始终正确
+          finalMarker = listIndex + '.';
         } else {
           finalMarker = mrk || '-';
         }

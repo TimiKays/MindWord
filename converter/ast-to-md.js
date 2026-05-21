@@ -80,7 +80,7 @@ export class AstToMdConverter {
         const headingText = sanitizeHeadingText(headingNameWithBold);
         markdown = `${prefix} ${headingText}`;
         if (node.notes) {
-          markdown += `\n${indent}  ${node.notes}`;
+          markdown += `\n${node.notes}`;
         }
 
         // 处理子节点（通常是列表项）
@@ -102,7 +102,7 @@ export class AstToMdConverter {
         const listName = convertHtmlBoldToMarkdown(node.name);
         markdown = `${listIndent}${marker} ${listName}`;
         if (node.notes) {
-          markdown += `\n${listIndent}  ${node.notes}`;
+          markdown += `\n${node.notes}`;
         }
 
         // 处理子节点（嵌套列表项）
@@ -126,7 +126,7 @@ export class AstToMdConverter {
         const defaultName = convertHtmlBoldToMarkdown(node.name || '');
         markdown = defaultName;
         if (node.notes) {
-          markdown += `\n${indent}  ${node.notes}`;
+          markdown += `\n${node.notes}`;
         }
     }
 

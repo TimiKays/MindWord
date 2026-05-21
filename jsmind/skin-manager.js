@@ -136,33 +136,24 @@ class SkinManager {
       return false;
     }
     
-    // 如果已经是当前皮肤，无需切换
     if (this.currentSkin && this.currentSkin.id === skinId) {
+      this.applyThemeClass(skin.themeClass);
       return true;
     }
     
     try {
-      // 1. 移除当前皮肤样式
-      this.unloadCurrentSkin();
-      
-      // 2. 加载新皮肤 CSS（如果是独立文件）
       if (skin.cssFile) {
         await this.loadCssFile(skin.cssFile);
       }
       
-      // 3. 应用主题类名到 jsmind 容器
       this.applyThemeClass(skin.themeClass);
       
-      // 4. 更新当前皮肤状态
       this.currentSkin = skin;
       
-      // 5. 持久化到本地存储
       localStorage.setItem(this.storageKey, skinId);
       
-      // 6. 更新 UI
       this.updateSkinSelectorUI(skinId);
       
-      // 7. 触发自定义事件
       window.dispatchEvent(new CustomEvent('skinChanged', { 
         detail: { skinId, skin } 
       }));
@@ -172,6 +163,10 @@ class SkinManager {
       
     } catch (error) {
       console.error('[SkinManager] 切换皮肤失败:', error);
+      this.applyThemeClass(skin.themeClass);
+      this.currentSkin = skin;
+      localStorage.setItem(this.storageKey, skinId);
+      this.updateSkinSelectorUI(skinId);
       return false;
     }
   }
@@ -184,7 +179,6 @@ class SkinManager {
    */
   loadCssFile(url) {
     return new Promise((resolve, reject) => {
-      // 检查是否已加载
       if (this.loadedCssFiles.has(url) || document.querySelector(`link[href="${url}"]`)) {
         this.loadedCssFiles.add(url);
         resolve();
@@ -196,13 +190,31 @@ class SkinManager {
       link.type = 'text/css';
       link.href = url;
       
+      let settled = false;
+      
+      const timer = setTimeout(() => {
+        if (!settled) {
+          settled = true;
+          console.warn(`[SkinManager] CSS 加载超时，强制继续: ${url}`);
+          resolve();
+        }
+      }, 3000);
+      
       link.onload = () => {
-        this.loadedCssFiles.add(url);
-        resolve();
+        if (!settled) {
+          settled = true;
+          clearTimeout(timer);
+          this.loadedCssFiles.add(url);
+          resolve();
+        }
       };
       
       link.onerror = () => {
-        reject(new Error(`加载 CSS 文件失败: ${url}`));
+        if (!settled) {
+          settled = true;
+          clearTimeout(timer);
+          reject(new Error(`加载 CSS 文件失败: ${url}`));
+        }
       };
       
       document.head.appendChild(link);

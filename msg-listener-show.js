@@ -154,6 +154,33 @@ function handleNotificationMessage(event) {
     }
   } catch (e) { /* ignore */ }
 
+  // 处理思维导图数据更新消息，转发到 editor iframe
+  try {
+    if (event.data.type === 'mindmapUpdated') {
+      var editorIframe2 = document.querySelector('iframe[data-panel="editor"], iframe#panel-editor, iframe[src*="editor/editor.html"]');
+      if (editorIframe2 && editorIframe2.contentWindow) {
+        try {
+          // 从 nodeTree 生成 markdown
+          var nodeTreeData = event.data.data;
+          if (window.converter && typeof window.converter.nodeTreeToAst === 'function' && typeof window.converter.astToMd === 'function') {
+            var ast = window.converter.nodeTreeToAst(nodeTreeData);
+            var markdown = window.converter.astToMd(ast);
+            editorIframe2.contentWindow.postMessage({
+              type: 'editor-set-markdown',
+              markdown: markdown
+            }, '*');
+            console.log('[INDEX FORWARD] -> editor mindmapUpdated');
+          }
+        } catch (e) {
+          console.warn('[INDEX FORWARD] editor mindmapUpdated failed', e);
+        }
+      }
+      return;
+    }
+  } catch (e) {
+    console.warn('forwarding mindmapUpdated message failed', e);
+  }
+
   // 转发来自思维导图的节点选中消息到 editor iframe（用于滚动/高亮）
   try {
     if (event.data.type === 'mindmap-node-selected') {

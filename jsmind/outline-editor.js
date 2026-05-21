@@ -96,6 +96,10 @@
       if (children[j].data && children[j].data.type === 'list' && children[j].data.ordered) {
         orderedIndex++;
         children[j].data.listIndex = orderedIndex;
+        children[j].data.marker = orderedIndex + '.';
+        if (children[j].marker != null) {
+          children[j].marker = orderedIndex + '.';
+        }
       }
     }
   }

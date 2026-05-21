@@ -82,7 +82,7 @@ body[data-mindmap-theme="dark"] jmexpander {
   line-height: 12px !important;
   font-size: 10px !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
-  display: flex !important;
+  display: flex;
   align-items: center !important;
   justify-content: center !important;
 }

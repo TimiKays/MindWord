@@ -151,7 +151,7 @@ body[data-mindmap-theme="warm"] jmexpander {
   line-height: 12px !important;
   font-size: 10px !important;
   box-shadow: 0 1px 4px rgba(139, 119, 101, 0.15) !important;
-  display: flex !important;
+  display: flex;
   align-items: center !important;
   justify-content: center !important;
 }

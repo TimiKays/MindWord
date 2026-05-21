@@ -166,7 +166,7 @@ body[data-mindmap-theme="forest"] jmexpander {
   font-size: 11px !important;
   font-weight: bold !important;
   box-shadow: 0 2px 5px rgba(76, 175, 80, 0.2) !important;
-  display: flex !important;
+  display: flex;
   align-items: center !important;
   justify-content: center !important;
 }

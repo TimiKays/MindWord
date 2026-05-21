@@ -172,20 +172,18 @@ async function syncAll(source = 'markdown', refreshViews = true, saveToCache = t
 
         // 刷新视图
         if (refreshViews) {
-            // if (source !== 'markdown') {
-            //     markdownInput.value = markdown;
-            // }
-            // if (source !== 'ast') {
-            //     astOutput.value = JSON.stringify(ast, null, 2);
-            // }
-            // if (source !== 'nodeTree' && source !== 'mindmap') {
-            //     nodeTreeOutput.value = JSON.stringify(nodeTree, null, 2);
-            // }
-
-            // // 更新思维导图
-            // if (window.currentMindmap && source !== 'mindmap') {
-            //     window.currentMindmap.show(nodeTree);
-            // }
+            if (source !== 'markdown') {
+                const markdownInput = document.getElementById('markdownInput');
+                if (markdownInput) markdownInput.value = markdown;
+            }
+            if (source !== 'ast') {
+                const astOutput = document.getElementById('astOutput');
+                if (astOutput) astOutput.value = JSON.stringify(ast, null, 2);
+            }
+            if (source !== 'nodeTree' && source !== 'mindmap') {
+                const nodeTreeOutput = document.getElementById('nodeTreeOutput');
+                if (nodeTreeOutput) nodeTreeOutput.value = JSON.stringify(nodeTree, null, 2);
+            }
         }
 
         // 保存到缓存
