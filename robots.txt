@@ -1,14 +1,12 @@
-User-agent: *
+﻿User-agent: *
 Allow: /
-
-# 网站地图
-Sitemap: https://mindword.dpdns.org/sitemap.xml
-
-# 禁止爬取后台管理相关路径
+Disallow: /.git/
+Disallow: /.git
 Disallow: /ai/
 Disallow: /private/
 
-# 允许爬取静态资源
+Sitemap: https://mindword.dpdns.org/sitemap.xml
+
 Allow: /res/
 Allow: /css/
 Allow: /js/

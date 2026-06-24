@@ -3,7 +3,7 @@
  * 核心策略：PWA可离线安装，但代码必须尽早更新
  */
 
-const SW_VERSION = 'v202605220657';
+const SW_VERSION = 'v202605242342';
 const CACHE_NAME = 'mindword-' + SW_VERSION;
 const BUILD_TIME = new Date().toISOString();
 

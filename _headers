@@ -1,39 +1,36 @@
-# MindWord - Cloudflare Pages Headers Configuration
-# 文档: https://developers.cloudflare.com/pages/platform/headers/
-
-/*
+﻿/*
   X-Frame-Options: SAMEORIGIN
   X-XSS-Protection: 1; mode=block
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
 
-# Service Worker - 不缓存，每次都从服务器获取最新版本
+/.git/*
+  X-Robots-Tag: noindex, nofollow
+  X-Content-Type-Options: nosniff
+  Cache-Control: no-store
+
 /sw.js
   Cache-Control: no-cache, no-store, must-revalidate
   Pragma: no-cache
   Expires: 0
   Content-Type: application/javascript; charset=utf-8
 
-# Service Worker 注册文件 - 短期缓存
 /sw-register.js
   Cache-Control: public, max-age=3600
   Content-Type: application/javascript; charset=utf-8
 
-# HTML文件 - 不缓存，确保用户获取最新版本
 /*.html
   Cache-Control: no-cache, no-store, must-revalidate
 
 /
   Cache-Control: no-cache, no-store, must-revalidate
 
-# JavaScript和CSS文件 - 长期缓存（通过版本号控制）
 /*.js
   Cache-Control: public, max-age=31536000, immutable
 
 /*.css
   Cache-Control: public, max-age=31536000, immutable
 
-# 图片和字体文件 - 长期缓存
 /*.jpg
   Cache-Control: public, max-age=31536000, immutable
 
@@ -64,7 +61,6 @@
 /*.ttf
   Cache-Control: public, max-age=31536000, immutable
 
-# Manifest文件 - 短期缓存
 /manifest.json
   Cache-Control: public, max-age=3600
   Content-Type: application/manifest+json

@@ -1,13 +1,22 @@
 /**
- * MindWord Service Worker 注册和更新管理 - 强制尽早更新版
+ * MindWord Service Worker 注册和更新管理
  * 核心策略：发现新版本立即自动刷新，不弹窗不询问
+ * 
+ * 更新检查策略（v2 - 优化请求量）：
+ * - 轮询间隔：30分钟（原30秒，过于激进导致version.json日均7k+请求）
+ * - 用户切回页面时检查，但有5分钟节流，避免频繁切换标签页导致重复请求
+ * - 启动时检查一次
  */
 
 (function () {
     'use strict';
 
-    const SW_UPDATE_CHECK_INTERVAL = 30 * 1000;
+    // 30分钟检查一次，工具型PWA不需要秒级更新感知
+    const SW_UPDATE_CHECK_INTERVAL = 30 * 60 * 1000;
+    // 用户切回页面时的最小检查间隔（5分钟节流）
+    const SW_RESUME_THROTTLE_MS = 5 * 60 * 1000;
     const SW_LAST_VERSION_KEY = 'mw_sw_last_version';
+    const SW_LAST_CHECK_KEY = 'mw_sw_last_check_time';
     const VERSION_FILE = '/version.json';
 
     let swRegistration = null;
@@ -43,7 +52,7 @@
                 };
 
                 checkVersionFile();
-                setInterval(checkVersionFile, SW_UPDATE_CHECK_INTERVAL);
+                setInterval(throttledCheck, SW_UPDATE_CHECK_INTERVAL);
             })
             .catch(function (error) {
                 console.error('[SW] Service Worker 注册失败:', error);
@@ -55,8 +64,23 @@
         });
     }
 
+    /**
+     * 带节流的版本检查：距离上次检查不足 SW_RESUME_THROTTLE_MS 则跳过
+     */
+    function throttledCheck() {
+        var now = Date.now();
+        var lastCheck = parseInt(localStorage.getItem(SW_LAST_CHECK_KEY) || '0', 10);
+        if (now - lastCheck < SW_RESUME_THROTTLE_MS) {
+            return;
+        }
+        checkVersionFile();
+    }
+
     function checkVersionFile() {
-        const url = VERSION_FILE + '?t=' + Date.now();
+        // 记录本次检查时间（用于节流判断）
+        localStorage.setItem(SW_LAST_CHECK_KEY, String(Date.now()));
+
+        var url = VERSION_FILE + '?t=' + Date.now();
         fetch(url, { cache: 'no-store' })
             .then(function (res) {
                 if (!res.ok) return null;
@@ -132,13 +156,12 @@
         initServiceWorker();
     }
 
-    window.addEventListener('focus', function () {
-        checkVersionFile();
-    });
+    // 用户切回页面时检查更新，但有节流保护
+    window.addEventListener('focus', throttledCheck);
 
     document.addEventListener('visibilitychange', function () {
         if (document.visibilityState === 'visible') {
-            checkVersionFile();
+            throttledCheck();
         }
     });
 })();
