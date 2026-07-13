@@ -23,9 +23,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="mindword-version" content="2026.05.24.2342">
+    <meta name="mindword-version" content="2026.07.14.0756">
     <title>MindWord</title>
-    <link rel="stylesheet" href="styles.css?v=2026.05.24.2342">
+    <link rel="stylesheet" href="styles.css?v=2026.07.14.0756">
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" sizes="180x180" href="/res/LOGO.png">
@@ -47,8 +47,8 @@
     <meta name="msapplication-navbutton-color" content="#619dff">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <!-- 国际化支持 -->
-    <script src="i18n/locales.js?v=2026.05.24.2342"></script>
-    <script src="i18n/i18n-manager.js?v=2026.05.24.2342"></script>
+    <script src="i18n/locales.js?v=2026.07.14.0756"></script>
+    <script src="i18n/i18n-manager.js?v=2026.07.14.0756"></script>
     <!-- Bootstrap CSS for notifications -->
     <!-- <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet"> -->
     <style>
@@ -373,7 +373,7 @@
     <script src="/local-deps/FileSaver.min.js"></script>
     <!-- Supabase SDK -->
     <script src="/local-deps/supabase.min.js"></script>
-    <script src="supabase-config.js?v=2026.05.24.2342"></script>
+    <script src="supabase-config.js?v=2026.07.14.0756"></script>
 
 </head>
 
@@ -1147,11 +1147,11 @@
     </script>
 
     <!-- 懒加载器 -->
-    <script src="lazy-loader.js?v=2026.05.24.2342"></script>
+    <script src="lazy-loader.js?v=2026.07.14.0756"></script>
     <!-- 图片存储管理 -->
-    <script src="utils/image-storage.js?v=2026.05.24.2342"></script>
+    <script src="utils/image-storage.js?v=2026.07.14.0756"></script>
     <!-- 备注图片工具 -->
-    <script src="utils/note-image-utils.js?v=2026.05.24.2342"></script>
+    <script src="utils/note-image-utils.js?v=2026.07.14.0756"></script>
 
     <!-- 初始化图片存储迁移 -->
     <script>
@@ -1183,12 +1183,12 @@
     </script>
 
     <!-- 关键资源预加载 -->
-    <link rel="preload" href="three-iframes.js?v=2026.05.24.2342" as="script">
-    <link rel="preload" href="init.js?v=2026.05.24.2342" as="script">
-    <link rel="preload" href="documents.js?v=2026.05.24.2342" as="script">
+    <link rel="preload" href="three-iframes.js?v=2026.07.14.0756" as="script">
+    <link rel="preload" href="init.js?v=2026.07.14.0756" as="script">
+    <link rel="preload" href="documents.js?v=2026.07.14.0756" as="script">
 
     <!-- 管理三个Iframe的展示、切换、拖拽调整宽度、专注模式、移动端自动专注 -->
-    <script src="three-iframes.js?v=2026.05.24.2342" defer></script>
+    <script src="three-iframes.js?v=2026.07.14.0756" defer></script>
 
     <!-- 初始化应用，包括 
         1. 恢复用户状态 （专注模式、布局等）
@@ -1198,10 +1198,10 @@
         5. 预加载 AI 提示词模板 到全局变量 window.__prompt_templates
         6. 调用移动端自动专注模式 （ initMobileFocus ），移动端把三个面板显示到下面。
         7. 统一监听子页面消息 （通知、AI 调用等）-->
-    <script src="init.js?v=2026.05.24.2342" defer> </script>
+    <script src="init.js?v=2026.07.14.0756" defer> </script>
 
     <!-- 如果是移动端需要重新绘制 -->
-    <script src="mobile-suit.js?v=2026.05.24.2342"></script>
+    <script src="mobile-suit.js?v=2026.07.14.0756"></script>
 
     <!-- 全局保存状态指示器管理 -->
     <script>
@@ -1292,17 +1292,17 @@
     </script>
 
     <!-- 监听来自eidtor的监听器 -->
-    <script src="msg-listener-show.js?v=2026.05.24.2342"></script>
+    <script src="msg-listener-show.js?v=2026.07.14.0756"></script>
 
     <!-- 我的文档、文档列表、批量操作文档 -->
-    <script src="documents.js?v=2026.05.24.2342"></script>
+    <script src="documents.js?v=2026.07.14.0756"></script>
     <!-- 复制新建文件 -->
-    <script src="copynew_file.js?v=2026.05.24.2342"></script>
+    <script src="copynew_file.js?v=2026.07.14.0756"></script>
 
     <!-- 登录状态初始化与切换 (Supabase) -->
-    <script src="user-supabase.js?v=2026.05.24.2342"></script>
+    <script src="user-supabase.js?v=2026.07.14.0756"></script>
 
-    <script src="language-switch.js?v=2026.05.24.2342"> </script>
+    <script src="language-switch.js?v=2026.07.14.0756"> </script>
 
     <!-- AI配置和提示词模板的修改监听 - 延迟加载 -->
     <script>
@@ -1314,7 +1314,7 @@
     </script>
 
     <!-- Supabase 数据同步脚本 - 立即加载 -->
-    <script src="supabase-sync.js?v=2026.05.24.2342"></script>
+    <script src="supabase-sync.js?v=2026.07.14.0756"></script>
 
     <!-- 滚动条优化：滚动时显示滚动条 -->
     <script>
@@ -1361,7 +1361,7 @@
 
     <!-- PWA安装功能 -->
     <!-- Service Worker 注册和更新管理 -->
-    <script src="/sw-register.js?v=2026.05.24.2342"></script>
+    <script src="/sw-register.js?v=2026.07.14.0756"></script>
     <script>
         // PWA安装事件处理
         let deferredPrompt = null;
