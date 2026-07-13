@@ -648,7 +648,7 @@
     function openConfigModal() {
       try {
         // 使用与节点详情面板中配置图标相同的功能
-        (function () { try { function genId() { return 'r_' + Math.random().toString(36).slice(2, 10); } var requestId = genId(); var payload = { initialView: 'config', platformConfig: {}, modelConfig: {}, options: {}, mode: 'mini' }; if (typeof window.openAIServiceModal === 'function') { try { window.openAIServiceModal(Object.assign({}, payload, { requestId: requestId })); return; } catch (e) { console.warn('openAIServiceModal failed', e); } } try { window.parent.postMessage({ type: 'AI_MODAL_OPEN', requestId: requestId, payload: payload }, '*'); } catch (e) { console.error('send AI config open request failed', e); } } catch (e) { console.warn(e); } })();
+        (function () { try { function genId() { return 'r_' + Math.random().toString(36).slice(2, 10); } var requestId = genId(); var payload = { initialView: 'config', platformConfig: {}, modelConfig: {}, options: {}, mode: 'mini' }; if (typeof window.openAIServiceModal === 'function') { try { window.openAIServiceModal(Object.assign({}, payload, { requestId: requestId })); return; } catch (e) { console.warn('openAIServiceModal failed', e); } } try { window.parent.postMessage({ type: 'AI_MODAL_OPEN', requestId: requestId, payload: payload }, MW_ORIGIN); } catch (e) { console.error('send AI config open request failed', e); } } catch (e) { console.warn(e); } })();
       } catch (e) { showError && showError('打开配置失败'); }
     }
 
@@ -1845,6 +1845,7 @@
   </script>
 
   <script>
+    var MW_ORIGIN = window.location.origin;
     (function () {
       function saveExpandedState() {
         var state = {};
@@ -2012,6 +2013,7 @@
       }
 
       window.addEventListener('message', function (e) {
+        if (e.origin !== MW_ORIGIN) return;
         const msg = e.data;
         if (!msg || typeof msg !== 'object') return;
 
@@ -2165,7 +2167,7 @@
       isOutlineView = true;
 
       try {
-        window.parent.postMessage({ type: 'mw_view_changed', view: 'outline' }, '*');
+        window.parent.postMessage({ type: 'mw_view_changed', view: 'outline' }, MW_ORIGIN);
       } catch (e) { console.warn('[OutlineView] postMessage failed:', e); }
 
       console.log('[OutlineView] switched to outline view');
@@ -2225,7 +2227,7 @@
       isOutlineView = false;
 
       try {
-        window.parent.postMessage({ type: 'mw_view_changed', view: 'mindmap' }, '*');
+        window.parent.postMessage({ type: 'mw_view_changed', view: 'mindmap' }, MW_ORIGIN);
       } catch (e) { console.warn('[OutlineView] postMessage failed:', e); }
 
       console.log('[OutlineView] switchToMindmapView 完成');

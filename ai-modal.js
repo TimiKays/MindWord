@@ -17,6 +17,8 @@
  * limitations under the License.
  */
 
+var MW_ORIGIN = window.location.origin;
+
 /**
  * AI Modal 模块
  * 处理 AI 相关的模态框功能
@@ -48,6 +50,7 @@ const AIModalManager = {
      */
     handleMessage: function (event) {
         try {
+            if (event.origin !== MW_ORIGIN) return;
             const data = event.data;
 
             // 处理 AI 相关消息
@@ -158,7 +161,7 @@ const AIModalManager = {
             service: serviceType,
             params: params,
             requestId: this.generateRequestId()
-        }, '*');
+        }, MW_ORIGIN);
     },
 
     /**

@@ -17,6 +17,8 @@
  * limitations under the License.
  */
 
+var MW_ORIGIN = window.location.origin;
+
 /**
  * 通知桥接器 - 用于子页面向父框架发送通知
  * 替代alert，使用框架的全局通知系统
@@ -55,7 +57,7 @@ function sendNotification(message, type = 'info', duration = 1500) {
                 message: message,
                 notificationType: type,
                 duration: duration
-            }, '*');
+            }, MW_ORIGIN);
         } else {
             // 如果不是在iframe中，使用本地通知
             showLocalNotification(message, type, duration);
@@ -76,6 +78,7 @@ function sendNotification(message, type = 'info', duration = 1500) {
 
         window.addEventListener('message', function (evt) {
             try {
+                if (evt.origin !== MW_ORIGIN) return;
                 if (!evt || !evt.data) return;
                 var d = evt.data;
                 // 约定：{ type: 'mw_editing_mode', editing: true/false }

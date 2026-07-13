@@ -17,6 +17,8 @@
  * limitations under the License.
  */
 
+var MW_ORIGIN = window.location.origin;
+
 // ============================================================
 // ai-handler.js （重构且保留全部细节行为）
 // - 外部接口保持不变： aiCreateChild, aiCreateSibling, aiExpandNotes, aiGenerateInitialTree
@@ -48,6 +50,7 @@ function _genRequestId() {
 // 等 AI 弹窗把结果通过 postMessage 发回来，然后处理结果
 const onMessage = function (event) {
   try {
+    if (event.origin !== MW_ORIGIN) return;
     // 验证消息，并从事件对象中提取消息数据
     const msg = event && event.data;  //拆包
     console.log('🟢 ai-handler.js 接收消息:', JSON.stringify(msg, null, 2));
@@ -196,7 +199,7 @@ const onMessage = function (event) {
                         window.parent.closeAIGenerateModal();
                       } else {
                         // 尝试通过消息通知关闭弹窗
-                        window.postMessage({ type: 'AI_INITIAL_TREE_GENERATED' }, '*');
+                        window.postMessage({ type: 'AI_INITIAL_TREE_GENERATED' }, MW_ORIGIN);
                       }
                     } catch (e) {
                       console.warn('关闭输入弹窗失败:', e);
@@ -712,7 +715,7 @@ function applyAIAction(actionType, ctx) {
                 payload: { md: md, images: [] },
                 requestId: (window.__mw_ai_active_requestId || null),
                 source: 'mindmap'
-              }, '*');
+              }, MW_ORIGIN);
               posted = true;
               try { _show('success', 'AI 内容已提交，正在应用到文档'); } catch (_) { }
             }
@@ -735,10 +738,10 @@ function applyAIAction(actionType, ctx) {
             if (!targetWin) { _show('error', '未找到编辑器面板，无法替换文档内容'); break; }
 
             try {
-              targetWin.postMessage({ type: 'editor-set-markdown', markdown: md, requestId: (window.__mw_ai_active_requestId || null), source: 'mindmap' }, '*');
+              targetWin.postMessage({ type: 'editor-set-markdown', markdown: md, requestId: (window.__mw_ai_active_requestId || null), source: 'mindmap' }, MW_ORIGIN);
             } catch (e1) { }
             setTimeout(function () {
-              try { targetWin.postMessage({ type: 'editor-save-or-sync', reason: 'generate_initial_tree', requestId: (window.__mw_ai_active_requestId || null), source: 'mindmap' }, '*'); } catch (e2) { }
+              try { targetWin.postMessage({ type: 'editor-save-or-sync', reason: 'generate_initial_tree', requestId: (window.__mw_ai_active_requestId || null), source: 'mindmap' }, MW_ORIGIN); } catch (e2) { }
             }, 50);
             try { _show('success', '已将内容发送到编辑器并触发保存/同步'); } catch (_) { }
           }
@@ -971,7 +974,7 @@ function expandWithAI() {
         actionType: payload.actionType,
         requestId: requestId,
         payload: payload
-      }, '*');
+      }, MW_ORIGIN);
 
 
       // clear one-time preset keys
@@ -1258,7 +1261,7 @@ function aiGenerateInitialTreeMini(options = {}) {
         actionType: payload.actionType,
         requestId: requestId,
         payload: payload
-      }, '*');
+      }, MW_ORIGIN);
 
       console.log('[ai-handler] 已发送迷你模式AI模态框请求', { requestId: requestId, payload: payload });
 

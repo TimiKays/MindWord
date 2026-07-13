@@ -574,6 +574,7 @@
 
     <script src="/local-deps/jszip.min.js"></script>
     <script>
+        var MW_ORIGIN = window.location.origin;
         // ===================================
         // 🎯 核心功能类
         // ===================================
@@ -754,7 +755,7 @@
                         content,
                         reason,
                         timestamp: Date.now()
-                    }, '*');
+                    }, MW_ORIGIN);
                 } catch (e) { }
             }
 
@@ -876,7 +877,7 @@
                 console.log(`[editor] saveToStorage called, manual=${manual}, activeDocId=${window.__mw_activeDocId}`);
 
                 // 通知父页面显示保存中状态
-                try { window.parent.postMessage({ type: 'mw_save_status', status: 'saving' }, '*'); } catch (e) { }
+                try { window.parent.postMessage({ type: 'mw_save_status', status: 'saving' }, MW_ORIGIN); } catch (e) { }
 
                 const content = this.getContent();
                 console.log(`[editor] 当前内容长度: ${content.length}, 图片数量: ${this.images.size}`);
@@ -896,7 +897,7 @@
                     } else {
                         console.warn('[editor] No active document ID, skipping image save to IndexedDB');
                         // 隐藏保存状态指示器
-                        try { window.parent.postMessage({ type: 'mw_save_status', status: 'saved' }, '*'); } catch (e) { }
+                        try { window.parent.postMessage({ type: 'mw_save_status', status: 'saved' }, MW_ORIGIN); } catch (e) { }
                         return;
                     }
                 }
@@ -936,7 +937,7 @@
                 }
 
                 // 主动通知父页做软同步（推送到预览与导图）
-                try { window.parent.postMessage({ type: 'editor-sync-request' }, '*'); } catch (e) { }
+                try { window.parent.postMessage({ type: 'editor-sync-request' }, MW_ORIGIN); } catch (e) { }
 
                 // 若当前为“接收父页下发内容”的写入阶段，抑制回发 mw_document_changed，避免回声覆盖
                 if (!window.__mw_receiving) {
@@ -952,7 +953,7 @@
                         window.parent.postMessage({
                             type: 'mw_document_changed',
                             payload: { id: activeId, md: content, images: imgList, origin: 'editor' }
-                        }, '*');
+                        }, MW_ORIGIN);
                     } catch (e) { }
                 }
 
@@ -961,7 +962,7 @@
                 } else {
                     // 自动保存时使用全局状态指示器（绿色勾）
                     if (!window.__mw_receiving) {
-                        try { window.parent.postMessage({ type: 'mw_save_status', status: 'saved' }, '*'); } catch (e) { }
+                        try { window.parent.postMessage({ type: 'mw_save_status', status: 'saved' }, MW_ORIGIN); } catch (e) { }
                     }
                 }
             }
@@ -1515,7 +1516,7 @@
                 };
 
                 try {
-                    window.parent.postMessage(data, '*');
+                    window.parent.postMessage(data, MW_ORIGIN);
                 } catch (e) {
                     // 忽略跨域错误
                 }
@@ -1598,6 +1599,7 @@
 
             // 接收来自思维导图/父页面的选中跳转请求
             window.addEventListener('message', async function (e) {
+                if (e.origin !== MW_ORIGIN) return;
                 try {
                     // 调试日志：打印 editor 收到的原始 message
                     try { console.log('[EDITOR RAW MESSAGE]', e && e.data); } catch (err) { }
@@ -1810,6 +1812,7 @@
     <!-- Mindmap -> Editor 消息协议监听：设置 Markdown + 保存/同步 -->
     <script>
         (function () {
+            var MW_ORIGIN = window.location.origin;
             function setMarkdownToEditor(md) {
                 try {
                     if (window.markdownEditor && typeof window.markdownEditor.setContent === 'function') {
@@ -1820,7 +1823,7 @@
                         window.markdownEditor.saveToStorage(false);
                         window.syncAll('markdown', true, true);
 
-                        try { setTimeout(function () { try { window.parent.postMessage({ type: 'editor-reload-request', requestId: (window.__mw_ai_active_requestId || null) }, '*'); } catch (e) { /* ignore postMessage errors */ } }, 500); } catch (e) { /* ignore timer errors */ }
+                        try { setTimeout(function () { try { window.parent.postMessage({ type: 'editor-reload-request', requestId: (window.__mw_ai_active_requestId || null) }, MW_ORIGIN); } catch (e) { /* ignore postMessage errors */ } }, 500); } catch (e) { /* ignore timer errors */ }
                         return true;
                     }
                 } catch (e) { }
@@ -1838,6 +1841,7 @@
 
             // 监听来自父页/思维导图的消息
             window.addEventListener('message', async function (e) {
+                if (e.origin !== MW_ORIGIN) return;
                 try {
                     var msg = e && e.data;
                     if (!msg || typeof msg !== 'object' || !msg.type) return;
@@ -1906,6 +1910,7 @@
     <script src="../utils/note-image-utils.js?v=2026.05.24.2342"></script>
     <script>
         (function () {
+            var MW_ORIGIN = window.location.origin;
             // 初始化图片存储管理器
             if (window.ImageStorageManager) {
                 window.imageStorage = new ImageStorageManager();
@@ -2005,6 +2010,7 @@
             }
 
             window.addEventListener('message', async function (e) {
+                if (e.origin !== MW_ORIGIN) return;
                 const msg = e.data;
                 if (!msg || typeof msg !== 'object') return;
 

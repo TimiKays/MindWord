@@ -17,6 +17,8 @@
  * limitations under the License.
  */
 
+var MW_ORIGIN = window.location.origin;
+
 // =============== 文档库与侧栏 ===============
 /*
 ## 🏠 文档库管理功能
@@ -670,7 +672,7 @@ function mw_notifyEditorLoad(doc) {
   };
   if (editorIframe && editorIframe.contentWindow) {
     try {
-      editorIframe.contentWindow.postMessage({ type: 'mw_load_document', payload }, '*');
+      editorIframe.contentWindow.postMessage({ type: 'mw_load_document', payload }, MW_ORIGIN);
       console.log('[DOC] -> editor mw_load_document', payload.id, 'rev=', payload.rev);
     } catch (e) { console.warn('postMessage to editor failed', e); }
   } else {
@@ -684,7 +686,7 @@ function mw_notifyPreviewLoad(doc) {
   const payload = { md: doc.md, images: doc.images || [], rev: doc.version || doc.updatedAt || Date.now(), origin: 'index' };
   if (previewIframe && previewIframe.contentWindow) {
     try {
-      previewIframe.contentWindow.postMessage({ type: 'mw_load_markdown', payload }, '*');
+      previewIframe.contentWindow.postMessage({ type: 'mw_load_markdown', payload }, MW_ORIGIN);
       console.log('[DOC] -> preview mw_load_markdown', (doc.id || ''), 'rev=', payload.rev);
     } catch (e) { console.warn('postMessage to preview failed', e); }
   } else {
@@ -718,7 +720,7 @@ function mw_notifyMindmapLoad(doc) {
   if (mmIframe && mmIframe.contentWindow) {
     console.log('[DOC] mw_notifyMindmapLoad attempting to send message to mindmap iframe...');
     try {
-      mmIframe.contentWindow.postMessage({ type: 'mw_load_markdown', payload }, '*');
+      mmIframe.contentWindow.postMessage({ type: 'mw_load_markdown', payload }, MW_ORIGIN);
       console.log('[DOC] -> mindmap mw_load_markdown SUCCESS', (doc.id || ''), 'rev=', payload.rev);
     } catch (e) {
       console.error('[DOC] -> mindmap mw_load_markdown FAILED', (doc.id || ''), 'error:', e);
@@ -1249,7 +1251,7 @@ async function mw_importZip(file) {
       } else {
         // 回退：发送 postMessage，由 AI 面板监听并自行写入/刷新（若已实现监听）
         // 不再发送旧的templates数据，只发送configs
-        window.postMessage({ type: 'IMPORT_AI_FROM_ZIP', payload: { configs: rootAiCfg, templates: null } }, '*');
+        window.postMessage({ type: 'IMPORT_AI_FROM_ZIP', payload: { configs: rootAiCfg, templates: null } }, MW_ORIGIN);
       }
     } catch (e) { console.warn('[mw_importZip] notify ai panel failed', e); }
   } catch (e) {
@@ -1497,7 +1499,7 @@ async function mw_clearAllData() {
       mw_renderList();
 
       // 通知编辑器清空内容
-      window.postMessage({ type: 'mw_apply_markdown', payload: { md: '', images: [] } }, '*');
+      window.postMessage({ type: 'mw_apply_markdown', payload: { md: '', images: [] } }, MW_ORIGIN);
 
       // 显示成功消息
       try { showSuccess && showSuccess('所有本地数据已清空'); } catch (_) { }
@@ -1626,6 +1628,7 @@ async function mw_clearAllData() {
 
 // 监听来自编辑器的文档更新消息
 window.addEventListener('message', function (e) {
+  if (e.origin !== MW_ORIGIN) return;
   const msg = e && e.data;
   if (!msg || typeof msg !== 'object') return;
   if (msg.type === 'markdown-content-change') {

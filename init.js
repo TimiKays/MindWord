@@ -17,6 +17,8 @@
  * limitations under the License.
  */
 
+var MW_ORIGIN = window.location.origin;
+
 /* 
 MindWord 应用的 主初始化模块 ，核心职责是：
 
@@ -68,7 +70,7 @@ function initApp() {
   window.addEventListener('message', handleNotificationMessage);
   // 调试：打印所有收到的原始 message，便于排查 mindmap -> index -> editor 的消息流
   window.addEventListener('message', function (e) {
-    try { console.log('[INDEX RAW MESSAGE]收到消息', e && e.data); } catch (err) { }
+    try { if (e.origin !== MW_ORIGIN) return; console.log('[INDEX RAW MESSAGE]收到消息', e && e.data); } catch (err) { }
   }, { passive: true });
 
   // 绑定删除确认对话框按钮事件
@@ -163,7 +165,7 @@ document.addEventListener('DOMContentLoaded', initApp);
 })();
 
 /* ==== AI 弹窗父层托管注入（按需加载版） ====
-   子 iframe 通过 postMessage({ type:'AI_MODAL_OPEN', requestId, payload }, '*')
+   子 iframe 通过 postMessage({ type:'AI_MODAL_OPEN', requestId, payload }, MW_ORIGIN)
    调用位于 ai/newai/AIServiceModal.html 的 AIServiceModal。支持 modal 与 silent
    
    优化：不再在页面加载时立即创建 aiModalFrame iframe，
@@ -304,7 +306,7 @@ document.addEventListener('DOMContentLoaded', initApp);
                   requestId: msg.requestId,
                   status: 'error',
                   detail: { message: 'headless call timeout' }
-                }, '*');
+                }, MW_ORIGIN);
               }
             } catch (e) { }
             window._headlessTimeouts.delete(msg.requestId);
@@ -313,7 +315,7 @@ document.addEventListener('DOMContentLoaded', initApp);
           window._headlessTimeouts.set(msg.requestId, { timer: t, source: e.source });
         } catch (err) {
           console.error('[INDEX] post to aiModalFrame failed', err);
-          try { e.source.postMessage({ type: 'AI_MODAL_RESULT', requestId: msg.requestId, status: 'error', detail: { message: 'failed to post to aiModalFrame: ' + (err && err.message ? err.message : String(err)) } }, '*'); } catch (_) { }
+          try { e.source.postMessage({ type: 'AI_MODAL_RESULT', requestId: msg.requestId, status: 'error', detail: { message: 'failed to post to aiModalFrame: ' + (err && err.message ? err.message : String(err)) } }, MW_ORIGIN); } catch (_) { }
           window.__ai_req_map.delete(msg.requestId);
         }
         return;
@@ -335,11 +337,11 @@ document.addEventListener('DOMContentLoaded', initApp);
         aiFrame.contentWindow.postMessage({
           type: 'AI_MODAL_OPEN',
           payload: modalPayload
-        }, '*');
+        }, MW_ORIGIN);
         console.log('[INDEX] forwarded AI_MODAL_OPEN to aiModalFrame', msg.requestId);
       } catch (err) {
         console.error('[INDEX] forward AI_MODAL_OPEN failed', err);
-        try { e.source.postMessage({ type: 'AI_MODAL_RESULT', requestId: msg.requestId, status: 'error', detail: { message: 'failed to forward to aiModalFrame' } }, '*'); } catch (_) { }
+        try { e.source.postMessage({ type: 'AI_MODAL_RESULT', requestId: msg.requestId, status: 'error', detail: { message: 'failed to forward to aiModalFrame' } }, MW_ORIGIN); } catch (_) { }
         window.__ai_req_map.delete(msg.requestId);
       }
     } catch (err) {
@@ -349,6 +351,7 @@ document.addEventListener('DOMContentLoaded', initApp);
 
   window.addEventListener('message', function (e) {
     try {
+      if (e.origin !== MW_ORIGIN) return;
       var msg = e && e.data;
       if (!msg || typeof msg !== 'object') return;
 
@@ -371,7 +374,7 @@ document.addEventListener('DOMContentLoaded', initApp);
 
         if (srcWinSave) {
           try {
-            srcWinSave.postMessage(msg, '*');
+            srcWinSave.postMessage(msg, MW_ORIGIN);
             window.__ai_req_map.delete(msg.requestId);
             console.log('[INDEX] forwarded AI_MODAL_RESULT as RESULT to source', msg.requestId, 'with actionType:', msg.actionType);
           } catch (e) {
@@ -388,7 +391,7 @@ document.addEventListener('DOMContentLoaded', initApp);
         var srcWin2 = window.__ai_req_map.get(msg.requestId);
         try { var f2 = document.getElementById('aiModalFrame'); if (f2) f2.style.display = 'none'; } catch (_) { }
         var outMsg = { type: 'AI_MODAL_RESULT', requestId: msg.requestId, status: msg.status === 'ok' ? 'ok' : 'error', detail: msg.detail };
-        if (srcWin2) { try { srcWin2.postMessage(outMsg, '*'); } catch (e) { console.warn('[INDEX] forward headless result failed', e); } window.__ai_req_map.delete(msg.requestId); } else { console.warn('[INDEX] source not found for headless', msg.requestId); }
+        if (srcWin2) { try { srcWin2.postMessage(outMsg, MW_ORIGIN); } catch (e) { console.warn('[INDEX] forward headless result failed', e); } window.__ai_req_map.delete(msg.requestId); } else { console.warn('[INDEX] source not found for headless', msg.requestId); }
       }
     } catch (err) {
       console.warn('[INDEX] ai message handler error', err);

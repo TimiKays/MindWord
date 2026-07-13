@@ -695,7 +695,7 @@
 
                             // 如果是在弹窗中打开的，尝试关闭弹窗
                             if (window.parent && window.parent !== window) {
-                                window.parent.postMessage('close-feedback-modal', '*');
+                                window.parent.postMessage('close-feedback-modal', window.location.origin);
                             }
                         }, 3000);
                     } else {

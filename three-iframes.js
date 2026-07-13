@@ -17,6 +17,8 @@
  * limitations under the License.
  */
 
+var MW_ORIGIN = window.location.origin;
+
 // ===================================
 // 📌 页面配置 - 在这里修改三个页面的地址
 // ===================================
@@ -134,32 +136,32 @@ function loadPanelContent(panelName) {
         // Edge浏览器需要更长的延迟来确保iframe完全就绪
         const delay = isEdge ? 500 : 200;
 
-        iframe.contentWindow.postMessage({ type: 'mw_relayout' }, '*');
+        iframe.contentWindow.postMessage({ type: 'mw_relayout' }, MW_ORIGIN);
         setTimeout(() => {
-          try { iframe.contentWindow.postMessage({ type: 'mw_relayout' }, '*'); } catch (e) { }
+          try { iframe.contentWindow.postMessage({ type: 'mw_relayout' }, MW_ORIGIN); } catch (e) { }
         }, delay);
 
         // Edge浏览器需要额外的重试机制
         if (isEdge) {
           setTimeout(() => {
-            try { iframe.contentWindow.postMessage({ type: 'mw_relayout' }, '*'); } catch (e) { }
+            try { iframe.contentWindow.postMessage({ type: 'mw_relayout' }, MW_ORIGIN); } catch (e) { }
           }, 1000);
         }
 
         // 若存在待发送的markdown/文档，在iframe就绪后立刻发送，确保“即点即切”
         try {
           if (panelName === 'editor' && window.__mw_pendingEditorDocument) {
-            iframe.contentWindow.postMessage({ type: 'mw_load_document', payload: window.__mw_pendingEditorDocument }, '*');
+            iframe.contentWindow.postMessage({ type: 'mw_load_document', payload: window.__mw_pendingEditorDocument }, MW_ORIGIN);
             window.__mw_pendingEditorDocument = null;
           }
           if (panelName === 'preview' && window.__mw_pendingPreviewMarkdown) {
             console.log(`[IFRAME-ONLOAD] ${panelName} iframe ready, sending cached preview message`);
-            iframe.contentWindow.postMessage({ type: 'mw_load_markdown', payload: window.__mw_pendingPreviewMarkdown }, '*');
+            iframe.contentWindow.postMessage({ type: 'mw_load_markdown', payload: window.__mw_pendingPreviewMarkdown }, MW_ORIGIN);
             window.__mw_pendingPreviewMarkdown = null;
           }
           if (panelName === 'mindmap' && window.__mw_pendingMindmapMarkdown) {
             console.log(`[IFRAME-ONLOAD] ${panelName} iframe ready, sending cached mindmap message, docId:`, window.__mw_pendingMindmapMarkdown?.doc?.id);
-            iframe.contentWindow.postMessage({ type: 'mw_load_markdown', payload: window.__mw_pendingMindmapMarkdown }, '*');
+            iframe.contentWindow.postMessage({ type: 'mw_load_markdown', payload: window.__mw_pendingMindmapMarkdown }, MW_ORIGIN);
             window.__mw_pendingMindmapMarkdown = null;
           } else if (panelName === 'mindmap') {
             try {
@@ -176,7 +178,7 @@ function loadPanelContent(panelName) {
                     origin: 'index',
                     docId: activeDoc.id
                   }
-                }, '*');
+                }, MW_ORIGIN);
                 console.log('[IFRAME-ONLOAD] mindmap iframe ready, sent active document markdown', activeDoc.id);
               }
             } catch (e) {
@@ -211,7 +213,7 @@ function loadPanelContent(panelName) {
     clearTimeout(_relayoutTimer);
     _relayoutTimer = setTimeout(function () {
       try {
-        if (iframe && iframe.contentWindow) iframe.contentWindow.postMessage({ type: 'mw_relayout' }, '*');
+        if (iframe && iframe.contentWindow) iframe.contentWindow.postMessage({ type: 'mw_relayout' }, MW_ORIGIN);
       } catch (e) { }
     }, 150);
   }, { passive: true });
@@ -271,7 +273,7 @@ function MW_flushEditorMarkdownToStorage(reason = '') {
     ['preview', 'mindmap'].forEach(panelName => {
       const frame = document.querySelector(`iframe[data-panel="${panelName}"], iframe#iframe-${panelName}`);
       if (frame && frame.contentWindow) {
-        try { frame.contentWindow.postMessage({ type: 'mw_load_markdown', payload }, '*'); } catch (e) { }
+        try { frame.contentWindow.postMessage({ type: 'mw_load_markdown', payload }, MW_ORIGIN); } catch (e) { }
       }
     });
 
@@ -400,10 +402,10 @@ function requestMindmapRelayout() {
     if (!iframe || !iframe.contentWindow) return;
 
     // 立即和稍后各发一次，兼容父容器刚刚变更尺寸的情况
-    iframe.contentWindow.postMessage({ type: 'mw_relayout' }, '*');
+    iframe.contentWindow.postMessage({ type: 'mw_relayout' }, MW_ORIGIN);
     setTimeout(() => {
       try {
-        iframe.contentWindow.postMessage({ type: 'mw_relayout' }, '*');
+        iframe.contentWindow.postMessage({ type: 'mw_relayout' }, MW_ORIGIN);
       } catch (_) { /* ignore */ }
     }, 180);
   } catch (_) {

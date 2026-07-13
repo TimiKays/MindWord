@@ -1092,6 +1092,7 @@
     <!-- 思维导图面板视图Tab切换逻辑 -->
     <script>
         (function () {
+            var MW_ORIGIN = window.location.origin;
             var currentMindmapView = 'mindmap';
 
             function getMindmapIframe() {
@@ -1121,7 +1122,7 @@
                     console.warn('[App] mindmap iframe not ready');
                     return;
                 }
-                iframe.contentWindow.postMessage({ type: 'mw_switch_view', view: view }, '*');
+                iframe.contentWindow.postMessage({ type: 'mw_switch_view', view: view }, MW_ORIGIN);
                 updateTabUI(view);
             }
 
@@ -1135,6 +1136,7 @@
             });
 
             window.addEventListener('message', function (e) {
+                if (e.origin !== MW_ORIGIN) return;
                 var msg = e.data;
                 if (!msg || typeof msg !== 'object') return;
                 if (msg.type === 'mw_view_changed') {
@@ -1204,6 +1206,7 @@
     <!-- 全局保存状态指示器管理 -->
     <script>
         (function () {
+            var MW_ORIGIN = window.location.origin;
             var spinnerEl = null;
             var checkEl = null;
             var savedTimeout = null;
@@ -1274,6 +1277,7 @@
             };
 
             window.addEventListener('message', function (e) {
+                if (e.origin !== MW_ORIGIN) return;
                 if (!e || !e.data) return;
                 var msg = e.data;
                 if (msg.type === 'mw_save_status') {

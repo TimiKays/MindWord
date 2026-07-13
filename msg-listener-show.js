@@ -17,6 +17,8 @@
  * limitations under the License.
  */
 
+var MW_ORIGIN = window.location.origin;
+
 // ===================================
 // 全局通知系统
 // ===================================
@@ -140,6 +142,7 @@ function showInfo(message, duration = 1500) {
          * - 当全局抑制生效时，对 type==='notification' 的消息仅记录到 console 不展示 UI 通知
          */
 function handleNotificationMessage(event) {
+  if (event.origin !== MW_ORIGIN) return;
   // 验证消息来源
   if (!event.data || !event.data.type) return;
 
@@ -168,7 +171,7 @@ function handleNotificationMessage(event) {
             editorIframe2.contentWindow.postMessage({
               type: 'editor-set-markdown',
               markdown: markdown
-            }, '*');
+            }, MW_ORIGIN);
             console.log('[INDEX FORWARD] -> editor mindmapUpdated');
           }
         } catch (e) {
@@ -205,7 +208,7 @@ function handleNotificationMessage(event) {
       // 转发到 editor iframe
       if (editorIframe && editorIframe.contentWindow) {
         try {
-          editorIframe.contentWindow.postMessage(forwardEditor, '*');
+          editorIframe.contentWindow.postMessage(forwardEditor, MW_ORIGIN);
           console.log('[INDEX FORWARD] -> editor', { nodeid: payload.nodeid });
         } catch (e) {
           console.warn('[INDEX FORWARD] editor postMessage failed', e);
@@ -219,7 +222,7 @@ function handleNotificationMessage(event) {
       // 转发到 preview/md2word iframe（如果存在）
       if (previewIframe && previewIframe.contentWindow) {
         try {
-          previewIframe.contentWindow.postMessage(forwardPreview, '*');
+          previewIframe.contentWindow.postMessage(forwardPreview, MW_ORIGIN);
           console.log('[INDEX FORWARD PREVIEW] -> preview', { nodeid: payload.nodeid });
         } catch (e) {
           console.warn('[INDEX FORWARD PREVIEW] preview postMessage failed', e);
@@ -270,6 +273,7 @@ function handleNotificationMessage(event) {
 // 来自 editor 的刷新请求：由顶层执行整页刷新
 window.addEventListener('message', function (e) {
   try {
+    if (e.origin !== MW_ORIGIN) return;
     var d = e && e.data;
     if (!d || d.type !== 'editor-reload-request') return;
     // 可选：检查来源或 requestId 等以增加安全性

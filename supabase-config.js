@@ -81,9 +81,6 @@
                 }
             );
             console.log('[Supabase] 客户端初始化成功');
-            console.log('[Supabase] URL:', SUPABASE_CONFIG.url);
-            console.log('[Supabase] API Key 长度:', anonKey.length);
-            console.log('[Supabase] API Key 前10位:', anonKey.substring(0, 10) + '...');
 
             // 迁移旧 session key（代理 URL 可能生成了不同的 key）
             var targetKey = SUPABASE_CONFIG.storageKey;

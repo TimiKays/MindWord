@@ -1126,7 +1126,7 @@
             closeManager() {
                 // 尝试通过postMessage通知父窗口关闭模态框
                 if (window.parent && window.parent !== window) {
-                    window.parent.postMessage({ type: 'CLOSE_TEMPLATE_MANAGER' }, '*');
+                    window.parent.postMessage({ type: 'CLOSE_TEMPLATE_MANAGER' }, window.location.origin);
                 }
 
                 if (window.opener) {

@@ -17,6 +17,7 @@
  * limitations under the License.
  */
 
+var MW_ORIGIN = window.location.origin;
 
 
 // 仅在移动端启用的 mindmap iframe 强制重载策略
@@ -50,11 +51,11 @@ function reloadMindmapIframeOnce() {
       console.log('[reloadMindmapIframeOnce] iframe loaded, sending mw_relayout messages');
       try {
         if (iframe.contentWindow) {
-          iframe.contentWindow.postMessage({ type: 'mw_relayout' }, '*');
+          iframe.contentWindow.postMessage({ type: 'mw_relayout' }, MW_ORIGIN);
           console.log('[reloadMindmapIframeOnce] sent first mw_relayout message');
           setTimeout(function () {
             try {
-              iframe.contentWindow.postMessage({ type: 'mw_relayout' }, '*');
+              iframe.contentWindow.postMessage({ type: 'mw_relayout' }, MW_ORIGIN);
               console.log('[reloadMindmapIframeOnce] sent second mw_relayout message');
             } catch (e) {
               console.warn('[reloadMindmapIframeOnce] failed to send second mw_relayout:', e);

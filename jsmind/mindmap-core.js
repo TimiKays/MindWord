@@ -17,6 +17,8 @@
  * limitations under the License.
  */
 
+var MW_ORIGIN = window.location.origin;
+
 /* mindmap-core.js - extracted from mindmap.html inline scripts (core) */
 
 // // AI模块导入和全局导出（从mindmap-module-1.js迁移）
@@ -1772,7 +1774,7 @@ function updateNodeNotes() {
   //     window.parent.postMessage({
   //         type: 'mindmapUpdated',
   //         data: jm.get_data()
-  //     }, '*');
+  //     }, MW_ORIGIN);
   // }
 
   // 保存到localStorage并同步
@@ -3401,7 +3403,7 @@ window.MW_setEditingMode = function (isEditing) {
     window.__mw_suppress_toasts_when_editing = !!isEditing;
     try { console.log('[MW] 编辑模式 ->', !!isEditing); } catch (e) { }
     // 同步到父页面/其他框架，通知全局通知桥抑制或恢复提示
-    try { if (window.parent && window.parent !== window) window.parent.postMessage({ type: 'mw_editing_mode', editing: !!isEditing }, '*'); } catch (e) { }
+    try { if (window.parent && window.parent !== window) window.parent.postMessage({ type: 'mw_editing_mode', editing: !!isEditing }, MW_ORIGIN); } catch (e) { }
   } catch (e) { }
   return window.__mw_suppress_toasts_when_editing;
 };
@@ -3793,7 +3795,7 @@ function saveToLocalStorage() {
             window.parent.postMessage({
               type: 'mindmapUpdated',
               data: mergedData
-            }, '*');
+            }, MW_ORIGIN);
           }
         } catch (error) {
           console.warn('同步方法调用失败:', error);
@@ -3865,7 +3867,7 @@ function saveToLocalStorage() {
       window.parent.postMessage({
         type: 'mindmapUpdated',
         data: currentData
-      }, '*');
+      }, MW_ORIGIN);
     }
   } catch (error) {
     console.warn('同步方法调用失败:', error);
@@ -5025,7 +5027,7 @@ window.addEventListener('load', async function () {
                     nodeid: nodeObj.id,
                     raw: sendRaw,
                     parentPath: sendParentPath
-                  }, '*');
+                  }, MW_ORIGIN);
                   window.__mw_lastSent.id = nodeObj.id;
                   window.__mw_lastSent.ts = nowts;
                   try { console.log('[MW] 发送完成'); } catch (e) { }
@@ -5040,7 +5042,7 @@ window.addEventListener('load', async function () {
                     nodeid: nodeObj.id,
                     raw: sendRaw,
                     parentPath: sendParentPath
-                  }, '*');
+                  }, MW_ORIGIN);
                 } catch (e2) { }
                 try { console.log('[MW] 发送完成（降级路径）'); } catch (e) { }
               }
@@ -5319,7 +5321,7 @@ window.addEventListener('load', async function () {
                 // 立即向父页面广播最新数据（与 saveToLocalStorage 保持一致）
                 try {
                   if (window.parent && window.parent !== window) {
-                    window.parent.postMessage({ type: 'mindmapUpdated', data: (jm && typeof jm.get_data === 'function') ? jm.get_data() : null }, '*');
+                    window.parent.postMessage({ type: 'mindmapUpdated', data: (jm && typeof jm.get_data === 'function') ? jm.get_data() : null }, MW_ORIGIN);
                   }
                 } catch (e) { }
               } catch (e) { }
@@ -5756,6 +5758,7 @@ document.addEventListener('focusout', (e) => {
 
   // 监听来自父页面的消息（跨iframe通信）
   window.addEventListener('message', function (e) {
+    if (e.origin !== MW_ORIGIN) return;
     if (e.data && e.data.type === 'languageChanged' && e.data.language) {
       console.log('[LanguageSync] 收到父页面语言变更:', e.data.language);
       if (window.i18nManager && window.i18nManager.currentLanguage !== e.data.language) {
@@ -5770,7 +5773,7 @@ document.addEventListener('focusout', (e) => {
     syncLanguage();
     // 只在iframe环境中请求父页面语言
     if (window.parent && window.parent !== window) {
-      window.parent.postMessage({ type: 'getLanguage' }, '*');
+      window.parent.postMessage({ type: 'getLanguage' }, MW_ORIGIN);
     }
   }
 

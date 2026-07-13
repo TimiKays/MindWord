@@ -17,6 +17,8 @@
  * limitations under the License.
  */
 
+var MW_ORIGIN = window.location.origin;
+
 /**
  * MindWord 国际化语言管理器
  * 提供全局的语言切换和文案管理功能
@@ -415,7 +417,7 @@ class I18nManager {
               type: 'languageChange',
               language: language,
               source: 'parent'
-            }, '*');
+            }, MW_ORIGIN);
             console.log(`[I18nManager] Sent language change notification to iframe: ${language}`);
           }
         } catch (error) {

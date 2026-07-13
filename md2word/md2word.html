@@ -499,6 +499,7 @@
   <script src="/local-deps/FileSaver.min.js"></script>
 
   <script>
+    var MW_ORIGIN = window.location.origin;
     (async function () {
       const BUILTIN_TEMPLATES = {
         'business-blue': { path: 'template-business-blue.docx', name: '商务蓝' },
@@ -773,6 +774,7 @@
 
       // 接收来自 index 的滚动请求（preview-scroll-to），根据 raw 在预览中查找并滚动到对应位置
       window.addEventListener('message', function (e) {
+        if (e.origin !== MW_ORIGIN) return;
         try {
           if (!e.data || !e.data.type) return;
           if (e.data.type !== 'preview-scroll-to') return;
@@ -2573,6 +2575,7 @@
   <!-- 备注图片工具 -->
   <script src="../utils/note-image-utils.js?v=2026.05.24.2342"></script>
   <script>
+    var MW_ORIGIN = window.location.origin;
     (function () {
       // 初始化图片存储管理器
       if (window.ImageStorageManager) {
@@ -2598,6 +2601,7 @@
       }
 
       window.addEventListener('message', function (e) {
+        if (e.origin !== MW_ORIGIN) return;
         const msg = e.data;
         if (!msg || typeof msg !== 'object') return;
 

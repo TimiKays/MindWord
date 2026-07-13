@@ -947,6 +947,7 @@
         </div>
 
         <script>
+            var MW_ORIGIN = window.location.origin;
             // AI服务类
             class AIPlatformService {
                 constructor() {
@@ -2587,7 +2588,7 @@
                                 requestId: modal.dataset.requestId || null,
                                 status: 'ok',
                                 output: result
-                            }, '*');
+                            }, MW_ORIGIN);
                             // 延迟关闭弹窗，确保消息发送完成
                             setTimeout(() => closeModal(), 100);
                         } catch (_) { /* noop */ }
@@ -2624,7 +2625,7 @@
                             status: 'error',
                             detail: { message: msg },
                             keepOpen: true
-                        }, '*');
+                        }, MW_ORIGIN);
                     } catch (_) { /* noop */ }
                 } finally {
 
@@ -2937,7 +2938,7 @@
                             requestId: rid,
                             status: 'cancel',
                             detail: { message: 'user_closed' }
-                        }, '*');
+                        }, MW_ORIGIN);
                     } else {
                         // 已保存并应用的正常关闭：不发送 cancel
                         try { console.debug('[aiModal] closeModal suppressed cancel due to save/apply'); } catch (_) { /* noop */ }
@@ -3180,7 +3181,7 @@
                             output
                         };
                         console.log('🔵 AIServiceModal 发送消息:', JSON.stringify(message, null, 2));
-                        window.parent?.postMessage(message, '*');
+                        window.parent?.postMessage(message, MW_ORIGIN);
                     } catch (err) {
                         console.warn('[aiModal] saveApply postMessage failed', err);
                     }
@@ -3561,7 +3562,7 @@
                                 status: 'error',
                                 detail: { message: msg, phase: 'preview' },
                                 keepOpen: true
-                            }, '*');
+                            }, MW_ORIGIN);
                         } catch (err) {
                             console.warn('[aiModal] postMessage preview error failed', err);
                         }
@@ -4849,6 +4850,7 @@
 
             // 监听父页面转发的打开请求（来自 demo 父页面）
             window.addEventListener('message', (e) => {
+                if (e.origin !== MW_ORIGIN) return;
                 try {
                     console.log('收到message：', e);
                     const msg = e?.data;
@@ -4889,7 +4891,7 @@
                                     requestId: requestId || null,
                                     status: 'error',
                                     detail: { message: msgText, phase: 'open', rawParams: params }
-                                }, '*');
+                                }, MW_ORIGIN);
                             } catch (postErr) { console.warn('[aiModal] postMessage send error failed', postErr); }
                             return;
                         }
@@ -4905,7 +4907,7 @@
                                     requestId: requestId || null,
                                     status: 'error',
                                     detail: { message: msgText, phase: 'open', rawParams: params }
-                                }, '*');
+                                }, MW_ORIGIN);
                             } catch (postErr) { console.warn('[aiModal] postMessage send error failed', postErr); }
                             return;
                         }
@@ -5095,7 +5097,7 @@
                                     requestId: requestId || null,
                                     status: 'error',
                                     detail: { message: '[aiModal] open fail: ' + (err.message || String(err)), phase: 'open' }
-                                }, '*');
+                                }, MW_ORIGIN);
                             } catch (_) { /* noop */ }
                         }
                     }
@@ -6208,6 +6210,7 @@
 
                     // 监听iframe消息，处理关闭请求和应用模板
                     const messageHandler = (e) => {
+                        if (e.origin !== MW_ORIGIN) return;
                         if (e.data && e.data.type === 'CLOSE_TEMPLATE_MANAGER') {
                             closeUserTemplateManager();
                             window.removeEventListener('message', messageHandler);
