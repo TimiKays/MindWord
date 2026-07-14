@@ -86,7 +86,7 @@ MindWord - 第三方依赖声明
     - 使用文件: i18n/locales.js, i18n/i18n-manager.js
     - 功能: 提供多语言支持，包含中文和英文翻译
 
-12. dom-to-image (DOM转图像库)
+12. dom-to-image (DOM转为图片像库)
     - 版本: 2.6.0
     - 许可证: MIT 许可证
     - 版权所有: Paul Bakaus

@@ -101,7 +101,7 @@ class ImageStorageManager {
     }
 
     /**
-     * 生成图片 ID
+     * 转为图片 ID
      * @returns {string}
      */
     generateImageId() {

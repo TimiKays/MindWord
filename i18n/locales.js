@@ -322,6 +322,7 @@ const i18nLocales = {
       mindmap: '思维导图',
       outline: '大纲',
       focus: '专注',
+      markpage: '转为图片',
 
       // 标签页
       tabs: {
@@ -1431,6 +1432,7 @@ const i18nLocales = {
       mindmap: 'Mapa Mental',
       outline: 'Esquema',
       focus: 'Enfoque',
+      markpage: 'A Imagen',
 
       // 标签页
       tabs: {

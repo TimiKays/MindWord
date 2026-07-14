@@ -143,6 +143,99 @@
             box-shadow: inset 0 0 0 2px #3b82f6;
         }
 
+        /* MarkPage 转为图片按钮：简洁文字按钮 */
+        .markpage-btn {
+            margin-left: auto;
+            padding: 0;
+            border: none;
+            background: none;
+            font-size: 12px;
+            color: #c4c5c9;
+            cursor: pointer;
+            line-height: 1.4;
+        }
+
+        .markpage-btn:hover {
+            color: #374151;
+            text-decoration: underline;
+        }
+
+        /* MarkPage 提示弹窗 */
+        .markpage-modal .modal-body {
+            color: #4b5563;
+            font-size: 14px;
+            line-height: 1.7;
+        }
+
+        .markpage-modal .modal-body p {
+            margin-bottom: 10px;
+        }
+
+        .markpage-modal .modal-body strong {
+            color: #111827;
+            font-weight: 600;
+        }
+
+        .markpage-modal .modal-tips {
+            background-color: #f9fafb;
+            border-radius: 8px;
+            padding: 12px 14px;
+            margin-top: 14px;
+        }
+
+        .markpage-modal .modal-tips-title {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .markpage-modal .modal-tips ul {
+            margin: 0;
+            padding-left: 16px;
+        }
+
+        .markpage-modal .modal-tips li {
+            margin-bottom: 5px;
+            font-size: 13px;
+        }
+
+        .markpage-modal .modal-tips li:last-child {
+            margin-bottom: 0;
+        }
+
+        .markpage-modal .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .markpage-modal .modal-btn {
+            padding: 7px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid #d1d5db;
+            background-color: #fff;
+            color: #4b5563;
+        }
+
+        .markpage-modal .modal-btn:hover {
+            background-color: #f3f4f6;
+        }
+
+        .markpage-modal .modal-btn.primary {
+            background-color: #3b82f6;
+            border-color: #3b82f6;
+            color: #fff;
+        }
+
+        .markpage-modal .modal-btn.primary:hover {
+            background-color: #2563eb;
+        }
+
         /* 帮助面板 */
         .help-panel {
             position: absolute;
@@ -387,6 +480,9 @@
         <span id="help-btn" class="ico-btn" role="button" tabindex="0" title="帮助"
             style="--ico: url('res/help.svg'); "></span>
 
+        <button id="markpage-btn" class="markpage-btn" title="将当前 Markdown 发送到 MarkPage 转为图片">
+            转为图片
+        </button>
 
 
 
@@ -569,6 +665,33 @@
 
 
 
+    <!-- MarkPage 提示弹窗 -->
+    <div class="modal markpage-modal" id="markpage-modal">
+        <div class="modal-content" style="max-width: 480px;">
+            <div class="modal-header">
+                <div class="modal-title">转为图片</div>
+                <button class="modal-close" id="markpage-modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>将当前 Markdown 发送到 <strong>MarkPage</strong> 转为图片卡片。</p>
+                <p style="font-size: 12px; color: #6b7280;">由同一作者开发，数据仅在浏览器本地处理。</p>
+                <div class="modal-tips">
+                    <div class="modal-tips-title">使用提示</div>
+                    <ul>
+                        <li><strong>自动传输：</strong>约 3000 中文字 / 3 万英文字符以内可直接打开</li>
+                        <li><strong>内容过长：</strong>点击“复制 Markdown”，到 MarkPage 中粘贴</li>
+                        <li><strong>图片限制：</strong>本地图片过大时可能无法自动传输</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn" id="markpage-modal-cancel">取消</button>
+                <button class="modal-btn" id="markpage-modal-copy">复制 Markdown</button>
+                <button class="modal-btn primary" id="markpage-modal-confirm">继续前往</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 状态消息 -->
     <div class="status-message" id="status-message"></div>
 
@@ -640,6 +763,13 @@
                 document.getElementById('upload-btn').addEventListener('click', () => this.uploadFile());
                 document.getElementById('help-btn').addEventListener('click', () => this.toggleHelp());
                 document.getElementById('help-close').addEventListener('click', () => this.toggleHelp());
+                document.getElementById('markpage-btn').addEventListener('click', () => this.openMarkPage());
+
+                // MarkPage 弹窗
+                document.getElementById('markpage-modal-close').addEventListener('click', () => this.closeMarkPageModal());
+                document.getElementById('markpage-modal-cancel').addEventListener('click', () => this.closeMarkPageModal());
+                document.getElementById('markpage-modal-copy').addEventListener('click', () => this.copyMarkPageMarkdown());
+                document.getElementById('markpage-modal-confirm').addEventListener('click', () => this.confirmMarkPage());
 
                 // 文件上传
                 document.getElementById('file-input').addEventListener('change', (e) => this.handleFileUpload(e));
@@ -651,6 +781,99 @@
                 // 编辑器内容变化
                 this.editor.addEventListener('input', () => this.onContentChange());
 
+            }
+
+            // ===================================
+            // 🖼️ 发送到 MarkPage 转为图片
+            // ===================================
+
+            openMarkPage() {
+                const rawMd = this.getContent();
+                if (!rawMd || !rawMd.trim()) {
+                    this.showSaveNotification('编辑器内容为空');
+                    return;
+                }
+                this.pendingMarkPageMd = this.replaceImageIdsWithDataUrls(rawMd);
+                document.getElementById('markpage-modal').classList.add('show');
+            }
+
+            closeMarkPageModal() {
+                document.getElementById('markpage-modal').classList.remove('show');
+                this.pendingMarkPageMd = null;
+            }
+
+            copyMarkPageMarkdown() {
+                const md = this.pendingMarkPageMd || this.getContent();
+                const copied = this.copyToClipboard(md);
+                this.showSaveNotification(copied ? 'Markdown 已复制到剪贴板' : '复制失败');
+            }
+
+            confirmMarkPage() {
+                const MW_MARKPAGE_URL = 'https://markpage.timikays.us.kg/';
+                const MW_URL_HASH_LIMIT = 30000;
+                const md = this.pendingMarkPageMd || this.replaceImageIdsWithDataUrls(this.getContent());
+
+                const payloadWithImages = this.buildPayload(md);
+                const encodedWithImages = encodeURIComponent(JSON.stringify(payloadWithImages));
+
+                if (encodedWithImages.length <= MW_URL_HASH_LIMIT) {
+                    window.open(`${MW_MARKPAGE_URL}?from=mindpage&_t=${Date.now()}#data=${encodedWithImages}`, '_blank');
+                    this.closeMarkPageModal();
+                    this.showSaveNotification('已打开 MarkPage');
+                    return;
+                }
+
+                const rawMd = this.getContent();
+                const payloadRaw = this.buildPayload(rawMd);
+                const encodedRaw = encodeURIComponent(JSON.stringify(payloadRaw));
+
+                if (encodedRaw.length <= MW_URL_HASH_LIMIT) {
+                    window.open(`${MW_MARKPAGE_URL}?from=mindpage&_t=${Date.now()}#data=${encodedRaw}`, '_blank');
+                    this.closeMarkPageModal();
+                    this.showSaveNotification('已打开 MarkPage，图片未传输');
+                    return;
+                }
+
+                this.closeMarkPageModal();
+                const copied = this.copyToClipboard(md);
+                window.open(`${MW_MARKPAGE_URL}?from=mindpage&paste=1&_t=${Date.now()}`, '_blank');
+                this.showSaveNotification(
+                    copied ? '内容已复制到剪贴板，请在 MarkPage 中粘贴' : '复制失败，请手动复制'
+                );
+            }
+
+            replaceImageIdsWithDataUrls(md) {
+                if (!this.images || this.images.size === 0) return md;
+                return md.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, name, id) => {
+                    if (/^(https?:\/\/|data:)/.test(id)) return match;
+                    const imageData = this.images.get(id);
+                    return imageData && imageData.data ? `![${name}](${imageData.data})` : match;
+                });
+            }
+
+            buildPayload(md) {
+                const payload = { markdown: md };
+                const titleMatch = md.match(/^#\s+(.+)$/m);
+                if (titleMatch) {
+                    payload.coverConfig = { enabled: true, title: titleMatch[1].trim() };
+                }
+                return payload;
+            }
+
+            copyToClipboard(text) {
+                try {
+                    const textarea = document.createElement('textarea');
+                    textarea.value = text;
+                    textarea.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none;';
+                    document.body.appendChild(textarea);
+                    textarea.focus();
+                    textarea.select();
+                    const ok = document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                    return ok;
+                } catch (e) {
+                    return false;
+                }
             }
 
             // ===================================

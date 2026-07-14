@@ -2100,7 +2100,7 @@
       altMatch = altRegex.exec(content);
       const altText = altMatch ? altMatch[1] : '图片';
 
-      // 生成图片ID（使用dataUrl的哈希值）
+      // 转为图片ID（使用dataUrl的哈希值）
       const imageId = 'img_' + Math.abs(dataUrl.split(',')[1].split('').reduce((a, b) => {
         a = ((a << 5) - a) + b.charCodeAt(0);
         return a & a;
