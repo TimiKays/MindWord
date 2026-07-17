@@ -5,7 +5,7 @@ Disallow: /.git
 Disallow: /ai/
 Disallow: /private/
 
-Sitemap: https://mindword.dpdns.org/sitemap.xml
+Sitemap: https://mindword.timikays.us.kg/sitemap.xml
 
 Allow: /res/
 Allow: /css/
