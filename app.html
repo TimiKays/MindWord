@@ -49,6 +49,14 @@
     <!-- 国际化支持 -->
     <script src="i18n/locales.js?v=2026.07.14.2155"></script>
     <script src="i18n/i18n-manager.js?v=2026.07.14.2155"></script>
+    <script src="https://api.timikays.us.kg/sdk/telemetry.js?v=20260717-telemetry1"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            if (window.TimiTelemetry) {
+                window.TimiTelemetry.init({ product: 'mindword', platform: 'web', appVersion: '2026.07' });
+            }
+        });
+    </script>
     <!-- Bootstrap CSS for notifications -->
     <!-- <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet"> -->
     <style>

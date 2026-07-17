@@ -193,6 +193,12 @@ async function syncAll(source = 'markdown', refreshViews = true, saveToCache = t
 
         console.log(`✅ 从${source}同步完成`);
 
+        // 只在用户输入触发的同步成功后记一次有效动作，避免启动初始化被误算。
+        if (window.__mwTelemetryPendingSync && window.TimiTelemetry) {
+            window.TimiTelemetry.featureSuccess('sync_all', { source });
+            window.__mwTelemetryPendingSync = false;
+        }
+
     } catch (error) {
         console.error(`从${source}同步失败:`, error);
     }
@@ -202,6 +208,7 @@ async function syncAll(source = 'markdown', refreshViews = true, saveToCache = t
 let syncTimer = null;
 function debounceSync(source) {
     clearTimeout(syncTimer);
+    window.__mwTelemetryPendingSync = true;
     syncTimer = setTimeout(() => {
         syncAll(source);
     }, 500);
