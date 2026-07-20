@@ -916,6 +916,7 @@
             return null;
         }
         isSyncing = true;
+        const syncStatusEl = document.getElementById('lc-sync-status-menu');
 
         try {
             console.log(MODULE_NAME, '开始双向同步...');
@@ -951,7 +952,6 @@
                 throw new Error('用户未登录，无法同步');
             }
 
-            const syncStatusEl = document.getElementById('lc-sync-status-menu');
             if (syncStatusEl) {
                 syncStatusEl.textContent = '同步中...';
             }
