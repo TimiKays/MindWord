@@ -130,10 +130,13 @@ test('云端工作区缺失时返回空快照，格式异常时阻止同步', as
 test('默认模式不加载统一账户 SDK，只有当前标签页显式开启才加载', async () => {
   const source = await readFile(new URL('../account-mode.js', import.meta.url), 'utf8');
 
-  async function run(search) {
+  async function run(search, options = {}) {
     const storage = new Map();
     const loaded = [];
+    const styles = [];
+    let authInitConfig = null;
     let cloudInitConfig = null;
+    let topbarInitConfig = null;
     const window = {
       location: { search, href: 'https://mindword.example/app.html' },
       sessionStorage: {
@@ -143,32 +146,92 @@ test('默认模式不加载统一账户 SDK，只有当前标签页显式开启�
       }
     };
     const document = {
+      readyState: 'complete',
       querySelector: () => null,
-      createElement: () => ({ dataset: {} }),
+      createElement: tagName => ({
+        tagName: tagName.toUpperCase(),
+        dataset: {},
+        addEventListener(eventName, handler) {
+          this[`on${eventName}`] = handler;
+        }
+      }),
       head: {
-        appendChild(script) {
-          loaded.push(script.src);
-          if (script.src.includes('auth-sdk')) {
-            window.TimiAuth = { init() {} };
-          } else {
-            window.TimiCloud = { init(config) { cloudInitConfig = config; } };
+        appendChild(asset) {
+          if (asset.rel === 'stylesheet') {
+            styles.push(asset.href);
+            queueMicrotask(() => asset.onload());
+            return;
           }
-          queueMicrotask(() => script.onload());
+          loaded.push(asset.src);
+          if (asset.src.includes('auth-sdk')) {
+            window.TimiAuth = { init(config) { authInitConfig = config; } };
+          } else if (asset.src.includes('cloud-sync')) {
+            window.TimiCloud = { init(config) { cloudInitConfig = config; } };
+          } else if (asset.src.includes('topbar.js')) {
+            if (options.failTopbar) {
+              queueMicrotask(() => asset.onerror());
+              return;
+            }
+            window.TimiTopBar = { init(config) { topbarInitConfig = config; } };
+          }
+          queueMicrotask(() => asset.onload());
         }
       }
     };
     vm.runInNewContext(source, { console, document, URLSearchParams, window }, { filename: 'account-mode.js' });
-    await window.MW_ACCOUNT_MODE.ready;
-    return { mode: window.MW_ACCOUNT_MODE.mode, loaded, cloudInitConfig };
+    const readyResult = await window.MW_ACCOUNT_MODE.ready;
+    const accountMenuResult = await window.MW_ACCOUNT_MODE.accountMenuReady;
+    return {
+      mode: window.MW_ACCOUNT_MODE.mode,
+      readyResult,
+      accountMenuResult,
+      loaded,
+      styles,
+      authInitConfig,
+      cloudInitConfig,
+      topbarInitConfig
+    };
   }
 
   const legacy = await run('');
   assert.equal(legacy.mode, 'legacy');
   assert.equal(legacy.loaded.length, 0);
+  assert.equal(legacy.styles.length, 0);
 
   const unified = await run('?account_mode=unified');
   assert.equal(unified.mode, 'unified');
-  assert.equal(unified.loaded.length, 2);
+  assert.equal(unified.loaded.length, 3);
+  assert.equal(unified.styles.length, 1);
+  assert.equal(unified.authInitConfig.product, 'mindword');
   assert.equal(unified.cloudInitConfig.product, 'mindword');
   assert.equal(unified.cloudInitConfig.timeoutMs, 30000);
+  assert.deepEqual(plain(unified.topbarInitConfig), {
+    currentProduct: 'mindword',
+    showProductSwitcher: false,
+    userNameSelector: '#auth-username',
+    userMenuDropdownSelector: '.user-menu-items',
+    membershipScope: 'product',
+    menu: {
+      showAccount: true,
+      showMembership: true,
+      showInvite: false
+    }
+  });
+
+  const degraded = await run('?account_mode=unified', { failTopbar: true });
+  assert.equal(degraded.readyResult, true);
+  assert.equal(degraded.accountMenuResult, false);
+  assert.equal(degraded.cloudInitConfig.product, 'mindword');
+  assert.equal(degraded.topbarInitConfig, null);
+});
+
+test('统一账户菜单保留 MindWord 自己的同步、清云和退出流程', async () => {
+  const [appSource, authSource] = await Promise.all([
+    readFile(new URL('../app.html', import.meta.url), 'utf8'),
+    readFile(new URL('../user-supabase.js', import.meta.url), 'utf8')
+  ]);
+  assert.match(appSource, /id="lc-sync-controls-menu"/);
+  assert.match(appSource, /id="lc-clear-btn-menu"/);
+  assert.match(appSource, /id="auth-logout-menu"/);
+  assert.match(authSource, /data-timikays-badge-owned="true"/);
 });

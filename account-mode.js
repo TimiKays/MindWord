@@ -14,7 +14,9 @@
     const CLOUD_TIMEOUT_MS = 30000;
     const SDK_URLS = {
         auth: 'https://api.timikays.us.kg/sdk/auth-sdk.js?v=1.2.2',
-        cloud: 'https://api.timikays.us.kg/sdk/cloud-sync-v2.js?v=1.2.0'
+        cloud: 'https://api.timikays.us.kg/sdk/cloud-sync-v2.js?v=1.2.0',
+        topbar: 'https://api.timikays.us.kg/sdk/topbar.js?v=2.0.2',
+        topbarStyles: 'https://api.timikays.us.kg/sdk/topbar.css?v=2.0.2'
     };
 
     let requestedMode = '';
@@ -58,6 +60,54 @@
         });
     }
 
+    function loadStylesheet(href, marker) {
+        const selector = `link[data-mw-sdk="${marker}"]`;
+        const existing = document.querySelector(selector);
+        if (existing && existing.sheet) return Promise.resolve(existing);
+        return new Promise(function (resolve, reject) {
+            const link = existing || document.createElement('link');
+            link.addEventListener('load', function () { resolve(link); }, { once: true });
+            link.addEventListener('error', function () { reject(new Error(`${marker} 加载失败`)); }, { once: true });
+            if (!existing) {
+                link.rel = 'stylesheet';
+                link.href = href;
+                link.dataset.mwSdk = marker;
+                document.head.appendChild(link);
+            }
+        });
+    }
+
+    function waitForDom() {
+        if (document.readyState !== 'loading') return Promise.resolve();
+        return new Promise(function (resolve) {
+            document.addEventListener('DOMContentLoaded', resolve, { once: true });
+        });
+    }
+
+    function initializeAccountMenu() {
+        return Promise.all([
+            loadScript(SDK_URLS.topbar, 'TimiTopBar'),
+            loadStylesheet(SDK_URLS.topbarStyles, 'TimiTopBarStyles'),
+            waitForDom()
+        ]).then(function () {
+            return window.TimiTopBar.init({
+                currentProduct: 'mindword',
+                showProductSwitcher: false,
+                userNameSelector: '#auth-username',
+                userMenuDropdownSelector: '.user-menu-items',
+                membershipScope: 'product',
+                menu: {
+                    showAccount: true,
+                    showMembership: true,
+                    showInvite: false
+                }
+            });
+        }).catch(function (error) {
+            console.warn('[MindWord-AccountMode] 账户菜单加载失败，云同步仍可使用。', error);
+            return false;
+        });
+    }
+
     const ready = unified
         ? Promise.all([
             loadScript(SDK_URLS.auth, 'TimiAuth'),
@@ -72,6 +122,13 @@
         })
         : Promise.resolve(false);
 
+    const accountMenuReady = unified
+        ? ready.then(
+            function () { return initializeAccountMenu(); },
+            function () { return false; }
+        )
+        : Promise.resolve(false);
+
     function buildLoginUrl(redirectUrl) {
         return 'https://timikays.us.kg/auth.html?redirect=' + encodeURIComponent(
             redirectUrl || window.location.href
@@ -82,6 +139,7 @@
         mode: unified ? UNIFIED_VALUE : LEGACY_VALUE,
         isUnified: function () { return unified; },
         ready: ready,
+        accountMenuReady: accountMenuReady,
         buildLoginUrl: buildLoginUrl
     });
 
