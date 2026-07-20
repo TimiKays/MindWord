@@ -11,6 +11,7 @@
     const QUERY_KEY = 'account_mode';
     const UNIFIED_VALUE = 'unified';
     const LEGACY_VALUE = 'legacy';
+    const CLOUD_TIMEOUT_MS = 30000;
     const SDK_URLS = {
         auth: 'https://api.timikays.us.kg/sdk/auth-sdk.js?v=1.2.2',
         cloud: 'https://api.timikays.us.kg/sdk/cloud-sync-v2.js?v=1.2.0'
@@ -63,7 +64,7 @@
             loadScript(SDK_URLS.cloud, 'TimiCloud')
         ]).then(function () {
             window.TimiAuth.init({ product: 'mindword' });
-            window.TimiCloud.init({ product: 'mindword' });
+            window.TimiCloud.init({ product: 'mindword', timeoutMs: CLOUD_TIMEOUT_MS });
             return true;
         }).catch(function (error) {
             console.error('[MindWord-AccountMode] 统一账户组件加载失败，本地编辑仍可使用。', error);
