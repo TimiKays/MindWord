@@ -11,7 +11,8 @@
 (function initSupabaseAuthArea() {
   'use strict';
 
-  const MODULE_NAME = '[Supabase-Auth]';
+  const UNIFIED_MODE = !!(window.MW_ACCOUNT_MODE && window.MW_ACCOUNT_MODE.isUnified());
+  const MODULE_NAME = UNIFIED_MODE ? '[TimiAuth-Internal]' : '[Supabase-Auth]';
 
   // 初始化 Supabase
   let supabase = null;
@@ -32,6 +33,10 @@
    * 获取当前用户
    */
   async function getCurrentUser() {
+    if (UNIFIED_MODE) {
+      if (!window.MW_TIMI_CLOUD) return null;
+      return window.MW_TIMI_CLOUD.getCurrentUser();
+    }
     const client = initSupabase();
     if (!client) return null;
 
@@ -58,31 +63,22 @@
     return 'sb-ohvsfqdbcelmokkslqlw-auth-token';
   }
 
-  function refreshAuthUI() {
-    var sessionKey = getSupabaseSessionKey();
-    var supabaseSession = localStorage.getItem(sessionKey);
-    const isLoggedIn = !!supabaseSession;
-
+  function renderAuthUI(user, isLoggedIn) {
     var link = document.getElementById('auth-link');
     var userBox = document.getElementById('auth-user');
     var nameSpan = document.getElementById('auth-username');
 
+    if (UNIFIED_MODE && link && window.MW_ACCOUNT_MODE) {
+      link.href = window.MW_ACCOUNT_MODE.buildLoginUrl(window.location.href);
+    }
+
     if (isLoggedIn && userBox && nameSpan) {
-      // 尝试从session中解析用户名
-      try {
-        const session = JSON.parse(supabaseSession);
-        const user = session.user;
-        if (user) {
-          var username = user.email || user.user_metadata?.username || '已登录';
-          nameSpan.textContent = username;
-          // 同时更新菜单中的用户名
-          var menuUsername = document.getElementById('menu-username');
-          if (menuUsername) menuUsername.textContent = username;
-        }
-      } catch (e) {
-        nameSpan.textContent = '已登录';
-      }
-      // 登录后隐藏"注册/登录"按钮，显示用户区域
+      var username = user && (user.nickname || user.email) || '已登录';
+      nameSpan.textContent = username;
+      var menuUsername = document.getElementById('menu-username');
+      if (menuUsername) menuUsername.textContent = username;
+      var menuEmail = document.getElementById('menu-email');
+      if (menuEmail && user && user.email) menuEmail.textContent = user.email;
       if (link) link.style.display = 'none';
       userBox.style.display = 'inline-flex';
       console.log(MODULE_NAME, '用户已登录');
@@ -92,13 +88,42 @@
       console.log(MODULE_NAME, '用户未登录');
     }
 
-    // 刷新同步控制区域的显示（只控制可见性，不请求数据）
     if (typeof window.__mw_refreshSyncLangUI === 'function') {
       setTimeout(function () {
         window.__mw_refreshSyncLangUI();
         console.log(MODULE_NAME, '已刷新同步控制区域显示');
       }, 100);
     }
+  }
+
+  function refreshAuthUI() {
+    if (UNIFIED_MODE) {
+      var cachedUser = window.TimiAuth && typeof window.TimiAuth.getCurrentUser === 'function'
+        ? window.TimiAuth.getCurrentUser()
+        : null;
+      renderAuthUI(cachedUser, !!cachedUser);
+      Promise.resolve(window.MW_ACCOUNT_MODE.ready)
+        .then(function () { return getCurrentUser(); })
+        .then(function (user) { renderAuthUI(user, !!user); })
+        .catch(function (error) {
+          console.warn(MODULE_NAME, '账户状态暂时无法确认，本地编辑仍可使用:', error.message);
+          renderAuthUI(cachedUser, !!cachedUser);
+        });
+      return;
+    }
+
+    var sessionKey = getSupabaseSessionKey();
+    var supabaseSession = localStorage.getItem(sessionKey);
+    const isLoggedIn = !!supabaseSession;
+    var user = null;
+
+    if (isLoggedIn) {
+      try {
+        const session = JSON.parse(supabaseSession);
+        user = session.user || null;
+      } catch (_) { }
+    }
+    renderAuthUI(user, isLoggedIn);
   }
 
   // 首次渲染（不请求API）
@@ -173,8 +198,12 @@
               // 显示处理中提示
               try { showInfo && showInfo('正在处理，请稍候...'); } catch (_) { }
 
-              const client = initSupabase();
-              if (client) {
+              const client = UNIFIED_MODE ? null : initSupabase();
+              if (UNIFIED_MODE) {
+                await window.MW_ACCOUNT_MODE.ready;
+                await window.TimiAuth.logout();
+                console.log(MODULE_NAME, '统一账户退出登录成功');
+              } else if (client) {
                 // 尝试调用Supabase退出，但不阻塞本地清理
                 try {
                   const { error } = await client.auth.signOut();
@@ -293,15 +322,20 @@
       // 检查Supabase认证状态是否准备好
       async function checkAndSync() {
         try {
-          const client = initSupabase();
-          if (!client) {
-            console.log(MODULE_NAME, 'Supabase未初始化，等待...');
-            return false;
+          let user;
+          if (UNIFIED_MODE) {
+            user = await getCurrentUser();
+          } else {
+            const client = initSupabase();
+            if (!client) {
+              console.log(MODULE_NAME, 'Supabase未初始化，等待...');
+              return false;
+            }
+            const result = await client.auth.getUser();
+            user = result.data && result.data.user;
           }
-
-          const { data: { user } } = await client.auth.getUser();
           if (!user || !user.id) {
-            console.log(MODULE_NAME, 'Supabase用户未登录，等待...');
+            console.log(MODULE_NAME, '用户未登录，等待...');
             return false;
           }
 
@@ -311,8 +345,7 @@
             return false;
           }
 
-          console.log(MODULE_NAME, '所有条件已满足，执行Supabase自动同步');
-          console.log(MODULE_NAME, '当前用户ID:', user.id);
+          console.log(MODULE_NAME, '所有条件已满足，执行登录后自动同步');
           try {
             await window.MW_SPB_SYNC.sync();
             return true;
@@ -501,6 +534,16 @@
       return !!user;
     }
   };
+
+  if (UNIFIED_MODE) {
+    Promise.resolve(window.MW_ACCOUNT_MODE.ready).then(function () {
+      window.TimiAuth.onAuthChange(function () {
+        refreshAuthUI();
+      });
+    }).catch(function () {
+      // SDK 加载失败时保留登录入口和本地编辑能力。
+    });
+  }
 
   console.log(MODULE_NAME, '模块已加载');
 })();

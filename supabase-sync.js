@@ -15,7 +15,8 @@
 (function () {
     'use strict';
 
-    const MODULE_NAME = '[Supabase-Sync]';
+    const UNIFIED_MODE = !!(window.MW_ACCOUNT_MODE && window.MW_ACCOUNT_MODE.isUnified());
+    const MODULE_NAME = UNIFIED_MODE ? '[TimiCloud-Internal]' : '[Supabase-Sync]';
 
     const TABLE_USER_DATA = 'user_data';
 
@@ -55,6 +56,23 @@
     }
 
     async function getCurrentUser(timeout = 10000) {
+        if (UNIFIED_MODE) {
+            const now = Date.now();
+            if (cachedUser && (now - lastUserCheck) < USER_CACHE_TTL) return cachedUser;
+            if (!window.MW_TIMI_CLOUD) return null;
+            try {
+                const userPromise = window.MW_TIMI_CLOUD.getCurrentUser();
+                const timeoutPromise = new Promise((_, reject) => {
+                    setTimeout(() => reject(new Error('获取用户信息超时')), timeout);
+                });
+                cachedUser = await Promise.race([userPromise, timeoutPromise]);
+                lastUserCheck = now;
+                return cachedUser;
+            } catch (error) {
+                if (cachedUser) return cachedUser;
+                throw error;
+            }
+        }
         const client = initSupabase();
         if (!client) return null;
 
@@ -157,6 +175,7 @@
     }
 
     async function downloadFromSupabase() {
+        if (UNIFIED_MODE) return window.MW_TIMI_CLOUD.downloadWorkspace();
         const userData = await fetchOrCreateUserData();
 
         return {
@@ -178,6 +197,7 @@
 
     // 使用已获取的用户信息下载云端数据（避免重复获取用户）
     async function downloadFromSupabaseWithUser(user) {
+        if (UNIFIED_MODE) return window.MW_TIMI_CLOUD.downloadWorkspace();
         const userData = await fetchOrCreateUserDataWithUser(user);
 
         return {
@@ -241,6 +261,11 @@
     const MAX_TOTAL_SIZE = 10 * 1024 * 1024; // 10MB
 
     async function uploadToSupabase(target, user) {
+        if (UNIFIED_MODE) {
+            if (!user) user = await getCurrentUser();
+            if (!user) throw new Error('用户未登录');
+            return window.MW_TIMI_CLOUD.uploadWorkspace(target);
+        }
         const client = initSupabase();
         if (!client) throw new Error('Supabase 未初始化');
 
@@ -849,7 +874,9 @@
             target.aiConfigHash = localData.aiConfigHash;
             target.aiConfigLastModified = localData.aiConfigLastModified;
         } else {
-            target.aiConfig = cloudData.aiConfig || {};
+            target.aiConfig = UNIFIED_MODE && window.MW_TIMI_CLOUD
+                ? window.MW_TIMI_CLOUD.restoreLocalSecrets(localData.aiConfig || {}, cloudData.aiConfig || {})
+                : (cloudData.aiConfig || {});
             target.aiConfigHash = cloudData.aiConfigHash;
             target.aiConfigLastModified = cloudData.configUpdatedAt;
         }
@@ -897,7 +924,7 @@
             const currentUser = await getCurrentUser(15000);
             if (!currentUser) {
                 // 检查是否可能是网络问题
-                const client = initSupabase();
+                const client = UNIFIED_MODE ? null : initSupabase();
                 if (client) {
                     // 尝试快速检测网络
                     try {
@@ -1269,30 +1296,29 @@
                     localStorage.setItem('myPromptTemplates', JSON.stringify(data.myPromptTemplates));
                 }
 
-                // 保存时间戳 - 使用与LeanCloud一致的键名
-                if (data.docUpdatedAt) {
-                    localStorage.setItem('mw_doc_updated_at', String(data.docUpdatedAt));
-                }
-                if (data.aiConfigLastModified) {
-                    localStorage.setItem('allAIPlatformConfigs_last_modified', String(data.aiConfigLastModified));
-                }
-                if (data.promptTemplatesLastModified) {
-                    localStorage.setItem('promptTemplates_last_modified', String(data.promptTemplatesLastModified));
-                }
-                if (data.myPromptTemplatesLastModified) {
-                    localStorage.setItem('myPromptTemplates_last_modified', String(data.myPromptTemplatesLastModified));
-                }
+                // 零时间戳和空哈希也是同步预览的明确结果，不能遗留上一轮状态。
+                const timestampMappings = [
+                    ['docUpdatedAt', 'mw_doc_updated_at'],
+                    ['aiConfigLastModified', 'allAIPlatformConfigs_last_modified'],
+                    ['promptTemplatesLastModified', 'promptTemplates_last_modified'],
+                    ['myPromptTemplatesLastModified', 'myPromptTemplates_last_modified']
+                ];
+                timestampMappings.forEach(function ([field, storageKey]) {
+                    if (Object.prototype.hasOwnProperty.call(data, field)) {
+                        localStorage.setItem(storageKey, String(Number(data[field] || 0)));
+                    }
+                });
 
-                // 保存哈希值 - 使用与LeanCloud一致的键名
-                if (data.aiConfigHash) {
-                    localStorage.setItem('allAIPlatformConfigs_hash', data.aiConfigHash);
-                }
-                if (data.promptTemplatesHash) {
-                    localStorage.setItem('promptTemplates_hash', data.promptTemplatesHash);
-                }
-                if (data.myPromptTemplatesHash) {
-                    localStorage.setItem('myPromptTemplates_hash', data.myPromptTemplatesHash);
-                }
+                const hashMappings = [
+                    ['aiConfigHash', 'allAIPlatformConfigs_hash'],
+                    ['promptTemplatesHash', 'promptTemplates_hash'],
+                    ['myPromptTemplatesHash', 'myPromptTemplates_hash']
+                ];
+                hashMappings.forEach(function ([field, storageKey]) {
+                    if (!Object.prototype.hasOwnProperty.call(data, field)) return;
+                    if (data[field]) localStorage.setItem(storageKey, data[field]);
+                    else localStorage.removeItem(storageKey);
+                });
 
                 console.log(MODULE_NAME, '本地数据已更新');
                 resolve();
@@ -1304,6 +1330,13 @@
     }
 
     async function clearCloudData() {
+        if (UNIFIED_MODE) {
+            await window.MW_TIMI_CLOUD.clearWorkspace();
+            cachedLastSyncTime = 0;
+            lastSyncTimeCheck = 0;
+            if (window.showSuccess) window.showSuccess('云端数据已清空');
+            return;
+        }
         const client = initSupabase();
         if (!client) throw new Error('Supabase 未初始化');
 
@@ -1518,9 +1551,14 @@
             // 缓存5分钟内有效，避免频繁请求
             if (!lastSyncTime || (now - lastSyncTimeCheck) > 300000) {
                 try {
-                    const client = initSupabase();
                     const user = await getCurrentUser();
-                    if (client && user) {
+                    if (UNIFIED_MODE && user) {
+                        lastSyncTime = await window.MW_TIMI_CLOUD.getLastCloudUpdatedAt();
+                        cachedLastSyncTime = lastSyncTime;
+                        lastSyncTimeCheck = now;
+                    } else {
+                        const client = initSupabase();
+                        if (!client || !user) throw new Error('用户未登录');
                         const { data, error } = await client
                             .from(TABLE_USER_DATA)
                             .select('updated_at_ms')
@@ -1585,7 +1623,7 @@
                 syncStatusEl.style.color = '#9ca3af';
             }
 
-            console.log(MODULE_NAME, '状态已更新:', { fileCount, formattedSize, timeText });
+            console.log(MODULE_NAME, '状态已更新:', { fileCount, sizeText, timeText });
         } catch (error) {
             console.error(MODULE_NAME, '更新状态失败:', error);
             syncStatusEl.textContent = '点击同步';
@@ -1751,6 +1789,18 @@
             }
         });
 
+        if (UNIFIED_MODE) {
+            Promise.resolve(window.MW_ACCOUNT_MODE.ready).then(function () {
+                window.TimiAuth.onAuthChange(function (user) {
+                    cachedUser = user || null;
+                    lastUserCheck = Date.now();
+                    setTimeout(refreshVisible, 50);
+                });
+            }).catch(function () {
+                setTimeout(refreshVisible, 50);
+            });
+        }
+
         // 提供给外部在认证区变化后刷新
         window.__mw_refreshSyncLangUI = refreshVisible;
 
@@ -1800,6 +1850,7 @@
         clearCloud: clearCloudData,
 
         isAvailable: function () {
+            if (UNIFIED_MODE) return !!window.MW_TIMI_CLOUD;
             return typeof window.getSupabase === 'function' && !!window.getSupabase();
         },
 
