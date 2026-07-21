@@ -172,10 +172,10 @@
             <div id="logout-dialog" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; display: flex; align-items: center; justify-content: center;">
               <div style="background: white; padding: 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); max-width: 400px; text-align: center;">
                 <h3 style="margin: 0 0 16px 0; color: #333;">确认退出登录</h3>
-                <p style="margin: 0 0 24px 0; color: #666;">请选择对本地数据的处理方式：</p>
+                <p style="margin: 0 0 24px 0; color: #666;">请选择是否保留这台设备上的文档和设置：</p>
                 <div style="display: flex; gap: 12px; justify-content: center;">
-                  <button id="logout-save" style="padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">保存</button>
-                  <button id="logout-nosave" style="padding: 8px 16px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer;">不保存</button>
+                  <button id="logout-save" style="padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">保留本地数据</button>
+                  <button id="logout-nosave" style="padding: 8px 16px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer;">清理本地数据</button>
                   <button id="logout-cancel" style="padding: 8px 16px; background: #9e9e9e; color: white; border: none; border-radius: 4px; cursor: pointer;">取消</button>
                 </div>
               </div>
@@ -228,16 +228,18 @@
                 // 不保存模式：清除所有数据（包括用户数据和文档数据）
                 console.log(MODULE_NAME, '开始清除本地数据...');
 
-                // 先立即清除 localStorage（同步操作，很快）
-                var keysToRemove = [];
-                for (var i = 0; i < localStorage.length; i++) {
-                  var key = localStorage.key(i);
-                  if (key) keysToRemove.push(key);
+                // 留下一个短暂标记，阻止正在卸载的 iframe 把旧文档写回本地。
+                var clearedCount = 0;
+                if (window.MW_LOCAL_DATA_RESET && typeof window.MW_LOCAL_DATA_RESET.begin === 'function') {
+                  clearedCount = window.MW_LOCAL_DATA_RESET.begin();
+                } else {
+                  var resetMarker = JSON.stringify({ startedAt: Date.now(), expiresAt: Date.now() + 10000 });
+                  localStorage.setItem('mw_local_reset_pending', resetMarker);
+                  clearedCount = Math.max(0, localStorage.length - 1);
+                  localStorage.clear();
+                  localStorage.setItem('mw_local_reset_pending', resetMarker);
                 }
-                keysToRemove.forEach(function (key) {
-                  localStorage.removeItem(key);
-                });
-                console.log(MODULE_NAME, '已清除 localStorage 数据，共', keysToRemove.length, '项');
+                console.log(MODULE_NAME, '已清除 localStorage 数据，共', clearedCount, '项');
 
                 // IndexedDB 清理改为异步不阻塞，设置超时
                 var indexedDBPromise = Promise.resolve();

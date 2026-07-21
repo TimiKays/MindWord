@@ -24,11 +24,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Markdown 编辑器</title>
-    <link rel="stylesheet" href="../styles.css?v=2026.07.21.1215">
+    <link rel="stylesheet" href="../styles.css?v=2026.07.21.1451">
     <!-- Bootstrap CSS for notifications -->
     <link href="/local-deps/bootstrap.min.css" rel="stylesheet">
     <!-- HTML转Markdown工具库 -->
-    <script src="../utils/html-to-markdown.js?v=2026.07.21.1215"></script>
+    <script src="../utils/html-to-markdown.js?v=2026.07.21.1451"></script>
     <style>
         * {
             margin: 0;
@@ -698,6 +698,21 @@
     <script src="/local-deps/jszip.min.js"></script>
     <script>
         var MW_ORIGIN = window.location.origin;
+
+        function mwIsLocalResetPending() {
+            try {
+                var raw = localStorage.getItem('mw_local_reset_pending');
+                if (!raw) return false;
+                var marker = JSON.parse(raw);
+                if (marker && Number(marker.expiresAt || 0) <= Date.now()) {
+                    localStorage.removeItem('mw_local_reset_pending');
+                    return false;
+                }
+                return true;
+            } catch (_) {
+                return true;
+            }
+        }
         // ===================================
         // 🎯 核心功能类
         // ===================================
@@ -935,6 +950,7 @@
             // }
 
             onContentChange() {
+                if (mwIsLocalResetPending()) return;
                 this.lastSaveTime = Date.now();
                 this.saveMarkdownSnapshot('input');
 
@@ -954,6 +970,7 @@
             }
 
             saveMarkdownSnapshot(reason = '') {
+                if (mwIsLocalResetPending()) return;
                 const content = this.getContent();
                 try {
                     const until = Date.now() + 800;
@@ -1097,6 +1114,10 @@
 
 
             async saveToStorage(manual = false) {
+                if (mwIsLocalResetPending()) {
+                    console.log('[editor] local reset in progress, skip save');
+                    return;
+                }
                 console.log(`[editor] saveToStorage called, manual=${manual}, activeDocId=${window.__mw_activeDocId}`);
 
                 // 通知父页面显示保存中状态
@@ -1191,11 +1212,12 @@
             }
 
             async loadFromStorage() {
-                const savedContent = localStorage.getItem('mindword_markdown_data');
+                const resettingLocalData = mwIsLocalResetPending();
+                const savedContent = resettingLocalData ? null : localStorage.getItem('mindword_markdown_data');
 
                 // 从 IndexedDB 加载当前文档的图片
-                const activeDocId = window.__mw_activeDocId || null;
-                this.images = await window.imageStorage.getImagesMap(activeDocId);
+                const activeDocId = resettingLocalData ? null : (window.__mw_activeDocId || null);
+                this.images = resettingLocalData ? new Map() : await window.imageStorage.getImagesMap(activeDocId);
                 console.log(`[editor] Loaded ${this.images.size} images from IndexedDB for document ${activeDocId}`);
 
                 if (savedContent) {
@@ -1209,11 +1231,15 @@
                             this.setContent(placeholderText);
                             try {
                                 // 保存到 localStorage，避免刷新丢失示例内容
-                                try { localStorage.setItem('mindword_markdown_data', placeholderText); } catch (e) { /* ignore */ }
-                                // 触发全局同步，更新预览与思维导图（若 syncAll 可用）
-                                try { if (typeof window.syncAll === 'function') window.syncAll('markdown', true, true); } catch (e) { console.warn('调用 syncAll 更新视图失败', e); }
-                                // 触发事件通知其他模块（如 localStorage 监听器）
-                                try { window.dispatchEvent(new Event('mindwordDataUpdated')); } catch (e) { /* ignore */ }
+                                if (!resettingLocalData) {
+                                    try { localStorage.setItem('mindword_markdown_data', placeholderText); } catch (e) { /* ignore */ }
+                                }
+                                if (!resettingLocalData) {
+                                    // 触发全局同步，更新预览与思维导图（若 syncAll 可用）
+                                    try { if (typeof window.syncAll === 'function') window.syncAll('markdown', true, true); } catch (e) { console.warn('调用 syncAll 更新视图失败', e); }
+                                    // 触发事件通知其他模块（如 localStorage 监听器）
+                                    try { window.dispatchEvent(new Event('mindwordDataUpdated')); } catch (e) { /* ignore */ }
+                                }
                             } catch (e) {
                                 console.warn('placeholder -> initial sync failed', e);
                             }
@@ -2026,6 +2052,7 @@
 
         // 页面卸载前保存
         window.addEventListener('beforeunload', () => {
+            if (mwIsLocalResetPending()) return;
             if (window.markdownEditor && window.markdownEditor.hasUnsavedChanges()) {
                 window.markdownEditor.saveToStorage(false);
             }
@@ -2037,6 +2064,7 @@
         (function () {
             var MW_ORIGIN = window.location.origin;
             function setMarkdownToEditor(md) {
+                if (mwIsLocalResetPending()) return false;
                 try {
                     if (window.markdownEditor && typeof window.markdownEditor.setContent === 'function') {
                         window.markdownEditor.setContent(String(md || ''));
@@ -2053,6 +2081,7 @@
                 return false;
             }
             function saveOrSync(reason) {
+                if (mwIsLocalResetPending()) return;
 
                 window.markdownEditor.saveToStorage(false);
 
@@ -2119,18 +2148,18 @@
         // 广播就绪事件，供 sync.js / load.js 等等待
         window.dispatchEvent(new Event('converterReady'));
     </script>
-    <script type="module" src="../converter/sync.js?v=2026.07.21.1215"></script>
-    <script type="module" src="../converter/load.js?v=2026.07.21.1215"></script>
+    <script type="module" src="../converter/sync.js?v=2026.07.21.1451"></script>
+    <script type="module" src="../converter/load.js?v=2026.07.21.1451"></script>
 
     <!-- Bootstrap JS for notifications -->
     <script src="/local-deps/jquery.min.js"></script>
     <script src="/local-deps/bootstrap.bundle.min.js"></script>
     <!-- 通知桥接器 -->
-    <script src="../notification-bridge.js?v=2026.07.21.1215"></script>
+    <script src="../notification-bridge.js?v=2026.07.21.1451"></script>
     <!-- 图片存储管理 -->
-    <script src="../utils/image-storage.js?v=2026.07.21.1215"></script>
+    <script src="../utils/image-storage.js?v=2026.07.21.1451"></script>
     <!-- 备注图片工具 -->
-    <script src="../utils/note-image-utils.js?v=2026.07.21.1215"></script>
+    <script src="../utils/note-image-utils.js?v=2026.07.21.1451"></script>
     <script>
         (function () {
             var MW_ORIGIN = window.location.origin;
@@ -2147,6 +2176,7 @@
             console.log(`[editor] Initialized activeDocId: ${window.__mw_activeDocId}`);
 
             async function applyEditorContent(payload) {
+                if (mwIsLocalResetPending()) return;
                 try {
                     const md = (payload && payload.md) ? String(payload.md) : '';
                     const images = payload && payload.images ? payload.images : null;
@@ -2238,6 +2268,7 @@
                 if (!msg || typeof msg !== 'object') return;
 
                 if (msg.type === 'mw_load_document' && msg.payload) {
+                    if (mwIsLocalResetPending()) return;
                     const { id, name, md, images, rev } = msg.payload;
                     window.__mw_activeDocId = id || null;
                     // 存储当前文档ID到localStorage，供其他页面使用

@@ -15,8 +15,8 @@
     const SDK_URLS = {
         auth: 'https://api.timikays.us.kg/sdk/auth-sdk.js?v=1.2.2',
         cloud: 'https://api.timikays.us.kg/sdk/cloud-sync-v2.js?v=1.2.0',
-        topbar: 'https://api.timikays.us.kg/sdk/topbar.js?v=2.0.2',
-        topbarStyles: 'https://api.timikays.us.kg/sdk/topbar.css?v=2.0.2'
+        topbar: 'https://api.timikays.us.kg/sdk/topbar.js?v=2.0.3',
+        topbarStyles: 'https://api.timikays.us.kg/sdk/topbar.css?v=2.0.3'
     };
 
     let requestedMode = '';

@@ -1483,17 +1483,27 @@ function resolveDocIdConflict(existingDoc, importDoc, resolution) {
 async function mw_clearAllData() {
   if (confirm('⚠️ 警告：此操作将永久删除所有本地数据！\n\n确认要清空以下数据吗？\n• 所有文档数据\n• AI平台配置\n• 提示词模板\n• 编辑器设置\n• 所有图片数据\n\n此操作不可恢复，建议先导出备份。')) {
     try {
-      // 清空所有localStorage数据
-      localStorage.clear();
+      // 保留一次性重置标记，避免仍在卸载的编辑器写回旧文档。
+      if (window.MW_LOCAL_DATA_RESET && typeof window.MW_LOCAL_DATA_RESET.begin === 'function') {
+        window.MW_LOCAL_DATA_RESET.begin();
+      } else {
+        const resetMarker = JSON.stringify({ startedAt: Date.now(), expiresAt: Date.now() + 10000 });
+        localStorage.setItem('mw_local_reset_pending', resetMarker);
+        localStorage.clear();
+        localStorage.setItem('mw_local_reset_pending', resetMarker);
+      }
 
       // 清空IndexedDB中的所有图片
       if (window.imageStorage) {
         await window.imageStorage.clearAllImages();
       }
 
-      // 重新初始化必要的数据结构
-      localStorage.setItem('mindword_docs', '[]');
-      localStorage.setItem('mw_active_doc', '');
+      // 新旧文档索引和当前编辑器快照都必须一起清理。
+      localStorage.removeItem('mindword_docs');
+      localStorage.removeItem('mindword_markdown_data');
+      localStorage.removeItem('mindword_active_doc_id');
+      mw_saveDocs([]);
+      mw_setActive('');
 
       // 刷新界面
       mw_renderList();
@@ -1505,6 +1515,7 @@ async function mw_clearAllData() {
       try { showSuccess && showSuccess('所有本地数据已清空'); } catch (_) { }
 
       console.log('所有本地数据已清空');
+      setTimeout(() => location.reload(), 300);
     } catch (error) {
       console.error('清空数据失败:', error);
       try { showError && showError('清空数据失败: ' + error.message); } catch (_) { }
@@ -1632,6 +1643,9 @@ window.addEventListener('message', function (e) {
   const msg = e && e.data;
   if (!msg || typeof msg !== 'object') return;
   if (msg.type === 'markdown-content-change') {
+    if (window.MW_LOCAL_DATA_RESET && window.MW_LOCAL_DATA_RESET.isPending()) {
+      return;
+    }
     try {
       const md = typeof msg.content === 'string' ? msg.content : '';
       const activeId = mw_getActive();
@@ -1663,6 +1677,9 @@ window.addEventListener('message', function (e) {
   // 1. 编辑器内容变更同步 (修复图片丢失和导出无图片的核心)
   // 当 editor.html 执行 saveToStorage 时会发送此消息
   if (msg.type === 'mw_document_changed') {
+    if (window.MW_LOCAL_DATA_RESET && window.MW_LOCAL_DATA_RESET.isPending()) {
+      return;
+    }
     const payload = msg.payload || {};
     // 获取目标文档ID，优先使用payload里的ID，否则使用当前活动ID
     const targetId = payload.id || mw_getActive();
@@ -1903,6 +1920,11 @@ let lastActiveDocId = mw_getActive();
 
 // 检查markdown数据变化并更新文档标题
 function checkMarkdownDataChange() {
+  if (window.MW_LOCAL_DATA_RESET && window.MW_LOCAL_DATA_RESET.isPending()) {
+    lastMarkdownData = null;
+    lastActiveDocId = '';
+    return;
+  }
   const currentMarkdownData = localStorage.getItem('mindword_markdown_data');
   const currentActiveId = mw_getActive();
 

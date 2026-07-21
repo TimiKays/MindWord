@@ -55,6 +55,52 @@
         return true;
     }
 
+    function normalizeMarkdownForComparison(markdown) {
+        return String(markdown || '').replace(/\r\n?/g, '\n');
+    }
+
+    function normalizeImageDataForComparison(value) {
+        const data = String(value || '');
+        const separatorIndex = data.indexOf(',');
+        if (separatorIndex < 0) return data.replace(/\s/g, '');
+        const header = data.slice(0, separatorIndex).replace(/\s/g, '').toLowerCase();
+        const payload = data.slice(separatorIndex + 1).replace(/\s/g, '');
+        return `${header},${payload}`;
+    }
+
+    function normalizeImagesForComparison(images) {
+        return (Array.isArray(images) ? images : [])
+            .filter(image => image && image.id)
+            .map(image => ({
+                id: String(image.id),
+                data: normalizeImageDataForComparison(image.dataUrl || image.data || '')
+            }))
+            .sort((left, right) => {
+                const idOrder = left.id.localeCompare(right.id);
+                return idOrder || left.data.localeCompare(right.data);
+            });
+    }
+
+    function areDocumentContentsEqual(localDoc, cloudDoc) {
+        return normalizeMarkdownForComparison(localDoc && localDoc.md) === normalizeMarkdownForComparison(cloudDoc && cloudDoc.md) &&
+            JSON.stringify(normalizeImagesForComparison(localDoc && localDoc.images)) ===
+            JSON.stringify(normalizeImagesForComparison(cloudDoc && cloudDoc.images));
+    }
+
+    function stripEmbeddedImageData(docs) {
+        return (Array.isArray(docs) ? docs : []).map(doc => {
+            if (!doc || !Array.isArray(doc.images)) return doc;
+            return {
+                ...doc,
+                images: doc.images.map(image => {
+                    if (!image || typeof image !== 'object') return image;
+                    const { data, dataUrl, ...metadata } = image;
+                    return metadata;
+                })
+            };
+        });
+    }
+
     async function getCurrentUser(timeout = 10000) {
         if (UNIFIED_MODE) {
             const now = Date.now();
@@ -663,8 +709,7 @@
                 }
 
                 // 检查内容是否一致
-                const isContentSame = localDoc.md === cloudDoc.md &&
-                    JSON.stringify(localDoc.images || []) === JSON.stringify(cloudDoc.images || []);
+                const isContentSame = areDocumentContentsEqual(localDoc, cloudDoc);
 
                 let description = '';
                 if (localDeleted && !cloudDeleted) {
@@ -956,7 +1001,12 @@
                 syncStatusEl.textContent = '同步中...';
             }
 
-            const localData = await getLocalData();
+            const rawLocalData = await getLocalData();
+            // Keep the preview and the post-sync local copy in the same image format as the cloud.
+            const localData = {
+                ...rawLocalData,
+                docs: await embedImagesFromIndexedDB(rawLocalData.docs)
+            };
             console.log(MODULE_NAME, '本地数据:', localData);
 
             // 使用复用的用户信息下载云端数据
@@ -994,9 +1044,11 @@
             const targetData = buildTargetFromChoices(localData, cloudData, userChoices);
             console.log(MODULE_NAME, '目标数据:', targetData);
 
+            let uploadData;
+
             try {
                 const docsToUpload = await embedImagesFromIndexedDB(targetData.docs);
-                const uploadData = { ...targetData, docs: docsToUpload };
+                uploadData = { ...targetData, docs: docsToUpload };
                 await uploadToSupabase(uploadData, currentUser);
 
                 closeDialog();
@@ -1005,9 +1057,20 @@
                 throw error;
             }
 
-            await setLocalData(targetData);
+            // 云端需要内嵌图片，但浏览器本地文档库只保留图片元数据；
+            // 图片二进制数据由 IndexedDB 保存，避免同步后撑爆 localStorage。
+            let localDataToStore = uploadData;
+            if (window.imageStorage) {
+                const imageExtraction = await extractImagesToIndexedDB(uploadData.docs);
+                if (imageExtraction.errors === 0) {
+                    localDataToStore = {
+                        ...uploadData,
+                        docs: stripEmbeddedImageData(uploadData.docs)
+                    };
+                }
+            }
 
-            await extractImagesToIndexedDB(targetData.docs);
+            await setLocalData(localDataToStore);
 
             // 刷新文档列表
             if (typeof window.mw_renderList === 'function') {
@@ -1066,16 +1129,12 @@
             // 更新同步状态（显示完整的云端备份时间）
             await updateSyncStatus();
 
-            if (syncStatusEl) {
-                syncStatusEl.textContent = '同步成功';
-            }
-
             if (window.showSuccess) {
                 window.showSuccess('同步成功！');
             }
 
             console.log(MODULE_NAME, '同步完成');
-            return targetData;
+            return localDataToStore;
         } catch (error) {
             if (syncStatusEl) {
                 syncStatusEl.textContent = '同步失败';
@@ -1479,7 +1538,7 @@
             }
 
             // 只显示本地数据
-            let statusHtml = `文件: ${fileCount}个<br>${sizeText} / ${maxSizeInMB}MB`;
+            let statusHtml = `本地文档：${fileCount} 个<br>本地占用：${sizeText} / ${maxSizeInMB}MB<br>云端备份：尚未检查`;
 
             // 超过10MB时添加警告提示
             if (totalSize > MAX_SIZE) {
@@ -1584,9 +1643,7 @@
             }
 
             // 更新状态显示
-            // 格式：文件: X个
-            //      X.XKB / 10MB  或  X.XMB / 10MB
-            //      备份: X小时前
+            // 格式：本地文档、占用空间、云端备份时间。
             const MAX_SIZE = 10 * 1024 * 1024; // 10MB
             const maxSizeInMB = (MAX_SIZE / 1024 / 1024).toFixed(0);
 
@@ -1600,9 +1657,9 @@
                 sizeText = (totalSize / 1024).toFixed(1) + 'KB';
             }
 
-            let statusHtml = `文件: ${fileCount}个<br>${sizeText} / ${maxSizeInMB}MB`;
+            let statusHtml = `本地文档：${fileCount} 个<br>本地占用：${sizeText} / ${maxSizeInMB}MB`;
             if (timeText) {
-                statusHtml += `<br>备份: ${timeText}`;
+                statusHtml += `<br>云端备份：${timeText}`;
             }
 
             // 超过10MB时添加警告提示
@@ -1858,6 +1915,16 @@
 
         displayLocalStatus: displayLocalDataStatus
     };
+
+    if (window.__MW_TESTING__) {
+        window.MW_SPB_SYNC_TESTING = {
+            areDocumentContentsEqual,
+            generateSyncComparisons,
+            normalizeImagesForComparison,
+            normalizeMarkdownForComparison,
+            stripEmbeddedImageData
+        };
+    }
 
     console.log(MODULE_NAME, '模块已加载');
 })();

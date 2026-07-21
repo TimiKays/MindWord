@@ -165,7 +165,7 @@ function loadPanelContent(panelName) {
             window.__mw_pendingMindmapMarkdown = null;
           } else if (panelName === 'mindmap') {
             try {
-              const docs = JSON.parse(localStorage.getItem('mindword_docs') || '[]');
+              const docs = JSON.parse(localStorage.getItem('mw_documents') || '[]');
               const activeId = localStorage.getItem('mw_active_doc') || '';
               const activeDoc = docs.find(doc => doc && doc.id === activeId && !doc.deletedAt);
               if (activeDoc && typeof activeDoc.md === 'string') {
@@ -239,6 +239,7 @@ function retryLoad(panelName) {
 
 function MW_flushEditorMarkdownToStorage(reason = '') {
   try {
+    if (window.MW_LOCAL_DATA_RESET && window.MW_LOCAL_DATA_RESET.isPending()) return false;
     const editorIframe = document.querySelector('iframe[data-panel="editor"], iframe#iframe-editor, iframe[src*="editor/editor.html"]');
     const editorWin = editorIframe && editorIframe.contentWindow;
     const editor = editorWin && editorWin.markdownEditor;
@@ -248,7 +249,7 @@ function MW_flushEditorMarkdownToStorage(reason = '') {
     localStorage.setItem('mindword_markdown_data', md);
     localStorage.setItem('mindword-save-time', Date.now().toString());
 
-    const docs = JSON.parse(localStorage.getItem('mindword_docs') || '[]');
+    const docs = JSON.parse(localStorage.getItem('mw_documents') || '[]');
     const activeId = localStorage.getItem('mw_active_doc') || '';
     const idx = docs.findIndex(doc => doc && doc.id === activeId && !doc.deletedAt);
     let activeDoc = null;
@@ -257,7 +258,7 @@ function MW_flushEditorMarkdownToStorage(reason = '') {
         docs[idx].md = md;
         docs[idx].updatedAt = Date.now();
         docs[idx].version = Number(docs[idx].version || 1) + 1;
-        localStorage.setItem('mindword_docs', JSON.stringify(docs));
+        localStorage.setItem('mw_documents', JSON.stringify(docs));
       }
       activeDoc = docs[idx];
     }
