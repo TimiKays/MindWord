@@ -564,6 +564,9 @@
             }
         });
 
+        // 邮件里的重置链接始终回到正式域名，避免旧域名或备用入口影响回跳。
+        const PASSWORD_RESET_REDIRECT_URL = 'https://mindword.timikays.us.kg/reset-password';
+
         // Cloudflare Worker 迁移服务地址
         const MIGRATE_WORKER_URL = 'https://migrate.mindword.dpdns.org';
 
@@ -896,7 +899,7 @@
                 const supabase = await waitForSupabase();
 
                 const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                    redirectTo: window.location.origin + '/reset-password.html'
+                    redirectTo: PASSWORD_RESET_REDIRECT_URL
                 });
 
                 if (error) throw error;
