@@ -28,7 +28,8 @@ const HTML_FILES = [
     'changelog/changelog.html',
     'supoort/support.html',
     'ai/newai/AIServiceModal.html',
-    'ai/newai/user-template-manager.html'
+    'ai/newai/user-template-manager.html',
+    'recovery/index.html'
 ];
 
 const SKIP_PATTERNS = [

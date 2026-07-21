@@ -59,6 +59,12 @@ test('普通代码资源仍由 Service Worker 执行离线策略', async () => {
   assert.equal(isHandledByServiceWorker(fetchHandler, 'https://mindword.timikays.us.kg/app.js'), true);
 });
 
+test('旧域名恢复页始终绕过 Service Worker 缓存', async () => {
+  const fetchHandler = await loadFetchHandler();
+  assert.equal(isHandledByServiceWorker(fetchHandler, 'https://mindword.dpdns.org/recovery/'), false);
+  assert.equal(isHandledByServiceWorker(fetchHandler, 'https://mindword.dpdns.org/recovery/recovery.js'), false);
+});
+
 test('Service Worker 发布版本链一致且缓存响应头没有 JS 通配冲突', async () => {
   const [swSource, versionRaw, appHtml, indexHtml, headers] = await Promise.all([
     readFile(new URL('../sw.js', import.meta.url), 'utf8'),

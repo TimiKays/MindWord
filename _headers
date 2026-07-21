@@ -61,3 +61,7 @@
 /manifest.json
   Cache-Control: public, max-age=3600
   Content-Type: application/manifest+json
+
+/recovery/*
+  Cache-Control: no-store, no-cache, must-revalidate
+  X-Robots-Tag: noindex, nofollow

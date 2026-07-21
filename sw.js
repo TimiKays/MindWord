@@ -3,7 +3,7 @@
  * 核心策略：PWA可离线安装，但代码必须尽早更新
  */
 
-const SW_VERSION = 'v202607202320';
+const SW_VERSION = 'v202607211039';
 const CACHE_NAME = 'mindword-' + SW_VERSION;
 const BUILD_TIME = new Date().toISOString();
 
@@ -70,6 +70,11 @@ self.addEventListener('message', event => {
 function shouldBypassCache(url) {
   const pathname = url.pathname;
   const hostname = url.hostname;
+
+  // 恢复页必须始终从网络加载，避免旧脚本干扰本地数据导出。
+  if (pathname.startsWith('/recovery/')) {
+    return true;
+  }
 
   // 认证与用户云数据绝不能进入 Cache API。Cookie 不属于缓存键，缓存这些
   // 响应会在断网或切换账号后返回旧用户状态或旧工作区。

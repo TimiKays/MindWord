@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="mindword-version" content="2026.07.21.1039">
+    <meta name="robots" content="noindex, nofollow">
+    <title>MindWord 本地数据恢复</title>
+    <style>
+        :root {
+            color-scheme: light;
+            font-family: Inter, "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+            background: #f5f7fa;
+            color: #172033;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            min-width: 320px;
+            margin: 0;
+            background: #f5f7fa;
+        }
+
+        button,
+        input {
+            font: inherit;
+        }
+
+        .topbar {
+            height: 58px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 0 24px;
+            border-bottom: 1px solid #dfe5ec;
+            background: #ffffff;
+        }
+
+        .brand {
+            display: inline-flex;
+            align-items: center;
+            min-width: 0;
+            color: #172033;
+            font-size: 17px;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .brand img {
+            width: 30px;
+            height: 30px;
+            margin-right: 9px;
+        }
+
+        .topbar-link {
+            color: #326a85;
+            font-size: 13px;
+            text-decoration: none;
+        }
+
+        .topbar-link:hover,
+        .topbar-link:focus-visible {
+            color: #174c67;
+            text-decoration: underline;
+            outline: none;
+        }
+
+        main {
+            width: min(880px, calc(100% - 32px));
+            margin: 42px auto 64px;
+        }
+
+        .intro {
+            padding-bottom: 25px;
+            border-bottom: 1px solid #dfe5ec;
+        }
+
+        .eyebrow {
+            margin: 0 0 9px;
+            color: #087f5b;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 28px;
+            line-height: 1.35;
+            letter-spacing: 0;
+        }
+
+        .intro p {
+            max-width: 720px;
+            margin: 12px 0 0;
+            color: #526176;
+            font-size: 14px;
+            line-height: 1.75;
+        }
+
+        .notice {
+            margin-top: 20px;
+            padding: 12px 14px;
+            border-left: 3px solid #d97706;
+            background: #fff8e8;
+            color: #704b12;
+            font-size: 13px;
+            line-height: 1.65;
+        }
+
+        .status-section {
+            padding: 26px 0;
+            border-bottom: 1px solid #dfe5ec;
+        }
+
+        .section-title {
+            margin: 0 0 15px;
+            font-size: 16px;
+            line-height: 1.4;
+            letter-spacing: 0;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            border: 1px solid #dfe5ec;
+            border-radius: 8px;
+            background: #ffffff;
+            overflow: hidden;
+        }
+
+        .stat {
+            min-height: 92px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 16px 18px;
+            border-right: 1px solid #dfe5ec;
+        }
+
+        .stat:last-child {
+            border-right: 0;
+        }
+
+        .stat-value {
+            color: #172033;
+            font-size: 26px;
+            font-weight: 750;
+            line-height: 1;
+        }
+
+        .stat-label {
+            margin-top: 8px;
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        .scan-message {
+            min-height: 22px;
+            margin: 13px 0 0;
+            color: #526176;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .scan-message.error {
+            color: #b42318;
+        }
+
+        .actions {
+            padding-top: 26px;
+        }
+
+        .sensitive-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin: 17px 0 20px;
+            padding: 13px 14px;
+            border: 1px solid #dfe5ec;
+            border-radius: 6px;
+            background: #ffffff;
+            color: #526176;
+            font-size: 13px;
+            line-height: 1.55;
+            cursor: pointer;
+        }
+
+        .sensitive-option input {
+            width: 17px;
+            height: 17px;
+            margin: 1px 0 0;
+            accent-color: #087f5b;
+        }
+
+        .button-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .button,
+        .button-link {
+            min-height: 40px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 9px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 650;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .button {
+            border: 1px solid #087f5b;
+            background: #087f5b;
+            color: #ffffff;
+        }
+
+        .button:hover,
+        .button:focus-visible {
+            background: #06664a;
+            outline: none;
+        }
+
+        .button:disabled {
+            border-color: #9aa8b8;
+            background: #9aa8b8;
+            cursor: not-allowed;
+        }
+
+        .button-link {
+            border: 1px solid #cbd5e1;
+            background: #ffffff;
+            color: #26364d;
+        }
+
+        .button-link:hover,
+        .button-link:focus-visible {
+            border-color: #326a85;
+            background: #eef7fa;
+            outline: none;
+        }
+
+        .button-link[hidden] {
+            display: none !important;
+        }
+
+        .progress {
+            height: 6px;
+            margin-top: 18px;
+            border-radius: 3px;
+            background: #e6ebf1;
+            overflow: hidden;
+            opacity: 0;
+        }
+
+        .progress.active {
+            opacity: 1;
+        }
+
+        .progress-bar {
+            width: 0;
+            height: 100%;
+            background: #27856f;
+            transition: width 160ms ease;
+        }
+
+        .privacy {
+            margin: 16px 0 0;
+            color: #738196;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 640px) {
+            .topbar {
+                height: 54px;
+                padding: 0 16px;
+            }
+
+            main {
+                width: min(100% - 28px, 880px);
+                margin: 28px auto 44px;
+            }
+
+            h1 {
+                font-size: 23px;
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+            }
+
+            .stat {
+                min-height: 72px;
+                border-right: 0;
+                border-bottom: 1px solid #dfe5ec;
+            }
+
+            .stat:last-child {
+                border-bottom: 0;
+            }
+
+            .button-row {
+                display: grid;
+                grid-template-columns: 1fr;
+            }
+
+            .button,
+            .button-link {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header class="topbar">
+        <a class="brand" href="https://mindword.timikays.us.kg/app">
+            <img src="../res/LOGO.png" alt="">
+            <span>MindWord 本地数据恢复</span>
+        </a>
+        <a class="topbar-link" href="https://mindword.timikays.us.kg/app">返回新地址</a>
+    </header>
+
+    <main>
+        <section class="intro">
+            <p class="eyebrow">旧地址数据恢复</p>
+            <h1>找回保存在旧域名浏览器中的文档</h1>
+            <p>请使用以前运行 MindWord 的同一台设备、同一个浏览器和同一个浏览器账号打开本页。本页会读取旧域名下仍然存在的本地数据，并生成一个可在新地址导入的 ZIP 恢复包。</p>
+            <div class="notice" id="origin-notice">正在确认当前访问地址...</div>
+        </section>
+
+        <section class="status-section" aria-labelledby="scan-title">
+            <h2 class="section-title" id="scan-title">本机检测结果</h2>
+            <div class="stats" aria-live="polite">
+                <div class="stat">
+                    <span class="stat-value" id="recovery-doc-count">-</span>
+                    <span class="stat-label">可恢复文档</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-value" id="recovery-image-count">-</span>
+                    <span class="stat-label">本地图片</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-value" id="recovery-draft-count">-</span>
+                    <span class="stat-label">未归档草稿</span>
+                </div>
+            </div>
+            <p class="scan-message" id="recovery-scan-message" role="status">正在扫描旧地址中的本地数据...</p>
+        </section>
+
+        <section class="actions" aria-labelledby="export-title">
+            <h2 class="section-title" id="export-title">下载恢复包</h2>
+            <label class="sensitive-option">
+                <input type="checkbox" id="recovery-include-ai">
+                <span>同时备份 AI 平台配置。此项可能包含 API 密钥，仅在你能妥善保管恢复包时勾选；默认不会导出登录状态或云端令牌。</span>
+            </label>
+            <div class="button-row">
+                <button class="button" id="recovery-download" type="button" disabled>
+                    <span aria-hidden="true">↓</span>
+                    <span>下载恢复 ZIP</span>
+                </button>
+                <a class="button-link" id="recovery-go-new" href="https://mindword.timikays.us.kg/app" hidden>
+                    <span>前往新地址导入</span>
+                    <span aria-hidden="true">→</span>
+                </a>
+            </div>
+            <div class="progress" id="recovery-progress" aria-hidden="true">
+                <div class="progress-bar" id="recovery-progress-bar"></div>
+            </div>
+            <p class="privacy">恢复过程完全在当前浏览器中完成，文档和图片不会上传到服务器。下载完成后，请在新地址点击左上角的三根横线图标，进入“我的文档”，选择“导入 ZIP”。</p>
+        </section>
+    </main>
+
+    <script src="../local-deps/jszip.min.js"></script>
+    <script src="./recovery.js?v=2026.07.21.1039"></script>
+</body>
+
+</html>
