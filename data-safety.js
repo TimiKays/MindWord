@@ -171,10 +171,23 @@
         display: grid;
         place-items: center;
         border-radius: 8px;
-        background: #e9f7f3;
-        color: #087f5b;
-        font-size: 21px;
+        border: 1px solid #d6e6ff;
+        background: #eaf3ff;
+        color: #2563eb;
+      }
+      .mw-data-safety-mark span {
+        width: 20px;
+        height: 20px;
+        display: grid;
+        place-items: center;
+        box-sizing: border-box;
+        border: 2px solid currentColor;
+        border-radius: 50%;
+        font-family: Arial, sans-serif;
+        font-size: 14px;
+        font-style: normal;
         font-weight: 700;
+        line-height: 1;
       }
       .mw-data-safety-title {
         margin: 0;
@@ -329,7 +342,7 @@
     overlay.innerHTML = `
       <section class="mw-data-safety-dialog" role="dialog" aria-modal="true" aria-labelledby="mw-data-safety-title" aria-describedby="mw-data-safety-lead">
         <header class="mw-data-safety-head">
-          <div class="mw-data-safety-mark" aria-hidden="true">✓</div>
+          <div class="mw-data-safety-mark" aria-hidden="true"><span>i</span></div>
           <div>
             <h2 class="mw-data-safety-title" id="mw-data-safety-title">${text.title}</h2>
           </div>

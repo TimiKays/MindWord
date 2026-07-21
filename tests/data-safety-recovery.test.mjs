@@ -106,6 +106,8 @@ test('数据安全提醒面向所有用户，并按七天周期控制频率', as
   assert.match(source, /MindWord 不会自动同步/);
   assert.match(source, /无论是否登录/);
   assert.match(source, /无需登录/);
+  assert.match(source, /mw-data-safety-mark" aria-hidden="true"><span>i<\/span>/);
+  assert.doesNotMatch(source, /mw-data-safety-mark" aria-hidden="true">✓/);
 });
 
 test('恢复扫描合并新旧文档库，保留较新版本并补充未归档草稿', async () => {
