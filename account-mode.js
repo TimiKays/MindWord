@@ -1,16 +1,18 @@
 /**
- * MindWord 内部统一账户试用开关。
+ * MindWord 统一账户正式入口与旧链路回退开关。
  *
- * 仅当前标签页访问 app.html?account_mode=unified 时启用；
- * app.html?account_mode=legacy 可立即退回现有 Supabase 链路。
+ * 默认使用 TimiAuth / TimiCloud；
+ * app.html?account_mode=legacy 可在当前浏览器会话内临时退回 Supabase。
  */
 (function initMindWordAccountMode() {
     'use strict';
 
-    const SESSION_KEY = 'mw_internal_account_mode';
+    // 使用新 key，避免内部试用阶段留下的 sessionStorage 继续影响正式入口。
+    const SESSION_KEY = 'mw_account_mode_v2';
     const QUERY_KEY = 'account_mode';
     const UNIFIED_VALUE = 'unified';
     const LEGACY_VALUE = 'legacy';
+    const DEFAULT_MODE = UNIFIED_VALUE;
     const CLOUD_TIMEOUT_MS = 30000;
     const SDK_URLS = {
         auth: 'https://api.timikays.us.kg/sdk/auth-sdk.js?v=1.2.2',
@@ -22,20 +24,22 @@
     let requestedMode = '';
     try {
         requestedMode = new URLSearchParams(window.location.search).get(QUERY_KEY) || '';
-        if (requestedMode === UNIFIED_VALUE) {
-            window.sessionStorage.setItem(SESSION_KEY, UNIFIED_VALUE);
-        } else if (requestedMode === LEGACY_VALUE) {
-            window.sessionStorage.removeItem(SESSION_KEY);
+        if (requestedMode === UNIFIED_VALUE || requestedMode === LEGACY_VALUE) {
+            window.sessionStorage.setItem(SESSION_KEY, requestedMode);
         }
     } catch (error) {
-        console.warn('[MindWord-AccountMode] 无法读取内部试用开关，继续使用现有账户。', error);
+        console.warn('[MindWord-AccountMode] 无法读取账户模式开关，继续使用统一账户。', error);
     }
 
-    let unified = false;
+    let unified = DEFAULT_MODE === UNIFIED_VALUE;
     try {
-        unified = window.sessionStorage.getItem(SESSION_KEY) === UNIFIED_VALUE;
+        const storedMode = window.sessionStorage.getItem(SESSION_KEY);
+        const selectedMode = storedMode === UNIFIED_VALUE || storedMode === LEGACY_VALUE
+            ? storedMode
+            : DEFAULT_MODE;
+        unified = selectedMode === UNIFIED_VALUE;
     } catch (_) {
-        unified = requestedMode === UNIFIED_VALUE;
+        unified = requestedMode !== LEGACY_VALUE;
     }
 
     function loadScript(src, globalName) {
@@ -84,25 +88,70 @@
         });
     }
 
+    function closeSharedAccountMenu(mount) {
+        const trigger = mount && mount.querySelector('.tk-user-trigger');
+        if (trigger && trigger.getAttribute('aria-expanded') === 'true') trigger.click();
+    }
+
+    function triggerMindWordAction(mount, buttonId) {
+        closeSharedAccountMenu(mount);
+        const button = document.getElementById(buttonId);
+        if (button) button.click();
+    }
+
+    function bindMindWordMenuActions(mount) {
+        if (!mount || mount.dataset.mwAccountActionsBound === 'true') return;
+        mount.dataset.mwAccountActionsBound = 'true';
+        mount.addEventListener('click', function (event) {
+            if (!event.target || typeof event.target.closest !== 'function') return;
+            const action = event.target.closest('a[href="#mw-cloud-sync"], a[href="#mw-cloud-clear"]');
+            if (!action) return;
+            event.preventDefault();
+            triggerMindWordAction(
+                mount,
+                action.getAttribute('href') === '#mw-cloud-sync' ? 'lc-sync-btn-menu' : 'lc-clear-btn-menu'
+            );
+        });
+    }
+
+    function handleMindWordLogout(mount) {
+        triggerMindWordAction(mount, 'auth-logout-menu');
+        return Promise.resolve();
+    }
+
     function initializeAccountMenu() {
         return Promise.all([
             loadScript(SDK_URLS.topbar, 'TimiTopBar'),
             loadStylesheet(SDK_URLS.topbarStyles, 'TimiTopBarStyles'),
             waitForDom()
         ]).then(function () {
-            return window.TimiTopBar.init({
+            const mount = document.getElementById('mw-unified-account-mount');
+            if (!mount) throw new Error('统一账户菜单挂载点不存在');
+            bindMindWordMenuActions(mount);
+            const result = window.TimiTopBar.renderAuth({
+                container: '#mw-unified-account-mount',
                 currentProduct: 'mindword',
-                showProductSwitcher: false,
-                userNameSelector: '#auth-username',
-                userMenuDropdownSelector: '.user-menu-items',
+                theme: 'light',
                 membershipScope: 'product',
+                auth: { requireLogin: false },
                 menu: {
                     showAccount: true,
                     showMembership: true,
-                    showInvite: false
-                }
+                    showInvite: false,
+                    showLogout: true,
+                    extraItems: [
+                        { icon: '☁', label: '云备份', href: '#mw-cloud-sync' },
+                        { icon: '⌫', label: '清空云数据', href: '#mw-cloud-clear' }
+                    ]
+                },
+                onLogout: function () { return handleMindWordLogout(mount); }
             });
+            document.documentElement.classList.add('mw-shared-account-ready');
+            return Promise.resolve(result).then(function () { return true; });
         }).catch(function (error) {
+            if (document.documentElement && document.documentElement.classList) {
+                document.documentElement.classList.remove('mw-shared-account-ready');
+            }
             console.warn('[MindWord-AccountMode] 账户菜单加载失败，云同步仍可使用。', error);
             return false;
         });
@@ -143,5 +192,5 @@
         buildLoginUrl: buildLoginUrl
     });
 
-    console.log('[MindWord-AccountMode] 当前账户模式:', unified ? '统一账户（内部试用）' : '现有账户');
+    console.log('[MindWord-AccountMode] 当前账户模式:', unified ? '统一账户' : 'Supabase 回退模式');
 })();

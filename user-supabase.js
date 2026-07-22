@@ -74,11 +74,7 @@
 
     if (isLoggedIn && userBox && nameSpan) {
       var username = user && (user.nickname || user.email) || '已登录';
-      var ownedBadge = UNIFIED_MODE
-        ? nameSpan.querySelector('[data-timikays-badge-owned="true"]')
-        : null;
       nameSpan.textContent = username;
-      if (ownedBadge) nameSpan.appendChild(ownedBadge);
       var menuUsername = document.getElementById('menu-username');
       if (menuUsername) menuUsername.textContent = username;
       var menuEmail = document.getElementById('menu-email');
