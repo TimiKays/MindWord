@@ -1,13 +1,12 @@
 /**
- * MindWord 统一账户正式入口与旧链路回退开关。
+ * MindWord 统一账户入口。
  *
- * 默认使用 TimiAuth / TimiCloud；
- * app.html?account_mode=legacy 可在当前浏览器会话内临时退回 Supabase。
+ * 使用 TimiAuth / TimiCloud；
+ * SDK 不可用时显示升级提示，不回退 Supabase。
  */
 (function initMindWordAccountMode() {
     'use strict';
 
-    // 使用新 key，避免内部试用阶段留下的 sessionStorage 继续影响正式入口。
     const SESSION_KEY = 'mw_account_mode_v2';
     const QUERY_KEY = 'account_mode';
     const UNIFIED_VALUE = 'unified';
@@ -119,6 +118,23 @@
         return Promise.resolve();
     }
 
+    function showServiceUpgradeNotice() {
+        var mount = document.getElementById('mw-unified-account-mount');
+        if (!mount) return;
+        mount.style.display = 'inline-flex';
+        mount.style.alignItems = 'center';
+        mount.style.gap = '4px';
+        mount.style.height = '30px';
+        mount.style.padding = '0 8px';
+        mount.style.border = '1px solid #e2e8f0';
+        mount.style.borderRadius = '6px';
+        mount.style.background = '#fffbeb';
+        mount.style.color = '#92400e';
+        mount.style.fontSize = '12px';
+        mount.style.cursor = 'default';
+        mount.textContent = '服务升级中，请稍后重试';
+    }
+
     function initializeAccountMenu() {
         return Promise.all([
             loadScript(SDK_URLS.topbar, 'TimiTopBar'),
@@ -128,8 +144,7 @@
             const mount = document.getElementById('mw-unified-account-mount');
             if (!mount) throw new Error('统一账户菜单挂载点不存在');
             bindMindWordMenuActions(mount);
-            var authLink = document.getElementById('auth-link');
-            if (authLink) authLink.style.display = 'none';
+
             const result = window.TimiTopBar.renderAuth({
                 container: '#mw-unified-account-mount',
                 currentProduct: 'mindword',
@@ -154,9 +169,8 @@
             if (document.documentElement && document.documentElement.classList) {
                 document.documentElement.classList.remove('mw-shared-account-ready');
             }
-            var authLink = document.getElementById('auth-link');
-            if (authLink) authLink.style.display = '';
-            console.warn('[MindWord-AccountMode] 账户菜单加载失败，云同步仍可使用。', error);
+            showServiceUpgradeNotice();
+            console.warn('[MindWord-AccountMode] 账户服务暂时不可用，本地编辑不受影响。', error);
             return false;
         });
     }
@@ -178,7 +192,10 @@
     const accountMenuReady = unified
         ? ready.then(
             function () { return initializeAccountMenu(); },
-            function () { return false; }
+            function () {
+                showServiceUpgradeNotice();
+                return false;
+            }
         )
         : Promise.resolve(false);
 

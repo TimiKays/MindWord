@@ -64,12 +64,21 @@
   }
 
   function renderAuthUI(user, isLoggedIn) {
-    var link = document.getElementById('auth-link');
     var userBox = document.getElementById('auth-user');
     var nameSpan = document.getElementById('auth-username');
 
-    if (UNIFIED_MODE && link && window.MW_ACCOUNT_MODE) {
-      link.href = window.MW_ACCOUNT_MODE.buildLoginUrl(window.location.href);
+    if (isLoggedIn && userBox && nameSpan) {
+      var username = user && (user.nickname || user.email) || '已登录';
+      nameSpan.textContent = username;
+      var menuUsername = document.getElementById('menu-username');
+      if (menuUsername) menuUsername.textContent = username;
+      var menuEmail = document.getElementById('menu-email');
+      if (menuEmail && user && user.email) menuEmail.textContent = user.email;
+      userBox.style.display = 'inline-flex';
+      console.log(MODULE_NAME, '用户已登录');
+    } else {
+      if (userBox) userBox.style.display = 'none';
+      console.log(MODULE_NAME, '用户未登录');
     }
 
     if (isLoggedIn && userBox && nameSpan) {
