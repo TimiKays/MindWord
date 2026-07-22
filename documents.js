@@ -1436,20 +1436,17 @@ async function showImportConflictDialog(conflicts) {
 
     document.body.appendChild(dialog);
 
-    // 点击背景关闭对话框（默认选择保留最新的）
+    // 点击背景不执行任何操作，用户必须明确选择
     dialog.onclick = (e) => {
       if (e.target === dialog) {
-        document.body.removeChild(dialog);
-        resolve('keep_latest');
+        // 不自动选择，防止误操作
       }
     };
 
     // ESC键关闭对话框
     const handleEscape = (e) => {
       if (e.key === 'Escape') {
-        document.body.removeChild(dialog);
-        document.removeEventListener('keydown', handleEscape);
-        resolve('keep_latest');
+        // ESC键不自动选择，防止误操作
       }
     };
     document.addEventListener('keydown', handleEscape);

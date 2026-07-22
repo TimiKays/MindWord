@@ -128,6 +128,8 @@
             const mount = document.getElementById('mw-unified-account-mount');
             if (!mount) throw new Error('统一账户菜单挂载点不存在');
             bindMindWordMenuActions(mount);
+            var authLink = document.getElementById('auth-link');
+            if (authLink) authLink.style.display = 'none';
             const result = window.TimiTopBar.renderAuth({
                 container: '#mw-unified-account-mount',
                 currentProduct: 'mindword',
@@ -152,6 +154,8 @@
             if (document.documentElement && document.documentElement.classList) {
                 document.documentElement.classList.remove('mw-shared-account-ready');
             }
+            var authLink = document.getElementById('auth-link');
+            if (authLink) authLink.style.display = '';
             console.warn('[MindWord-AccountMode] 账户菜单加载失败，云同步仍可使用。', error);
             return false;
         });

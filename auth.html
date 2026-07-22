@@ -926,12 +926,8 @@
             document.getElementById('login-pass').focus();
         });
 
-        // 点击弹窗外部关闭弹窗
-        document.getElementById('emailVerifyModal').addEventListener('click', function (e) {
-            if (e.target === this) {
-                hideEmailVerifyModal();
-            }
-        });
+        // 验证邮件弹窗不允许点击外部关闭，防止用户丢失重要提示
+        // 已移除 click-on-overlay-to-close 行为
 
         // 忘记密码（发送重置邮件）
         document.getElementById('btn-reset').addEventListener('click', async function () {
