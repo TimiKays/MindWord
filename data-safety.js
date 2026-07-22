@@ -434,7 +434,9 @@
       snooze(7);
       close();
       const loginLink = document.getElementById('auth-link');
-      window.location.href = loginLink && loginLink.href ? loginLink.href : 'auth.html';
+      window.location.href = loginLink && loginLink.href
+        ? loginLink.href
+        : 'https://timikays.us.kg/auth.html?redirect=https%3A%2F%2Fmindword.timikays.us.kg%2Fapp.html';
       return;
     }
 
