@@ -16,8 +16,8 @@
     const SDK_URLS = {
         auth: 'https://api.timikays.us.kg/sdk/auth-sdk.js?v=1.2.2',
         cloud: 'https://api.timikays.us.kg/sdk/cloud-sync-v2.js?v=1.2.0',
-        topbar: 'https://api.timikays.us.kg/sdk/topbar.js?v=2.0.3',
-        topbarStyles: 'https://api.timikays.us.kg/sdk/topbar.css?v=2.0.3'
+        topbar: 'https://api.timikays.us.kg/sdk/topbar.js?v=2.2.0',
+        topbarStyles: 'https://api.timikays.us.kg/sdk/topbar.css?v=2.2.0'
     };
 
     let requestedMode = '';
@@ -118,6 +118,85 @@
         return Promise.resolve();
     }
 
+    function formatDataSize(bytes) {
+        const value = Math.max(0, Number(bytes) || 0);
+        if (value < 1024) return `${Math.round(value)}B`;
+        if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)}KB`;
+        return `${(value / 1024 / 1024).toFixed(1)}MB`;
+    }
+
+    function formatBackupTime(timestamp) {
+        const value = Number(timestamp) || 0;
+        if (!value) return '尚未备份';
+        const diffMs = Math.max(0, Date.now() - value);
+        const minutes = Math.floor(diffMs / 60000);
+        if (minutes < 1) return '刚刚';
+        if (minutes < 60) return `${minutes}分钟前`;
+        const hours = Math.floor(diffMs / 3600000);
+        if (hours < 24) return `${hours}小时前`;
+        const days = Math.floor(diffMs / 86400000);
+        if (days < 7) return `${days}天前`;
+        return new Date(value).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+    }
+
+    function readLocalStatus() {
+        if (window.MW_SPB_SYNC && typeof window.MW_SPB_SYNC.getLocalStatus === 'function') {
+            return window.MW_SPB_SYNC.getLocalStatus();
+        }
+        let docs = [];
+        try {
+            const saved = window.localStorage && window.localStorage.getItem('mw_documents');
+            if (saved) docs = JSON.parse(saved);
+        } catch (_) { }
+        const validDocs = Array.isArray(docs) ? docs.filter(function (doc) { return doc && !doc.deletedAt; }) : [];
+        let sizeBytes = 0;
+        try {
+            const serialized = JSON.stringify(validDocs);
+            sizeBytes = typeof TextEncoder === 'function'
+                ? new TextEncoder().encode(serialized).byteLength
+                : serialized.length;
+        } catch (_) { }
+        return { docCount: validDocs.length, sizeBytes: sizeBytes };
+    }
+
+    async function loadMindWordStatus(options) {
+        const local = readLocalStatus();
+        const localText = `${Number(local.docCount) || 0} 个 · ${formatDataSize(local.sizeBytes)}`;
+        try {
+            if (!window.MW_TIMI_CLOUD || typeof window.MW_TIMI_CLOUD.getCloudStatus !== 'function') {
+                throw new Error('云同步模块尚未就绪');
+            }
+            const cloud = await window.MW_TIMI_CLOUD.getCloudStatus(options);
+            const cloudText = cloud.exists
+                ? `${Number(cloud.docCount) || 0} 个 · ${formatDataSize(cloud.sizeBytes)}`
+                : '暂无备份';
+            return {
+                rows: [
+                    { label: '本地文档', value: localText },
+                    { label: '云端文档', value: cloudText },
+                    { label: '最近备份', value: formatBackupTime(cloud.updatedAt) }
+                ],
+                progress: {
+                    label: '备份容量',
+                    value: Number(cloud.sizeBytes) || 0,
+                    max: Number(cloud.limitBytes) || (10 * 1024 * 1024),
+                    text: `${formatDataSize(cloud.sizeBytes)} / 10MB`
+                }
+            };
+        } catch (error) {
+            console.warn('[MindWord-AccountMode] 云端状态读取失败:', error);
+            return {
+                rows: [
+                    { label: '本地文档', value: localText },
+                    { label: '云端文档', value: '读取失败', tone: 'warning' },
+                    { label: '最近备份', value: '暂不可用' }
+                ],
+                note: '云端状态暂时不可用，本地编辑不受影响',
+                tone: 'warning'
+            };
+        }
+    }
+
     function showServiceUpgradeNotice() {
         var mount = document.getElementById('mw-unified-account-mount');
         if (!mount) return;
@@ -156,8 +235,15 @@
                     showMembership: true,
                     showInvite: false,
                     showLogout: true,
+                    statusSection: {
+                        title: '数据同步',
+                        loadingText: '正在读取本地与云端状态...',
+                        errorText: '数据状态读取失败，请重试',
+                        refreshIntervalMs: 0,
+                        load: loadMindWordStatus
+                    },
                     extraItems: [
-                        { icon: '☁', label: '云备份', href: '#mw-cloud-sync' },
+                        { icon: '☁', label: '立即同步', href: '#mw-cloud-sync' },
                         { icon: '⌫', label: '清空云数据', href: '#mw-cloud-clear' }
                     ]
                 },
