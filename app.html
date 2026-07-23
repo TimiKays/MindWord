@@ -23,7 +23,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="mindword-version" content="2026.07.22.1715">
+    <meta name="mindword-version" content="2026.07.23.1125">
     <title>MindWord</title>
     <link rel="stylesheet" href="styles.css?v=2026.07.22.1902">
     <!-- PWA Manifest -->
@@ -403,7 +403,7 @@
     <script src="/local-deps/jszip.min.js"></script>
     <script src="/local-deps/FileSaver.min.js"></script>
     <!-- 统一账户默认启用；可用 account_mode=legacy 临时回退旧 Supabase 链路 -->
-    <script src="account-mode.js?v=2026.07.22.1902"></script>
+    <script src="account-mode.js?v=2026.07.23.1125"></script>
     <!-- Supabase SDK -->
     <script src="/local-deps/supabase.min.js"></script>
     <script src="supabase-config.js?v=2026.07.22.1902"></script>
@@ -1337,7 +1337,7 @@
     <script src="copynew_file.js?v=2026.07.22.1902"></script>
 
     <!-- 云适配层根据当前账户模式接入统一云端或旧 Supabase -->
-    <script src="timi-cloud-provider.js?v=2026.07.22.1902"></script>
+    <script src="timi-cloud-provider.js?v=2026.07.23.1125"></script>
 
     <!-- 登录状态初始化与切换（默认 TimiAuth，legacy 参数回退 Supabase） -->
     <script src="user-supabase.js?v=2026.07.22.1902"></script>
@@ -1354,7 +1354,7 @@
     </script>
 
     <!-- Supabase 数据同步脚本 - 立即加载 -->
-    <script src="supabase-sync.js?v=2026.07.22.1902"></script>
+    <script src="supabase-sync.js?v=2026.07.23.1125"></script>
 
     <!-- 数据安全提醒：云端同步、本地备份与旧地址恢复 -->
     <script src="data-safety.js?v=2026.07.22.1902"></script>
@@ -1404,7 +1404,7 @@
 
     <!-- PWA安装功能 -->
     <!-- Service Worker 注册和更新管理 -->
-    <script src="/sw-register.js?v=2026.07.22.1902"></script>
+    <script src="/sw-register.js?v=2026.07.23.1125"></script>
     <script>
         // PWA安装事件处理
         let deferredPrompt = null;

@@ -10,9 +10,12 @@
     const MAX_REQUEST_BYTES = 10 * 1024 * 1024;
     const REQUEST_HEADROOM_BYTES = 64 * 1024;
     const SAFE_REQUEST_BYTES = MAX_REQUEST_BYTES - REQUEST_HEADROOM_BYTES;
+    const CLOUD_STATUS_CACHE_TTL = 300000;
     const SENSITIVE_KEY_RE = /(?:api[_-]?key|access[_-]?key|secret|password|passphrase|private[_-]?key|auth(?:orization)?|bearer|token)$/i;
     const SENSITIVE_VALUE_RE = /(?:^|[?&\s])(?:api[_-]?key|access[_-]?token|token|secret|key)=\S+|\bbearer\s+\S+|\b(?:sk-[A-Za-z0-9_-]{12,}|AIza[A-Za-z0-9_-]{20,})/i;
     let lastCloudUpdatedAt = 0;
+    let cachedCloudStatus = null;
+    let cloudStatusCheckedAt = 0;
 
     function isUnifiedMode() {
         return !!(window.MW_ACCOUNT_MODE && window.MW_ACCOUNT_MODE.isUnified());
@@ -188,6 +191,50 @@
         return unescape(encodeURIComponent(requestBody)).length;
     }
 
+    function valueByteLength(value) {
+        const serialized = typeof value === 'string' ? value : JSON.stringify(value);
+        if (typeof TextEncoder === 'function') return new TextEncoder().encode(serialized).byteLength;
+        return unescape(encodeURIComponent(serialized)).length;
+    }
+
+    function countActiveDocs(docs) {
+        return (Array.isArray(docs) ? docs : []).filter(function (doc) {
+            return doc && !doc.deletedAt;
+        }).length;
+    }
+
+    function emptyCloudStatus() {
+        return {
+            exists: false,
+            docCount: 0,
+            sizeBytes: 0,
+            limitBytes: MAX_REQUEST_BYTES,
+            updatedAt: 0
+        };
+    }
+
+    function buildCloudStatus(item, parsedWorkspace) {
+        if (!item) return emptyCloudStatus();
+        const cloudData = parsedWorkspace || parseWorkspaceItem(item);
+        const reportedSize = Number(item.data_size);
+        return {
+            exists: true,
+            docCount: countActiveDocs(cloudData.docs),
+            sizeBytes: Number.isFinite(reportedSize) && reportedSize >= 0
+                ? reportedSize
+                : valueByteLength(item.data_value),
+            limitBytes: MAX_REQUEST_BYTES,
+            updatedAt: Number(item.updated_at || cloudData.updatedAtMs || 0)
+        };
+    }
+
+    function cacheCloudStatus(status) {
+        cachedCloudStatus = { ...status };
+        cloudStatusCheckedAt = Date.now();
+        lastCloudUpdatedAt = Number(status.updatedAt) || 0;
+        return { ...cachedCloudStatus };
+    }
+
     async function getCurrentUser() {
         await ensureReady();
         return window.TimiAuth.checkSession();
@@ -197,7 +244,9 @@
         await ensureReady();
         const items = await window.TimiCloud.pull(PRODUCT);
         const item = items.find(function (candidate) { return candidate.data_key === DATA_KEY; });
-        return parseWorkspaceItem(item || null);
+        const parsedWorkspace = parseWorkspaceItem(item || null);
+        cacheCloudStatus(buildCloudStatus(item || null, parsedWorkspace));
+        return parsedWorkspace;
     }
 
     async function uploadWorkspace(target) {
@@ -212,6 +261,13 @@
         }
         const result = await window.TimiCloud.push(DATA_KEY, workspace, PRODUCT);
         lastCloudUpdatedAt = Number(result && result.updated_at) || Date.now();
+        cacheCloudStatus({
+            exists: true,
+            docCount: countActiveDocs(workspace.docs),
+            sizeBytes: Number(result && result.size) || valueByteLength(workspace),
+            limitBytes: MAX_REQUEST_BYTES,
+            updatedAt: lastCloudUpdatedAt
+        });
         return result;
     }
 
@@ -221,16 +277,27 @@
         if (!user) throw new Error('请先登录后再操作');
         const result = await window.TimiCloud.remove(DATA_KEY, PRODUCT);
         lastCloudUpdatedAt = 0;
+        cacheCloudStatus(emptyCloudStatus());
         return result;
     }
 
-    async function getLastCloudUpdatedAt() {
-        if (lastCloudUpdatedAt > 0) return lastCloudUpdatedAt;
+    async function getCloudStatus(options) {
+        const force = !!(options && options.force);
+        const now = Date.now();
+        if (!force && cachedCloudStatus && (now - cloudStatusCheckedAt) < CLOUD_STATUS_CACHE_TTL) {
+            return { ...cachedCloudStatus };
+        }
         await ensureReady();
+        const user = await window.TimiAuth.checkSession();
+        if (!user) throw new Error('请先登录后查看云端状态');
         const items = await window.TimiCloud.pull(PRODUCT);
         const item = items.find(function (candidate) { return candidate.data_key === DATA_KEY; });
-        lastCloudUpdatedAt = Number(item && item.updated_at) || 0;
-        return lastCloudUpdatedAt;
+        return cacheCloudStatus(buildCloudStatus(item || null));
+    }
+
+    async function getLastCloudUpdatedAt() {
+        const status = await getCloudStatus();
+        return Number(status.updatedAt) || 0;
     }
 
     window.MW_TIMI_CLOUD = Object.freeze({
@@ -242,11 +309,13 @@
         downloadWorkspace: downloadWorkspace,
         uploadWorkspace: uploadWorkspace,
         clearWorkspace: clearWorkspace,
+        getCloudStatus: getCloudStatus,
         getLastCloudUpdatedAt: getLastCloudUpdatedAt,
         restoreLocalSecrets: restoreLocalSecrets,
         sanitizeSecrets: sanitizeSecrets,
         buildWorkspace: buildWorkspace,
         parseWorkspaceItem: parseWorkspaceItem,
-        requestByteLength: requestByteLength
+        requestByteLength: requestByteLength,
+        valueByteLength: valueByteLength
     });
 })();

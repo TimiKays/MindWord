@@ -1500,6 +1500,23 @@
         }
     }
 
+    function getLocalDataStatus() {
+        let docs = [];
+        try {
+            const saved = localStorage.getItem('mw_documents');
+            if (saved) docs = JSON.parse(saved);
+        } catch (_) { }
+        const validDocs = Array.isArray(docs) ? docs.filter(function (doc) {
+            return doc && !doc.deletedAt;
+        }) : [];
+        const { totalSize } = calculateDataSize(validDocs);
+        return {
+            docCount: validDocs.length,
+            sizeBytes: totalSize,
+            limitBytes: MAX_TOTAL_SIZE
+        };
+    }
+
     // 云端同步时间缓存
     let cachedLastSyncTime = 0;
     let lastSyncTimeCheck = 0;
@@ -1511,19 +1528,9 @@
         if (!syncStatusEl) return;
 
         try {
-            // 直接从localStorage获取文档数据（不调用任何API）
-            let docs = [];
-            try {
-                const saved = localStorage.getItem('mw_documents');
-                if (saved) docs = JSON.parse(saved);
-            } catch (_) { }
-
-            // 过滤掉已删除的文档
-            const validDocs = docs.filter(doc => !doc.deletedAt);
-            const fileCount = validDocs.length;
-
-            // 计算数据大小
-            const { totalSize } = calculateDataSize(validDocs);
+            const localStatus = getLocalDataStatus();
+            const fileCount = localStatus.docCount;
+            const totalSize = localStatus.sizeBytes;
 
             // 更新状态显示
             const MAX_SIZE = 10 * 1024 * 1024; // 10MB
@@ -1913,7 +1920,9 @@
 
         updateStatus: updateSyncStatus,
 
-        displayLocalStatus: displayLocalDataStatus
+        displayLocalStatus: displayLocalDataStatus,
+
+        getLocalStatus: getLocalDataStatus
     };
 
     if (window.__MW_TESTING__) {
