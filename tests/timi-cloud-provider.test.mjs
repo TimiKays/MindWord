@@ -265,8 +265,8 @@ test('默认模式加载统一账户 SDK，legacy 参数才回退旧链路', asy
   assert.equal(unified.mode, 'unified');
   assert.equal(unified.loaded.length, 3);
   assert.equal(unified.styles.length, 1);
-  assert.ok(unified.loaded.some(src => src.endsWith('/sdk/topbar.js?v=2.1.0')));
-  assert.ok(unified.styles.some(href => href.endsWith('/sdk/topbar.css?v=2.1.0')));
+  assert.ok(unified.loaded.some(src => src.endsWith('/sdk/topbar.js?v=2.2.0')));
+  assert.ok(unified.styles.some(href => href.endsWith('/sdk/topbar.css?v=2.2.0')));
   assert.equal(unified.authInitConfig.product, 'mindword');
   assert.equal(unified.cloudInitConfig.product, 'mindword');
   assert.equal(unified.cloudInitConfig.timeoutMs, 30000);

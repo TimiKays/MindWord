@@ -165,12 +165,15 @@
         try {
             let waited = 0;
             while ((!window.MW_TIMI_CLOUD || typeof window.MW_TIMI_CLOUD.getCloudStatus !== 'function') && waited < 3000) {
+                if (waited === 0) console.log('[MindWord-AccountMode] 等待 MW_TIMI_CLOUD 就绪...');
                 await new Promise(function (r) { setTimeout(r, 100); });
                 waited += 100;
             }
             if (!window.MW_TIMI_CLOUD || typeof window.MW_TIMI_CLOUD.getCloudStatus !== 'function') {
+                console.error('[MindWord-AccountMode] MW_TIMI_CLOUD 不可用, waited=' + waited + 'ms, type=' + typeof window.MW_TIMI_CLOUD);
                 throw new Error('云同步模块尚未就绪');
             }
+            if (waited > 0) console.log('[MindWord-AccountMode] MW_TIMI_CLOUD 就绪, 等待了 ' + waited + 'ms');
             const cloud = await window.MW_TIMI_CLOUD.getCloudStatus(options);
             const cloudText = cloud.exists
                 ? `${Number(cloud.docCount) || 0} 个 · ${formatDataSize(cloud.sizeBytes)}`

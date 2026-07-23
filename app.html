@@ -404,6 +404,8 @@
     <script src="/local-deps/FileSaver.min.js"></script>
     <!-- 统一账户默认启用；可用 account_mode=legacy 临时回退旧 Supabase 链路 -->
     <script src="account-mode.js?v=2026.07.23.1125"></script>
+    <!-- 云适配层：必须在 account-mode.js 之后尽早加载，避免 MW_TIMI_CLOUD 竞态 -->
+    <script src="timi-cloud-provider.js?v=2026.07.23.1125"></script>
     <!-- Supabase SDK -->
     <script src="/local-deps/supabase.min.js"></script>
     <script src="supabase-config.js?v=2026.07.22.1902"></script>
@@ -1336,8 +1338,7 @@
     <!-- 复制新建文件 -->
     <script src="copynew_file.js?v=2026.07.22.1902"></script>
 
-    <!-- 云适配层根据当前账户模式接入统一云端或旧 Supabase -->
-    <script src="timi-cloud-provider.js?v=2026.07.23.1125"></script>
+    <!-- timi-cloud-provider.js 已迁移至 <head>，避免 MW_TIMI_CLOUD 竞态 -->
 
     <!-- 登录状态初始化与切换（默认 TimiAuth，legacy 参数回退 Supabase） -->
     <script src="user-supabase.js?v=2026.07.22.1902"></script>
