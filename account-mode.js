@@ -185,13 +185,14 @@
             };
         } catch (error) {
             console.warn('[MindWord-AccountMode] 云端状态读取失败:', error);
+            const errDetail = error && error.message ? error.message : '未知错误';
             return {
                 rows: [
                     { label: '本地文档', value: localText },
                     { label: '云端文档', value: '读取失败', tone: 'warning' },
                     { label: '最近备份', value: '暂不可用' }
                 ],
-                note: '云端状态暂时不可用，本地编辑不受影响',
+                note: errDetail,
                 tone: 'warning'
             };
         }
