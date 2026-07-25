@@ -81,22 +81,6 @@
       console.log(MODULE_NAME, '用户未登录');
     }
 
-    if (isLoggedIn && userBox && nameSpan) {
-      var username = user && (user.nickname || user.email) || '已登录';
-      nameSpan.textContent = username;
-      var menuUsername = document.getElementById('menu-username');
-      if (menuUsername) menuUsername.textContent = username;
-      var menuEmail = document.getElementById('menu-email');
-      if (menuEmail && user && user.email) menuEmail.textContent = user.email;
-      if (link) link.style.display = 'none';
-      userBox.style.display = 'inline-flex';
-      console.log(MODULE_NAME, '用户已登录');
-    } else {
-      if (link) link.style.display = 'inline-flex';
-      if (userBox) userBox.style.display = 'none';
-      console.log(MODULE_NAME, '用户未登录');
-    }
-
     if (typeof window.__mw_refreshSyncLangUI === 'function') {
       setTimeout(function () {
         window.__mw_refreshSyncLangUI();
