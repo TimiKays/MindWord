@@ -50,11 +50,12 @@ test('旧重置页和邮件回调统一交给新密码重置页', async () => {
 });
 
 test('旧页面在加载 Supabase 前先跳到统一账号中心', async () => {
-  const [auth, reset, callback, app, safety, sitemap] = await Promise.all([
+  const [auth, reset, callback, app, accountMode, safety, sitemap] = await Promise.all([
     readFile(new URL('../auth.html', import.meta.url), 'utf8'),
     readFile(new URL('../reset-password.html', import.meta.url), 'utf8'),
     readFile(new URL('../auth-callback.html', import.meta.url), 'utf8'),
     readFile(new URL('../app.html', import.meta.url), 'utf8'),
+    readFile(new URL('../account-mode.js', import.meta.url), 'utf8'),
     readFile(new URL('../data-safety.js', import.meta.url), 'utf8'),
     readFile(new URL('../sitemap.xml', import.meta.url), 'utf8')
   ]);
@@ -66,7 +67,8 @@ test('旧页面在加载 Supabase 前先跳到统一账号中心', async () => {
   assert.ok(auth.indexOf('unified-auth-redirect.js') < auth.indexOf('supabase-config.js'));
   assert.ok(reset.indexOf('unified-auth-redirect.js') < reset.indexOf('supabase-config.js'));
   assert.ok(callback.indexOf('unified-auth-redirect.js') < callback.indexOf('supabase-config.js'));
-  assert.match(app, /href="https:\/\/timikays\.us\.kg\/auth\.html\?redirect=/);
+  assert.match(app, /src="account-mode\.js/);
+  assert.match(accountMode, /https:\/\/timikays\.us\.kg\/auth\.html\?redirect=/);
   assert.match(safety, /https:\/\/timikays\.us\.kg\/auth\.html\?redirect=/);
   assert.doesNotMatch(sitemap, /mindword\.timikays\.us\.kg\/auth\.html/);
 });

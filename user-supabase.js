@@ -1,18 +1,17 @@
 /**
- * MindWord - Supabase 用户认证模块
+ * MindWord - 用户认证界面兼容层
  * 
  * 说明：
- * 1. 此文件是 user.js 的 Supabase 版本
- * 2. 与原 user.js 保持 API 兼容
- * 3. 图片存储逻辑保持不变
- * 4. 原 user.js 保留，可随时切换回 LeanCloud
+ * 1. 正式账户模式使用 TimiAuth
+ * 2. account_mode=legacy 时保留 Supabase 旧账号兼容
+ * 3. 对页面继续提供一致的认证与同步交互
  */
 
 (function initSupabaseAuthArea() {
   'use strict';
 
   const UNIFIED_MODE = !!(window.MW_ACCOUNT_MODE && window.MW_ACCOUNT_MODE.isUnified());
-  const MODULE_NAME = UNIFIED_MODE ? '[TimiAuth-Internal]' : '[Supabase-Auth]';
+  const MODULE_NAME = UNIFIED_MODE ? '[TimiAuth]' : '[Supabase-Auth]';
 
   // 初始化 Supabase
   let supabase = null;
@@ -286,14 +285,14 @@
     }
   }
 
-  // 刷新云同步UI（统一使用Supabase方案）
+  // 刷新当前账户模式对应的云同步界面
   try {
     if (typeof window.MW_SPB_SYNC !== 'undefined' && typeof window.MW_SPB_SYNC.updateStatus === 'function') {
       window.MW_SPB_SYNC.updateStatus();
     }
   } catch (_) { }
 
-  // 延迟重试，确保Supabase SDK完全初始化
+  // 延迟重试，确保当前账户服务完全初始化
   setTimeout(function () {
     console.log(MODULE_NAME, '延迟刷新认证状态');
     refreshAuthUI();
@@ -306,7 +305,7 @@
       refreshAuthUI();
     }, 2000);
 
-    // 登录后执行Supabase同步（每次登录都触发）
+    // 登录后执行当前账户模式的云同步（每次登录都触发）
     // 立即设置登录标记，确保页面加载时的检查能识别到这是刚登录的状态
     localStorage.setItem('mw_just_logged_in', 'true');
     console.log(MODULE_NAME, '已设置登录标记，准备执行自动同步');
@@ -314,7 +313,7 @@
     setTimeout(function () {
       console.log(MODULE_NAME, '登录后自动同步检测');
 
-      // 检查Supabase认证状态是否准备好
+      // 检查当前账户模式的认证状态是否准备好
       async function checkAndSync() {
         try {
           let user;
@@ -336,7 +335,7 @@
 
           // 检查同步功能是否准备好
           if (!window.MW_SPB_SYNC || typeof window.MW_SPB_SYNC.sync !== 'function') {
-            console.log(MODULE_NAME, 'Supabase同步功能未准备好，等待...');
+            console.log(MODULE_NAME, '云同步功能未准备好，等待...');
             return false;
           }
 

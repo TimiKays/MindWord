@@ -1,22 +1,18 @@
 /**
- * MindWord - Supabase 同步模块
+ * MindWord - 云同步交互层
  * 
  * 说明：
- * 1. 此文件是 LeanCloud 同步的替代方案
+ * 1. 正式账户模式通过 TimiCloud 同步
  * 2. 图片存储逻辑保持不变（base64 内嵌在 docs 中）
- * 3. 原 leancloud-sync.js 保留，可随时切换回 LeanCloud
- * 
- * 使用方法：
- * 1. 先在 supabase-config.js 中配置你的 Supabase 项目信息
- * 2. 在 app.html 中引入此文件（替换 leancloud-sync.js）
- * 3. 调用方式与原来相同：MW_SPB_SYNC.sync()
+ * 3. account_mode=legacy 时保留 Supabase 旧账号兼容
+ * 4. 继续暴露 MW_SPB_SYNC 接口，供现有页面控件调用
  */
 
 (function () {
     'use strict';
 
     const UNIFIED_MODE = !!(window.MW_ACCOUNT_MODE && window.MW_ACCOUNT_MODE.isUnified());
-    const MODULE_NAME = UNIFIED_MODE ? '[TimiCloud-Internal]' : '[Supabase-Sync]';
+    const MODULE_NAME = UNIFIED_MODE ? '[TimiCloud]' : '[Supabase-Sync]';
 
     const TABLE_USER_DATA = 'user_data';
 
@@ -1151,28 +1147,28 @@
             const docs = (typeof window.mw_loadDocs === 'function') ? window.mw_loadDocs() :
                 (typeof mw_loadDocs === 'function') ? mw_loadDocs() : [];
 
-            // 读取 AI 配置 - 使用与LeanCloud一致的键名
+            // 读取 AI 配置 - 沿用现有本地存储键
             let aiConfig = {};
             try {
                 const saved = localStorage.getItem('allAIPlatformConfigs');
                 if (saved) aiConfig = JSON.parse(saved);
             } catch (_) { }
 
-            // 读取提示词模板 - 使用与LeanCloud一致的键名
+            // 读取提示词模板 - 沿用现有本地存储键
             let promptTemplates = [];
             try {
                 const saved = localStorage.getItem('promptTemplates');
                 if (saved) promptTemplates = JSON.parse(saved);
             } catch (_) { }
 
-            // 读取我的提示词模板 - 使用与LeanCloud一致的键名
+            // 读取我的提示词模板 - 沿用现有本地存储键
             let myPromptTemplates = [];
             try {
                 const saved = localStorage.getItem('myPromptTemplates');
                 if (saved) myPromptTemplates = JSON.parse(saved);
             } catch (_) { }
 
-            // 读取时间戳 - 使用与LeanCloud一致的键名
+            // 读取现有本地时间戳
             const docUpdatedAt = Number(localStorage.getItem('mw_doc_updated_at') || 0);
             const aiConfigLastModified = Number(localStorage.getItem('allAIPlatformConfigs_last_modified') || 0);
             const promptTemplatesLastModified = Number(localStorage.getItem('promptTemplates_last_modified') || 0);
@@ -1340,17 +1336,17 @@
                     }
                 }
 
-                // 保存 AI 配置 - 使用与LeanCloud一致的键名
+                // 保存 AI 配置
                 if (data.aiConfig) {
                     localStorage.setItem('allAIPlatformConfigs', JSON.stringify(data.aiConfig));
                 }
 
-                // 保存提示词模板 - 使用与LeanCloud一致的键名
+                // 保存提示词模板
                 if (data.promptTemplates) {
                     localStorage.setItem('promptTemplates', JSON.stringify(data.promptTemplates));
                 }
 
-                // 保存我的提示词模板 - 使用与LeanCloud一致的键名
+                // 保存我的提示词模板
                 if (data.myPromptTemplates) {
                     localStorage.setItem('myPromptTemplates', JSON.stringify(data.myPromptTemplates));
                 }

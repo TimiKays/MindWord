@@ -8,11 +8,11 @@
 - 或者在 GitHub Issues 创建私密 Issue
 - 看到后会尽快处理，但个人项目响应可能慢点
 
-## 好消息
+## 数据边界
 
-- 项目纯前端，文档都在本地，不会上传到服务器
-- 没有用户账号系统，不会收集个人信息
-- 云同步用 LeanCloud，需要你自己配置账号
+- MindWord 采用本地优先设计，未使用云同步时，文档默认保存在当前设备
+- 统一账户使用邮箱进行身份识别和登录验证
+- 只有使用云同步功能时，相关工作区数据才会传输到 TimiCloud
 
 ## 需要注意的
 
@@ -40,11 +40,11 @@ Hey, here's what you need to know about MindWord security.
 - Or create a private GitHub Issue
 - I'll handle it ASAP, but as a personal project, response might be slower
 
-## Good News
+## Data Boundaries
 
-- Pure frontend project - documents stay local, no server uploads
-- No user account system, no personal info collection
-- Cloud sync uses LeanCloud, requires your own configuration
+- MindWord is local-first; documents stay on the current device unless cloud sync is used
+- The unified account uses an email address for identification and sign-in verification
+- Workspace data is sent to TimiCloud only when cloud sync is used
 
 ## Things to Note
 

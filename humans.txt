@@ -12,11 +12,11 @@ Name: KIMI K2, ChatGPT (My AI Development Engineers)
 感谢：KIMI K2、ChatGPT（我的开发工程师）
 
 /* SITE */
-Last update: 2025/11/22
+Last update: 2026/07/27
 Standards: HTML5, CSS3, ES6
 Components: Tailwind CSS, Font Awesome, i18next
 Software: TRAE CN, Git, GitHub
-网站更新：2025/11/22
+网站更新：2026/07/27
 标准：HTML5, CSS3, ES6
 组件：Tailwind CSS, Font Awesome, i18next
 软件：TRAE CN, Git, GitHub
@@ -36,9 +36,9 @@ SEO语言：中英双语
 /* TECHNOLOGY */
 Frontend: HTML5, CSS3, JavaScript ES6
 Mind Mapping: jsMind
-Cloud Sync: LeanCloud
+Cloud Sync: TimiCloud
 Testing: Playwright
-Storage: localStorage, LeanCloud
+Storage: localStorage, IndexedDB, TimiCloud
 Framework: Tailwind CSS
 Icons: Font Awesome
 Internationalization: i18next
@@ -48,9 +48,9 @@ Hosting: Static hosting
 技术栈：
 前端：HTML5, CSS3, JavaScript ES6
 思维导图：jsMind
-云同步：LeanCloud
+云同步：TimiCloud
 测试：Playwright
-存储：localStorage, LeanCloud
+存储：localStorage、IndexedDB、TimiCloud
 框架：Tailwind CSS
 图标：Font Awesome
 国际化：i18next

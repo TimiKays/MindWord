@@ -57,7 +57,6 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   applyLangToUI();
-  window.addEventListener('storage', function (e) { if (e.key && e.key.startsWith('AV/')) setTimeout(applyLangToUI, 200); });
   window.__mw_applyLangToUI = applyLangToUI;
 
   // 同步语言选择器状态（i18n管理器已在脚本加载时自动初始化）

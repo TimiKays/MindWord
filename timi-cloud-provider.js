@@ -1,6 +1,6 @@
 /**
  * MindWord 的 TimiAuth / TimiCloud 适配层。
- * 只在 account_mode=unified 的内部试用标签页中访问统一服务。
+ * 正式入口默认使用统一服务；account_mode=legacy 时停用并回退旧账号链路。
  */
 (function initMindWordTimiCloudProvider() {
     'use strict';
@@ -22,7 +22,7 @@
     }
 
     async function ensureReady() {
-        if (!isUnifiedMode()) throw new Error('统一账户内部试用未启用');
+        if (!isUnifiedMode()) throw new Error('当前页面正在使用旧账号兼容模式');
         try {
             await window.MW_ACCOUNT_MODE.ready;
         } catch (_) {

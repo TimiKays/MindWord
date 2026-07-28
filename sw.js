@@ -87,16 +87,6 @@ function shouldBypassCache(url) {
     return true;
   }
 
-  if (hostname.includes('lc-cn-n1-shared.com') ||
-    hostname.includes('lcapp.cn') ||
-    hostname.includes('leancloud.cn') ||
-    pathname.includes('/1.1/classes/') ||
-    pathname.includes('/1.1/users/') ||
-    pathname.includes('/1.1/files/') ||
-    (hostname.includes('lc-') && pathname.includes('/1.1/'))) {
-    return true;
-  }
-
   if (pathname === '/api/likes') {
     return true;
   }

@@ -406,7 +406,7 @@
     <script src="account-mode.js?v=2026.07.23.1125"></script>
     <!-- 云适配层：必须在 account-mode.js 之后尽早加载，避免 MW_TIMI_CLOUD 竞态 -->
     <script src="timi-cloud-provider.js?v=2026.07.23.1125"></script>
-    <!-- Supabase SDK -->
+    <!-- Supabase 旧账号兼容 SDK；正式模式仍由 TimiCloud 提供服务 -->
     <script src="/local-deps/supabase.min.js"></script>
     <script src="supabase-config.js?v=2026.07.22.1902"></script>
 
@@ -984,7 +984,7 @@
                         </div>
 
                         <div class="user-menu-items" style="padding: 8px 0;">
-                            <!-- 云同步控制区：Supabase 方案 -->
+                            <!-- 云同步控制区：默认 TimiCloud，旧账号模式回退 Supabase -->
                             <div class="menu-item" id="lc-sync-controls-menu"
                                 style="display:flex; align-items:center; gap:8px; padding: 8px 16px; cursor: pointer; transition: background-color 0.15s ease;">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -1354,7 +1354,7 @@
         }, 3000);
     </script>
 
-    <!-- Supabase 数据同步脚本 - 立即加载 -->
+    <!-- 云同步交互层：默认 TimiCloud，旧账号模式回退 Supabase -->
     <script src="supabase-sync.js?v=2026.07.23.1125"></script>
 
     <!-- 数据安全提醒：云端同步、本地备份与旧地址恢复 -->

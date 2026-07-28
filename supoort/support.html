@@ -152,7 +152,7 @@
       color: #9aa;
     }
 
-    /* 顶部导航栏 - 从 feedback.html 复制 */
+    /* 顶部导航栏 */
     .header {
       position: fixed;
       top: 0;
@@ -297,7 +297,9 @@
             </div>
           </div> 在微软应用商店评分支持
         </a>
-        <a class="action" href="/feedback.html" target="_blank">
+        <a class="action" id="feedbackBtn"
+          href="https://timikays.feishu.cn/share/base/form/shrcnCnxRRhU4naUS2s14KbPwph" target="_blank"
+          rel="noopener noreferrer">
           💬 留下一点想法或建议
         </a>
         <a class="action" href="#" id="shareBtn">
@@ -599,7 +601,7 @@
       document.querySelector('h1').innerHTML = t('header');
       document.querySelector('.desc').innerHTML = t('description');
       document.querySelector('.footer').textContent = t('footer');
-      document.querySelector('a[href="/feedback.html"]').innerHTML = t('feedback');
+      document.getElementById('feedbackBtn').innerHTML = t('feedback');
       document.getElementById('shareBtn').innerHTML = t('share');
       document.getElementById('visitCreatorBtn').innerHTML = t('visitCreator');
       document.getElementById('wechatBtn').innerHTML = t('wechatSupport');

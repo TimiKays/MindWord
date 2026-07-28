@@ -55,13 +55,6 @@ class MindWordLazyLoader {
             condition: () => true // 总是需要
         });
 
-        this.resources.set('leancloud-extra', {
-            type: 'script',
-            url: 'leancloud-extra.js',
-            priority: 'low',
-            condition: () => window.LeanCloud !== undefined
-        });
-
         this.resources.set('editor-enhance', {
             type: 'script',
             url: 'editor-enhance.js',

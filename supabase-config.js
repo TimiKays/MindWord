@@ -2,9 +2,8 @@
  * MindWord - Supabase 配置文件
  * 
  * 说明：
- * 1. 此文件用于配置 Supabase 连接信息
- * 2. 需要从 Supabase 控制台获取 URL 和 Anon Key
- * 3. 替换完成后，LeanCloud 配置可保留作为备份
+ * 1. 此文件仅用于 account_mode=legacy 的 Supabase 旧账号兼容
+ * 2. 正式账户模式使用 TimiAuth / TimiCloud
  * 
  * 获取方式：
  * 1. 登录 https://supabase.com

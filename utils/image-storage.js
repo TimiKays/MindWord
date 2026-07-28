@@ -18,13 +18,12 @@
  */
 
 /**
- * 图片存储管理器 - IndexedDB + LeanCloud 混合存储方案
+ * 图片存储管理器 - IndexedDB 本地存储方案
  * 
  * 功能：
  * 1. IndexedDB 本地存储 - 快速访问，大容量
- * 2. LeanCloud 云端同步 - 跨设备访问，数据备份
- * 3. 自动迁移 - 从 localStorage 迁移到 IndexedDB
- * 4. 降级支持 - IndexedDB 不可用时回退到 localStorage
+ * 2. 自动迁移 - 从 localStorage 迁移到 IndexedDB
+ * 3. 降级支持 - IndexedDB 不可用时回退到 localStorage
  */
 
 class ImageStorageManager {
@@ -521,54 +520,6 @@ class ImageStorageManager {
             return null;
         }
         return URL.createObjectURL(imageData.blob);
-    }
-
-    // ==================== LeanCloud 云同步功能 ====================
-
-    /**
-     * 上传图片到云端（已废弃 - 使用文档同步代替）
-     * @deprecated 请使用 leancloud-sync.js 中的同步机制
-     * @param {string} imageId - 图片ID
-     * @returns {Promise<string>} 云端 URL
-     */
-    async uploadToCloud(imageId) {
-        console.warn('[ImageStorage] uploadToCloud is deprecated. Use document sync instead.');
-        throw new Error('Direct cloud upload is deprecated. Use document sync mechanism.');
-    }
-
-    /**
-     * 从云端下载图片（已废弃 - 使用文档同步代替）
-     * @deprecated 请使用 leancloud-sync.js 中的同步机制
-     * @param {string} imageId - 图片ID
-     * @param {string} cloudUrl - 云端 URL
-     * @param {Object} metadata - 元数据
-     * @returns {Promise<void>}
-     */
-    async downloadFromCloud(imageId, cloudUrl, metadata = {}) {
-        console.warn('[ImageStorage] downloadFromCloud is deprecated. Use document sync instead.');
-        throw new Error('Direct cloud download is deprecated. Use document sync mechanism.');
-    }
-
-    /**
-     * 同步文档的所有图片到云端（已废弃 - 使用文档同步代替）
-     * @deprecated 请使用 leancloud-sync.js 中的同步机制
-     * @param {string} documentId - 文档ID
-     * @returns {Promise<Array>} 上传结果数组
-     */
-    async syncAllToCloud(documentId) {
-        console.warn('[ImageStorage] syncAllToCloud is deprecated. Use document sync instead.');
-        return [];
-    }
-
-    /**
-     * 从云端同步图片到本地（已废弃 - 使用文档同步代替）
-     * @deprecated 请使用 leancloud-sync.js 中的同步机制
-     * @param {Array} cloudImages - 云端图片信息数组 [{id, cloudUrl, name, type, documentId}]
-     * @returns {Promise<Array>} 下载结果数组
-     */
-    async syncFromCloud(cloudImages) {
-        console.warn('[ImageStorage] syncFromCloud is deprecated. Use document sync instead.');
-        return [];
     }
 
     // ==================== 数据迁移功能 ====================

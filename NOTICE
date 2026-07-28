@@ -37,11 +37,11 @@ MindWord - 第三方依赖声明
    - 来源: https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/
    - 使用页面: index.html, ai/newai/AIServiceModal.html, ai/newai/user-template-manager.html
 
-5. LeanCloud Storage (云服务 SDK)
-   - 版本: 4.x
+5. Supabase JavaScript Client (旧账号兼容 SDK)
+   - 版本: 2.39.0
    - 许可证: MIT 许可证
-   - 版权所有: LeanCloud 项目
-   - 来源: https://cdn.jsdelivr.net/npm/leancloud-storage@4/dist/av-min.js
+   - 版权所有: Supabase, Inc.
+   - 来源: https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/
    - 使用页面: app.html, auth.html
 
 6. JSZip (JavaScript 压缩库)
@@ -112,7 +112,7 @@ MindWord 项目主体代码采用 Apache License 2.0 许可证。
 --------------------
 
 本项目使用的第三方库许可证兼容性良好：
-- MIT 许可证: jQuery, Bootstrap, LeanCloud, JSZip, FileSaver.js, Markdown-it, PizZip
+- MIT 许可证: jQuery, Bootstrap, Supabase, JSZip, FileSaver.js, Markdown-it, PizZip
 - BSD 许可证: jsMind
 - Apache 2.0 许可证: Playwright
 - SIL OFL 1.1: Font Awesome (字体部分)
@@ -145,5 +145,5 @@ MindWord 项目：
 如有任何关于许可证的问题，请联系项目维护者。
 
 ---
-最后更新时间: 2025年
+最后更新时间: 2026年7月
 本文件遵循 Apache License 2.0 许可证要求
