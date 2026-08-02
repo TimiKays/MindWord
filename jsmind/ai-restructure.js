@@ -21,7 +21,6 @@
   var ACTION_TYPE = 'restructure_tree';
   var MAX_SCOPE_NODES = 120;
   var MAX_PROMPT_CHARS = 50000;
-  var SOURCE_MARKER = /^\s*\[MW:([^\]]+)\]\s*/i;
 
   function clone(value) {
     if (value == null) return value;
@@ -133,22 +132,6 @@
     return scope;
   }
 
-  function assignSourceTokens(scope) {
-    var tokenToSource = new Map();
-    var idToToken = new Map();
-    var counter = 0;
-
-    (scope.sourceRoots || []).forEach(function visit(node) {
-      counter += 1;
-      var token = 'S' + counter;
-      tokenToSource.set(token, node);
-      idToToken.set(String(node.id), token);
-      (Array.isArray(node.children) ? node.children : []).forEach(visit);
-    });
-
-    return { tokenToSource: tokenToSource, idToToken: idToToken };
-  }
-
   function getNotes(node) {
     if (!node) return '';
     if (node.notes != null) return String(node.notes);
@@ -168,30 +151,21 @@
     }
   }
 
-  function sourceTreeForPrompt(nodes, idToToken, includeNotes) {
-    return (nodes || []).map(function serialize(node) {
-      var output = {
-        ref: idToToken.get(String(node.id)),
-        title: String(node.topic || ''),
-        children: sourceTreeForPrompt(node.children || [], idToToken, includeNotes)
-      };
-      if (includeNotes) output.notes = getNotes(node);
-      return output;
+  // 将节点子树转为 Markdown（标题层级表达父子关系，备注紧跟标题下一行）
+  function subtreeToMarkdown(nodes, level) {
+    level = Math.min(level || 2, 6);
+    var prefix = '#'.repeat(level);
+    var lines = [];
+    (nodes || []).forEach(function (node) {
+      if (!node) return;
+      lines.push(prefix + ' ' + String(node.topic || ''));
+      var notes = getNotes(node);
+      if (notes) lines.push(notes);
+      if (node.children && node.children.length) {
+        lines.push(subtreeToMarkdown(node.children, level + 1));
+      }
     });
-  }
-
-  function parseSourceMarker(topic) {
-    var raw = String(topic || '');
-    var match = SOURCE_MARKER.exec(raw);
-    if (!match) return { hadMarker: false, refs: [], topic: raw.trim() };
-    var refs = String(match[1] || '').split(',').map(function (value) {
-      return value.trim().toUpperCase();
-    }).filter(Boolean);
-    return {
-      hadMarker: true,
-      refs: refs,
-      topic: raw.replace(SOURCE_MARKER, '').trim()
-    };
+    return lines.join('\n');
   }
 
   function nextNodeId(usedIds) {
@@ -205,57 +179,32 @@
 
   function materializeProposal(parsedRoots, options) {
     options = options || {};
-    var tokenToSource = options.tokenToSource || new Map();
-    var includeNotes = !!options.includeNotes;
     var usedIds = new Set(options.allExistingIds || []);
-    var consumedTokens = new Set();
-    var usedSourceIds = new Set();
-    var sourceIdsByProposal = new Map();
+    var parentTopic = options.parentTopic || '';
 
     function materialize(parsedNode, parentId) {
       if (!parsedNode) return null;
-      var marker = parseSourceMarker(parsedNode.topic);
-      if (!marker.hadMarker) {
-        throw fail('MISSING_SOURCE_MARKER', 'AI返回的节点缺少来源标识，请重新生成');
+      var topic = String(parsedNode.topic || '').trim();
+      if (!topic) throw fail('EMPTY_TOPIC', 'AI返回了空标题节点');
+
+      // 容错：跳过被误输出的父节点（标题匹配父节点）
+      if (parentTopic && titlesMatch(topic, parentTopic)) {
+        console.warn('[AIRestructure] 跳过被误输出的父节点:', topic);
+        return null;
       }
-      if (!marker.topic) throw fail('EMPTY_TOPIC', 'AI返回了空标题节点');
 
-      var requestedTokens = marker.refs.filter(function (ref) { return ref !== 'NEW'; });
-      requestedTokens.forEach(function (token) {
-        if (!tokenToSource.has(token)) {
-          throw fail('UNKNOWN_SOURCE_MARKER', 'AI返回了无法识别的节点来源：' + token);
-        }
-      });
-
-      var reusableTokens = requestedTokens.filter(function (token) { return !consumedTokens.has(token); });
-      var sources = reusableTokens.map(function (token) { return tokenToSource.get(token); });
-      reusableTokens.forEach(function (token) { consumedTokens.add(token); });
-      sources.forEach(function (node) { usedSourceIds.add(String(node.id)); });
-
-      var primary = sources.length ? sources[0] : null;
-      var node = primary ? clone(primary) : clone(parsedNode);
-      node.id = primary ? String(primary.id) : nextNodeId(usedIds);
-      node.topic = marker.topic;
+      var node = clone(parsedNode);
+      node.id = nextNodeId(usedIds);
+      node.topic = topic;
       node.parentid = parentId || null;
       node.data = node.data && typeof node.data === 'object' ? node.data : {};
       delete node.data.raw;
       delete node.data.fullPath;
       delete node.data.siblingNodes;
 
-      if (includeNotes) {
-        setNotes(node, getNotes(parsedNode));
-      } else if (sources.length) {
-        var noteParts = [];
-        sources.forEach(function (source) {
-          var note = getNotes(source).trim();
-          if (note && noteParts.indexOf(note) === -1) noteParts.push(note);
-        });
-        setNotes(node, noteParts.join('\n\n'));
-      } else {
-        setNotes(node, '');
-      }
+      // 保留 AI 返回的备注（如有）
+      setNotes(node, getNotes(parsedNode));
 
-      sourceIdsByProposal.set(node.id, sources.map(function (source) { return String(source.id); }));
       node.children = (Array.isArray(parsedNode.children) ? parsedNode.children : []).map(function (child) {
         return materialize(child, node.id);
       }).filter(Boolean);
@@ -267,11 +216,7 @@
     }).filter(Boolean);
     if (!roots.length) throw fail('EMPTY_PROPOSAL', 'AI没有返回可应用的节点');
 
-    return {
-      roots: roots,
-      usedSourceIds: usedSourceIds,
-      sourceIdsByProposal: sourceIdsByProposal
-    };
+    return { roots: roots };
   }
 
   function buildAppliedTree(fullData, scope, proposalRoots) {
@@ -315,79 +260,6 @@
     return next;
   }
 
-  function comparableTopic(value) {
-    return String(value || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
-  }
-
-  function treePositions(roots, parentId) {
-    var positions = new Map();
-    (function walk(nodes, currentParentId) {
-      (nodes || []).forEach(function (node, index) {
-        if (!node) return;
-        positions.set(String(node.id), {
-          node: node,
-          parentId: String(currentParentId || ''),
-          position: index
-        });
-        walk(node.children || [], String(node.id));
-      });
-    })(roots || [], parentId);
-    return positions;
-  }
-
-  function hasProtectedContent(node) {
-    if (getNotes(node).trim()) return true;
-    var data = node && node.data && typeof node.data === 'object' ? node.data : {};
-    return Object.keys(data).some(function (key) {
-      return /image|attachment|file|link|url|icon/i.test(key) && data[key];
-    });
-  }
-
-  function summarizeChanges(scope, proposalRoots, sourceIdsByProposal) {
-    var before = treePositions(scope.sourceRoots || [], scope.parentId);
-    var after = treePositions(proposalRoots || [], scope.parentId);
-    var beforeStatus = new Map();
-    var afterStatus = new Map();
-    var counts = { added: 0, changed: 0, moved: 0, removed: 0 };
-    var removedWithContent = 0;
-    var merged = 0;
-
-    before.forEach(function (oldEntry, id) {
-      var newEntry = after.get(id);
-      if (!newEntry) {
-        counts.removed += 1;
-        beforeStatus.set(id, 'removed');
-        if (hasProtectedContent(oldEntry.node)) removedWithContent += 1;
-        return;
-      }
-      var changed = comparableTopic(oldEntry.node.topic) !== comparableTopic(newEntry.node.topic)
-        || getNotes(oldEntry.node).trim() !== getNotes(newEntry.node).trim();
-      var moved = oldEntry.parentId !== newEntry.parentId || oldEntry.position !== newEntry.position;
-      if (changed) counts.changed += 1;
-      if (moved) counts.moved += 1;
-      var status = changed ? 'changed' : (moved ? 'moved' : 'unchanged');
-      beforeStatus.set(id, status);
-      afterStatus.set(id, status);
-    });
-
-    after.forEach(function (_entry, id) {
-      if (!before.has(id)) {
-        counts.added += 1;
-        afterStatus.set(id, 'added');
-      }
-      var sourceIds = sourceIdsByProposal && sourceIdsByProposal.get(id);
-      if (sourceIds && sourceIds.length > 1) merged += 1;
-    });
-
-    return {
-      counts: counts,
-      beforeStatus: beforeStatus,
-      afterStatus: afterStatus,
-      removedWithContent: removedWithContent,
-      merged: merged
-    };
-  }
-
   function signature(fullData) {
     return JSON.stringify(fullData || null);
   }
@@ -399,12 +271,9 @@
     countNodes: countNodes,
     collectIds: collectIds,
     resolveScope: resolveScope,
-    assignSourceTokens: assignSourceTokens,
-    sourceTreeForPrompt: sourceTreeForPrompt,
-    parseSourceMarker: parseSourceMarker,
+    subtreeToMarkdown: subtreeToMarkdown,
     materializeProposal: materializeProposal,
     buildAppliedTree: buildAppliedTree,
-    summarizeChanges: summarizeChanges,
     signature: signature,
     getNotes: getNotes
   };
@@ -422,10 +291,6 @@
       text = String(text).replace(new RegExp('\\{' + name + '\\}', 'g'), String(values[name]));
     });
     return text;
-  }
-
-  function byId(id) {
-    return root.document.getElementById(id);
   }
 
   function currentFullData() {
@@ -468,8 +333,6 @@
       LEAF_NODE: tr('leafNode', '当前节点还没有子节点，请使用“AI生成子节点”'),
       NOT_SIBLINGS: tr('notSiblings', '多选重构只支持同一父节点下的同级节点'),
       ROOT_IN_MULTI_SELECTION: tr('rootInSelection', '根节点不能参与同级重构'),
-      MISSING_SOURCE_MARKER: tr('invalidResult', 'AI返回的结构不完整，请重新生成'),
-      UNKNOWN_SOURCE_MARKER: tr('invalidResult', 'AI返回的结构不完整，请重新生成'),
       EMPTY_PROPOSAL: tr('emptyResult', 'AI没有返回可应用的节点'),
       STALE_DOCUMENT: tr('staleDocument', '生成期间文档发生了变化，请重新生成方案'),
       UNDO_UNAVAILABLE: tr('undoUnavailable', '撤销功能暂不可用，为保护文档，本次没有应用'),
@@ -482,8 +345,29 @@
     return String(value || '').replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
   }
 
-  function buildPrompt(state, includeNotes, requirement) {
-    var sourceTree = core.sourceTreeForPrompt(state.scope.sourceRoots, state.tokens.idToToken, includeNotes);
+  // 宽松标题匹配：去除标点、空格、大小写差异，用于识别 AI 误输出的父节点
+  function normalizeTitle(value) {
+    return String(value || '')
+      .replace(/[\r\n]+/g, ' ')
+      .replace(/[：:、，,。.！!？?；;""''「」『』（）()\[\]【】<>《》\-_~`'"]+/g, '')
+      .replace(/\s+/g, '')
+      .toLowerCase()
+      .trim();
+  }
+
+  function titlesMatch(a, b) {
+    var na = normalizeTitle(a);
+    var nb = normalizeTitle(b);
+    if (!na || !nb) return false;
+    if (na === nb) return true;
+    // 允许一方包含另一方（容错 AI 给父节点加前缀/后缀或微调标题）
+    var shorter = na.length <= nb.length ? na : nb;
+    var longer = na.length <= nb.length ? nb : na;
+    if (shorter.length < 3) return false;
+    return longer.indexOf(shorter) >= 0;
+  }
+
+  function buildContext(state) {
     var fullIndex = core.buildIndex(state.fullData);
     var parentEntry = fullIndex.get(String(state.scope.parentId));
     var protectedSiblings = [];
@@ -495,29 +379,18 @@
       }).map(function (node) { return cleanTitle(node.topic); });
     }
 
-    var modeRule = includeNotes
-      ? '允许改写节点备注。每个节点的备注直接写在对应标题下一行，不要添加“备注”标签。'
-      : '只调整标题、顺序和层级，不要输出任何备注正文。应用时会自动保留已有备注。';
+    var currentMd = subtreeToMarkdown(state.scope.sourceRoots, 2);
 
     return [
       '这是一次思维导图局部重构任务。',
       '目标父节点：' + cleanTitle(state.scope.parentTopic),
       '修改范围：' + (state.scope.type === 'subtree' ? '父节点下的全部后代节点' : '用户选中的同级节点及其后代'),
-      '处理模式：' + modeRule,
+      '处理模式：允许改写节点标题和备注。',
       protectedSiblings.length ? '范围外同级节点（只作参考，禁止输出或修改）：' + protectedSiblings.join('、') : '',
       '',
-      '必须遵守以下结构协议：',
-      '1. 第一行使用一级标题输出目标父节点，标题必须等于“' + cleanTitle(state.scope.parentTopic) + '”，父节点本身不会被修改。',
-      '2. 需要保留或改写的旧节点，标题必须以来源标识开头，例如“## [MW:S1] 新标题”。',
-      '3. 合并多个旧节点时使用“[MW:S1,S2]”；新增节点使用“[MW:NEW]”；删除旧节点时直接不输出该节点。',
-      '4. 拆分节点时，第一个节点保留原来源标识，其余拆分出的节点使用“[MW:NEW]”。',
-      '5. 只能改动给出的范围，禁止输出范围外节点，禁止解释方案，禁止使用表格或代码块。',
-      '',
-      '当前结构（JSON，ref 是必须原样使用的来源标识）：',
-      JSON.stringify(sourceTree, null, 2),
-      '',
-      '用户要求：',
-      requirement
+      '当前结构（Markdown 格式，请在此基础上重新组织）：',
+      '# ' + cleanTitle(state.scope.parentTopic),
+      currentMd
     ].filter(function (line) { return line !== ''; }).join('\n');
   }
 
@@ -533,144 +406,54 @@
   function extractProposalRoots(nodeTree, scope) {
     var parsedRoot = nodeTree && nodeTree.data ? nodeTree.data : nodeTree;
     if (!parsedRoot) throw fail('PARSE_FAILED', 'AI返回内容为空');
-    var marker = core.parseSourceMarker(parsedRoot.topic);
-    var parsedTitle = cleanTitle(marker.topic);
-    var parentTitle = cleanTitle(scope.parentTopic);
+    var parsedTitle = cleanTitle(parsedRoot.topic || '');
     var children = Array.isArray(parsedRoot.children) ? parsedRoot.children : [];
 
-    var shouldReturnChildren = (!marker.hadMarker && parsedTitle === parentTitle)
-      || (!marker.hadMarker && /^(Document|重构结果|Restructure Result)$/i.test(parsedTitle));
-
-    if (shouldReturnChildren) {
-      // AI 偶尔不按协议用一级标题输出父节点，而是把父节点也当作普通子节点输出
-      // （无来源标识且标题等于父节点）。父节点本身不在重构范围内，需要过滤掉，
-      // 否则后续 materialize 会因缺少来源标识而报“结构不完整”。
-      var filtered = children.filter(function (child) {
+    // 过滤掉子节点中被误输出的父节点（标题宽松匹配父节点）
+    function filterOutParent(nodes) {
+      return (nodes || []).filter(function (child) {
         if (!child) return false;
-        var childMarker = core.parseSourceMarker(child.topic);
-        if (childMarker.hadMarker) return true;
-        return cleanTitle(childMarker.topic) !== parentTitle;
+        var childTitle = cleanTitle(child.topic || '');
+        if (titlesMatch(childTitle, scope.parentTopic)) {
+          console.warn('[AIRestructure] 过滤被误输出的父节点:', childTitle);
+          return false;
+        }
+        return true;
       });
-      if (filtered.length !== children.length) {
-        console.warn('[AIRestructure] AI 错误地把目标父节点也作为子节点输出，已自动过滤');
-      }
-      return filtered;
     }
 
-    if (marker.hadMarker) return [parsedRoot];
-    throw fail('PARSE_FAILED', 'AI没有按要求返回目标父节点和重构结构');
-  }
+    // 场景1：根节点标题匹配父节点 → 父节点是根，提取其子节点
+    if (titlesMatch(parsedRoot.topic, scope.parentTopic)) {
+      var filtered1 = filterOutParent(children);
+      if (!filtered1.length) throw fail('EMPTY_PROPOSAL', 'AI没有返回可应用的节点');
+      return filtered1;
+    }
 
-  function statusLabel(status) {
-    var fallbacks = {
-      added: '新增', changed: '改写', moved: '移动', removed: '删除', unchanged: '保留'
-    };
-    return tr(status, fallbacks[status] || status);
-  }
+    // 场景2：根节点是伪标题（如"重构结果""Document"）→ 提取其子节点
+    if (/^(Document|重构结果|Restructure Result|重构方案|结果)$/i.test(parsedTitle)) {
+      var filtered2 = filterOutParent(children);
+      if (!filtered2.length) throw fail('EMPTY_PROPOSAL', 'AI没有返回可应用的节点');
+      return filtered2;
+    }
 
-  function appendTree(container, roots, statusMap) {
-    if (!container) return;
-    container.textContent = '';
-    var fragment = root.document.createDocumentFragment();
+    // 场景3：根节点既不是父节点也不是伪标题，但有子节点
+    // 可能 AI 直接输出了重构结果（根节点本身就是子节点之一）
+    if (children.length) {
+      // 如果根节点有自己的内容（不是纯容器），返回根节点 + 子节点
+      // 否则提取子节点
+      var filtered3 = filterOutParent(children);
+      if (filtered3.length) return [parsedRoot];
+    }
 
-    (function walk(nodes, depth) {
-      (nodes || []).forEach(function (node) {
-        var id = String(node.id);
-        var status = statusMap.get(id) || 'unchanged';
-        var row = root.document.createElement('div');
-        row.className = 'mw-ai-restructure-tree-row mw-ai-status-' + status;
-        row.style.setProperty('--mw-depth', String(depth));
-
-        var topic = root.document.createElement('span');
-        topic.className = 'mw-ai-restructure-tree-topic';
-        topic.textContent = cleanTitle(node.topic) || tr('untitled', '未命名节点');
-        row.appendChild(topic);
-
-        if (status !== 'unchanged') {
-          var badge = root.document.createElement('span');
-          badge.className = 'mw-ai-restructure-status mw-ai-status-' + status;
-          badge.textContent = statusLabel(status);
-          row.appendChild(badge);
-        }
-        fragment.appendChild(row);
-        walk(node.children || [], depth + 1);
-      });
-    })(roots || [], 0);
-
-    container.appendChild(fragment);
+    // 兜底：直接返回根节点
+    return [parsedRoot];
   }
 
   function createManager() {
     var state = null;
-    var initialized = false;
     var requestTimer = null;
-    var toastTimer = null;
-
-    function initialize() {
-      if (initialized) return;
-      var modal = byId('aiRestructureModal');
-      if (!modal) return;
-      initialized = true;
-
-      if (root.i18nManager && root.i18nManager.isInitialized
-        && typeof root.i18nManager.updatePageTranslations === 'function') {
-        root.i18nManager.updatePageTranslations();
-      }
-
-      root.document.querySelectorAll('[data-ai-restructure-close]').forEach(function (element) {
-        element.addEventListener('click', close);
-      });
-      byId('aiRestructureGenerateBtn').addEventListener('click', sendRequest);
-      byId('aiRestructureRegenerateBtn').addEventListener('click', sendRequest);
-      byId('aiRestructureApplyBtn').addEventListener('click', applyProposal);
-      byId('aiRestructureConfigBtn').addEventListener('click', function () {
-        try {
-          if (typeof root.openConfigModal === 'function') root.openConfigModal();
-        } catch (_) { }
-      });
-      byId('aiRestructureUndoBtn').addEventListener('click', undoAppliedChange);
-      root.document.querySelectorAll('input[name="aiRestructureMode"]').forEach(function (input) {
-        input.addEventListener('change', updateDataNotice);
-      });
-      root.document.addEventListener('keydown', function (event) {
-        if (event.key === 'Escape' && !modal.hidden) close();
-      });
-    }
-
-    function setPhase(phase) {
-      if (!state) return;
-      state.phase = phase;
-      ['Setup', 'Loading', 'Preview', 'Error'].forEach(function (name) {
-        var element = byId('aiRestructure' + name);
-        if (element) element.hidden = name.toLowerCase() !== phase;
-      });
-
-      var generate = byId('aiRestructureGenerateBtn');
-      var regenerate = byId('aiRestructureRegenerateBtn');
-      var apply = byId('aiRestructureApplyBtn');
-      var config = byId('aiRestructureConfigBtn');
-      if (generate) generate.hidden = phase !== 'setup';
-      if (regenerate) regenerate.hidden = phase !== 'preview' && phase !== 'error';
-      if (apply) apply.hidden = phase !== 'preview';
-      if (config) config.hidden = phase === 'loading' || phase === 'preview';
-    }
-
-    function updateDataNotice() {
-      if (!state) return;
-      var selectedMode = root.document.querySelector('input[name="aiRestructureMode"]:checked');
-      var includeNotes = selectedMode && selectedMode.value === 'notes';
-      var notice = includeNotes
-        ? tr('notesNotice', '将向已配置的AI发送所选范围内 {count} 个节点的标题、层级和备注。', { count: state.scope.sourceNodeCount })
-        : tr('structureNotice', '将向已配置的AI发送所选范围内 {count} 个节点的标题和层级，不发送备注。', { count: state.scope.sourceNodeCount });
-      byId('aiRestructureDataNotice').textContent = notice;
-    }
 
     function open() {
-      initialize();
-      if (!initialized) {
-        notify('error', tr('notReady', 'AI重构界面尚未准备好，请稍后重试'));
-        return false;
-      }
       if (root.__mw_filteredViewActive) {
         notify('warning', tr('filteredView', '请先退出节点筛选视图，再使用AI重构'));
         return false;
@@ -689,37 +472,65 @@
         }
 
         state = {
-          phase: 'setup',
           fullData: fullData,
           sourceSignature: core.signature(fullData),
           scope: scope,
-          tokens: core.assignSourceTokens(scope),
           requestId: null,
           proposal: null,
           proposalMeta: null,
           summary: null
         };
 
-        var modal = byId('aiRestructureModal');
-        modal.hidden = false;
-        modal.setAttribute('aria-hidden', 'false');
-        root.document.body.classList.add('mw-ai-restructure-open');
-        byId('aiRestructureTitle').textContent = scope.type === 'subtree'
-          ? tr('subtreeTitle', 'AI重构子树')
-          : tr('selectionTitle', 'AI重构所选节点');
-        byId('aiRestructureScope').textContent = scope.type === 'subtree'
-          ? tr('subtreeScope', '保留“{parent}”，重构其下 {count} 个节点', { parent: cleanTitle(scope.parentTopic), count: scope.sourceNodeCount })
-          : tr('selectionScope', '重构“{parent}”下选中的 {roots} 个同级节点，共 {count} 个节点', {
-            parent: cleanTitle(scope.parentTopic), roots: scope.selectedRootIds.length, count: scope.sourceNodeCount
-          });
+        var contextText = buildContext(state);
+        if (contextText.length > MAX_PROMPT_CHARS) {
+          state = null;
+          notify('warning', tr('contentTooLong', '所选备注内容较多，请缩小重构范围后再试'));
+          return false;
+        }
 
-        var requirement = byId('aiRestructureRequirement');
-        requirement.value = '';
-        var structureMode = root.document.querySelector('input[name="aiRestructureMode"][value="structure"]');
-        if (structureMode) structureMode.checked = true;
-        updateDataNotice();
-        setPhase('setup');
-        setTimeout(function () { requirement.focus(); }, 0);
+        var requestId = 'restructure_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+        state.requestId = requestId;
+        try {
+          root.__tmp_rid = requestId;
+          root.__mw_ai_active_requestId = requestId;
+          root.__mw_handled_requests = root.__mw_handled_requests || {};
+        } catch (_) { }
+
+        if (requestTimer) clearTimeout(requestTimer);
+        requestTimer = setTimeout(function () {
+          if (!state || state.requestId !== requestId) return;
+          state.requestId = null;
+          try { delete root.__tmp_rid; delete root.__mw_ai_active_requestId; } catch (_) { }
+          notify('error', tr('timeout', 'AI响应超时，请检查网络或稍后重试'));
+          close();
+        }, 70000);
+
+        try {
+          root.parent.postMessage({
+            type: 'AI_MODAL_OPEN',
+            actionType: ACTION_TYPE,
+            requestId: requestId,
+            payload: {
+              actionType: ACTION_TYPE,
+              title: tr('windowTitle', 'AI重构：{parent}', { parent: cleanTitle(scope.parentTopic) }),
+              initialView: 'mini',
+              presetPrompt: contextText,
+              templateData: {
+                templateKey: 'AI重构',
+                templateText: contextText,
+                placeholders: {}
+              },
+              params: {},
+              options: {}
+            }
+          }, root.location.origin);
+        } catch (error) {
+          if (requestTimer) clearTimeout(requestTimer);
+          requestTimer = null;
+          state = null;
+          notify('error', tr('sendFailed', '发送AI请求失败，请重试'));
+          return false;
+        }
         return true;
       } catch (error) {
         notify('warning', errorText(error));
@@ -733,101 +544,12 @@
       if (state && state.requestId) {
         try { delete root.__tmp_rid; delete root.__mw_ai_active_requestId; } catch (_) { }
       }
-      var modal = byId('aiRestructureModal');
-      if (modal) {
-        modal.hidden = true;
-        modal.setAttribute('aria-hidden', 'true');
-      }
-      root.document.body.classList.remove('mw-ai-restructure-open');
       state = null;
-    }
-
-    function showErrorState(error) {
-      if (!state) return;
-      byId('aiRestructureErrorText').textContent = errorText(error);
-      setPhase('error');
     }
 
     function isCurrentDocumentUnchanged() {
       var current = currentFullData();
       return current && state && core.signature(current) === state.sourceSignature;
-    }
-
-    function sendRequest() {
-      if (!state) return;
-      var requirement = byId('aiRestructureRequirement').value.trim();
-      if (!requirement) {
-        byId('aiRestructureRequirement').focus();
-        notify('warning', tr('requirementMissing', '请先写下希望AI怎样重构'));
-        return;
-      }
-      if (!isCurrentDocumentUnchanged()) {
-        showErrorState(fail('STALE_DOCUMENT'));
-        return;
-      }
-
-      var mode = root.document.querySelector('input[name="aiRestructureMode"]:checked');
-      var includeNotes = !!(mode && mode.value === 'notes');
-      var prompt = buildPrompt(state, includeNotes, requirement);
-      if (prompt.length > MAX_PROMPT_CHARS) {
-        showErrorState(fail('PROMPT_TOO_LARGE', tr('contentTooLong', '所选备注内容较多，请缩小重构范围后再试')));
-        return;
-      }
-
-      var requestId = 'restructure_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
-      state.requestId = requestId;
-      state.includeNotes = includeNotes;
-      state.requirement = requirement;
-      state.proposal = null;
-      state.proposalMeta = null;
-      try {
-        root.__tmp_rid = requestId;
-        root.__mw_ai_active_requestId = requestId;
-        root.__mw_handled_requests = root.__mw_handled_requests || {};
-      } catch (_) { }
-
-      byId('aiRestructureLoadingText').textContent = tr('loadingScope', '正在分析 {count} 个节点，原文档暂不修改。', {
-        count: state.scope.sourceNodeCount
-      });
-      setPhase('loading');
-
-      if (requestTimer) clearTimeout(requestTimer);
-      requestTimer = setTimeout(function () {
-        if (!state || state.requestId !== requestId) return;
-        state.requestId = null;
-        try {
-          delete root.__tmp_rid;
-          delete root.__mw_ai_active_requestId;
-        } catch (_) { }
-        showErrorState(fail('AI_TIMEOUT', tr('timeout', 'AI响应超时，请检查网络或稍后重试')));
-      }, 70000);
-
-      try {
-        root.parent.postMessage({
-          type: 'AI_MODAL_OPEN',
-          actionType: ACTION_TYPE,
-          requestId: requestId,
-          payload: {
-            actionType: ACTION_TYPE,
-            title: tr('windowTitle', 'AI重构：{parent}', { parent: cleanTitle(state.scope.parentTopic) }),
-            initialView: 'mini',
-            mode: 'silent',
-            presetPrompt: prompt,
-            templateData: {
-              templateKey: 'AI重构',
-              templateText: prompt,
-              placeholders: {}
-            },
-            params: {},
-            options: {}
-          }
-        }, root.location.origin);
-      } catch (error) {
-        if (requestTimer) clearTimeout(requestTimer);
-        requestTimer = null;
-        state.requestId = null;
-        showErrorState(fail('SEND_FAILED', tr('sendFailed', '发送AI请求失败，请重试')));
-      }
     }
 
     function isActiveRequest(requestId) {
@@ -850,15 +572,16 @@
       if (message.status !== 'ok' && message.status !== 'success') {
         var detailMessage = message.detail && message.detail.message;
         if (detailMessage === 'user_closed') {
-          setPhase('setup');
-        } else {
-          var friendly = /timeout/i.test(String(detailMessage || ''))
-            ? tr('timeout', 'AI响应超时，请检查网络或稍后重试')
-            : (/平台|platform|api.?key|配置/i.test(String(detailMessage || ''))
-              ? tr('configRequired', 'AI服务尚未配置好，请先打开AI配置')
-              : (detailMessage || tr('generationFailed', 'AI生成失败，请重试')));
-          showErrorState(fail('AI_FAILED', friendly));
+          close();
+          return true;
         }
+        var friendly = /timeout/i.test(String(detailMessage || ''))
+          ? tr('timeout', 'AI响应超时，请检查网络或稍后重试')
+          : (/平台|platform|api.?key|配置/i.test(String(detailMessage || ''))
+            ? tr('configRequired', 'AI服务尚未配置好，请先打开AI配置')
+            : (detailMessage || tr('generationFailed', 'AI生成失败，请重试')));
+        notify('error', friendly);
+        close();
         return true;
       }
 
@@ -872,53 +595,19 @@
         var parsedRoots = extractProposalRoots(nodeTree, state.scope);
         var allExistingIds = Array.from(core.buildIndex(state.fullData).keys());
         var materialized = core.materializeProposal(parsedRoots, {
-          tokenToSource: state.tokens.tokenToSource,
-          includeNotes: state.includeNotes,
           allExistingIds: allExistingIds,
-          parentId: state.scope.parentId
+          parentId: state.scope.parentId,
+          parentTopic: state.scope.parentTopic
         });
-        var summary = core.summarizeChanges(state.scope, materialized.roots, materialized.sourceIdsByProposal);
         state.proposal = materialized.roots;
         state.proposalMeta = materialized;
-        state.summary = summary;
-        renderPreview();
-        setPhase('preview');
+        applyProposal();
       } catch (error) {
-        console.warn('[AIRestructure] 解析重构方案失败:', error);
-        showErrorState(error.code ? error : fail('PARSE_FAILED', error.message));
+        console.warn('[AIRestructure] 解析或应用重构方案失败:', error);
+        notify('error', errorText(error.code ? error : fail('PARSE_FAILED', error.message)));
+        close();
       }
       return true;
-    }
-
-    function renderPreview() {
-      if (!state || !state.summary) return;
-      var summary = byId('aiRestructureSummary');
-      summary.textContent = '';
-      ['added', 'changed', 'moved', 'removed'].forEach(function (status) {
-        var item = root.document.createElement('span');
-        item.className = 'mw-ai-restructure-summary-item mw-ai-status-' + status;
-        item.textContent = statusLabel(status) + ' ' + state.summary.counts[status];
-        summary.appendChild(item);
-      });
-
-      var warning = byId('aiRestructureWarning');
-      if (state.summary.removedWithContent > 0) {
-        warning.hidden = false;
-        warning.textContent = tr('contentRemovalWarning', '方案将删除 {count} 个含备注、图片或链接的节点，请重点检查红色项目。', {
-          count: state.summary.removedWithContent
-        });
-      } else if (state.summary.merged > 0) {
-        warning.hidden = false;
-        warning.textContent = tr('mergeWarning', '方案包含 {count} 处节点合并，原备注会保留到合并后的节点中。', {
-          count: state.summary.merged
-        });
-      } else {
-        warning.hidden = true;
-        warning.textContent = '';
-      }
-
-      appendTree(byId('aiRestructureBeforeTree'), state.scope.sourceRoots, state.summary.beforeStatus);
-      appendTree(byId('aiRestructureAfterTree'), state.proposal, state.summary.afterStatus);
     }
 
     function applyProposal() {
@@ -926,11 +615,13 @@
       var undoManager = root.undoManager;
       if (!undoManager || typeof undoManager.undo !== 'function'
         || (typeof undoManager._recordNow !== 'function' && typeof undoManager.recordIfChanged !== 'function')) {
-        showErrorState(fail('UNDO_UNAVAILABLE'));
+        notify('error', tr('undoUnavailable', '撤销功能暂不可用，为保护文档，本次没有应用'));
+        close();
         return;
       }
       if (!isCurrentDocumentUnchanged()) {
-        showErrorState(fail('STALE_DOCUMENT'));
+        notify('error', tr('staleDocument', '生成期间文档发生了变化，请重新生成方案'));
+        close();
         return;
       }
 
@@ -981,8 +672,8 @@
         } catch (_) { }
 
         var appliedCount = core.countNodes(state.proposal);
+        notify('success', tr('applied', '已重构 {count} 个节点，可按撤销键回退', { count: appliedCount }));
         close();
-        showUndoToast(tr('applied', '已重构 {count} 个节点', { count: appliedCount }));
       } catch (error) {
         console.error('[AIRestructure] 应用失败，正在恢复:', error);
         try {
@@ -997,41 +688,18 @@
         } catch (restoreError) {
           console.error('[AIRestructure] 自动恢复失败:', restoreError);
         }
-        showErrorState(error.code ? error : fail('APPLY_FAILED', tr('applyFailed', '应用失败，原文档已恢复')));
-      }
-    }
-
-    function showUndoToast(message) {
-      var toast = byId('aiRestructureUndoToast');
-      byId('aiRestructureUndoText').textContent = message;
-      toast.hidden = false;
-      if (toastTimer) clearTimeout(toastTimer);
-      toastTimer = setTimeout(function () { toast.hidden = true; }, 10000);
-    }
-
-    function undoAppliedChange() {
-      var toast = byId('aiRestructureUndoToast');
-      try {
-        if (typeof root.undoMindmap === 'function') root.undoMindmap();
-        else if (root.undoManager) root.undoManager.undo();
-        byId('aiRestructureUndoText').textContent = tr('undone', '已撤销AI重构');
-        if (toastTimer) clearTimeout(toastTimer);
-        toastTimer = setTimeout(function () { toast.hidden = true; }, 1800);
-      } catch (error) {
-        notify('error', tr('undoFailed', '撤销失败，请使用工具栏撤销按钮'));
+        notify('error', error.code ? errorText(error) : tr('applyFailed', '应用失败，原文档已恢复'));
+        close();
       }
     }
 
     return {
       open: open,
       close: close,
-      sendRequest: sendRequest,
-      applyProposal: applyProposal,
       handleAIMessage: handleAIMessage,
       isActiveRequest: isActiveRequest,
       getState: function () {
         return state ? {
-          phase: state.phase,
           requestId: state.requestId,
           scopeType: state.scope && state.scope.type,
           sourceNodeCount: state.scope && state.scope.sourceNodeCount
