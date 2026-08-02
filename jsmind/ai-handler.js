@@ -53,6 +53,20 @@ const onMessage = function (event) {
     if (event.origin !== MW_ORIGIN) return;
     // 验证消息，并从事件对象中提取消息数据
     const msg = event && event.data;  //拆包
+
+    // AI重构拥有独立的预览/确认流程，不能落入“收到结果后立即插入节点”的旧处理链路。
+    if (msg && msg.type === 'AI_MODAL_RESULT' && window.aiRestructureManager) {
+      var isRestructureResult = msg.actionType === 'restructure_tree';
+      try {
+        isRestructureResult = isRestructureResult
+          || window.aiRestructureManager.isActiveRequest(msg.requestId);
+      } catch (_) { }
+      if (isRestructureResult) {
+        window.aiRestructureManager.handleAIMessage(msg);
+        return;
+      }
+    }
+
     console.log('🟢 ai-handler.js 接收消息:', JSON.stringify(msg, null, 2));
     var isSave = !!(msg && msg.type === 'AI_MODAL_RESULT'); //是AI模块的返回结果
     // 获取请求ID

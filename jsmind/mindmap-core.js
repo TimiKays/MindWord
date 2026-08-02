@@ -2222,6 +2222,7 @@ function setupBoxSelection() {
         onclick.includes('aiCreateChild()') ||
         onclick.includes('aiCreateSibling()') ||
         onclick.includes('aiExpandNotes()') ||
+        onclick.includes('openAIRestructure()') ||
         onclick.includes('quickModifyNode()') ||
         onclick.includes('quickDeleteNode()')
       )) {

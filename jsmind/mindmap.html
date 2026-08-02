@@ -30,14 +30,15 @@
   <script defer src="/local-deps/jquery.min.js"></script>
   <script defer src="/local-deps/bootstrap.bundle.min.js"></script>
   <script defer src="/jsmind/tree-operator.js?v=2026.07.22.1715"></script>
-  <script defer src="/jsmind/ai-handler.js?v=2026.07.22.1715"></script>
+  <script defer src="/jsmind/ai-handler.js?v=2026.07.28.1825"></script>
+  <script defer src="/jsmind/ai-restructure.js?v=2026.07.28.1840"></script>
   <script defer src="/utils/html-to-markdown.js?v=2026.07.22.1715"></script>
-  <script defer src="/i18n/locales.js?v=2026.07.22.1715"></script>
+  <script defer src="/i18n/locales.js?v=2026.07.28.1825"></script>
   <script defer src="/i18n/i18n-manager.js?v=2026.07.22.1715"></script>
   <script defer src="/jsmind/skin-manager.js?v=2026.07.22.1715"></script>
 
 
-  <link rel="stylesheet" href="mindmap.css?v=2026.07.22.1715">
+  <link rel="stylesheet" href="mindmap.css?v=2026.07.28.1825">
   <link rel="stylesheet" href="outline-editor.css?v=2026.07.22.1715">
   <style>
     .requires-single-selection {
@@ -282,6 +283,10 @@
     </div>
     <div class="menu-divider"></div>
 
+    <div class="node-context-menu-item" onclick="openAIRestructure()">
+      <span class="icon" style="--ico: url('/res/生成初始树.svg');"></span>
+      <span data-i18n="app.contextMenu.aiRestructure">AI重构</span>
+    </div>
     <div class="node-context-menu-item" onclick="aiCreateChild()">
       <span class="icon" style="--ico: url('/res/添加子级.svg');"></span>
       <span data-i18n="app.contextMenu.aiGenerateChild">AI生成子节点</span>
@@ -313,6 +318,92 @@
       <span class="icon"></span>
       <span data-i18n="app.contextMenu.deleteNode">删除节点</span>
     </div>
+  </div>
+
+  <div id="aiRestructureModal" class="mw-ai-restructure-modal" hidden aria-hidden="true">
+    <div class="mw-ai-restructure-backdrop" data-ai-restructure-close></div>
+    <section class="mw-ai-restructure-dialog" role="dialog" aria-modal="true"
+      aria-labelledby="aiRestructureTitle">
+      <header class="mw-ai-restructure-header">
+        <div>
+          <h2 id="aiRestructureTitle" data-i18n="app.aiRestructure.title">AI重构</h2>
+          <p id="aiRestructureScope" class="mw-ai-restructure-scope"></p>
+        </div>
+        <button id="aiRestructureCloseBtn" class="mw-ai-restructure-icon-btn" type="button"
+          data-ai-restructure-close data-i18n-title="app.aiRestructure.close" title="关闭" aria-label="关闭">&times;</button>
+      </header>
+
+      <div class="mw-ai-restructure-body">
+        <div id="aiRestructureSetup" class="mw-ai-restructure-view">
+          <fieldset class="mw-ai-restructure-fieldset">
+            <legend data-i18n="app.aiRestructure.modeLabel">重构范围</legend>
+            <div class="mw-ai-restructure-segmented" role="radiogroup">
+              <label>
+                <input type="radio" name="aiRestructureMode" value="structure" checked>
+                <span data-i18n="app.aiRestructure.structureOnly">标题与结构</span>
+              </label>
+              <label>
+                <input type="radio" name="aiRestructureMode" value="notes">
+                <span data-i18n="app.aiRestructure.withNotes">包含备注内容</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <label class="mw-ai-restructure-label" for="aiRestructureRequirement"
+            data-i18n="app.aiRestructure.requirementLabel">重构要求</label>
+          <textarea id="aiRestructureRequirement" class="mw-ai-restructure-textarea" rows="5"
+            data-i18n-placeholder="app.aiRestructure.requirementPlaceholder"
+            placeholder="例如：按目标、策略、行动重新组织，合并重复节点，并让标题更简洁。"></textarea>
+          <div id="aiRestructureDataNotice" class="mw-ai-restructure-notice" role="note"></div>
+        </div>
+
+        <div id="aiRestructureLoading" class="mw-ai-restructure-view" hidden>
+          <div class="mw-ai-restructure-loading-mark" aria-hidden="true"></div>
+          <h3 data-i18n="app.aiRestructure.analyzing">AI正在整理结构</h3>
+          <p id="aiRestructureLoadingText"></p>
+        </div>
+
+        <div id="aiRestructurePreview" class="mw-ai-restructure-view" hidden>
+          <div id="aiRestructureSummary" class="mw-ai-restructure-summary" aria-live="polite"></div>
+          <div id="aiRestructureWarning" class="mw-ai-restructure-warning" hidden></div>
+          <div class="mw-ai-restructure-compare">
+            <section class="mw-ai-restructure-tree-panel" aria-labelledby="aiRestructureBeforeTitle">
+              <h3 id="aiRestructureBeforeTitle" data-i18n="app.aiRestructure.before">原结构</h3>
+              <div id="aiRestructureBeforeTree" class="mw-ai-restructure-tree"></div>
+            </section>
+            <section class="mw-ai-restructure-tree-panel" aria-labelledby="aiRestructureAfterTitle">
+              <h3 id="aiRestructureAfterTitle" data-i18n="app.aiRestructure.after">重构方案</h3>
+              <div id="aiRestructureAfterTree" class="mw-ai-restructure-tree"></div>
+            </section>
+          </div>
+        </div>
+
+        <div id="aiRestructureError" class="mw-ai-restructure-view" hidden>
+          <div class="mw-ai-restructure-error-mark" aria-hidden="true">!</div>
+          <h3 data-i18n="app.aiRestructure.errorTitle">没有生成可用方案</h3>
+          <p id="aiRestructureErrorText"></p>
+        </div>
+      </div>
+
+      <footer class="mw-ai-restructure-footer">
+        <button id="aiRestructureConfigBtn" class="mw-ai-restructure-btn mw-ai-restructure-btn-quiet" type="button"
+          data-i18n="app.aiRestructure.aiConfig">AI配置</button>
+        <span class="mw-ai-restructure-footer-spacer"></span>
+        <button id="aiRestructureCancelBtn" class="mw-ai-restructure-btn mw-ai-restructure-btn-secondary"
+          type="button" data-ai-restructure-close data-i18n="app.aiRestructure.cancel">取消</button>
+        <button id="aiRestructureRegenerateBtn" class="mw-ai-restructure-btn mw-ai-restructure-btn-secondary"
+          type="button" data-i18n="app.aiRestructure.regenerate" hidden>重新生成</button>
+        <button id="aiRestructureGenerateBtn" class="mw-ai-restructure-btn mw-ai-restructure-btn-primary"
+          type="button" data-i18n="app.aiRestructure.generate">生成方案</button>
+        <button id="aiRestructureApplyBtn" class="mw-ai-restructure-btn mw-ai-restructure-btn-primary"
+          type="button" data-i18n="app.aiRestructure.apply" hidden>应用重构</button>
+      </footer>
+    </section>
+  </div>
+
+  <div id="aiRestructureUndoToast" class="mw-ai-restructure-toast" role="status" aria-live="polite" hidden>
+    <span id="aiRestructureUndoText"></span>
+    <button id="aiRestructureUndoBtn" type="button" data-i18n="app.aiRestructure.undo">撤销</button>
   </div>
 
 
@@ -351,6 +442,8 @@
       <span style="color: gainsboro;"> | </span>
       <span class="ico-btn requires-single-selection" role="button" onclick="addSubtree()" tabindex="0" title="添加子树"
         style="--ico: url('/res/添加子树.svg');"></span>
+      <span class="ico-btn requires-single-selection" role="button" onclick="openAIRestructure()" tabindex="0"
+        title="AI重构" style="--ico: url('/res/生成初始树.svg');"></span>
       <span class="ico-btn requires-single-selection" role="button" onclick="aiCreateChild()" tabindex="0"
         title="AI生成子节点" style="--ico: url('/res/添加子级.svg');"></span>
       <span class="ico-btn requires-single-selection" role="button" onclick="aiCreateSibling()" tabindex="0"
@@ -397,6 +490,8 @@
       style="display: none; float: right; padding: 1px 6px; background: rgba(76, 154, 255, 0.1); border-radius: 4px; border: 1px solid #4c9aff;">
       <span style="color: #4c9aff; font-size: 12px; ">已选中 <span id="selectedCount">0</span>
         个节点</span>
+      <button id="aiRestructureBatchBtn" class="mw-ai-restructure-batch-btn" type="button"
+        onclick="openAIRestructure()" data-i18n="app.aiRestructure.restructureSelected">AI重构所选</button>
     </div>
 
     <!-- 皮肤选择器 -->
@@ -520,7 +615,7 @@
   <script defer src="/jsmind/node-operator.js?v=2026.07.22.1715"></script>
   <script defer src="/jsmind/ViewStateManager.js?v=2026.07.22.1715"></script>
   <script defer src="/jsmind/outline-editor.js?v=2026.07.22.1715"></script>
-  <script type="module" src="/jsmind/mindmap-core.js?v=2026.07.22.1715"></script>
+  <script type="module" src="/jsmind/mindmap-core.js?v=2026.07.28.1825"></script>
   <script>
 
     /* mindmap-ui.js - UI related extracted scripts */
@@ -2540,6 +2635,9 @@
       // AI操作按钮
       const addSubtreeBtn = document.querySelector('[onclick="addSubtree()"]');
       if (addSubtreeBtn) addSubtreeBtn.title = i18nManager.t('app.toolbar.addSubtree');
+
+      const aiRestructureBtn = document.querySelector('[onclick="openAIRestructure()"]');
+      if (aiRestructureBtn) aiRestructureBtn.title = i18nManager.t('app.toolbar.aiRestructure', 'AI重构');
 
       const aiChildBtn = document.querySelector('[onclick="aiCreateChild()"]');
       if (aiChildBtn) aiChildBtn.title = i18nManager.t('app.toolbar.aiGenerateChild');

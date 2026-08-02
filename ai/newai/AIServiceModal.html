@@ -29,7 +29,7 @@
     <!-- 引入自定义样式 -->
     <link rel="stylesheet" href="./AIServiceModal.css?v=2026.07.22.1715">
     <!-- 国际化支持 -->
-    <script src="../../i18n/locales.js?v=2026.07.22.1715"></script>
+    <script src="../../i18n/locales.js?v=2026.07.28.1825"></script>
     <script src="../../i18n/i18n-manager.js?v=2026.07.22.1715"></script>
 
     <!-- Tailwind 配置 -->
@@ -2385,6 +2385,19 @@
                 return placeholders;
             }
 
+            function postSilentAIError(message) {
+                if (!modal || modal.dataset.silentMode !== '1') return;
+                try {
+                    window.parent?.postMessage({
+                        type: 'AI_MODAL_RESULT',
+                        actionType: modal.dataset.actionType || '',
+                        requestId: modal.dataset.requestId || null,
+                        status: 'error',
+                        detail: { message: String(message || 'AI请求失败') }
+                    }, MW_ORIGIN);
+                } catch (_) { /* noop */ }
+            }
+
             // 发送AI请求
             async function sendAIRequest() {
                 // 并发保护：如果已有请求在进行，直接返回
@@ -2472,6 +2485,17 @@
                         formatPrompt = commonPrompt + `【核心任务】
 生成同级节点：为当前节点生成若干新的同级节点及其孙子节点和对应的补充说明。注意：禁止输出单一中心主题，不要包含当前节点、父节点，并且避免与已存在的兄弟节点重复，节点之间尽量保持系统性、逻辑互斥。`;
                         break;
+                    case 'restructure_tree':
+                        formatPrompt = `你是思维导图的结构重构助手。请严格依据上下文给出的修改范围、来源标识和用户要求，重新组织指定节点。
+
+【格式要求（必须遵守）】
+1. 只输出 Markdown 节点结构，不要解释方案，不要使用表格、代码块或行内加粗。
+2. 第一行必须是上下文指定的目标父节点，使用一级标题；父节点本身不会被修改。
+3. 每个后代节点标题都必须以来源标识开头：保留或改写旧节点使用 [MW:S1]，合并使用 [MW:S1,S2]，新增使用 [MW:NEW]。
+4. 使用标题层级表达父子关系。需要输出备注时，备注紧跟在对应标题下；不需要备注时不要输出任何普通文本行。
+5. 只能输出修改范围内的节点，禁止输出范围外节点。
+6. 最终内容必须用 [OUTPUT] ... [/OUTPUT] 包裹，标签外不要输出任何内容。`;
+                        break;
                     case 'expand_notes':
                         formatPrompt = `你是一个文章撰写助手，请根据用户的需求完成当前节点的备注（即正文段落）的撰写任务。请基于当前节点主题和上下文，完成编写对应的章节段落。重要规则：- 不要生成无关的文字、对话或解释，只输出干净的段落（100字到500字之间，注意不能包含任何markdown语法）。- 输出时，用 [OUTPUT] ...[/OUTPUT] 包裹，方便解析，标签外不要输出任何东西。`;
                         break;
@@ -2481,7 +2505,9 @@
 
 
                 // 2、获取系统上下文提示词（来自usagePromptInput替换占位符之后的）
-                const systemPrompt = usagePromptInput ? usagePromptInput.dataset.resolved.trim() : '';
+                const systemPrompt = usagePromptInput
+                    ? String(usagePromptInput.dataset.resolved || usagePromptInput.value || '').trim()
+                    : '';
 
                 // 3、获取用户提示词并解析
                 const userPromptInput = document.getElementById('userPromptInput');
@@ -2512,6 +2538,7 @@
                         showUsageStatus(msg, 'error');
                         usageResultContent.value = `错误：${msg}`;
                         usageResultContent.classList.remove('hidden');
+                        postSilentAIError(msg);
                         return;
                     }
 
@@ -2712,6 +2739,8 @@
                 const presetPrompt = modal.dataset.presetPrompt;
                 if (typeof presetPrompt === 'string') {
                     usagePromptInput.value = presetPrompt;
+                    usagePromptInput.dataset.template = presetPrompt;
+                    usagePromptInput.dataset.resolved = presetPrompt;
                     delete modal.dataset.presetPrompt;
                 }
 
@@ -5021,6 +5050,8 @@
                             modal.dataset.silentMode = '1';
                             // 强制 initialView 为 mini
                             msg.payload.initialView = 'mini';
+                        } else {
+                            delete modal.dataset.silentMode;
                         }
                         try {
                             window.openAIServiceModal({ title, initialView, presetPrompt, requestId, miniPrompt });
@@ -5296,6 +5327,8 @@
                         miniStatus.textContent = '发送失败: ' + error.message;
                         miniStatus.className = 'text-xs text-red-600';
                     }
+                    isSendingAIRequest = false;
+                    postSilentAIError(error && error.message ? error.message : error);
                 } finally {
                     // 恢复按钮状态
                     if (miniExpandBtn) {

@@ -196,7 +196,7 @@ document.addEventListener('DOMContentLoaded', initApp);
     _aiFrameReady = false;
     var frame = document.createElement('iframe');
     frame.id = 'aiModalFrame';
-    frame.src = 'ai/newai/AIServiceModal.html';
+    frame.src = 'ai/newai/AIServiceModal.html?v=2026.07.28.1840';
     frame.style.position = 'fixed';
     frame.style.inset = '0';
     frame.style.width = '100%';
